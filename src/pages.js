@@ -636,7 +636,44 @@ function itemCard(item, kind) {
     </article>`;
 }
 
-function inventoryPage() {
+/* 3×3 fills the sheet without scrolling: two rows left a hole, four overflowed
+   the body.  Extra items turn the board rather than lengthening it. */
+const INVENTORY_LEAF = 9;
+const INVENTORY_KINDS = [
+  { kind: 'material', title: '素材', note: '采集与合成', take: () => player.inventory.materials },
+  { kind: 'consumable', title: '消耗品', note: '使用后数量 -1', take: () => player.inventory.consumables },
+  { kind: 'goods', title: '用品', note: '耐久品 · 使用不扣数量', take: () => player.inventory.goods },
+];
+
+function inventoryEntries() {
+  return INVENTORY_KINDS.flatMap(({ kind, take }) => take().map((item) => ({ item, kind })));
+}
+
+function inventoryBoard(leaf = 0) {
+  const all = inventoryEntries();
+  const pages = Math.max(1, Math.ceil(all.length / INVENTORY_LEAF));
+  const cur = Math.max(0, Math.min(leaf, pages - 1));
+  const slice = all.slice(cur * INVENTORY_LEAF, (cur + 1) * INVENTORY_LEAF);
+  const groups = INVENTORY_KINDS
+    .map((def) => ({ ...def, items: slice.filter((row) => row.kind === def.kind).map((row) => row.item) }))
+    .filter((group) => group.items.length);
+  const body = all.length
+    ? groups.map((group) => `
+        <section>
+          <header><h3>${group.title}</h3><span>${group.note}</span></header>
+          <div class="item-grid">${group.items.map((item) => itemCard(item, group.kind)).join('')}</div>
+        </section>`).join('')
+    : '<div class="inventory-empty">背包是空的</div>';
+  const turns = pages > 1 ? `
+    <button class="inventory-turn is-prev" type="button" data-inv-step="-1"
+      ${cur === 0 ? 'disabled' : ''} aria-label="上一页">${ic('chevronRight')}</button>
+    <button class="inventory-turn is-next" type="button" data-inv-step="1"
+      ${cur >= pages - 1 ? 'disabled' : ''} aria-label="下一页">${ic('chevronRight')}</button>
+    <div class="inventory-leaf">${cur + 1} / ${pages}</div>` : '';
+  return `<div class="inventory-content">${body}</div>${turns}`;
+}
+
+function inventoryPage(leaf = 0) {
   const { materials, consumables, goods } = player.inventory;
   return pageShell('Inventory', '背包与道具', `
     <div class="inventory-layout">
@@ -647,11 +684,7 @@ function inventoryPage() {
         <span>用品 <b>${goods.length}</b></span>
         <div class="stamina-card"><small>当前体力</small><b>${player.stamina}<em>/100</em></b><i><u style="--pct:${player.stamina}%"></u></i></div>
       </aside>
-      <div class="inventory-content">
-        <section><header><h3>素材</h3><span>采集与合成</span></header><div class="item-grid">${materials.map((item) => itemCard(item, 'material')).join('')}</div></section>
-        <section><header><h3>消耗品</h3><span>使用后数量 -1</span></header><div class="item-grid">${consumables.map((item) => itemCard(item, 'consumable')).join('')}</div></section>
-        <section><header><h3>用品</h3><span>耐久品 · 使用不扣数量</span></header><div class="item-grid">${goods.map((item) => itemCard(item, 'goods')).join('')}</div></section>
-      </div>
+      <div class="inventory-board">${inventoryBoard(leaf)}</div>
     </div>
   `, 'inventory-page');
 }
@@ -732,6 +765,7 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   }
 
   let dockName = null;
+  let inventoryLeaf = 0;
   const has = (sel) => !!layer.querySelector(sel);
   const drop = (sel) => layer.querySelectorAll(sel).forEach((el) => el.remove());
 
@@ -770,14 +804,27 @@ export function mountPages(stage, { onGift, onDock } = {}) {
     onDock?.(girl.name);
   };
 
-  const open = (page) => openPage(
-    page === 'events' ? eventsPage()
-      : page === 'inventory' ? inventoryPage()
-        : page === 'relations' ? relationsPage()
-          : page === 'profile' ? profilePage()
-            : page === 'schedule' ? schedulePage()
-              : settingsPage(),
-  );
+  const paintInventoryLeaf = (delta) => {
+    const board = layer.querySelector('.inventory-board');
+    if (!board) return;
+    const pages = Math.max(1, Math.ceil(inventoryEntries().length / INVENTORY_LEAF));
+    const next = Math.max(0, Math.min(pages - 1, inventoryLeaf + delta));
+    if (next === inventoryLeaf) return;
+    inventoryLeaf = next;
+    board.innerHTML = inventoryBoard(inventoryLeaf);
+  };
+
+  const open = (page) => {
+    if (page === 'inventory') inventoryLeaf = 0;
+    openPage(
+      page === 'events' ? eventsPage()
+        : page === 'inventory' ? inventoryPage(inventoryLeaf)
+          : page === 'relations' ? relationsPage()
+            : page === 'profile' ? profilePage()
+              : page === 'schedule' ? schedulePage()
+                : settingsPage(),
+    );
+  };
 
   /* The 评语 sheet is appended to the modal rather than replacing it, so closing
      the sheet returns to the archive with no re-render and no lost scroll. */
@@ -807,6 +854,11 @@ export function mountPages(stage, { onGift, onDock } = {}) {
     if (gift) { onGift?.(gift.dataset.giftOpen); return; }
     const page = event.target.closest('[data-page]');
     if (page) { open(page.dataset.page); return; }
+    const invTurn = event.target.closest('[data-inv-step]');
+    if (invTurn && !invTurn.disabled) {
+      paintInventoryLeaf(Number(invTurn.dataset.invStep) || 0);
+      return;
+    }
     if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
     const tile = event.target.closest('[data-dev-part]');
     if (tile) { openNote(tile.dataset.devName, tile.dataset.devPart); return; }
@@ -826,6 +878,12 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   if (!stage.dataset.pageEscapeBound) {
     stage.dataset.pageEscapeBound = '1';
     addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        if (!has('.inventory-page')) return;
+        event.preventDefault();
+        paintInventoryLeaf(event.key === 'ArrowLeft' ? -1 : 1);
+        return;
+      }
       if (event.key !== 'Escape') return;
       if (has('.dev-sheet')) closeNote();
       else if (has('.page-modal')) closePage();
