@@ -8,6 +8,7 @@ export const CHANNEL = 'linjiang-hud';
 const pending = new Map();
 let seq = 0;
 let started = false;
+let autoscrollActive = false;
 
 export function isEmbedded() {
   try { return window.parent && window.parent !== window; }
@@ -51,6 +52,10 @@ function onMessage(event) {
   }
   if (data.kind === 'event' && data.type === 'snapshot') {
     applyStatData(data.payload?.stat_data);
+    return;
+  }
+  if (data.kind === 'event' && data.type === 'autoscrollState') {
+    autoscrollActive = !!data.payload?.active;
   }
 }
 
@@ -79,6 +84,30 @@ export function startBridge() {
   started = true;
   addEventListener('message', onMessage);
   if (!isEmbedded()) return;
+  const postPointerEvent = (type, event) => {
+    window.parent.postMessage({
+      channel: CHANNEL,
+      kind: 'event',
+      type,
+      payload: {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      },
+    }, '*');
+  };
+  addEventListener('mousedown', (event) => {
+    if (event.button !== 1) return;
+    event.preventDefault();
+    autoscrollActive = !autoscrollActive;
+    postPointerEvent('autoscrollToggle', event);
+  }, { capture: true, passive: false });
+  addEventListener('auxclick', (event) => {
+    if (event.button === 1) event.preventDefault();
+  }, { capture: true, passive: false });
+  addEventListener('mousemove', (event) => {
+    if (autoscrollActive) postPointerEvent('autoscrollMove', event);
+  }, { passive: true });
+
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;
     let node = event.target;
@@ -103,6 +132,8 @@ export function startBridge() {
         deltaX: event.deltaX,
         deltaY: event.deltaY,
         deltaMode: event.deltaMode,
+        clientX: event.clientX,
+        clientY: event.clientY,
       },
     }, '*');
   }, { passive: true });
