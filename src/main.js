@@ -38,7 +38,10 @@ function wantsPortrait() {
   const forced = new URLSearchParams(location.search).get('mode');
   if (forced === 'portrait') return true;
   if (forced === 'landscape') return false;
-  return innerWidth < innerHeight;
+  /* innerWidth < innerHeight is right for a real phone, wrong for a tavern
+     status iframe: those are often a chat-column wide and a viewport tall.
+     Portrait is the phone composition; a desktop embed should cover-fill. */
+  return innerWidth < innerHeight && innerWidth < 720;
 }
 
 function bootLandscape() {
