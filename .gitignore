@@ -1,0 +1,34 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 已确认过时、集中待删的本地归档（不上仓库）
+待删除/
+
+# 工具跑出来的测量/对比图（可再生成）
+_analysis/
+artifacts/
+__pycache__/
+*.pyc
+
+# 本地原图、参考、MVU/世界书材料，HUD 运行时不依赖
+原型/
+参考/
+变量相关/
+city/
+public/ref/
+public/art/
+
+# 编辑器与系统垃圾
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Vite / Playwright 本地缓存
+.vite/
+test-results/
+playwright-report/
+blob-report/

@@ -1,0 +1,380 @@
+/* The lower panel: the item rail.
+   ------------------------------------------------------------------
+   Layer order and blend modes are the shell's, for the reasons documented in
+   glass.css: the additive layers are siblings of the tint rather than children,
+   because plus-lighter adds alpha as well as colour and inside the tinted group they
+   would cut how much plate shows through.
+
+   z-index 50 puts it above the shell's rim (40) and its blossom (41) but below
+   .page-layer (60), which is the whole point: clicking a cell opens the full
+   inventory page, and the drawer has to dim *behind* that page rather than with it.
+   The page layer's own shade does that for free once the order is right.
+
+   The root must not carry isolation, filter, opacity or mask of its own: any of
+   those makes it a backdrop root and the glass children below would have an empty
+   backdrop to sample -- the trap index.html documents for the shell's clip-path. */
+
+.drawer-root {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  animation: drawer-slide .28s cubic-bezier(.2, .82, .25, 1) both;
+}
+
+@keyframes drawer-slide {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------------------- glass stack */
+
+.drawer-blur {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#drawerClip);
+  z-index: 10;
+  backdrop-filter: blur(26px) saturate(1.18);
+  -webkit-backdrop-filter: blur(26px) saturate(1.18);
+}
+
+.drawer-scatter {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#drawerClip);
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(12px) saturate(1.45);
+  -webkit-backdrop-filter: blur(12px) saturate(1.45);
+  mix-blend-mode: screen;
+  opacity: .10;
+}
+
+/* The shell's hue and the shell's alpha, not the dock's .38.  The dock hangs over
+   bright sky and had to be thinned to keep the scene legible through it; the drawer
+   sits over dark glossy desk, which is the same ground the shell's .56 was solved
+   against.  Everything else in the stack is byte-identical to the shell. */
+.drawer-tint {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#drawerClip);
+  z-index: 11;
+  background: rgba(36, 50, 96, .56);
+}
+
+.drawer-frost {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#drawerClip);
+  z-index: 12;
+  pointer-events: none;
+  opacity: .50;
+  mix-blend-mode: soft-light;
+  background: url("/assets/frost.png") repeat;
+}
+
+/* The vertical edges are at the same x as the shell's and the dock's, so these are
+   the same stops at the same strength: three panels, one lit column. */
+.drawer-edge {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#drawerClip);
+  z-index: 13;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  background:
+    linear-gradient(90deg,
+      rgba(252, 152, 152, .22) 36px,
+      rgba(238, 125, 106, .14) 53px,
+      rgba(255, 68, 17, .05) 78px,
+      rgba(255, 51, 0, 0) 161px),
+    linear-gradient(270deg,
+      rgba(255, 186, 148, .20) 33px,
+      rgba(252, 152, 108, .09) 51px,
+      rgba(255, 120, 70, 0) 102px);
+}
+
+.drawer-underglow,
+.drawer-lens,
+.drawer-rim {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  overflow: visible;
+  pointer-events: none;
+}
+.drawer-underglow { z-index: 13; mix-blend-mode: plus-lighter; }
+.drawer-lens      { z-index: 14; mix-blend-mode: plus-lighter; }
+.drawer-rim       { z-index: 40; }
+
+/* ------------------------------------------------------------------- rail */
+
+.drawer-rail {
+  position: absolute;
+  left: var(--rx);
+  top: var(--ry);
+  width: var(--rw);
+  height: var(--rh);
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Snap points sit on the bucket dividers, not on every cell.  About nineteen cells
+     fit across, so snapping every 78 units would be a notch twenty times a swipe
+     with nothing to mean; snapping to where 用品 ends and 消耗品 begins is a landing
+     the reader asked for.  proximity rather than mandatory so a short nudge inside a
+     group is still allowed to stay put. */
+  scroll-snap-type: x proximity;
+}
+.drawer-rail::-webkit-scrollbar { width: 0; height: 0; }
+.drawer-rail.is-dragging { cursor: grabbing; scroll-snap-type: none; }
+
+.drawer-group { display: flex; align-items: center; gap: 12px; }
+.drawer-group + .drawer-group { margin-left: 12px; }
+
+.drawer-empty {
+  font: 400 14px/1 'Noto Sans SC', sans-serif;
+  color: rgba(230, 230, 246, .44);
+  letter-spacing: .12em;
+}
+
+/* The bucket caption, set vertically.  The rail is 66 units tall and about 1570
+   wide: a horizontal caption would cost eight cells, this costs less than half of
+   one.  The hairline is the cut between groups; the first group has no cut before it
+   because the rail's own left edge already is one. */
+.drawer-div {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  scroll-snap-align: start;
+}
+.drawer-div > i {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: linear-gradient(180deg,
+    transparent, rgba(228, 232, 255, .30) 28%, rgba(228, 232, 255, .30) 72%, transparent);
+}
+.drawer-div > span {
+  writing-mode: vertical-rl;
+  font: 500 13px/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .20em;
+  color: rgba(240, 238, 252, .66);
+  text-shadow: 0 1px 4px rgba(6, 8, 22, .55);
+}
+.drawer-group:first-child .drawer-div > i { display: none; }
+.drawer-group:first-child .drawer-div { width: 22px; }
+
+/* ------------------------------------------------------------------ slots */
+
+/* Projection, not a flat tile.
+   The cell is a shallow well; the item floats above its floor with its own separate
+   shadow, and a cone of the item's colour rises out of the floor behind it.  Shadow
+   and item are separate elements on purpose: hovering lifts the item and tightens
+   the shadow, which is what reads as picking something up.  It is also why the icon
+   PNGs must ship with no baked shadow or glow -- see
+   变量相关/道具分类与图标素材.md. */
+/* 强度 notches: geometry only, the rest is the shared .item-notch block in pages.css.
+   The cell is 66 with an 18 radius, so the top edge runs straight from x 18 to x 48 and the
+   group is anchored to end at 48.  It straddles the edge, 4 out and 5 in.  The rail leaves 11
+   units of slack above the row for exactly this. */
+.drawer-slot {
+  position: relative;
+  flex: none;
+  width: 66px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  --hit-d: 66px;
+  --notch-right: 17px;
+  --notch-top: -6px;
+  --notch-w: 3px;
+  --notch-len: 11px;
+  --notch-gap: 3px;
+}
+
+/* The cast shadow, on the well floor and independent of the item above it. */
+.drawer-slot::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 7px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(4, 5, 16, .62), rgba(4, 5, 16, 0) 70%);
+  transition: transform .16s ease, opacity .16s ease;
+}
+
+/* The well has to be visible as a well.  At the first pass its inset was weak enough
+   that against the panel's own glass the row read as gems floating on a bar rather
+   than as cells -- and cells are the point: a socketed grid is what says "this is
+   what you are carrying, this many of them". So the top inner shadow is deep enough
+   to read as a lip, the bottom inner edge catches light the way the panel's own
+   bottom rim does, and there is a hairline all the way round. */
+.slot-well {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg,
+    rgba(6, 8, 24, .46), rgba(14, 18, 40, .26) 52%, rgba(255, 236, 224, .06));
+  box-shadow:
+    inset 0 3px 5px rgba(4, 6, 18, .55),
+    inset 0 -1.5px 0 rgba(255, 242, 232, .26),
+    inset 0 0 0 1px rgba(214, 222, 255, .16);
+  transition: box-shadow .16s ease;
+}
+
+/* The light cone out of the floor, in the item's own hue.  plus-lighter as
+   everywhere else in this composition: what it paints is light added over the
+   well, not a colour laid on top of it. */
+/* The cone is the item's own colour rising out of the well floor.  By default it is one
+   fixed strength, and only 消耗品 modulate it -- because 强度 exists only on 消耗品 in the
+   schema.  素材 and 用品 have no such field, so a cone driven off `var(--potency, 3)`
+   there was asserting "medium strength" about a property the item does not have.  The
+   default is not 3 either: a value in the middle of a scale still claims the scale
+   applies.  It is simply a neutral socket glow. */
+.slot-well::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  mix-blend-mode: plus-lighter;
+  --lit: .17;
+  --reach: 64%;
+  background: radial-gradient(ellipse 62% var(--reach) at 50% 106%,
+    hsl(var(--hue) 92% 72% / var(--lit)),
+    hsl(var(--hue) 92% 72% / calc(var(--lit) * .3)) 46%,
+    transparent 78%);
+}
+
+/* The cone no longer carries 强度 at all -- the corner notches do.  It was measured on an
+   empty cell at a mean difference of 3.79 of 255 between 强度 1 and 强度 5, which is 1.5%
+   and vanishes entirely under a lit object.  A coupling that cannot be seen is worse than
+   none, because it implies a reading is being offered. */
+
+/* The well still has to show all the way round the item, or the item stops reading as
+   sitting *in* something -- but 48 in a 66 cell, not 40.  The exported art is trimmed
+   tight (tools/export_item_icons.py), so this box is the only thing setting apparent
+   size; at 40 the two insets compounded and the object came out at 47% of the cell.
+   The gem placeholder keeps its own smaller box: it is a shape, not a subject, and a
+   48-unit sphere in a 66 cell reads as a filled socket rather than an object in one. */
+/* --lift is a variable rather than a whole transform, so pressing can raise the item
+   without discarding the per-item tilt and scale that --tilt / --scale carry.  Those come
+   from a hash of the item's name (see itemIcon in data.js): with one picture per category
+   they are what keeps two 植物 from looking like one item drawn twice. */
+.slot-icon,
+.slot-gem {
+  position: absolute;
+  transition: transform .16s ease;
+}
+.slot-icon {
+  left: 9px;
+  top: 6px;
+  width: 48px;
+  height: 48px;
+  transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg)) scale(var(--scale, 1));
+}
+.slot-gem {
+  left: 13px;
+  top: 9px;
+  width: 40px;
+  height: 40px;
+  transform: translateY(var(--lift, 0));
+}
+.slot-icon {
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(6, 8, 22, .45));
+}
+
+/* Placeholder until the 16 category icons land.  It hides itself when the real file
+   is present: the <img> comes first and removes itself on error, so `img + gem`
+   matches only while the art exists.  Same drop-in slot pattern as .dev-crop.
+   Bucket identity is the silhouette, category identity the hue -- so a row reads as
+   用品 at a glance and one cell in it reads as 服装 rather than 器具. */
+.slot-gem {
+  border: 1px solid hsl(var(--hue) 44% 84% / .30);
+  background: radial-gradient(circle at 34% 26%,
+    hsl(var(--hue) 38% 95%), hsl(var(--hue) 56% 70%) 32%, hsl(var(--hue) 38% 44%) 68%, hsl(var(--hue) 32% 22%));
+  box-shadow: 0 0 10px hsl(var(--hue) 58% 56% / .22), inset 0 1px 0 rgba(255, 255, 255, .38);
+}
+.slot-icon + .slot-gem { display: none; }
+
+.b-material  .slot-gem { border-radius: 50%; }
+.b-consumable .slot-gem { border-radius: 15px; }
+.b-goods     .slot-gem { border-radius: 9px; }
+
+.slot-qty {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  min-width: 21px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 1px solid rgba(232, 236, 255, .40);
+  border-radius: 10px;
+  background: rgba(17, 21, 48, .86);
+  font: 500 12px/1 'Outfit', sans-serif;
+  color: rgba(255, 255, 255, .92);
+  box-shadow: 0 2px 6px rgba(6, 8, 22, .38);
+}
+
+/* 佩戴 is a ring rather than a word: it is the one piece of item state that changes
+   while the reader is looking at the rail, so it has to be legible without reading. */
+.slot-worn {
+  position: absolute;
+  inset: 2px;
+  border-radius: 17px;
+  border: 2px solid rgba(255, 198, 226, .74);
+  box-shadow: 0 0 13px rgba(255, 132, 196, .44), inset 0 0 9px rgba(255, 152, 206, .20);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .drawer-slot:hover { --lift: -3px; }
+  .drawer-slot:hover::before { transform: scaleX(.84); opacity: .92; }
+  .drawer-slot:hover .slot-well {
+    box-shadow:
+      inset 0 2px 3px rgba(6, 8, 22, .50),
+      inset 0 -1px 0 rgba(255, 240, 230, .26),
+      inset 0 0 0 1px hsl(var(--hue) 70% 84% / .34),
+      0 0 15px hsl(var(--hue) 86% 66% / .30);
+  }
+}
+.drawer-slot:focus-visible .slot-well {
+  outline: 2px solid rgba(255, 226, 244, .8);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------- overflow hint */
+
+.drawer-more {
+  position: absolute;
+  top: var(--sy);
+  width: 46px;
+  height: var(--sh);
+  z-index: 21;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+.drawer-more-l { left: var(--rx); background: linear-gradient(90deg, rgba(23, 28, 58, .72), transparent); }
+.drawer-more-r { left: calc(var(--rx) + var(--rw) - 46px); background: linear-gradient(270deg, rgba(23, 28, 58, .72), transparent); }
+.drawer-root.has-prev .drawer-more-l { opacity: 1; }
+.drawer-root.has-more .drawer-more-r { opacity: 1; }

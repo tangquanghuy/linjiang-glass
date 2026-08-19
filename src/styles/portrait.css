@@ -1,0 +1,2091 @@
+/* Portrait layout.
+   ------------------------------------------------------------------
+   Fixed width, elastic height.  The whole subtree is drawn in portrait canvas
+   units and scaled by one factor k = containerWidth / 941, so every number here
+   is a portrait canvas unit exactly as the landscape stylesheets are landscape
+   canvas units.
+
+   Type scale.  The landscape scale is read at k ~ 1 on a desktop; portrait is read
+   at k ~ 0.41 on a phone, so drawing it at the landscape sizes would land the
+   smallest tier at 5-6 real pixels.  Everything is therefore multiplied by ~2.2,
+   which puts the smallest tier at 31 units = 12.8 real px at a 390px-wide
+   container -- iOS's smallest standard size is 11 and its footnote is 13.  This is
+   only affordable because the height is elastic: there is no fixed canvas height
+   for the larger type to overflow.
+
+   Optical values (rim widths, blur radii, frost grain) carry the same 1.55 factor
+   as src/portrait/geometry.js RIM_K: they are properties of the glass, so they
+   scale with the drawing. */
+
+/* base.css pins the document to the viewport and hides overflow, which is right
+   for a fixed canvas and wrong for an elastic one.  Portrait releases both so the
+   page can grow when the preview opens. */
+.portrait-mode,
+.portrait-mode body { height: auto; overflow-x: hidden; overflow-y: auto; }
+.portrait-mode .viewport {
+  width: 100%;
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+
+/* One layout visible at a time; both stay mounted so rotating does not rebuild
+   geometry, rim SVGs or scroll position. */
+.viewport.is-portrait > #stage { display: none; }
+.viewport:not(.is-portrait) > #pstage { display: none; }
+
+.pstage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  /* height is set from measured content height x k by src/portrait/stage.js */
+}
+
+/* Width and the centring offset come from src/portrait/stage.js: the canvas narrows
+   below the k floor, and the column centres above the k ceiling. */
+.pscale {
+  position: absolute;
+  top: 0;
+  width: var(--pw, 941px);
+  transform: scale(var(--k, 1));
+  transform-origin: 0 0;
+  /* Establishes the backdrop root so the panels' blur samples the plate, and the
+     stacking context the additive layers blend inside. */
+  isolation: isolate;
+
+  /* ------------------------------------------------------------ type scale */
+  --fs-script: 96px;
+  --fs-title: 64px;
+  --fs-display: 62px;
+  --fs-numeral: 58px;
+  --fs-value: 52px;
+  /* Floor: 36 units.  k is containerWidth / 941, so the real size of any tier
+     depends on how wide the container is -- 32 units cleared iOS's 13px footnote at
+     390 but landed at 12.2 on a 360px Android and 10.9 on a 320px phone.  36 holds
+     the floor down to 360 (13.8 real px), which is the narrowest width still common.
+     Below that the fix is not a bigger number but a narrower canvas, so k stops
+     falling; see the note in src/portrait/geometry.js.
+     Swept by scripts/check-responsive.mjs. */
+  --fs-lead: 44px;
+  --fs-body: 41px;
+  --fs-caption: 38px;
+  --fs-micro: 36px;
+
+  --icon-sm: 40px;
+  --icon-md: 52px;
+  --icon-lg: 58px;
+  --icon-xl: 64px;
+
+  --sp-0: 4px;
+  --sp-1: 8px;
+  --sp-2: 13px;
+  --sp-3: 21px;
+  --sp-4: 27px;
+  --sp-5: 32px;
+  --sp-6: 40px;
+  --sp-7: 46px;
+  --sp-8: 65px;
+
+  /* Portrait card: art on top, text pane along the bottom.  Kept on its own
+     `--pcard-*` names rather than overriding `--card-*`, because those tokens
+     describe a horizontal art/text split this card does not have.  Must match
+     CARD in src/portrait/geometry.js, which the rail's snap arithmetic reads. */
+  --pcard-w: 330px;
+  --pcard-h: 574px;   /* text block is 288; the rest is the art region */
+  --pcard-r: 30px;
+
+  /* Inner padding measured from the silhouette edge, and the panel padding that
+     produces it.  A panel element spans the whole canvas width while its
+     silhouette is inset to PANEL.left, so anything that needs to reach the
+     silhouette edge (the rail) pulls back by --pad-in, not by --pad-x. */
+  --pad-in: 40px;
+  --pad-x: 73px;   /* PANEL.left 33 + --pad-in */
+}
+
+.pplate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--pw, 941px);
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pdefs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ------------------------------------------------------------- glass stack */
+/* Same recipe as the landscape shell, per panel.  Each layer spans the whole
+   canvas and is clipped to its panel's silhouette: clipPathUnits is userSpaceOnUse,
+   so the clip's coordinates are the element's own, and only a full-canvas element
+   shares coordinates with the generated path.
+
+   The clipped layers are kept childless for the two backdrop-filter passes -- an
+   element carrying clip-path may act as a backdrop root, which would starve a
+   nested blur of anything to sample.  The paint layers do not sample the backdrop,
+   only blend against it, so they can share one clipped wrapper. */
+.pglass { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.pg { position: absolute; inset: 0; }
+
+.pg-blur {
+  backdrop-filter: blur(40px) saturate(1.18);
+  -webkit-backdrop-filter: blur(40px) saturate(1.18);
+}
+
+.pg-scatter {
+  backdrop-filter: blur(19px) saturate(1.45);
+  -webkit-backdrop-filter: blur(19px) saturate(1.45);
+  mix-blend-mode: screen;
+  opacity: .10;
+}
+
+.pg-tint { position: absolute; inset: 0; background: rgba(36, 50, 96, .56); }
+
+.pg-frost {
+  position: absolute;
+  inset: 0;
+  opacity: .50;
+  mix-blend-mode: soft-light;
+  background: url("/assets/frost.png") repeat;
+  background-size: 198px 198px;
+}
+
+/* Additive edge light, positioned from the panel's own top and bottom levels
+   (--pt, --pb) rather than from canvas constants, so one rule serves all three
+   panels at any height.  plus-lighter as everywhere else: each stop is the light
+   the edge contributes over the body, not a colour laid on top of it. */
+.pg-edge {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: plus-lighter;
+  background:
+    radial-gradient(ellipse 120px 99px at 52px var(--pb),
+      rgba(255, 232, 214, .26), rgba(255, 200, 178, .14) 42%, rgba(255, 160, 145, 0) 78%),
+    radial-gradient(ellipse 133px 105px at calc(var(--panel-right, 908px) - 19px) var(--pb),
+      rgba(255, 224, 196, .28), rgba(255, 190, 155, .15) 44%, rgba(255, 150, 120, 0) 80%),
+    linear-gradient(90deg,
+      rgba(252, 152, 152, .25) 36px,
+      rgba(238, 125, 106, .16) 53px,
+      rgba(255, 68, 17, .06) 78px,
+      rgba(255, 51, 0, 0) 161px),
+    linear-gradient(270deg,
+      rgba(255, 186, 148, .22) 33px,
+      rgba(252, 152, 108, .10) 51px,
+      rgba(255, 120, 70, 0) 102px),
+    linear-gradient(180deg,
+      rgba(154, 128, 255, 0) calc(var(--pb) - 186px),
+      rgba(222, 181, 255, .07) calc(var(--pb) - 110px),
+      rgba(255, 191, 242, .13) calc(var(--pb) - 60px),
+      rgba(255, 179, 210, .20) calc(var(--pb) - 38px),
+      rgba(255, 176, 186, .32) calc(var(--pb) - 20px),
+      rgba(255, 119, 165, .34) var(--pb),
+      rgba(255, 119, 165, 0) var(--pb));
+}
+
+/* Room above the first ear and below the last bottom rim, so neither the raised
+   tab's script nor the rim's outward bloom is clipped by the canvas box.  The top
+   clearance is set by the blossom, which hangs half of its 172 units above the ear
+   line -- see BLOSSOM in src/portrait/stage.js. */
+.pcontent { position: relative; z-index: 20; padding: 92px 0 44px; }
+
+.prim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--pw, 941px);
+  overflow: visible;
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* ------------------------------------------------------------------ panels */
+/* A panel's box top is its ear top and its box bottom is its silhouette's main
+   bottom, so consecutive boxes overlap by EAR.drop - SEAM.  The value comes from
+   src/portrait/stage.js as --panel-margin; see the derivation there. */
+.ppanel {
+  position: relative;
+  padding: 152px var(--pad-x) 64px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: var(--ink, rgba(236, 236, 252, .93));
+}
+.ppanel + .ppanel { margin-top: var(--panel-margin, -18px); }
+
+/* :where() so this contributes no specificity: a bare `.ppanel button` rule is
+   (0,1,1) and silently outranks every single-class component rule below, which is
+   how the 详细 button ended up at the 16px document default. */
+.ppanel :where(button) { font: inherit; }
+.ppanel .ic { display: inline-block; width: 1em; height: 1em; flex: none; line-height: 0; }
+.ppanel .ic > svg { width: 100%; height: 100%; display: block; }
+
+/* The raised tab carries the script word; the CJK caption sits inside the body
+   under it, the pairing the landscape shell uses.  Live type rather than a cut
+   sprite: there is no portrait reference crop to match. */
+/* The script straddles the main top line the way the landscape title does: with
+   line-height 1 the box centre is top + half the font size, so -4 puts the centre
+   on the panel's main top (EAR.drop = 44). */
+.pear {
+  position: absolute;
+  left: 92px;
+  top: -4px;
+  z-index: 2;
+  pointer-events: none;
+  font: 400 var(--fs-script)/1 'Pinyon Script', cursive;
+  color: var(--ink-script, #f7e9d4);
+  text-shadow: 0 2px 10px rgba(8, 10, 30, .34);
+}
+.pear-cap {
+  position: absolute;
+  left: 96px;
+  top: 92px;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+.pear-cap i {
+  font: 300 var(--fs-caption)/1 'Outfit', sans-serif;
+  color: rgba(226, 228, 250, .42);
+  font-style: normal;
+}
+.pear-cap span {
+  font: 400 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 236, 248, .88);
+  letter-spacing: .04em;
+  text-shadow: 0 2px 5px rgba(4, 6, 18, .4);
+}
+
+/* Above the rim, so the blossom's outer half reads as sitting on the scene rather
+   than under the glass -- a sibling layer because .pcontent is a stacking context
+   below .prim and a child of it could not rise above the rim. */
+.pblossoms { position: absolute; inset: 0; z-index: 41; pointer-events: none; }
+/* Flipped so each crop's stem trails right along the ear's top edge instead of off the
+   panel's left edge into open scene; see the note in src/portrait/stage.js. */
+.pblossom {
+  position: absolute;
+  transform: scaleX(-1);
+  filter: drop-shadow(0 3px 9px rgba(10, 8, 26, .32));
+}
+
+.prule {
+  height: 2px;
+  border: 0;
+  margin: var(--sp-6) 0;
+  background: linear-gradient(90deg,
+    transparent, rgba(214, 220, 250, .16) 10%,
+    rgba(214, 220, 250, .22) 52%, rgba(214, 220, 250, .07) 88%, transparent);
+}
+
+/* ---------------------------------------------------------- tool ring row */
+/* Sits in the raised pod on the Status panel's top-right, hanging below the lip
+   into the body exactly as the landscape pod's row does. */
+.ptools {
+  position: absolute;
+  left: var(--pod-row-left, 568px);
+  top: 14px;
+  z-index: 3;
+  display: flex;
+  gap: var(--tool-gap, 14px);
+}
+
+.ptool {
+  --d: var(--tool-d, 76px);
+  position: relative;
+  width: var(--d);
+  height: var(--d);
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(226, 230, 252, .30);
+  border-radius: 50%;
+  background: rgba(150, 160, 210, .07);
+  color: #fff;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.ptool .ic { font-size: var(--icon-lg); filter: drop-shadow(0 2px 6px rgba(6, 8, 22, .55)); }
+
+.pdot {
+  position: absolute;
+  right: 2px;
+  top: 4px;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffa8cd, #ef3d97 60%, #d4207c);
+  box-shadow: 0 0 16px rgba(255, 60, 150, .8), 0 0 4px rgba(255, 255, 255, .9);
+}
+
+/* Touch target floor.  Growing the ring would change the drawing, so the hit area
+   is widened by a pseudo-element instead: --d is the drawn size in canvas units,
+   and 44px / k is 44 real pixels expressed in canvas units. */
+.ptool::after,
+.pnav::after,
+.pclose::after,
+.pbtn-ghost::after,
+.pdots i::after {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * max(0px, (44px / var(--k, 1) - var(--d, 44px)) / 2));
+  border-radius: inherit;
+}
+
+/* ------------------------------------------------------------ world strip */
+.pworld {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6);
+  border: 2px solid rgba(213, 224, 255, .19);
+  border-radius: 38px;
+  background:
+    linear-gradient(105deg, rgba(180, 200, 255, .13), rgba(118, 131, 184, .08) 54%, rgba(255, 200, 220, .09)),
+    rgba(29, 37, 78, .20);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .14), 0 8px 34px rgba(11, 16, 43, .10);
+}
+.pworld-where {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: rgba(244, 239, 250, .94);
+}
+.pworld-where .ic {
+  font-size: var(--icon-md);
+  color: #f4d7c1;
+  filter: drop-shadow(0 0 10px rgba(255, 193, 170, .30));
+}
+.pworld-where b { font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif; letter-spacing: .045em; }
+.pworld-place {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0 0 calc(var(--icon-md) + var(--sp-2));
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .64);
+}
+.pworld-place em { font-style: normal; color: rgba(213, 205, 233, .46); }
+.pworld-main { min-width: 0; flex: 1; }
+.pworld-with {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+  min-width: 108px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(215, 224, 255, .24);
+  border-radius: 26px;
+  background: rgba(166, 181, 235, .13);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 239, 255, .78);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+}
+
+/* --------------------------------------------------- money and the meta row */
+/* 资金 is the only stat the player spends, so it is the only one drawn as a
+   number.  The calendar and the clock are context and sit in one wrapping
+   caption-size row -- as equal cells they cost too much height and read as
+   the subject of the screen. */
+.pmoney {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+.pmoney > .ic { font-size: var(--icon-lg); color: var(--ink-gold, rgba(248, 236, 216, .93)); }
+.pmoney > b {
+  font: 400 var(--fs-value)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  color: var(--ink-strong, #f4f6ff);
+  letter-spacing: .01em;
+  text-shadow: 0 2px 9px rgba(4, 6, 18, .55);
+}
+.pmoney .unit { font-size: .86em; margin-right: 2px; }
+
+.pmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-6);
+  margin-top: var(--sp-4);
+}
+.pmeta > span { display: inline-flex; align-items: baseline; gap: var(--sp-1); }
+.pmeta .ic {
+  align-self: center;
+  font-size: var(--icon-sm);
+  color: rgba(246, 232, 210, .78);
+}
+.pmeta b {
+  font: 400 var(--fs-caption)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  color: rgba(240, 240, 254, .90);
+}
+.pmeta em,
+.pmeta > span > span {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 246, .60);
+}
+
+.pstat-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink-mute, rgba(228, 228, 250, .72));
+  letter-spacing: .05em;
+}
+.pstat-label .ic { font-size: var(--icon-sm); color: rgba(246, 232, 210, .8); }
+.pstat-value { display: flex; align-items: baseline; gap: var(--sp-2); }
+.pstat-value b {
+  font: 400 var(--fs-value)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  color: var(--ink-strong, #f4f6ff);
+  text-shadow: 0 2px 9px rgba(4, 6, 18, .55);
+}
+.pstat-value .unit { font-size: .86em; margin-right: 2px; }
+.pstat-value em {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: var(--ink-faint, rgba(224, 226, 248, .58));
+}
+.pstat-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink-mute, rgba(228, 228, 250, .72));
+}
+.pstat-sub .ic {
+  font-size: var(--icon-sm);
+  color: #ffdca6;
+  filter: drop-shadow(0 0 10px rgba(255, 205, 130, .6));
+}
+.ppill {
+  padding: 6px 18px 7px;
+  border-radius: 14px;
+  border: 2px solid rgba(150, 180, 255, .34);
+  background: rgba(86, 116, 214, .32);
+  font: 500 var(--fs-micro)/1 'Outfit', sans-serif;
+  color: #cfe0ff;
+  box-shadow: 0 0 24px rgba(94, 130, 240, .3), inset 0 2px 0 rgba(206, 224, 255, .22);
+}
+
+/* ------------------------------------------------------------ favor block */
+.pfavor {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.pfavor > .ic {
+  flex: none;
+  font-size: var(--icon-md);
+  color: #9ec7ff;
+  filter: drop-shadow(0 0 18px rgba(120, 190, 255, .55));
+}
+.pfavor > span {
+  flex: none;
+  font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 232, 246, .82);
+  white-space: nowrap;
+}
+.pfavor .pbar {
+  flex: 1;
+  min-width: 80px;
+  height: 28px;
+  margin: 0;
+}
+.pfavor > b {
+  flex: none;
+  font: 400 var(--fs-numeral)/1 'Outfit', sans-serif;
+  color: var(--ink-strong, #f4f6ff);
+}
+.pfavor > em {
+  flex: none;
+  font: 400 var(--fs-micro)/1 'Outfit', sans-serif;
+  font-style: normal;
+  color: var(--ink-faint, rgba(224, 226, 248, .58));
+}
+.pfavor .pbtn-ghost {
+  --d: 56px;
+  margin: 0 0 0 auto;
+  height: var(--d);
+  white-space: nowrap;
+}
+
+.pbar {
+  height: 30px;
+  border-radius: 15px;
+  background: rgba(10, 14, 32, .46);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), inset 0 -2px 0 rgba(255, 255, 255, .07);
+  overflow: hidden;
+}
+.pbar > i {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 15px;
+  background: linear-gradient(90deg, #ff8dc6 0%, #ff7ed2 34%, #cf8cf0 62%, #74b8ff 88%, #63c4ff 100%);
+  box-shadow: 0 0 26px rgba(255, 130, 200, .6), inset 0 2px 0 rgba(255, 255, 255, .45);
+}
+
+.pbtn-ghost {
+  --d: 68px;
+  position: relative;
+  margin: var(--sp-4) 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  height: var(--d);
+  padding: 0 var(--sp-5);
+  border: 2px solid rgba(212, 216, 250, .42);
+  border-radius: 34px;
+  background: rgba(120, 130, 190, .12);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink, rgba(236, 236, 252, .93));
+  cursor: pointer;
+}
+.pbtn-ghost .ic { font-size: var(--fs-body); }
+
+/* ------------------------------------------------------------------- rail */
+/* Swipe, not paging.  The landscape rail advances four at a time with a button on
+   the rim; at portrait scale that button is 16 real px and unhittable, and the
+   roster is open-ended, so the rail scroll-snaps one card at a time instead. */
+.prail {
+  display: flex;
+  gap: 24px;   /* CARD.gap in src/portrait/geometry.js */
+  /* Reaches the silhouette edge, not the canvas edge: --pad-in, not --pad-x. */
+  margin: 0 calc(-1 * var(--pad-in));
+  padding: var(--sp-2) var(--pad-in) var(--sp-5);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: var(--pad-in);
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.prail::-webkit-scrollbar { display: none; }
+.prail > .pcard { scroll-snap-align: start; }
+
+/* The selected card reads as the origin of the panel below it. */
+.prail > .pcard.is-selected .card-rim {
+  border-color: rgba(255, 255, 255, .96);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--glow) 96%, transparent),
+    0 0 48px color-mix(in srgb, var(--glow) 62%, transparent),
+    inset 0 2px 0 rgba(255, 255, 255, .72);
+}
+
+.pdots {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: var(--sp-4);
+}
+.pdots i {
+  --d: 16px;
+  position: relative;
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  background: rgba(226, 228, 250, .26);
+  cursor: pointer;
+  transition: background .18s, transform .18s;
+}
+.pdots i.on {
+  background: rgba(255, 190, 220, .92);
+  transform: scale(1.25);
+  box-shadow: 0 0 14px rgba(255, 140, 200, .7);
+}
+
+/* ---------------------------------------------------------------- preview */
+/* The Girls panel in its preview state -- the same element as the rail, so the
+   column stays two panels deep and there is no extra level to back out of. */
+.ppanel.is-preview { animation: ppreview-in .28s cubic-bezier(.2, .82, .25, 1) both; }
+@keyframes ppreview-in {
+  from { opacity: 0; transform: translateY(-22px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Below the panel's main top (EAR.drop = 44), not level with the raised ear:
+   above that line the button would float in the seam, outside the silhouette. */
+.pclose {
+  --d: 76px;
+  position: absolute;
+  right: var(--pad-x);
+  top: 62px;
+  z-index: 3;
+  width: var(--d);
+  height: var(--d);
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(235, 237, 255, .34);
+  border-radius: 50%;
+  background: rgba(30, 35, 72, .58);
+  color: rgba(255, 255, 255, .86);
+  font: 300 52px/1 'Outfit', sans-serif;
+  cursor: pointer;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .18);
+}
+
+.ppreview-body { display: grid; grid-template-columns: 288px 1fr; gap: var(--sp-6); }
+
+.ppreview-art { margin: 0; }
+.ppreview-art img {
+  width: 100%;
+  height: 470px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 27px;
+  border: 2px solid var(--rim, rgba(230, 235, 255, .5));
+  box-shadow: 0 0 40px var(--glow, rgba(170, 180, 255, .18)), 0 18px 52px rgba(8, 10, 28, .22);
+}
+
+
+.ppreview-data { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+.ppreview-id { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
+.ppreview-id h3 {
+  font: 700 var(--fs-title)/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .04em;
+  text-shadow: 0 3px 12px rgba(7, 8, 24, .4);
+}
+.pchip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 52px;
+  padding: 0 var(--sp-4);
+  border-radius: 26px;
+  border: 2px solid rgba(255, 228, 186, .40);
+  background: rgba(255, 236, 204, .78);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(72, 48, 52, .86);
+  letter-spacing: .05em;
+}
+.pchip .ic { font-size: var(--fs-caption); color: #c47a38; }
+
+.ppreview-group > h4 {
+  margin-bottom: var(--sp-3);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .52);
+  letter-spacing: .18em;
+}
+
+.pmeter + .pmeter { margin-top: var(--sp-3); }
+.pmeter-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.pmeter-head span {
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 236, 250, .86);
+}
+.pmeter-head b {
+  margin-left: auto;
+  font: 400 var(--fs-caption)/1 'Outfit', sans-serif;
+  color: #fff;
+}
+.pmeter-head em {
+  font: 400 36px/1 'Outfit', sans-serif;
+  font-style: normal;
+  color: rgba(224, 226, 248, .48);
+}
+.pmeter-track {
+  position: relative;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(10, 14, 32, .46);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .45);
+  overflow: hidden;
+}
+.pmeter-track > i {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 11px;
+  background: linear-gradient(90deg, #ff8dc6, #ff7ed2 46%, #cf8cf0);
+  box-shadow: 0 0 18px rgba(255, 130, 200, .5);
+}
+/* Scoped on .pmeter itself: `.tone-violet` also exists in the landscape page layer
+   (pages.css .page-meter), so a descendant selector here would read as shared. */
+.pmeter.tone-violet .pmeter-track > i { background: linear-gradient(90deg, #b48cff, #8f9bff); box-shadow: 0 0 18px rgba(150, 140, 255, .5); }
+.pmeter.tone-blue   .pmeter-track > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
+.pmeter.tone-gold   .pmeter-track > i { background: linear-gradient(90deg, #ffd08a, #ffab6b); box-shadow: 0 0 18px rgba(255, 190, 120, .5); }
+/* A threshold the schema states outright, so the number means something without
+   the player having to remember which value unlocks what. */
+.pmeter-track > u {
+  position: absolute;
+  left: var(--at);
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: rgba(255, 255, 255, .34);
+}
+.pmeter-track > u.is-past { background: rgba(12, 10, 30, .40); }
+
+.ppreview-status { display: flex; align-items: baseline; gap: var(--sp-4); }
+.ppreview-status small {
+  flex: none;
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .52);
+  letter-spacing: .12em;
+}
+.ppreview-status > div { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ppreview-status span {
+  padding: 7px 18px 8px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 186, 214, .34);
+  background: rgba(255, 150, 196, .16);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 232, 244, .92);
+}
+.ppreview-status span.is-muted {
+  border-color: rgba(226, 230, 255, .16);
+  background: rgba(160, 170, 210, .10);
+  color: rgba(228, 228, 248, .56);
+}
+.ppreview-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font: 400 var(--fs-caption)/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 244, .72);
+}
+.ppreview-where b { font-weight: 500; color: #fff; }
+.ppreview-where em { font-style: normal; color: rgba(226, 226, 244, .48); }
+.ppreview-fan {
+  margin: 8px 0 0;
+  font: 400 var(--fs-caption)/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 244, .58);
+}
+
+.ppreview-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+.pnav {
+  --d: 96px;
+  position: relative;
+  width: var(--d);
+  height: var(--d);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(246, 238, 249, .58);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, .18), transparent 36%),
+    linear-gradient(145deg, #94899f 0%, #746a82 48%, #5b536b 100%);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 12, 31, .42), inset 0 2px 0 rgba(255, 255, 255, .36);
+}
+.pnav .ic { font-size: 46px; filter: drop-shadow(0 2px 4px rgba(18, 13, 29, .78)); }
+.pnav[data-preview-step="-1"] .ic { transform: rotate(180deg); }
+
+.pbtn-primary {
+  flex: 1;
+  min-height: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-6);
+  border: 2px solid rgba(239, 226, 246, .48);
+  border-radius: 48px;
+  background: linear-gradient(135deg, rgba(222, 173, 216, .42), rgba(122, 137, 207, .36));
+  color: rgba(255, 255, 255, .96);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  box-shadow: inset 0 2px rgba(255, 255, 255, .22), 0 10px 30px rgba(12, 13, 39, .16);
+}
+.pbtn-primary .ic { font-size: var(--fs-body); }
+
+/* --------------------------------------------------------- portrait card */
+/* Reuses the theme tokens (.t-*) and the layout-agnostic glass and rim layers from
+   cards.css; the art fade and the text pane are rotated to run vertically. */
+.pcard {
+  position: relative;
+  flex: none;
+  width: var(--pcard-w);
+  height: var(--pcard-h);
+  border-radius: var(--pcard-r);
+  cursor: pointer;
+  filter: drop-shadow(0 8px 26px rgba(9, 12, 35, .18));
+}
+.pcard .card-inner { border-radius: inherit; }
+.pstage .card-rim { border-width: 2px; }
+.pstage .card-glass { backdrop-filter: blur(16px) saturate(1.30) brightness(1.12); }
+
+/* Art fills the card and fades downward into the pane, the vertical form of the
+   landscape card's 53% horizontal fade. */
+.pcard-art {
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: calc(var(--pcard-r) - 1px);
+  /* The fade has to begin above where the text block starts (288 of 574 = 50%),
+     otherwise the name sits on fully opaque art. */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, .4) 55%, transparent 65%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, .4) 55%, transparent 65%);
+}
+.pcard-art > .card-art {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.pcard-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 92% 46% at 50% -6%, rgba(255, 255, 255, .18), transparent 68%),
+    linear-gradient(180deg,
+      transparent 40%,
+      color-mix(in srgb, var(--wash) 26%, transparent) 52%,
+      color-mix(in srgb, var(--wash) 74%, transparent) 64%,
+      var(--wash) 100%);
+}
+
+.pcard-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 0 24px 22px;
+}
+
+/* 置顶.  Same ornament crop and the same mask-plus-glow treatment as the landscape
+   card's star; sized up for portrait and given the 44-real-px hit area. */
+.pcard-star {
+  --d: 44px;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  z-index: 4;
+  width: var(--d);
+  height: var(--d);
+  padding: 0;
+  border: 0;
+  background: var(--ornament);
+  -webkit-mask: var(--star-image) center / contain no-repeat;
+  mask: var(--star-image) center / contain no-repeat;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 255, 255, .72))
+    drop-shadow(0 0 12px var(--ornament-glow));
+  opacity: .62;
+  cursor: pointer;
+  transition: transform .16s, opacity .16s;
+}
+.pcard.is-pinned > .pcard-star { opacity: 1; transform: scale(1.06); }
+.pcard.is-pinned .card-rim { border-color: color-mix(in srgb, var(--rim) 92%, #fff); }
+
+.pcard-name { display: flex; align-items: baseline; gap: var(--sp-2); }
+.pcard-name b {
+  font: 700 48px/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .03em;
+  text-shadow: 0 2px 8px rgba(16, 8, 24, .55);
+}
+.pcard-name b.long { font-size: 40px; }
+.pcard-name em {
+  font: 400 36px/1 'Pinyon Script', cursive;
+  font-style: normal;
+  color: rgba(244, 240, 252, .82);
+}
+
+.pcard-favor {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  margin-top: var(--sp-3);
+}
+.pcard-favor .ic {
+  align-self: center;
+  margin-right: 4px;
+  font-size: 36px;
+  color: #ff7fbe;
+  filter: drop-shadow(0 0 10px rgba(255, 105, 175, .8));
+}
+.pcard-favor b { font: 400 44px/1 'Outfit', sans-serif; color: #fff; text-shadow: 0 2px 8px rgba(16, 6, 26, .5); }
+.pcard-favor span { font: 400 36px/1 'Outfit', sans-serif; color: rgba(232, 230, 248, .62); }
+
+.pcard-bar {
+  height: 14px;
+  margin-top: var(--sp-2);
+  border-radius: 7px;
+  background: rgba(10, 14, 32, .42);
+  overflow: hidden;
+}
+.pcard-bar > i {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #ff8dc6, #ff7ed2 46%, #cf8cf0);
+  box-shadow: 0 0 14px rgba(255, 130, 200, .55);
+}
+
+/* Mood and 异常状态 stack, as they do on the landscape card.  Sharing one row does
+   not work here: the chip takes 150 of the 282 available units, which leaves the
+   status 89 for text -- two and a half characters, so 状态正常 truncated to 状‥ and
+   蓝色花粉催情中 had no chance.  On its own row it gets 260, or 7.2 characters, which
+   covers the longest status in the schema.
+
+   Plain text with a lit dot rather than a second pill: two pills stacked in a
+   282-unit column read as a tag cloud, and the dot carries the abnormal/normal
+   distinction so the text does not have to. */
+.pcard-status {
+  display: flex;
+  margin-top: var(--sp-3);
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  /* Weight and colour follow the mood chip directly above it.  At 400 and .62 alpha
+     it was the only 36-unit text on the card that was neither in a pill nor at full
+     strength, which read as a different typeface rather than a quieter line.
+     line-height 1 also cramped the CJK glyphs. */
+  font: 500 36px/1.3 'Noto Sans SC', sans-serif;
+  color: rgba(240, 236, 250, .80);
+  letter-spacing: .04em;
+  text-shadow: 0 2px 7px rgba(10, 8, 26, .68);
+}
+.pcard-status > i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(226, 230, 255, .46);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+}
+.pcard-status > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.pcard-status > em { flex: none; font-style: normal; opacity: .62; }
+.pcard-status.is-abnormal { color: rgba(255, 232, 244, 1); }
+.pcard-status.is-abnormal > i {
+  background: radial-gradient(circle at 34% 30%, #ffb0d2, #f0509b 62%);
+  box-shadow: 0 0 12px rgba(255, 90, 160, .9);
+}
+
+.pstage .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  margin-top: var(--sp-3);
+  padding: 0 20px 0 16px;
+  border-radius: 26px;
+  border: 2px solid rgba(255, 228, 186, .40);
+  background: rgba(255, 236, 204, .82);
+  font: 500 36px/1 'Noto Sans SC', sans-serif;
+  color: rgba(72, 48, 52, .84);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45);
+}
+.pstage .chip .ic { font-size: 36px; color: #c47a38; }
+
+/* Hover styling is desktop-only: on a touch screen :hover sticks after a tap. */
+@media (hover: hover) {
+  .ptool:hover { background: rgba(178, 190, 240, .2); border-color: rgba(240, 244, 255, .62); }
+  .pbtn-ghost:hover { background: rgba(150, 160, 220, .24); border-color: rgba(226, 230, 255, .7); }
+  .pbtn-primary:hover { border-color: rgba(255, 255, 255, .78); filter: brightness(1.08); }
+  .pnav:hover { border-color: rgba(255, 248, 255, .88); }
+  .pclose:hover { background: rgba(118, 126, 185, .55); border-color: rgba(255, 255, 255, .64); }
+}
+
+/* ------------------------------------------------------------------- pages */
+/* A full page takes the column over rather than being appended to it -- see the note
+   at the top of src/portrait/pages.js.  So it is one .ppanel with no next ear, which
+   means the stage gives it a flat bottom and both bottom corners automatically; there
+   is no new geometry here, only content. */
+.ppanel.is-page { animation: ppage-in .26s cubic-bezier(.2, .82, .25, 1) both; }
+@keyframes ppage-in {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------------- inventory */
+
+.pinv-top {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+}
+
+.pinv-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex: none;
+}
+.pinv-count .ic {
+  align-self: center;
+  font-size: var(--icon-md);
+  color: rgba(238, 226, 246, .74);
+}
+.pinv-count b {
+  font: 400 var(--fs-numeral)/1 'Outfit', sans-serif;
+  color: #fff;
+  text-shadow: 0 3px 12px rgba(7, 8, 24, .38);
+}
+.pinv-count span {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .58);
+}
+
+.pinv-stamina { flex: 1; min-width: 320px; }
+.pinv-stamina-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.pinv-stamina-head .ic { align-self: center; font-size: var(--fs-caption); color: #9ec7ff; }
+.pinv-stamina-head span {
+  margin-right: auto;
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 236, 250, .86);
+}
+.pinv-stamina-head b { font: 400 var(--fs-caption)/1 'Outfit', sans-serif; color: #fff; }
+.pinv-stamina-head em {
+  font: 400 36px/1 'Outfit', sans-serif;
+  font-style: normal;
+  color: rgba(224, 226, 248, .48);
+}
+.pbar.is-stamina > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
+.pinv-stamina .pbar > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
+
+.pinv-group + .pinv-group { margin-top: var(--sp-7); }
+
+.pinv-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.pinv-head b {
+  font: 500 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .93);
+  letter-spacing: .08em;
+}
+.pinv-head span {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(224, 225, 243, .46);
+}
+.pinv-head > i {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(226, 231, 255, .22), transparent);
+}
+.pinv-head em {
+  font: 400 var(--fs-caption)/1 'Outfit', sans-serif;
+  font-style: normal;
+  color: rgba(255, 214, 236, .62);
+}
+
+/* A row, not a tile.  795 units of usable width is enough to carry the 描述, and the
+   描述 is the reason this page exists at all -- an icon rail can never show it. */
+.pinv-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 2px solid rgba(226, 230, 255, .13);
+  border-radius: 28px;
+  background: linear-gradient(160deg,
+    rgba(255, 255, 255, .05), rgba(24, 30, 64, .14) 46%, rgba(24, 30, 64, .12));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pinv-row + .pinv-row { margin-top: var(--sp-2); }
+.pinv-row.is-worn {
+  border-color: rgba(255, 214, 236, .42);
+  box-shadow: 0 0 22px rgba(255, 140, 200, .12), inset 0 2px rgba(255, 255, 255, .12);
+}
+
+.pinv-copy { flex: 1; min-width: 0; padding-top: 5px; }
+.pinv-copy > b {
+  display: block;
+  font: 500 var(--fs-lead)/1.15 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .94);
+  letter-spacing: .03em;
+}
+.pinv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0;
+}
+.pinv-tags em {
+  padding: 5px 15px 6px;
+  border: 2px solid rgba(226, 230, 255, .16);
+  border-radius: 18px;
+  background: rgba(20, 25, 60, .30);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(230, 229, 246, .68);
+}
+.pinv-row.is-worn .pinv-tags em:last-child {
+  border-color: rgba(255, 198, 226, .40);
+  background: rgba(255, 150, 196, .14);
+  color: rgba(255, 234, 245, .92);
+}
+.pinv-copy > p {
+  font: 400 var(--fs-caption)/1.6 'Noto Sans SC', sans-serif;
+  color: rgba(229, 229, 244, .58);
+  letter-spacing: .02em;
+}
+
+.pinv-empty {
+  padding: var(--sp-6) 0;
+  font: 400 var(--fs-body)/1 'Noto Sans SC', sans-serif;
+  color: rgba(230, 230, 246, .44);
+  letter-spacing: .12em;
+}
+
+/* ------------------------------------------------------------ item cell */
+/* The drawer's cell rebuilt in portrait units: a shallow well, the item floating above
+   its floor with a separate cast shadow, and a cone of the item's own hue rising out of
+   the floor.  Shadow and item are separate elements so pressing can lift one and
+   tighten the other -- which is also why the category PNGs must ship with no baked
+   shadow or glow.  See 变量相关/道具分类与图标素材.md. */
+/* 强度 notches: geometry only, the shared .item-notch block lives in pages.css, which is
+   loaded in both modes.  A 128 cell with a 34 radius has its straight top edge from x 34 to
+   x 94, so the group ends at 94 and straddles the edge 7 out and 10 in. */
+.pslot {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 128px;
+  --notch-right: 32px;
+  --notch-top: -11px;
+  --notch-w: 6px;
+  --notch-len: 21px;
+  --notch-gap: 6px;
+}
+.pslot::before {
+  content: '';
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  bottom: 14px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(4, 5, 16, .62), rgba(4, 5, 16, 0) 70%);
+  transition: transform .16s ease, opacity .16s ease;
+}
+.pslot-well {
+  position: absolute;
+  inset: 0;
+  border-radius: 34px;
+  background: linear-gradient(180deg,
+    rgba(6, 8, 24, .46), rgba(14, 18, 40, .26) 52%, rgba(255, 236, 224, .06));
+  box-shadow:
+    inset 0 5px 9px rgba(4, 6, 18, .55),
+    inset 0 -3px 0 rgba(255, 242, 232, .26),
+    inset 0 0 0 2px rgba(214, 222, 255, .16);
+  transition: box-shadow .16s ease;
+}
+/* Neutral by default, 强度-driven only for 消耗品 -- see the note at .slot-well::after in
+   drawer.css for why the default is not the middle of the 强度 scale. */
+.pslot-well::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  mix-blend-mode: plus-lighter;
+  --lit: .17;
+  --reach: 64%;
+  background: radial-gradient(ellipse 62% var(--reach) at 50% 106%,
+    hsl(var(--hue) 92% 72% / var(--lit)),
+    hsl(var(--hue) 92% 72% / calc(var(--lit) * .3)) 46%,
+    transparent 78%);
+}
+/* 强度 is carried by the corner notches, not by this cone -- see the note in drawer.css. */
+
+/* 94 in a 128 cell for the art and 78 for the placeholder, for the reason given at
+   .slot-icon in drawer.css: the exported art is trimmed tight, so this box is the only
+   thing setting apparent size, whereas the gem is a shape and wants to stay smaller. */
+.pslot-icon,
+.pslot-gem {
+  position: absolute;
+  transition: transform .16s ease;
+}
+.pslot-icon {
+  left: 17px;
+  top: 12px;
+  width: 94px;
+  height: 94px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(6, 8, 22, .45));
+  transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg)) scale(var(--scale, 1));
+}
+.pslot-gem { left: 25px; top: 17px; width: 78px; height: 78px; transform: translateY(var(--lift, 0)); }
+
+/* Placeholder until the category art lands.  It hides itself when the file exists: the
+   <img> comes first and removes itself on error, so `img + gem` matches only while the
+   art is there.  Bucket identity is the silhouette, category identity the hue. */
+.pslot-gem {
+  border: 2px solid hsl(var(--hue) 44% 84% / .30);
+  background: radial-gradient(circle at 34% 26%,
+    hsl(var(--hue) 38% 95%), hsl(var(--hue) 56% 70%) 32%, hsl(var(--hue) 38% 44%) 68%, hsl(var(--hue) 32% 22%));
+  box-shadow: 0 0 20px hsl(var(--hue) 58% 56% / .22), inset 0 2px 0 rgba(255, 255, 255, .38);
+}
+.pslot-icon + .pslot-gem { display: none; }
+
+.b-material   .pslot-gem { border-radius: 50%; }
+.b-consumable .pslot-gem { border-radius: 28px; }
+.b-goods      .pslot-gem { border-radius: 17px; }
+
+.pslot-qty {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  min-width: 46px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0 11px;
+  border: 2px solid rgba(232, 236, 255, .40);
+  border-radius: 20px;
+  background: rgba(17, 21, 48, .88);
+  font: 500 var(--fs-micro)/1 'Outfit', sans-serif;
+  color: rgba(255, 255, 255, .92);
+  box-shadow: 0 3px 10px rgba(6, 8, 22, .38);
+}
+
+.pslot-worn {
+  position: absolute;
+  inset: 4px;
+  border-radius: 31px;
+  border: 3px solid rgba(255, 198, 226, .74);
+  box-shadow: 0 0 20px rgba(255, 132, 196, .44), inset 0 0 14px rgba(255, 152, 206, .20);
+  pointer-events: none;
+}
+
+/* Touch, so press rather than hover: the item lifts and its shadow tightens, which is
+   what reads as picking something up. */
+.pinv-row:active { --lift: -5px; }
+.pinv-row:active .pslot::before { transform: scaleX(.84); opacity: .92; }
+.pinv-row:active .pslot-well {
+  box-shadow:
+    inset 0 5px 9px rgba(4, 6, 18, .55),
+    inset 0 -3px 0 rgba(255, 242, 232, .30),
+    inset 0 0 0 2px hsl(var(--hue) 70% 84% / .34),
+    0 0 24px hsl(var(--hue) 86% 66% / .30);
+}
+
+/* ----------------------------------------------------- shared page pieces */
+
+/* The three text parts must not wrap: a flex item is allowed to shrink below its content
+   width, so without this the heading broke mid-word ("身体开发 / 度") and the note and the
+   hint each folded onto a second line.  The rule is the one part that gives, and it can
+   go to nothing -- so what has to be checked is that the three texts plus the gaps fit
+   795 units, which is why the notes here are three or four characters. */
+.ppage-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-7) 0 var(--sp-3);
+}
+.ppage-head b {
+  flex: none;
+  font: 500 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .93);
+  letter-spacing: .10em;
+  white-space: nowrap;
+}
+.ppage-head span {
+  flex: none;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(224, 225, 243, .46);
+  white-space: nowrap;
+}
+.ppage-head > i {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(226, 231, 255, .22), transparent);
+}
+.ppage-head em {
+  flex: none;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(255, 214, 236, .60);
+  white-space: nowrap;
+}
+
+.ppage-note {
+  margin-bottom: var(--sp-4);
+  font: 400 var(--fs-micro)/1.6 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 244, .48);
+}
+
+/* ------------------------------------------------------------- archive */
+
+.parc-id { display: flex; gap: var(--sp-5); align-items: stretch; }
+.parc-art { flex: none; width: 272px; margin: 0; }
+.parc-art img {
+  width: 100%;
+  height: 360px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 27px;
+  border: 2px solid var(--rim, rgba(230, 235, 255, .5));
+  box-shadow: 0 0 40px var(--glow, rgba(170, 180, 255, .18)), 0 18px 52px rgba(8, 10, 28, .22);
+}
+.parc-id-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.parc-id-copy h3 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font: 700 var(--fs-title)/1.1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .04em;
+  text-shadow: 0 3px 12px rgba(7, 8, 24, .4);
+}
+.parc-id-copy h3 small {
+  font: 400 var(--fs-lead)/1 'Pinyon Script', cursive;
+  color: rgba(242, 227, 246, .72);
+}
+.parc-id-copy .pchip { align-self: flex-start; }
+.parc-status { margin-top: auto; }
+.parc-status small {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .52);
+  letter-spacing: .12em;
+}
+.parc-status > div { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.parc-status span {
+  padding: 7px 18px 8px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 186, 214, .34);
+  background: rgba(255, 150, 196, .16);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 232, 244, .92);
+}
+.parc-status span.is-muted {
+  border-color: rgba(226, 230, 255, .16);
+  background: rgba(160, 170, 210, .10);
+  color: rgba(228, 228, 248, .56);
+}
+
+/* 开发度: two across.  Four across in 795 units would be 190 a tile, and the crop is
+   the thing worth seeing. */
+.pdev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.pdev-tile {
+  border: 2px solid rgba(226, 230, 255, .14);
+  border-radius: 28px;
+  background: linear-gradient(160deg,
+    rgba(255, 255, 255, .055), rgba(24, 30, 64, .15) 46%, rgba(24, 30, 64, .13));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+  overflow: hidden;
+}
+.pdev-tile.is-zero { border-color: rgba(226, 230, 255, .08); }
+/* An open tile spans both columns: the 评语 run 80-145 characters, and half the width
+   would make a column of four words.  The crop sits beside the prose at 3:2 -- the
+   same frame the part art is authored against -- rather than stretching into a
+   letterbox across the full 795. */
+.pdev-tile.is-open {
+  grid-column: 1 / -1;
+  border-color: rgba(255, 214, 236, .44);
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: stretch;
+}
+.pdev-tile.is-open .pdev-open {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 var(--sp-3);
+}
+.pdev-tile.is-open .pdev-crop {
+  height: auto;
+  aspect-ratio: 3 / 2;
+  flex: none;
+}
+
+.pdev-open {
+  display: block;
+  width: 100%;
+  padding: 0 0 var(--sp-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pdev-crop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 208px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(255, 196, 226, .12), transparent 72%),
+    linear-gradient(160deg, rgba(120, 110, 170, .18), rgba(28, 32, 66, .32));
+  box-shadow: inset 0 -2px 0 rgba(226, 231, 255, .10);
+}
+.pdev-crop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.pdev-crop em {
+  padding: 10px 20px;
+  border: 2px dashed rgba(232, 228, 250, .20);
+  border-radius: 14px;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(236, 232, 248, .32);
+  letter-spacing: .18em;
+}
+.pdev-crop img + em { display: none; }
+.pdev-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) 0;
+}
+.pdev-meta b {
+  font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .92);
+  letter-spacing: .08em;
+}
+.pdev-meta > span {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 214, 236, .72);
+}
+.pdev-tile.is-zero .pdev-meta > span { color: rgba(226, 226, 242, .40); }
+.pdev-meta .ic {
+  margin-left: auto;
+  align-self: center;
+  font-size: var(--fs-caption);
+  color: rgba(240, 236, 250, .46);
+  transition: transform .18s ease;
+}
+.pdev-tile.is-open .pdev-meta .ic { transform: rotate(90deg); }
+.pdev-pips { display: flex; gap: 5px; padding: var(--sp-2) var(--sp-3) 0; }
+.pdev-pips i {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(10, 13, 34, .42);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .34);
+}
+.pdev-pips i.on { background: linear-gradient(90deg, #ff92c4, #d38ce8); box-shadow: 0 0 10px rgba(255, 130, 200, .5); }
+
+.pdev-note { padding: 0 var(--sp-3) var(--sp-4); }
+.pdev-note[hidden] { display: none; }
+.pdev-tile.is-open .pdev-note {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-5) var(--sp-4) var(--sp-5) var(--sp-2);
+}
+.pdev-note p {
+  font: 400 var(--fs-caption)/1.95 'Noto Sans SC', sans-serif;
+  color: rgba(240, 236, 250, .86);
+  letter-spacing: .02em;
+  text-align: justify;
+}
+.pdev-note p.is-muted { color: rgba(232, 230, 246, .56); line-height: 1.8; }
+.pdev-note code {
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: rgba(12, 14, 34, .46);
+  font: 400 var(--fs-micro)/1 'Outfit', monospace;
+  color: rgba(255, 224, 242, .86);
+}
+
+/* 性经历: the decaying window on its own, then the lifetime tallies as a hairline
+   list.  Two columns, because twelve rows one-up would be most of a screen. */
+.pexp-recent {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
+.pexp-recent > span { font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif; color: rgba(248, 240, 250, .84); }
+.pexp-recent > b { font: 400 var(--fs-numeral)/1 'Outfit', sans-serif; color: #fff; text-shadow: 0 3px 12px rgba(255, 140, 200, .28); }
+/* Its own line, always.  With margin-left:auto it fitted at some widths and folded to a
+   second line at others, where it then sat right-aligned under the number for no
+   reason -- a caption that moves depending on the width is worse than one that is
+   simply always below. */
+.pexp-recent > em {
+  flex: 0 0 100%;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 242, .44);
+}
+.pexp-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-5); list-style: none; }
+/* Name, band, count, then the bar across the whole column.  The extra line costs 132
+   units over six rows and the canvas is elastic, so unlike the landscape archive there is
+   no budget to pay it out of. */
+.pexp-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  align-content: center;
+  gap: var(--sp-2) var(--sp-2);
+  height: 104px;
+  border-bottom: 2px solid rgba(226, 231, 255, .09);
+}
+.pexp-list span { font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif; color: rgba(238, 236, 250, .72); }
+/* The band name, in the hue of the band it names -- so the word and the bar under it are
+   visibly the same statement rather than two separate readings. */
+.pexp-list em {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: hsl(var(--hue) 76% 82%);
+}
+.pexp-list b { font: 400 var(--fs-caption)/1 'Outfit', sans-serif; color: rgba(255, 255, 255, .9); }
+.pexp-list li.is-zero span { color: rgba(230, 230, 244, .32); }
+.pexp-list li.is-zero b { color: rgba(228, 228, 244, .22); }
+.pexp-list li.is-zero em { color: rgba(230, 230, 244, .26); }
+
+/* Portrait twin of .exp-bar in pages.css: a bare bar, no well behind it and no ticks on
+   it -- see the note there for why a 性经历 tally must not be drawn against a ceiling.
+   Unlike .pmeter-track two hundred lines up, which is a real fraction and keeps its
+   groove, this one only has a magnitude to show. */
+.pexp-bar { grid-column: 1 / -1; height: 12px; }
+.pexp-bar > u {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 6px;
+  text-decoration: none;
+  background: linear-gradient(90deg, hsl(var(--hue) 72% 58%), hsl(var(--hue) 92% 74%));
+  box-shadow: 0 0 16px hsl(var(--hue) 94% 68% / .55);
+}
+
+/* -------------------------------------------------------------- events */
+
+.pevt-sum {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.pevt-sum > div { display: flex; align-items: baseline; gap: var(--sp-2); }
+.pevt-sum b { font: 400 var(--fs-numeral)/1 'Outfit', sans-serif; color: #fff; }
+.pevt-sum b.is-ready { color: #ffbcd9; text-shadow: 0 0 20px rgba(255, 130, 190, .42); }
+.pevt-sum span { font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif; color: rgba(228, 228, 248, .58); }
+.pevt-sum em {
+  margin-left: auto;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 244, .46);
+}
+
+.pevt {
+  position: relative;
+  padding: var(--sp-4);
+  border: 2px solid rgba(225, 230, 255, .15);
+  border-radius: 30px;
+  background: linear-gradient(160deg,
+    rgba(255, 255, 255, .055), rgba(24, 30, 64, .15) 46%, rgba(24, 30, 64, .13));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+  overflow: hidden;
+}
+.pevt + .pevt { margin-top: var(--sp-3); }
+.pevt.is-ready { border-color: rgba(255, 199, 224, .48); box-shadow: 0 0 26px rgba(255, 130, 190, .14), inset 0 2px rgba(255, 255, 255, .14); }
+
+.pevt-top { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+.pevt-cat {
+  padding: 6px 16px 7px;
+  border-radius: 18px;
+  background: rgba(226, 167, 205, .18);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 230, 245, .84);
+}
+.pevt-top em {
+  font: 400 var(--fs-micro)/1 'Outfit', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 243, .44);
+}
+/* A badge, not a button.  The landscape page put the status name on a control that
+   looked pressable and was not; a state is a label. */
+.pevt-status {
+  margin-left: auto;
+  padding: 6px 16px 7px;
+  border: 2px solid rgba(226, 230, 255, .18);
+  border-radius: 18px;
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(230, 229, 246, .62);
+}
+.pevt-status.is-ready {
+  border-color: rgba(255, 214, 236, .56);
+  background: linear-gradient(135deg, rgba(228, 145, 193, .46), rgba(143, 131, 204, .42));
+  color: #fff;
+}
+.pevt h3 {
+  margin-bottom: var(--sp-2);
+  font: 500 var(--fs-lead)/1.25 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .94);
+  letter-spacing: .04em;
+}
+.pevt p {
+  font: 400 var(--fs-caption)/1.65 'Noto Sans SC', sans-serif;
+  color: rgba(233, 231, 245, .62);
+}
+.pevt-where {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 2px solid rgba(225, 230, 255, .12);
+  font: 400 var(--fs-micro)/1.5 'Noto Sans SC', sans-serif;
+  color: rgba(234, 231, 246, .58);
+}
+.pevt-where .ic { font-size: var(--fs-caption); color: #f2cdbf; }
+.pevt-where.is-here em {
+  margin-left: auto;
+  padding: 5px 14px 6px;
+  border-radius: 16px;
+  background: rgba(150, 210, 255, .16);
+  font-style: normal;
+  color: rgba(214, 238, 255, .88);
+}
+
+/* Collapsed by default, which the draft asks for and neither view did: the conditions
+   are why an event is not firing, not what it is. */
+.pevt-cond { margin-top: var(--sp-3); }
+.pevt-cond summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .56);
+  cursor: pointer;
+  list-style: none;
+}
+.pevt-cond summary::-webkit-details-marker { display: none; }
+.pevt-cond summary::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid rgba(226, 226, 244, .5);
+  border-bottom: 2px solid rgba(226, 226, 244, .5);
+  transform: rotate(45deg);
+  transition: transform .18s ease;
+}
+.pevt-cond[open] summary::after { transform: rotate(225deg); }
+.pevt-cond summary i {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  background: rgba(20, 25, 60, .38);
+  font: 400 var(--fs-micro)/1 'Outfit', sans-serif;
+  font-style: normal;
+}
+.pevt-cond > div { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-2); }
+.pevt-cond span {
+  padding: 6px 15px 7px;
+  border: 2px solid rgba(226, 230, 255, .16);
+  border-radius: 18px;
+  background: rgba(20, 25, 60, .30);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(230, 229, 246, .64);
+}
+
+/* ----------------------------------------------------------- relations */
+
+.prel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 2px solid rgba(226, 230, 255, .13);
+  border-radius: 30px;
+  background: linear-gradient(160deg,
+    rgba(255, 255, 255, .05), rgba(24, 30, 64, .14) 46%, rgba(24, 30, 64, .12));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.prel-row + .prel-row { margin-top: var(--sp-2); }
+.prel-row > img {
+  flex: none;
+  width: 130px;
+  height: 168px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 22px;
+  border: 2px solid var(--rim, rgba(255, 255, 255, .3));
+}
+.prel-copy { flex: 1; min-width: 0; }
+.prel-copy > b {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font: 500 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .94);
+}
+.prel-copy > b em {
+  font: 400 var(--fs-micro)/1 'Pinyon Script', cursive;
+  font-style: normal;
+  color: rgba(242, 227, 246, .62);
+}
+.prel-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0 var(--sp-3); }
+.prel-tags em {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 15px 6px;
+  border: 2px solid rgba(226, 230, 255, .16);
+  border-radius: 18px;
+  background: rgba(20, 25, 60, .30);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(230, 229, 246, .66);
+}
+.prel-tags em.is-abnormal {
+  border-color: rgba(255, 186, 214, .38);
+  background: rgba(255, 150, 196, .16);
+  color: rgba(255, 232, 244, .92);
+}
+.prel-tags .ic { font-size: var(--fs-micro); }
+.prel-row > .ic { align-self: center; font-size: var(--fs-body); color: rgba(240, 236, 250, .48); }
+
+.pkicker {
+  margin: 0 0 var(--sp-1);
+  font: 500 var(--fs-lead)/1.15 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .04em;
+}
+.pkicker em {
+  margin-left: var(--sp-2);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 242, .48);
+}
+
+.pnow {
+  display: grid;
+  gap: var(--sp-4);
+  margin: var(--sp-2) 0 var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 2px solid rgba(226, 231, 255, .16);
+}
+.pnow > div { display: grid; gap: 8px; }
+.pnow span {
+  font: 600 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 238, 255, .86);
+}
+.pnow b {
+  font: 700 var(--fs-lead)/1.2 'Noto Sans SC', sans-serif;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(6, 8, 22, .4);
+}
+.pnow em {
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(232, 234, 252, .78);
+}
+.pfacts { margin: 0 0 var(--sp-3); display: grid; gap: var(--sp-3); }
+.pfacts > div { display: grid; grid-template-columns: 140px 1fr; gap: var(--sp-3); align-items: baseline; }
+.pfacts dt { font: 500 var(--fs-caption)/1.3 'Noto Sans SC', sans-serif; color: rgba(226, 228, 250, .76); }
+.pfacts dd { margin: 0; font: 600 var(--fs-body)/1.3 'Noto Sans SC', sans-serif; color: rgba(252, 252, 255, .96); }
+.pfacts dd.is-warn { color: #ffd7a0; }
+.pfacts dd.is-ready { color: #ffe08a; }
+.pfacts dd.is-ok { color: #b6f0d2; }
+.pprofile .pkicker {
+  font-weight: 700;
+  text-shadow: 0 2px 10px rgba(6, 8, 22, .4);
+}
+.pprofile .pkicker em { color: rgba(232, 234, 252, .78); }
+.pprofile .ppage-note {
+  font: 500 var(--fs-caption)/1.65 'Noto Sans SC', sans-serif;
+  color: rgba(232, 234, 252, .78);
+}
+.pfans-fold {
+  margin-top: var(--sp-5);
+  border: 2px solid rgba(232, 236, 255, .22);
+  border-radius: 28px;
+  background: linear-gradient(165deg, rgba(32, 38, 78, .5), rgba(16, 20, 48, .55));
+}
+.pfans-fold > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-4);
+  list-style: none;
+  cursor: pointer;
+  color: #fff;
+}
+.pfans-fold > summary::-webkit-details-marker { display: none; }
+.pfans-fold > summary b {
+  font: 700 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
+}
+.pfans-fold > summary small {
+  flex: 1;
+  font: 500 var(--fs-caption)/1.3 'Noto Sans SC', sans-serif;
+  color: rgba(236, 238, 255, .84);
+}
+.pfans-fold > summary em {
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(236, 238, 255, .84);
+}
+.pfans-fold > summary em.is-open { display: none; }
+.pfans-fold[open] > summary em.is-open { display: inline; }
+.pfans-fold[open] > summary em.is-shut { display: none; }
+.pfans-fold > summary > .ic { margin-left: auto; }
+.pfans-fold[open] > summary { border-bottom: 2px solid rgba(226, 231, 255, .14); }
+.pfans-fold .pfans { padding: var(--sp-3) var(--sp-3) var(--sp-4); }
+.pkicker em {
+  margin-left: var(--sp-2);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 242, .48);
+}
+.ppage-note.is-now { color: rgba(186, 255, 214, .82); }
+.pfan {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 2px solid rgba(226, 230, 255, .13);
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pfan + .pfan { margin-top: var(--sp-2); }
+.pfan.is-watching { border-color: rgba(186, 220, 255, .38); }
+.pfan.is-live .pfan-copy small { color: rgba(255, 186, 214, .88); }
+.pfan > img {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 22px;
+  border: 2px solid var(--rim, rgba(255,255,255,.3));
+}
+.pfan-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pfan-copy > b {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font: 500 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+}
+.pfan-copy > b em {
+  font: 400 var(--fs-micro)/1 'Pinyon Script', cursive;
+  font-style: normal;
+  color: rgba(242, 227, 246, .62);
+}
+.pfan-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 242, .58);
+}
+.pfan-copy strong {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font: 400 var(--fs-caption)/1 'Outfit', sans-serif;
+  font-weight: 400;
+  color: rgba(255, 255, 255, .9);
+}
+.pfan-copy strong span { font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif; color: rgba(226, 226, 242, .5); }
+.pfan > .ic { color: rgba(240, 236, 250, .48); }
+
+/* ------------------------------------------------------------ settings */
+
+.pset > section { padding: var(--sp-4) 0; }
+.pset > section + section { border-top: 2px solid rgba(226, 231, 255, .10); }
+.pset h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+  font: 500 var(--fs-lead)/1.2 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .92);
+}
+.pset p {
+  margin-bottom: var(--sp-3);
+  font: 400 var(--fs-caption)/1.7 'Noto Sans SC', sans-serif;
+  color: rgba(229, 229, 244, .56);
+}
+
+/* A control that is not wired to anything says so and cannot be pressed.  Left looking
+   live it teaches the reader that the page does not respond, which then reads back onto
+   the one switch that does. */
+.pstub {
+  padding: 5px 14px 6px;
+  border: 2px solid rgba(226, 230, 255, .16);
+  border-radius: 16px;
+  background: rgba(16, 20, 48, .42);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 242, .44);
+  letter-spacing: .06em;
+}
+.pstub.is-note { color: rgba(214, 238, 255, .62); border-color: rgba(150, 210, 255, .22); background: rgba(150, 210, 255, .12); }
+
+.pseg {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 2px solid rgba(226, 230, 255, .14);
+  border-radius: 34px;
+  background: rgba(15, 20, 52, .30);
+}
+.pseg button {
+  flex: 1;
+  min-height: 76px;
+  border: 0;
+  border-radius: 28px;
+  background: transparent;
+  color: rgba(229, 229, 244, .52);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+}
+.pseg button.is-active {
+  background: linear-gradient(135deg, rgba(211, 162, 207, .38), rgba(117, 135, 198, .38));
+  color: #fff;
+  box-shadow: inset 0 2px rgba(255, 255, 255, .18);
+}
+.pseg.is-stub { opacity: .44; }
+.pseg.is-stub button { cursor: not-allowed; }
+
+.pswitch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 96px;
+  border-bottom: 2px solid rgba(225, 230, 255, .10);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(237, 235, 248, .66);
+}
+.pswitch i {
+  width: 84px;
+  height: 46px;
+  padding: 5px;
+  border-radius: 23px;
+  background: linear-gradient(90deg, #d68dcb, #859ee0);
+}
+.pswitch i::after {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin-left: 38px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(9, 10, 30, .4);
+}
+.pswitch.is-stub { opacity: .44; }
+
+.pset-where {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.pset-where .ic { align-self: center; font-size: var(--fs-caption); color: #f2cdbf; }
+.pset-where b { font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif; color: rgba(255, 255, 255, .92); }
+.pset-where span { font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif; color: rgba(232, 230, 248, .62); }
+.pset-where em {
+  margin-left: auto;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 226, 244, .48);
+}
+
+
+/* ------------------------------------------------------------- portrait schedule */
+.pschedule-page { padding-bottom:var(--sp-6); }
+.pschedule-summary { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--sp-3); margin:var(--sp-2) 0; }
+.pschedule-summary b { font:600 var(--fs-lead)/1.2 'Noto Sans SC',sans-serif; color:#fff; }
+.pschedule-summary span { font:400 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.56); }
+.pschedule-today { display:flex; align-items:center; gap:var(--sp-2); margin:var(--sp-4) 0; padding-bottom:var(--sp-3); overflow-x:auto; scrollbar-width:none; }
+.pschedule-today::-webkit-scrollbar { display:none; }
+.pschedule-today > b { flex:none; margin-right:var(--sp-1); font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.58); }
+.pschedule-today-chip { flex:none; display:inline-flex; align-items:center; gap:var(--sp-1); padding:var(--sp-2) var(--sp-3); border:2px solid color-mix(in srgb,var(--rim) 28%,transparent); border-radius:var(--sp-3); background:color-mix(in srgb,var(--wash) 14%,rgba(16,20,48,.34)); font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(244,242,252,.76); }
+.pschedule-today-chip i { width:16px; height:16px; border-radius:50%; background:var(--ornament); }
+.pschedule-today-chip b { font:500 var(--fs-caption)/1 'Outfit',sans-serif; color:#fff; }
+.pschedule-today-chip.is-live { border-color:color-mix(in srgb,var(--rim) 70%,transparent); box-shadow:0 0 22px color-mix(in srgb,var(--glow) 40%,transparent); }
+.pschedule-lines { display:flex; flex-direction:column; gap:var(--sp-3); }
+.pschedule-line { padding:var(--sp-3); border:2px solid rgba(226,230,255,.12); border-radius:var(--sp-4); background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(23,29,62,.14)); box-shadow:inset 0 2px 0 rgba(255,255,255,.06); }
+.pschedule-line.is-watching { border-color:color-mix(in srgb,var(--rim) 58%,transparent); }
+.pschedule-line-top { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:var(--sp-3); }
+.pschedule-line-id { display:flex; align-items:center; gap:var(--sp-2); min-width:0; }
+.pschedule-line-id > i { flex:none; width:15px; height:62px; border-radius:8px; background:linear-gradient(180deg,var(--ornament),color-mix(in srgb,var(--ornament) 38%,transparent)); box-shadow:0 0 22px var(--glow); }
+.pschedule-line-id > span { min-width:0; display:flex; align-items:baseline; gap:var(--sp-2); }
+.pschedule-line-id b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.94); }
+.pschedule-line-id em { font:400 var(--fs-caption)/1 'Pinyon Script',cursive; color:rgba(242,227,246,.58); }
+.pschedule-line-time { display:flex; align-items:baseline; gap:var(--sp-1); white-space:nowrap; }
+.pschedule-line-time b { font:500 var(--fs-lead)/1 'Outfit',sans-serif; color:#fff; }
+.pschedule-line-time span { font:400 var(--fs-caption)/1 'Outfit',sans-serif; color:rgba(230,230,246,.55); }
+.pschedule-line-state { grid-column:1/-1; min-width:0; display:flex; align-items:baseline; gap:var(--sp-2); padding:var(--sp-2) 0 0; border-top:2px solid rgba(226,230,255,.1); }
+.pschedule-line-state b { font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.7); }
+.pschedule-line-state small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.46); }
+.pschedule-line-state.is-live b { color:#ffafd2; }
+.pschedule-line-state.is-unplanned b { color:#ffd68b; }
+.pschedule-line-state.is-off { opacity:.58; }
+.pschedule-line-days,.pschedule-run { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.pschedule-line-days { margin:var(--sp-3) 0 var(--sp-1); }
+.pschedule-line-days b { padding:var(--sp-1) 0; text-align:center; border-left:2px solid rgba(226,230,255,.07); font:500 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.46); }
+.pschedule-line-days b:last-child { border-right:2px solid rgba(226,230,255,.07); }
+.pschedule-line-days b.is-today { color:#ffc0dc; background:rgba(255,156,205,.07); }
+.pschedule-run { position:relative; height:54px; align-items:center; }
+.pschedule-run::before { content:''; position:absolute; left:0; right:0; top:50%; height:2px; background:rgba(226,230,255,.09); }
+.pschedule-run-day { position:relative; height:100%; border-left:2px solid rgba(226,230,255,.07); }
+.pschedule-run-day:last-child { border-right:2px solid rgba(226,230,255,.07); }
+.pschedule-run-day i { position:absolute; left:8px; right:8px; top:17px; height:20px; border-radius:12px; background:rgba(140,150,190,.11); }
+.pschedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--ornament) 72%,transparent),var(--ornament)); box-shadow:0 0 18px color-mix(in srgb,var(--glow) 48%,transparent); }
+.pschedule-run-day.is-active.joins-previous i { left:-2px; border-top-left-radius:0; border-bottom-left-radius:0; }
+.pschedule-run-day.is-active.joins-next i { right:-2px; border-top-right-radius:0; border-bottom-right-radius:0; }
+.pschedule-run-day.is-today { background:rgba(255,156,205,.06); }
+.pschedule-run-day.is-today::after { content:''; position:absolute; left:50%; top:4px; bottom:4px; width:4px; border-radius:3px; background:#ffc0dc; box-shadow:0 0 13px rgba(255,150,200,.68); }
+.pschedule-run-day.is-live i { top:14px; height:27px; box-shadow:0 0 24px var(--glow),inset 0 0 0 2px rgba(255,255,255,.72); }
+.pschedule-run-day.is-unplanned i { top:14px; height:27px; background:linear-gradient(90deg,#e6ad58,#ffd98f); box-shadow:0 0 24px rgba(255,202,110,.62); }
+.pschedule-run-day.is-rest i { display:none; }
+.pprofile-schedule { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); width:100%; margin-top:var(--sp-5); padding:var(--sp-3) var(--sp-4); border:2px solid rgba(226,230,255,.14); border-radius:var(--sp-3); background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(30,34,70,.18)); color:inherit; text-align:left; }
+.pprofile-schedule span { display:flex; flex-direction:column; gap:var(--sp-1); min-width:0; }
+.pprofile-schedule b { font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.9); }
+.pprofile-schedule small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.5); }
+.pprofile-schedule > .ic { flex:none; font-size:var(--icon-sm); color:rgba(240,236,250,.52); }

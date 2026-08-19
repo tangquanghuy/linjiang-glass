@@ -1,0 +1,988 @@
+﻿/* Secondary HUD pages.
+   Character cards open a compact dock in the unused scene area above the main
+   status bar. Dense systems use a near-full-screen glass workspace. */
+
+.page-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+.page-layer.is-open { pointer-events: none; }
+.page-layer button { font: inherit; }
+.page-layer .ic { display: inline-block; width: 1em; height: 1em; line-height: 0; }
+.page-layer .ic svg { width: 100%; height: 100%; display: block; }
+
+/* Light enough that scene colour still reaches the sheet's glass.  At .38 with a
+   5px blur the sheet had nothing left to refract and went opaque-frosted. */
+.page-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(7, 8, 22, .24);
+  backdrop-filter: blur(2px) saturate(.94);
+  -webkit-backdrop-filter: blur(2px) saturate(.94);
+  animation: page-fade .2s ease both;
+}
+
+/* The page sheets are the same glass as the shell and the dock, not a frosted slab.
+   Body colour is the shell's exact hue; alpha is .44 rather than the dock's .38
+   because a full page carries dense type and needs the extra contrast.
+
+   Refraction stays on the section itself rather than on a child, because
+   backdrop-filter makes an element a backdrop root -- a nested blur would sample an
+   empty backdrop, the trap index.html documents for the shell's clip-path.  The
+   upside is that the frost and edge children then blend against the sheet's own
+   body instead of the scene behind it; the cost is that the shell's second, hotter
+   scatter pass cannot be layered here, so its saturation is folded into this blur. */
+.page-modal {
+  --page-rim: rgba(232, 236, 255, .56);
+  position: absolute;
+  pointer-events: auto;
+  overflow: hidden;
+  border: 1px solid var(--page-rim);
+  background: rgba(36, 50, 96, .44);
+  backdrop-filter: blur(26px) saturate(1.34);
+  -webkit-backdrop-filter: blur(26px) saturate(1.34);
+  box-shadow:
+    0 24px 62px rgba(7, 8, 27, .34),
+    0 0 26px color-mix(in srgb, var(--glow, rgba(190, 185, 255, .28)) 55%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .40),
+    inset 1px 0 0 rgba(255, 255, 255, .14),
+    inset 0 -1px 0 rgba(255, 215, 232, .16);
+}
+
+/* Same tile, same blend, same strength as the shell's veil. */
+.sheet-frost {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .50;
+  mix-blend-mode: soft-light;
+  background: url('/assets/frost.png') repeat;
+  background-size: 128px 128px;
+}
+
+/* Additive edge guiding, plus-lighter as everywhere else: each stop is the light the
+   edge contributes over the body, not a colour laid on top of it. */
+.sheet-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  background:
+    radial-gradient(ellipse 62% 56% at 8% -12%, rgba(226, 232, 255, .15), transparent 64%),
+    linear-gradient(90deg, rgba(250, 178, 176, .11), rgba(248, 130, 96, .05) 22px, rgba(255, 90, 40, 0) 68px),
+    linear-gradient(270deg, rgba(255, 186, 148, .12), rgba(252, 152, 108, .055) 20px, rgba(255, 120, 70, 0) 66px),
+    linear-gradient(0deg, rgba(255, 176, 196, .14), rgba(255, 168, 190, .055) 28px, rgba(255, 150, 180, 0) 78px);
+}
+
+.page-modal > .page-modal-head,
+.page-modal > .page-modal-body { position: relative; z-index: 1; }
+
+.page-modal::after {
+  content: '';
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.8) 18%, rgba(255,255,255,.3) 75%, transparent);
+}
+
+.page-close {
+  position: absolute;
+  right: 20px;
+  top: 18px;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(235, 237, 255, .34);
+  border-radius: 50%;
+  background: rgba(30, 35, 72, .58);
+  color: rgba(255,255,255,.86);
+  font: 300 25px/1 'Outfit', sans-serif !important;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+}
+@media (hover: hover) {
+  .page-close:hover { background: rgba(118, 126, 185, .55); border-color: rgba(255,255,255,.64); }
+}
+.page-close { --hit-d: 36px; }
+
+/* ------------------------------------------------------- shared components */
+.page-eyebrow {
+  display: block;
+  margin-bottom: 11px;
+  font: 400 13px/1 'Outfit', sans-serif;
+  color: rgba(225, 228, 250, .56);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.page-primary,
+.page-secondary {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 16px;
+  border: 1px solid rgba(239, 226, 246, .48);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(222, 173, 216, .42), rgba(122, 137, 207, .36));
+  color: rgba(255,255,255,.94);
+  font: 500 13px/1 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  box-shadow: inset 0 1px rgba(255,255,255,.22), 0 5px 16px rgba(12,13,39,.16);
+}
+@media (hover: hover) {
+  .page-primary:hover,
+  .page-secondary:hover { border-color: rgba(255,255,255,.78); filter: brightness(1.08); }
+}
+.page-primary,
+.page-secondary { --hit-d: 34px; }
+.page-primary .ic { font-size: 14px; }
+
+.page-meter-head { display: flex; align-items: baseline; margin-bottom: 7px; }
+.page-meter-head span { margin-right: auto; font: 500 13px/1 'Noto Sans SC', sans-serif; color: rgba(242,240,250,.8); }
+.page-meter-head b { font: 500 20px/1 'Outfit', sans-serif; color: #fff; }
+.page-meter-head em { margin-left: 4px; font: 400 11px/1 'Outfit', sans-serif; color: rgba(225,224,242,.45); }
+.page-meter-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: rgba(10,13,34,.48);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.42), inset 0 -1px rgba(255,255,255,.07);
+}
+/* Threshold ticks the schema states outright.  A tick already passed is drawn
+   dark so it reads against the filled bar instead of disappearing into it. */
+.page-meter-track u {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--at);
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(233, 236, 255, .30);
+  text-decoration: none;
+}
+.page-meter-track u.is-past { background: rgba(10, 13, 34, .48); }
+.page-meter-track i {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff85bd, #de8de9 68%, #83b9ff);
+  box-shadow: 0 0 12px rgba(240,120,200,.55);
+}
+.tone-violet .page-meter-track i { background: linear-gradient(90deg, #a897ff, #da89e8); }
+.tone-rose .page-meter-track i { background: linear-gradient(90deg, #ff96b9, #ff72a9); }
+.tone-blue .page-meter-track i { background: linear-gradient(90deg, #78c9ff, #929dff); }
+.tone-gold .page-meter-track i { background: linear-gradient(90deg, #ffd18d, #ffad7d); }
+/* ------------------------------------------------ full workspaces */
+.page-modal {
+  left: 76px;
+  top: 52px;
+  width: 1520px;
+  height: 820px;
+  border-radius: 38px;
+  animation: modal-in .26s cubic-bezier(.2,.82,.25,1) both;
+}
+.page-modal-head {
+  height: 92px;
+  display: flex;
+  align-items: center;
+  padding: 0 74px;
+  border-bottom: 1px solid rgba(226,231,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.065), transparent);
+}
+.page-modal-head > div { display: flex; align-items: baseline; gap: 18px; }
+.page-modal-head span { font: 400 24px/1 'Pinyon Script', cursive; color: rgba(247,230,243,.74); }
+.page-modal-head h2 { font: 500 17px/1 'Noto Sans SC', sans-serif; color: rgba(250,247,255,.92); letter-spacing: .08em; }
+.page-modal-body { height: calc(100% - 92px); padding: 30px 56px 42px; overflow: auto; }
+.page-modal-body::-webkit-scrollbar { width: 6px; }
+.page-modal-body::-webkit-scrollbar-thumb { background: rgba(218,220,248,.28); border-radius: 4px; }
+
+/* Character archive.
+   ------------------------------------------------------------------
+   Art-led on purpose.  The first version boxed every value in its own bordered
+   pane and repeated the dock's 羁绊 and 生理 on top of that, which is what made it
+   read as instrumentation rather than a galgame screen.  Now: one tall 立绘, script
+   headings with a sakura mark, hairline rules instead of panels, and only the two
+   things the dock cannot hold -- 开发度 and 性经历. */
+/* Sized so the body never scrolls: the sections below add up to the content box
+   exactly, which is checked in tools/shot_dock.mjs.  A档案 that needs scrolling to
+   reach its own footer is the "冗长" problem, so height here is a budget, not a
+   guess. */
+.page-modal.character-archive { top: 104px; height: 716px; }
+.character-archive .page-modal-body {
+  display: grid;
+  grid-template-columns: 396px 1fr;
+  gap: 44px;
+  padding: 28px 56px 32px;
+  overflow: hidden;
+}
+
+/* Left column is the 立绘 and nothing else. */
+.archive-profile { display: flex; min-height: 0; }
+.archive-art {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--rim, rgba(230,235,255,.5));
+  box-shadow: 0 0 26px var(--glow, rgba(170,180,255,.18)), 0 12px 34px rgba(8,10,28,.22);
+}
+.archive-art img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+
+.archive-content { display: flex; flex-direction: column; gap: 26px; min-height: 0; }
+
+/* Identity on one line, at the top of the data column rather than under the art:
+   the name belongs with the numbers it labels. */
+.archive-id {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(226,231,255,.10);
+}
+.archive-id h3 { display: flex; align-items: baseline; gap: 13px; font: 700 31px/1 'Noto Sans SC'; color: #fff; letter-spacing: .05em; text-shadow: 0 2px 9px rgba(7,8,24,.36); }
+.archive-id h3 small { font: 400 23px/1 'Pinyon Script'; color: rgba(242,227,246,.72); }
+.archive-id-sub { font: 400 13px/1 'Noto Sans SC'; color: rgba(232,230,248,.62); letter-spacing: .07em; white-space: nowrap; }
+.archive-id .page-secondary { margin-left: auto; align-self: center; }
+
+/* 开发度 is the page's visual centre, so it takes the slack; 性经历 stays its
+   natural height. */
+.archive-sec-dev { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.archive-sec-dev .dev-grid { flex: 1; min-height: 0; }
+
+.archive-head { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
+.archive-head b { font: 500 19px/1 'Noto Sans SC'; color: rgba(255,255,255,.93); letter-spacing: .10em; }
+.archive-head > span { font: 400 11px/1 'Noto Sans SC'; color: rgba(224,225,243,.44); letter-spacing: .08em; }
+.archive-head > i { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(226,231,255,.20), transparent); }
+.archive-head > em { font: 400 11px/1 'Noto Sans SC'; font-style: normal; color: rgba(255,214,236,.58); letter-spacing: .06em; }
+.archive-head .dock-mark { width: 17px; height: 17px; }
+.status-tag { display: inline-flex; align-items: center; min-height: 25px; padding: 0 10px; border: 1px solid rgba(240,218,239,.22); border-radius: 13px; background: rgba(218,164,205,.12); font-size: 11px; color: rgba(248,235,246,.75); }
+.status-tag.is-muted { color: rgba(230,230,242,.46); }
+
+/* 开发度 tiles.  The authored 评语 are 80-145 characters each, so the tile shows the
+   crop and the 档位 and the prose opens on click -- four notes inline is the wall of
+   text this page exists to avoid. */
+.dev-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.dev-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 0 0 13px;
+  border: 1px solid rgba(226,230,255,.14);
+  border-radius: 18px;
+  background: rgba(25,30,67,.18);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .16s, transform .16s, box-shadow .16s;
+}
+@media (hover: hover) {
+  .dev-tile:hover { border-color: rgba(255,214,236,.48); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(9,11,30,.24), 0 0 18px rgba(255,140,200,.12); }
+}
+.dev-tile.is-zero { background: rgba(17,21,50,.10); border-color: rgba(226,230,255,.08); }
+.dev-tile { background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(24,30,64,.15) 46%, rgba(24,30,64,.13)); box-shadow: inset 0 1px 0 rgba(255,255,255,.10); }
+
+/* The crop is a drop-in slot: the <img> removes itself when the file is absent,
+   revealing this placeholder, so adding real part art needs no code change. */
+/* The crop takes whatever height the section has left, so 开发度 grows to fill the
+   panel instead of being a fixed strip with dead space under it. */
+.dev-crop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(255,196,226,.12), transparent 72%),
+    linear-gradient(160deg, rgba(120,110,170,.18), rgba(28,32,66,.32));
+  box-shadow: inset 0 -1px 0 rgba(226,231,255,.10);
+}
+.dev-crop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+/* Empty slot: a dashed frame reads as "art goes here" without repeating the part
+   name, which the row underneath already carries. */
+.dev-crop em {
+  padding: 7px 12px;
+  border: 1px dashed rgba(232,228,250,.20);
+  border-radius: 9px;
+  font: 400 11px/1 'Noto Sans SC';
+  font-style: normal;
+  color: rgba(236,232,248,.30);
+  letter-spacing: .18em;
+}
+.dev-crop img + em { display: none; }
+.dev-meta { display: flex; align-items: baseline; gap: 9px; padding: 0 14px; }
+.dev-meta b { font: 500 15px/1 'Noto Sans SC'; color: rgba(255,255,255,.92); letter-spacing: .08em; }
+.dev-tier { font: 400 11px/1 'Noto Sans SC'; color: rgba(255,214,236,.72); letter-spacing: .06em; }
+.dev-tile.is-zero .dev-tier { color: rgba(226,226,242,.40); }
+.dev-pips { display: flex; gap: 4px; padding: 0 14px; }
+.dev-pips i { flex: 1; height: 5px; border-radius: 3px; background: rgba(10,13,34,.42); box-shadow: inset 0 1px 2px rgba(0,0,0,.34); }
+.dev-pips i.on { background: linear-gradient(90deg,#ff92c4,#d38ce8); box-shadow: 0 0 7px rgba(255,130,200,.5); }
+
+/* 评语 sheet.  A sibling of the page rather than a child of it, so it gets its own
+   refraction instead of having to imitate glass with an opaque fill. */
+.dev-sheet-shade { position: absolute; inset: 0; z-index: 8; pointer-events: auto; background: rgba(8,9,24,.34); animation: page-fade .18s ease both; }
+.dev-sheet {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  /* Wider than the old text-only card: 360 of crop plus a 14px-measure column still
+     fits inside the 1520 archive with margin, and 3:2 of 360 is the same frame the
+     part art is authored against. */
+  width: 940px;
+  max-height: 70%;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,226,244,.40);
+  border-radius: 26px;
+  background: rgba(44, 44, 92, .52);
+  backdrop-filter: blur(22px) saturate(1.30);
+  -webkit-backdrop-filter: blur(22px) saturate(1.30);
+  box-shadow: 0 26px 64px rgba(6,8,24,.44), 0 0 30px var(--glow, rgba(255,150,205,.18)), inset 0 1px 0 rgba(255,255,255,.30);
+  /* Its own keyframes, not modal-in: that one ends on `transform: none`, which with
+     fill-mode both wipes the centring translate and pins the sheet's top-left to the
+     modal's centre point. */
+  animation: dev-sheet-in .22s cubic-bezier(.2,.82,.25,1) both;
+}
+@keyframes dev-sheet-in {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(.985); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.dev-sheet > header { display: flex; align-items: center; gap: 13px; padding: 22px 26px 16px; border-bottom: 1px solid rgba(255,222,242,.14); }
+.dev-sheet-part { font: 500 21px/1 'Noto Sans SC'; color: #fff; letter-spacing: .12em; }
+.dev-sheet > header b { font: 400 13px/1 'Noto Sans SC'; color: rgba(255,222,242,.80); letter-spacing: .06em; }
+.dev-sheet .dev-pips { width: 120px; flex: none; margin-left: auto; padding: 0; }
+.dev-sheet-close { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border: 1px solid rgba(255,235,248,.30); border-radius: 50%; background: rgba(30,26,58,.5); color: rgba(255,255,255,.86); font: 300 20px/1 'Outfit', sans-serif; cursor: pointer; }
+@media (hover: hover) {
+  .dev-sheet-close:hover { background: rgba(140,120,180,.55); border-color: rgba(255,255,255,.66); }
+}
+.dev-sheet-close { --hit-d: 30px; }
+.dev-sheet-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  padding: 18px 22px 22px;
+  overflow: hidden;
+}
+.dev-sheet-crop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(255,196,226,.12), transparent 72%),
+    linear-gradient(160deg, rgba(120,110,170,.18), rgba(28,32,66,.32));
+  box-shadow: inset 0 0 0 1px rgba(226,231,255,.10);
+}
+.dev-sheet-crop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.dev-sheet-crop em {
+  padding: 7px 12px;
+  border: 1px dashed rgba(232,228,250,.20);
+  border-radius: 9px;
+  font: 400 11px/1 'Noto Sans SC';
+  font-style: normal;
+  color: rgba(236,232,248,.30);
+  letter-spacing: .18em;
+}
+.dev-sheet-crop img + em { display: none; }
+.dev-sheet-copy { min-height: 0; max-height: 100%; overflow: auto; }
+.dev-sheet-copy p { font: 400 14px/2.05 'Noto Sans SC'; color: rgba(240,236,250,.86); letter-spacing: .03em; text-align: justify; }
+.dev-sheet-copy p.is-muted { color: rgba(232,230,246,.56); line-height: 1.9; }
+.dev-sheet-copy code { padding: 2px 6px; border-radius: 5px; background: rgba(12,14,34,.46); font: 400 12px/1 'Outfit', monospace; color: rgba(255,224,242,.86); }
+.dev-sheet-copy::-webkit-scrollbar { width: 6px; }
+.dev-sheet-copy::-webkit-scrollbar-thumb { background: rgba(255,214,236,.30); border-radius: 4px; }
+
+/* 性经历: one decaying window called out on its own, then ten lifetime tallies as a
+   hairline list.  Boxes around single digits was most of the dashboard feeling. */
+.exp-recent { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.exp-recent > span { font: 500 13px/1 'Noto Sans SC'; color: rgba(248,240,250,.84); letter-spacing: .06em; }
+.exp-recent > b { font: 400 30px/1 'Outfit', sans-serif; color: #fff; text-shadow: 0 2px 10px rgba(255,140,200,.28); }
+.exp-recent > em { margin-left: auto; font: 400 11px/1 'Noto Sans SC'; font-style: normal; color: rgba(226,226,242,.44); }
+/* Six columns, not five.  The draft grew from 11 counters to 13 (凌辱调教 and
+   催眠奸), so the tally list is 12 entries: at five across that is two full rows
+   plus a ragged row of two, and the extra row would push the page past the
+   height budget this档案 is sized to (see .character-archive above -- the body must
+   not scroll).  Six across is exactly two rows, so the budget is unchanged.
+   Column width is (968 - 5*34)/6 = 133, and the longest label is six characters at
+   12px = 72 plus the number, so it still fits. */
+.exp-list { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0 34px; list-style: none; }
+/* Two lines per row -- name and count on the first, the bar across the full column on the
+   second.  Inline would be the cheaper change but leaves the bar about 30px of the 133,
+   which is not a bar; and 12px more of row height is affordable because 开发度 above is
+   the section carrying `flex: 1`, so its crop absorbs the difference rather than the
+   body starting to scroll. */
+.exp-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  align-content: center;
+  gap: 7px 10px;
+  height: 48px;
+  border-bottom: 1px solid rgba(226,231,255,.09);
+}
+.exp-list span { font: 400 12px/1 'Noto Sans SC'; color: rgba(238,236,250,.72); letter-spacing: .04em; }
+.exp-list b { font: 400 19px/1 'Outfit', sans-serif; color: rgba(255,255,255,.9); }
+.exp-list li.is-zero span { color: rgba(230,230,244,.32); }
+.exp-list li.is-zero b { color: rgba(228,228,244,.22); }
+
+/* No well behind the bar, and no tick marks on it.
+   ------------------------------------------------------------------
+   Both were in the first pass and both were wrong, for the same reason: they draw a
+   ceiling.  An empty groove says "this much is left", and ticks dividing it into fifths
+   say "there are five steps and you are on the second" -- but a 性经历 counter has no
+   maximum anywhere in the schema and no last step (see experienceLevel in data.js).  The
+   bands exist to *compress* an open-ended tally into something you can look at, not to
+   enumerate it, so a reader who counts the slots and concludes 5 of 5 is finished has
+   been told something untrue by the drawing.
+
+   What is left is a bar with nothing behind it: length is a magnitude, not a fraction of
+   anything, and it is comparable across rows because every row starts at the same left
+   edge in a column of the same width.  A counter at 0 therefore draws nothing at all,
+   which is exactly what 0 means -- and the box stays in the row so the two lines do not
+   reflow when a tally is empty. */
+.exp-bar { grid-column: 1 / -1; height: 6px; }
+/* Hue comes from the band, so the colour is the reading and not decoration.  Lit from the
+   same direction as every other fill in the HUD: darker at the left shoulder, brightest
+   at the head, with the head's own glow spilling past it. */
+.exp-bar > u {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 3px;
+  text-decoration: none;
+  background: linear-gradient(90deg,
+    hsl(var(--hue) 72% 58%), hsl(var(--hue) 92% 74%));
+  box-shadow: 0 0 8px hsl(var(--hue) 94% 68% / .55);
+}
+/* event page */
+.page-summary { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; padding: 0 8px; }
+.page-summary div { display: flex; flex-direction: column; gap: 7px; }
+.page-summary span { font-size: 12px; color: rgba(227,226,244,.48); }
+.page-summary b { font-size: 22px; color: rgba(255,255,255,.9); }
+.page-summary p { max-width: 580px; font-size: 12px; color: rgba(225,225,242,.48); text-align: right; }
+.event-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+/* Inner cards are sub-panels on the sheet's glass, so they sit near the dock's
+   .dock-panel weight.  At the old .22/.32 they stacked into a second opaque slab. */
+.event-card { position: relative; min-height: 500px; padding: 28px; border: 1px solid rgba(225,230,255,.15); border-radius: 25px; background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(24,30,64,.15) 46%, rgba(24,30,64,.13)); box-shadow: inset 0 1px 0 rgba(255,255,255,.10); overflow: hidden; }
+.event-card::before { content:''; position:absolute; inset:0; background: radial-gradient(circle at 90% 4%, rgba(187,166,255,.15), transparent 38%); pointer-events:none; }
+.event-card.is-ready { border-color: rgba(255,199,224,.48); box-shadow: 0 0 22px rgba(255,130,190,.14), inset 0 1px rgba(255,255,255,.14); }
+.event-top { position: relative; display:flex; justify-content:space-between; margin-bottom: 65px; }
+.event-top span { padding: 5px 10px; border-radius: 12px; background: rgba(226,167,205,.15); font-size: 11px; color: rgba(255,230,245,.8); }
+.event-top em { font: 400 11px/1 'Outfit'; color: rgba(226,226,243,.42); }
+.event-card h3 { position:relative; margin-bottom: 18px; font-size: 25px; color: rgba(255,255,255,.94); letter-spacing:.05em; }
+.event-card p { position:relative; min-height: 105px; font-size: 13px; line-height: 1.8; color: rgba(233,231,245,.62); }
+.event-cond { position:relative; display:flex; flex-wrap:wrap; gap:6px; margin: 18px 0 4px; }
+.event-cond span { display:inline-flex; align-items:center; height:24px; padding:0 9px; border:1px solid rgba(226,230,255,.16); border-radius:12px; background:rgba(20,25,60,.3); font:400 11px/1 'Noto Sans SC'; color:rgba(230,229,246,.62); }
+.event-location { position:relative; display:flex; align-items:flex-start; gap:9px; padding-top: 22px; border-top:1px solid rgba(225,230,255,.12); font-size:12px; line-height:1.6; color:rgba(234,231,246,.55); }
+.event-location .ic { margin-top:2px; color:#f2cdbf; }
+.event-card button { position:absolute; left:28px; right:28px; bottom:26px; height:38px; border:1px solid rgba(232,226,249,.3); border-radius:20px; background:rgba(132,142,199,.18); color:rgba(248,244,253,.78); cursor:pointer; }
+.event-card.is-ready button { background:linear-gradient(135deg, rgba(228,145,193,.46), rgba(143,131,204,.42)); border-color:rgba(255,220,238,.5); color:#fff; }
+
+/* inventory */
+.inventory-layout { display:grid; grid-template-columns:220px 1fr; gap:28px; min-height:100%; }
+.inventory-side { display:flex; flex-direction:column; gap:10px; padding:13px; border:1px solid rgba(227,231,255,.13); border-radius:23px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); }
+.inventory-side > span { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-radius:13px; font-size:13px; color:rgba(231,231,246,.56); }
+.inventory-side > span b { font:500 13px/1 'Outfit'; }
+.inventory-side > span.is-active { background:linear-gradient(110deg, rgba(205,170,220,.25), rgba(127,143,205,.18)); color:#fff; box-shadow:inset 0 1px rgba(255,255,255,.12); }
+.stamina-card { margin-top:auto; padding:18px; border:1px solid rgba(224,229,255,.13); border-radius:17px; background:rgba(17,22,56,.26); }
+.stamina-card small { display:block; margin-bottom:7px; font-size:11px; color:rgba(229,229,244,.48); }
+.stamina-card > b { font:500 28px/1 'Outfit'; color:#fff; }
+.stamina-card em { margin-left:3px; font-size:11px; color:rgba(225,225,241,.42); }
+.stamina-card > i { display:block; height:7px; margin-top:12px; border-radius:4px; overflow:hidden; background:rgba(9,13,35,.45); }
+.stamina-card u { display:block; width:var(--pct); height:100%; background:linear-gradient(90deg,#76c9ff,#a89aff); text-decoration:none; }
+.inventory-content { display:flex; flex-direction:column; gap:24px; }
+.inventory-content section > header { display:flex; align-items:baseline; gap:12px; margin:0 4px 12px; }
+.inventory-content h3 { font-size:16px; color:rgba(255,255,255,.9); }
+.inventory-content header span { font-size:11px; color:rgba(226,226,242,.42); }
+.item-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.item-card { min-height:122px; display:grid; grid-template-columns:64px 1fr auto; gap:13px; align-items:start; padding:17px; border:1px solid rgba(226,230,255,.13); border-radius:18px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); }
+
+/* A shallow well with the item floating in it, the same cell the drawer and the portrait
+   rows use.  `--hue` comes from the item's 类别 (see resolveCategory in data.js), so the
+   socket glows in the item's own colour whether the art has landed or not. */
+.item-cell { position:relative; width:64px; height:64px; border-radius:18px; background:linear-gradient(180deg, rgba(6,8,24,.42), rgba(14,18,40,.22) 52%, rgba(255,236,224,.05)); box-shadow:inset 0 2px 4px rgba(4,6,18,.5), inset 0 -1px 0 rgba(255,242,232,.22), inset 0 0 0 1px rgba(214,222,255,.14); }
+/* Neutral socket glow by default; only 消耗品 modulate it, because 强度 exists only on
+   消耗品.  See the note at .slot-well::after in drawer.css. */
+.item-cell::after { content:''; position:absolute; inset:0; border-radius:inherit; mix-blend-mode:plus-lighter; --lit:.15; --reach:64%; background:radial-gradient(ellipse 62% var(--reach) at 50% 106%, hsl(var(--hue) 92% 72% / var(--lit)), transparent 78%); }
+/* 强度 is carried by the corner notches, not by this cone -- see the note in drawer.css. */
+/* --tilt and --scale come from a hash of the item's name (itemIcon in data.js): with one
+   picture per category they are what keeps two items of the same category from looking
+   like one item drawn twice. */
+.item-icon { position:absolute; left:5px; top:3px; width:54px; height:54px; object-fit:contain; filter:drop-shadow(0 1px 3px rgba(6,8,22,.45)); transform:rotate(var(--tilt, 0deg)) scale(var(--scale, 1)); }
+
+/* Placeholder behind the art, hidden while the art is there -- the same drop-in slot the
+   part crops and the drawer cells use. */
+.item-gem { position:absolute; left:9px; top:8px; width:46px; height:46px; border:1px solid rgba(255,255,255,.28); border-radius:15px; background:radial-gradient(circle at 35% 28%,#f7fdff,#70bcff 28%,#6e70bd 68%,#34345f); box-shadow:0 0 15px rgba(112,172,255,.24),inset 0 1px rgba(255,255,255,.52); }
+.item-gem.consumable { background:radial-gradient(circle at 35% 28%,#fff8fb,#ff9fca 30%,#a46faf 68%,#4a365e); box-shadow:0 0 15px rgba(255,130,190,.22),inset 0 1px rgba(255,255,255,.52); }
+/* 用品 are durable, not spent, so they read as metal rather than as a potion. */
+.item-gem.goods { border-radius:11px; background:radial-gradient(circle at 32% 26%,#fffdf6,#ffd79a 30%,#b08a63 66%,#4a3b30); box-shadow:0 0 15px rgba(255,196,120,.20),inset 0 1px rgba(255,255,255,.55); }
+.item-icon + .item-gem { display:none; }
+.item-card.is-worn { border-color:rgba(255,214,236,.42); box-shadow:0 0 18px rgba(255,140,200,.12), inset 0 1px rgba(255,255,255,.12); }
+.item-card.is-worn > b { font:500 12px/1 'Noto Sans SC'; color:rgba(255,232,246,.94); }
+.item-copy h3 { margin:0 0 7px; font-size:14px; }
+.item-copy p { margin-bottom:9px; font-size:11px; line-height:1.55; color:rgba(229,229,244,.5); }
+.item-copy span { font-size:10px; color:rgba(213,205,233,.4); }
+.item-card > b { font:500 16px/1 'Outfit'; color:rgba(255,255,255,.76); }
+
+/* relationships */
+.relation-list { display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; }
+.relation-row { height:77px; display:grid; grid-template-columns:54px 175px 1fr 85px 20px; gap:14px; align-items:center; padding:10px 17px 10px 10px; border:1px solid rgba(226,230,255,.13); border-radius:19px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); color:#fff; text-align:left; cursor:pointer; }
+@media (hover: hover) {
+  .relation-row:hover { border-color:rgba(245,226,245,.42); background:rgba(70,73,123,.3); }
+}
+.relation-row img { width:54px; height:54px; object-fit:cover; object-position:center top; border-radius:14px; border:1px solid rgba(255,255,255,.24); }
+.relation-row > span { display:flex; flex-direction:column; gap:7px; }
+.relation-row > span b { font-size:14px; }
+.relation-row > span small { font-size:10px; color:rgba(226,226,242,.44); }
+.relation-row > i { height:8px; overflow:hidden; border-radius:4px; background:rgba(10,13,35,.48); }
+.relation-row > i u { display:block; width:var(--pct); height:100%; background:linear-gradient(90deg,#ff89bf,#d78ce8,#83b8ff); }
+.relation-row > em { font:500 20px/1 'Outfit'; text-align:right; }
+.relation-row > em small { margin-left:3px; font-size:10px; color:rgba(225,225,242,.4); }
+.relation-row > .ic { color:rgba(240,236,250,.52); }
+
+/* 主角档案.
+   ------------------------------------------------------------------
+   Two columns, both full height, and the sheet does not scroll -- see the note above
+   profilePage() in pages.js for what the previous flex column did when the roster fold
+   opened inside a sheet of fixed height.  Nothing on this page changes size on a click,
+   so the budget cannot be broken again.
+
+   Material is the sub-panel weight the rest of these pages use, not the near-opaque
+   navy the first pass had: this sheet already carries a 26px blur and its own tint, and
+   a panel at .78 over it stops the scene reaching the page at all -- which is the whole
+   reason the sheet is glass. */
+/* Narrower than the other sheets, the way the archive is shorter than them: the left
+   column here is prose and facts, and a 900-unit measure for 12px type is a column no
+   one tracks a line across.  Same centre, so the sheet does not appear to move when a
+   page is swapped. */
+.page-modal.profile-page { left:136px; width:1400px; }
+.profile-page .page-modal-body { padding:26px 52px 30px; overflow:hidden; }
+.profile-layout {
+  height:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 496px;
+  gap:34px;
+}
+/* Sections, not cards.  Three panels down this column each had a headline, two facts
+   and a note in a 250-unit box, so each one carried about 80 units of empty card -- the
+   same "crowded and empty at once" the fold produced, just spread out.  The archive
+   already solved this for a page of exactly this kind: script heading, sakura mark,
+   hairline, and the section's own content directly on the sheet's glass.  The air then
+   falls between the sections, where it reads as a document breathing rather than as
+   three boxes with holes in them. */
+.profile-self {
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:22px;
+}
+.profile-sec { flex:none; }
+.profile-sec .archive-head { margin-bottom:15px; }
+.profile-sec-id { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.profile-sec-id h3 {
+  font:500 26px/1.1 'Noto Sans SC', sans-serif;
+  color:#fff;
+  letter-spacing:.05em;
+  text-shadow:0 2px 9px rgba(7,8,24,.36);
+}
+.profile-sec-id .page-secondary { margin-left:auto; }
+.profile-sec-id .page-secondary .settings-stub { margin-left:2px; }
+
+/* 资金 is a balance and 体力 is a fraction of a ceiling, so one is a numeral and the
+   other a meter.  The meter is capped rather than spanning the column: a 12-unit track
+   740 wide reads as a rule, not as a level. */
+.profile-state { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:34px; align-items:end; }
+.profile-money { display:flex; align-items:baseline; gap:16px; min-width:0; }
+.profile-money b {
+  font:400 38px/1 'Outfit', sans-serif;
+  color:#fff;
+  letter-spacing:.01em;
+  text-shadow:0 2px 10px rgba(7,8,24,.4);
+}
+.profile-money b .unit { font-size:.72em; margin-right:2px; color:rgba(248,236,216,.9); }
+.profile-money em {
+  font:400 12px/1 'Noto Sans SC', sans-serif;
+  font-style:normal;
+  color:rgba(230,230,246,.56);
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+
+/* 现在: three facts, each a value with the thing that qualifies it.  A strip rather
+   than a panel -- it is the page's dateline, so it gets a hairline and no body. */
+.profile-now {
+  flex:none;
+  display:grid;
+  grid-template-columns:1.6fr 1fr 1fr;
+  gap:0 26px;
+  padding:2px 4px 18px;
+  border-bottom:1px solid rgba(226,231,255,.14);
+}
+.profile-now-cell { display:flex; flex-direction:column; gap:9px; min-width:0; }
+.profile-now-cell + .profile-now-cell { padding-left:26px; border-left:1px solid rgba(226,231,255,.10); }
+.profile-now-cell > span {
+  font:400 11px/1 'Noto Sans SC', sans-serif;
+  color:rgba(224,225,243,.50);
+  letter-spacing:.18em;
+}
+.profile-now-cell > b {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:500 21px/1.1 'Noto Sans SC', sans-serif;
+  color:rgba(255,255,255,.94);
+  letter-spacing:.04em;
+  text-shadow:0 2px 9px rgba(7,8,24,.36);
+}
+.profile-now-cell > em {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:400 12px/1 'Noto Sans SC', sans-serif;
+  font-style:normal;
+  color:rgba(232,230,248,.58);
+  letter-spacing:.05em;
+}
+
+/* The 到岗 pill and the 住所 pill.  Same four tones the status pane's row uses, so one
+   state cannot come out in two colours across the two panels. */
+.profile-tag {
+  display:inline-flex;
+  align-items:center;
+  height:24px;
+  padding:0 11px;
+  border:1px solid rgba(215,224,255,.20);
+  border-radius:12px;
+  background:rgba(166,181,235,.10);
+  font:500 12px/1 'Noto Sans SC', sans-serif;
+  color:rgba(228,228,250,.72);
+  letter-spacing:.04em;
+}
+.profile-tag.is-warn { border-color:rgba(255,208,160,.34); background:rgba(255,190,120,.12); color:#ffd7a0; }
+.profile-tag.is-ready { border-color:rgba(255,224,140,.36); background:rgba(255,220,130,.12); color:#ffe08a; }
+.profile-tag.is-ok { border-color:rgba(150,230,190,.30); background:rgba(120,220,180,.11); color:#b6f0d2; }
+
+/* Facts pack from the left rather than dividing the column: with two of them in a
+   two-column grid, 日收入 ended up 500 units away from the 地点 it belongs beside. */
+.profile-facts { margin:0; display:flex; flex-wrap:wrap; gap:14px 58px; }
+.profile-facts > div { display:flex; flex-direction:column; gap:8px; min-width:0; max-width:340px; }
+.profile-facts dt {
+  font:400 11px/1 'Noto Sans SC', sans-serif;
+  color:rgba(224,225,243,.48);
+  letter-spacing:.14em;
+}
+.profile-facts dd {
+  margin:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:500 16px/1.2 'Noto Sans SC', sans-serif;
+  color:rgba(250,248,255,.92);
+  letter-spacing:.03em;
+}
+.profile-facts dd.is-num { font:400 26px/1 'Outfit', sans-serif; color:#fff; }
+
+.profile-hint {
+  margin-top:16px;
+  max-width:640px;
+  font:400 12px/1.75 'Noto Sans SC', sans-serif;
+  color:rgba(229,229,244,.52);
+  letter-spacing:.02em;
+}
+
+/* 粉丝身份 as the right column.  `grid-auto-rows: 1fr` rather than a row height: the
+   roster is seven now and will not stay seven, and rows that divide the column keep the
+   list ending on the page's floor whatever the count is. */
+.profile-fans-col { min-height:0; display:flex; flex-direction:column; }
+.profile-fans-col .archive-head { margin-bottom:14px; }
+.profile-fans { flex:1; min-height:0; display:grid; grid-auto-rows:1fr; gap:9px; }
+.profile-fan {
+  display:grid;
+  grid-template-columns:48px minmax(0,1fr) auto auto 18px;
+  gap:14px;
+  align-items:center;
+  padding:0 16px 0 9px;
+  border:1px solid rgba(226,230,255,.13);
+  border-radius:18px;
+  background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09);
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color .16s, transform .16s, box-shadow .16s;
+}
+@media (hover: hover) {
+  .profile-fan:hover {
+    border-color:rgba(255,214,236,.44);
+    transform:translateX(2px);
+    box-shadow:0 8px 24px rgba(9,11,30,.22), 0 0 18px rgba(255,140,200,.10);
+  }
+}
+/* 正在看 is where the player is *right now*, so it is the one row lit from its own
+   theme rather than merely outlined. */
+.profile-fan.is-watching {
+  border-color:var(--rim, rgba(226,230,255,.42));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 0 20px var(--glow, rgba(170,180,255,.16));
+}
+.profile-fan img {
+  width:48px;
+  height:48px;
+  object-fit:cover;
+  object-position:center top;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.24);
+}
+.profile-fan-id { display:flex; flex-direction:column; gap:7px; min-width:0; }
+.profile-fan-id > b {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0;
+  font:500 15px/1 'Noto Sans SC', sans-serif;
+  color:rgba(255,255,255,.94);
+  letter-spacing:.05em;
+}
+.profile-fan-id > b small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:400 13px/1 'Pinyon Script', cursive;
+  color:rgba(242,227,246,.60);
+  letter-spacing:0;
+}
+.profile-fan-id > small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:400 11px/1 'Noto Sans SC', sans-serif;
+  color:rgba(230,230,246,.54);
+  letter-spacing:.04em;
+}
+/* Live is a state happening elsewhere and now, so it reads as a lit dot on the caption
+   rather than as another pill in a 200px column. */
+.profile-fan.is-live .profile-fan-id > small { color:rgba(255,196,220,.86); }
+.profile-fan.is-live .profile-fan-id > small::before {
+  content:"";
+  display:inline-block;
+  width:5px;
+  height:5px;
+  margin-right:7px;
+  vertical-align:1px;
+  border-radius:50%;
+  background:#ff86bb;
+  box-shadow:0 0 7px rgba(255,120,190,.85);
+}
+.profile-fan-lv { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.profile-fan-lv b { font:400 18px/1 'Outfit', sans-serif; color:rgba(255,255,255,.88); }
+.profile-fan-lv small { white-space:nowrap; font:400 11px/1 'Noto Sans SC', sans-serif; color:rgba(226,226,242,.50); }
+.profile-fan-yen {
+  min-width:64px;
+  text-align:right;
+  white-space:nowrap;
+  font:400 14px/1 'Outfit', sans-serif;
+  color:rgba(252,252,255,.86);
+}
+.profile-fan > .ic { color:rgba(240,236,250,.52); }
+
+/* settings */
+/* Two across, not three.  There are four sections now, and at three per row the
+   fourth sits alone in a third of a row; two rows of two also fills more of the
+   sheet's fixed height and gives the explanatory copy a readable measure. */
+.settings-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+/* A column so the control can be pushed to the foot of the card: the copy explains and
+   the control acts, and with them butted together the rest of the card was dead space
+   below a floating switch. */
+.settings-grid section { min-height:310px; display:flex; flex-direction:column; padding:28px; border:1px solid rgba(226,230,255,.13); border-radius:23px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); }
+.settings-grid section > .segmented,
+.settings-grid section > .fake-switch:first-of-type { margin-top:auto; }
+.settings-grid h3 { display:flex; align-items:center; gap:10px; margin-bottom:13px; font-size:17px; color:rgba(255,255,255,.9); }
+
+/* A control that is not wired to anything says so and cannot be pressed.  Left as a
+   live-looking control it teaches the reader that the page does not respond, which
+   then reads back onto the switches that do. */
+.settings-stub {
+  padding:3px 8px 4px;
+  border:1px solid rgba(226,230,255,.16);
+  border-radius:10px;
+  background:rgba(16,20,48,.42);
+  font:400 10px/1 'Noto Sans SC', sans-serif;
+  color:rgba(226,226,242,.42);
+  letter-spacing:.08em;
+}
+.segmented.is-stub, .fake-switch.is-stub { opacity:.44; }
+.segmented.is-stub button, .fake-switch.is-stub { cursor:not-allowed; }
+.settings-grid p { min-height:72px; font-size:12px; line-height:1.8; color:rgba(229,229,244,.5); }
+.segmented { display:flex; gap:4px; margin-top:20px; padding:4px; border:1px solid rgba(226,230,255,.13); border-radius:17px; background:rgba(15,20,52,.28); }
+.segmented button { flex:1; height:31px; border:0; border-radius:13px; background:transparent; color:rgba(229,229,244,.48); font-size:11px; cursor:pointer; }
+.segmented button.is-active { background:linear-gradient(135deg,rgba(211,162,207,.35),rgba(117,135,198,.35)); color:#fff; box-shadow:inset 0 1px rgba(255,255,255,.16); }
+@media (hover: hover) {
+  .segmented:not(.is-stub) button:not(.is-active):hover { background:rgba(226,230,255,.10); color:rgba(244,242,255,.78); }
+}
+.segmented button { --hit-d: 31px; position:relative; }
+.fake-switch { height:44px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(225,230,255,.1); font-size:12px; color:rgba(237,235,248,.66); }
+.fake-switch i { width:35px; height:19px; padding:2px; border-radius:10px; background:linear-gradient(90deg,#d68dcb,#859ee0); }
+.fake-switch i::after { content:''; display:block; width:15px; height:15px; margin-left:16px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(9,10,30,.4); }
+
+@keyframes modal-in { from { opacity:0; transform:translateY(16px) scale(.99); } to { opacity:1; transform:none; } }
+@keyframes page-fade { from { opacity:0; } to { opacity:1; } }
+
+/* 强度 notches, shared by all three item cells.
+   ------------------------------------------------------------------
+   One rule block rather than three, because the cell is one component even though it is
+   hosted at three sizes -- the landscape drawer (66 units), the landscape inventory page
+   (64) and the portrait row (128).  Each host sets the four numbers; everything else,
+   including which marks are lit, is here.  main.js loads every stylesheet in both modes,
+   so a shared class works across the layouts.
+
+   The marks radiate from the corner's own arc centre, so they cross the rim rather than
+   sitting inside it -- filed into the edge, not printed on the face.  --notch-r starts
+   them inside the silhouette and --notch-len carries them past it, which is the overhang;
+   every host therefore has to leave that much room outside the cell.
+
+   Angles span the corner quadrant from straight up (-90deg) to straight right (0deg),
+   with 12deg of margin at each end so the outermost marks do not sit on the tangents. */
+/* Parallel tally marks straddling the top edge, not a fan around the corner.
+   The first attempt radiated five ticks across the whole corner quadrant with a soft glow,
+   and at the size this is actually read -- about ten real pixels on a desktop -- it came out
+   as lint: spread over 90 degrees the marks lose any tally reading, the blur turned each one
+   into a smudge, and round caps made them look like hairs rather than cuts.
+
+   Parallel, tight, hard-edged and sheared is legible at that size, and it is also what a
+   nick actually looks like.  They sit on the straight run of the top edge rather than on the
+   corner arc, ending exactly where the arc begins, because a notch in a straight edge reads
+   as a notch and a notch on a curve reads as an accident. */
+.item-notch {
+  position: absolute;
+  right: var(--notch-right);
+  top: var(--notch-top);
+  z-index: 3;
+  display: flex;
+  gap: var(--notch-gap);
+  pointer-events: none;
+}
+
+/* A cut is a dark groove with a lit lip, which is what makes it read as carved into the
+   glass instead of printed on it.  So even an unlit mark is a real mark -- the empty part of
+   the scale is still a notch, just one with nothing in it. */
+/* Sub-pixel detail is left out on purpose.  A 2.5-unit mark with 0.5px edges is about two
+   and a half real pixels on a desktop, and half-pixel highlights inside that just get
+   averaged into grey -- the first pass spent its contrast on detail that could not resolve.
+   Everything here is a whole unit, and the mark is thick enough to survive antialiasing.
+
+   The unlit marks are the empty part of the scale, so they have to be countable without
+   competing: a groove with a faint lip, no colour. */
+.item-notch i {
+  width: var(--notch-w);
+  height: var(--notch-len);
+  transform: skewX(-14deg);
+  background: linear-gradient(180deg, rgba(10, 13, 30, .58), rgba(10, 13, 30, .30));
+  box-shadow: inset 1px 0 0 rgba(226, 231, 255, .22);
+}
+
+/* Lit in the item's own category hue, so the marks belong to the item rather than being a
+   UI decoration laid over it.  The dark side stays: brightening a groove without keeping its
+   shadow flattens it back into a printed dash. */
+/* Lit in the item's own category hue, brightest where the mark leaves the rim and fading as
+   it goes in, so it reads as light caught in a cut rather than a dash laid on the surface.
+   The dark side stays: brightening a groove without keeping its shadow flattens it. */
+.item-notch i.on {
+  background: linear-gradient(180deg,
+    hsl(var(--hue) 96% 90%), hsl(var(--hue) 92% 72%) 55%, hsl(var(--hue) 85% 58% / .75));
+  box-shadow:
+    1px 0 0 rgba(6, 8, 24, .5),
+    0 0 calc(var(--notch-w) * 1.6) hsl(var(--hue) 95% 74% / .5);
+}
+
+/* Landscape inventory page: 64-unit cell, 18 radius, so the group ends at the corner arc. */
+.item-cell { --notch-right: 17px; --notch-top: -6px; --notch-w: 3px; --notch-len: 11px; --notch-gap: 3px; }
+
+
+/* ------------------------------------------------------------- schedule page */
+.schedule-page .page-modal-body {
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  padding:20px 38px 26px;
+  overflow:hidden;
+}
+.schedule-summary { display:flex; align-items:center; gap:28px; margin-bottom:10px; }
+.schedule-summary > div { display:flex; align-items:baseline; gap:15px; min-width:0; }
+.schedule-summary b { font:500 18px/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.94); letter-spacing:.04em; }
+.schedule-summary span { font:400 13px/1 'Noto Sans SC',sans-serif; color:rgba(230,230,246,.58); white-space:nowrap; }
+.schedule-summary p { margin:0 0 0 auto; font:400 12px/1.45 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.48); text-align:right; }
+.schedule-today { display:flex; align-items:center; gap:9px; min-height:36px; margin-bottom:10px; overflow:hidden; }
+.schedule-today > b { flex:none; margin-right:5px; font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.56); }
+.schedule-today-chip { min-width:0; display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid color-mix(in srgb,var(--rim) 26%,transparent); border-radius:13px; background:color-mix(in srgb,var(--wash) 13%,rgba(16,20,48,.34)); font:400 11px/1 'Noto Sans SC',sans-serif; color:rgba(244,242,252,.72); white-space:nowrap; }
+.schedule-today-chip i { width:6px; height:6px; border-radius:50%; background:var(--ornament); }
+.schedule-today-chip b { font:500 12px/1 'Outfit',sans-serif; color:rgba(255,255,255,.92); }
+.schedule-today-chip.is-live { border-color:color-mix(in srgb,var(--rim) 64%,transparent); box-shadow:0 0 12px color-mix(in srgb,var(--glow) 38%,transparent); }
+.schedule-board-head,
+.schedule-line { display:grid; grid-template-columns:170px 160px minmax(0,1fr) 200px; align-items:center; gap:14px; }
+.schedule-board-head { height:38px; padding:0 15px; border-bottom:1px solid rgba(226,230,255,.14); }
+.schedule-board-head > span { font:500 11px/1 'Noto Sans SC',sans-serif; color:rgba(226,228,246,.46); letter-spacing:.08em; }
+.schedule-board-head > div { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); height:100%; }
+.schedule-board-head > div b { display:flex; align-items:center; justify-content:center; gap:5px; border-left:1px solid rgba(226,230,255,.07); font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(238,238,252,.58); }
+.schedule-board-head > div b:last-child { border-right:1px solid rgba(226,230,255,.07); }
+.schedule-board-head > div b.is-today { color:#ffc1dc; background:rgba(255,156,205,.07); }
+.schedule-board-head em { font:400 9px/1 'Noto Sans SC',sans-serif; font-style:normal; }
+.schedule-lines { flex:1; min-height:0; display:grid; grid-template-rows:repeat(7,minmax(0,1fr)); gap:7px; padding-top:8px; }
+.schedule-line { min-height:0; padding:7px 15px; border:1px solid rgba(226,230,255,.11); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(23,29,62,.13)); box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+.schedule-line.is-watching { border-color:color-mix(in srgb,var(--rim) 54%,transparent); }
+.schedule-line-id { display:flex; align-items:center; gap:10px; min-width:0; }
+.schedule-line-id > i { flex:none; width:8px; height:34px; border-radius:6px; background:linear-gradient(180deg,var(--ornament),color-mix(in srgb,var(--ornament) 38%,transparent)); box-shadow:0 0 13px var(--glow); }
+.schedule-line-id > span { min-width:0; display:flex; align-items:baseline; gap:8px; }
+.schedule-line-id b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 15px/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.94); }
+.schedule-line-id em { font:400 13px/1 'Pinyon Script',cursive; color:rgba(242,227,246,.58); }
+.schedule-line-time { min-width:0; display:grid; grid-template-columns:auto 1fr; align-items:baseline; column-gap:5px; }
+.schedule-line-time b { font:500 19px/1 'Outfit',sans-serif; color:#fff; }
+.schedule-line-time > span { font:400 13px/1 'Outfit',sans-serif; color:rgba(230,230,246,.56); }
+.schedule-line-time small { grid-column:1/-1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px; font:400 10px/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.44); }
+.schedule-run { position:relative; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); height:42px; align-items:center; }
+.schedule-run::before { content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:rgba(226,230,255,.09); }
+.schedule-run-day { position:relative; height:100%; display:flex; align-items:center; justify-content:center; border-left:1px solid rgba(226,230,255,.07); }
+.schedule-run-day:last-child { border-right:1px solid rgba(226,230,255,.07); }
+.schedule-run-day i { position:absolute; left:5px; right:5px; height:14px; border-radius:8px; background:rgba(140,150,190,.11); }
+.schedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--ornament) 72%,transparent),var(--ornament)); box-shadow:0 0 11px color-mix(in srgb,var(--glow) 42%,transparent); }
+.schedule-run-day.is-active.joins-previous i { left:-1px; border-top-left-radius:0; border-bottom-left-radius:0; }
+.schedule-run-day.is-active.joins-next i { right:-1px; border-top-right-radius:0; border-bottom-right-radius:0; }
+.schedule-run-day.is-today { background:rgba(255,156,205,.055); }
+.schedule-run-day.is-today::after { content:''; position:absolute; top:3px; bottom:3px; width:2px; border-radius:2px; background:#ffc0dc; box-shadow:0 0 8px rgba(255,150,200,.65); }
+.schedule-run-day.is-live i { height:18px; box-shadow:0 0 16px var(--glow),inset 0 0 0 1px rgba(255,255,255,.72); }
+.schedule-run-day.is-unplanned i { height:18px; background:linear-gradient(90deg,#e6ad58,#ffd98f); box-shadow:0 0 15px rgba(255,202,110,.6); }
+.schedule-run-day.is-rest i { display:none; }
+.schedule-run-day em { position:absolute; top:-2px; font:400 9px/1 'Noto Sans SC',sans-serif; font-style:normal; color:#ffc0dc; }
+.schedule-line-state { min-width:0; display:flex; flex-direction:column; gap:5px; padding-left:13px; border-left:1px solid rgba(226,230,255,.1); }
+.schedule-line-state b { font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.66); }
+.schedule-line-state small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 10px/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.43); }
+.schedule-line-state.is-live b { color:#ffafd2; }
+.schedule-line-state.is-unplanned b { color:#ffd68b; }
+.schedule-line-state.is-off { opacity:.6; }
+.profile-schedule-link { flex:none; display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; min-height:48px; margin-top:12px; padding:0 15px; border:1px solid rgba(226,230,255,.16); border-radius:15px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(30,34,70,.18)); color:inherit; text-align:left; cursor:pointer; }
+.profile-schedule-link span { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.profile-schedule-link b { font:500 14px/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.9); }
+.profile-schedule-link small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 11px/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.5); }
+.profile-schedule-link > .ic { color:rgba(240,236,250,.52); }
+@media (hover:hover) { .profile-schedule-link:hover { border-color:rgba(255,214,236,.44); transform:translateX(2px); } }

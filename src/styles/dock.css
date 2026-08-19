@@ -1,0 +1,429 @@
+/* The upper panel.
+   ------------------------------------------------------------------
+   Layer order and blend modes are the shell's, for the same reasons documented in
+   glass.css: the additive layers are siblings of the tint rather than children,
+   because plus-lighter adds alpha as well as colour and inside the tinted group
+   they would cut how much plate shows through.
+
+   Content is not on a free grid.  Each column sits in a structural bay of the
+   silhouette -- over the title-ear notch, over the valley tongue, over the tool-pod
+   notch -- because those are the three spans with a usable floor.  Bay frames come
+   from geometry.json; everything inside them flows. */
+
+.dock-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: dock-rise .3s cubic-bezier(.2, .82, .25, 1) both;
+}
+
+.dock-blur {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 10;
+  backdrop-filter: blur(26px) saturate(1.18);
+  -webkit-backdrop-filter: blur(26px) saturate(1.18);
+}
+
+.dock-scatter {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(12px) saturate(1.45);
+  -webkit-backdrop-filter: blur(12px) saturate(1.45);
+  mix-blend-mode: screen;
+  opacity: .10;
+}
+
+/* Same hue as the shell's body and the same single honest value -- the horizontal
+   warm-to-cool shift belongs to the scene behind the glass, not to the glass.
+
+   Alpha is the one number that deliberately differs: the shell's .56 was solved
+   against the prototype's lower bar, which sits over dark desk and wall.  The dock
+   hangs over the bright sky, where the same .56 buries the scene and the panel
+   reads as an opaque slab.  .38 keeps the mountains and the sunset legible through
+   it, which is the 通透感 the mockups have.  Everything else in the stack is
+   byte-identical to the shell -- see tools/verify_material.mjs. */
+.dock-tint {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 11;
+  background: rgba(36, 50, 96, .38);
+}
+
+/* Local scrim under the header band only.
+   The scene's own "Our Story" script and a cluster of big blossoms sit in the plate
+   at exactly this corner, so at .38 tint the extracted "Heroine" landed on top of
+   another piece of script and both turned to mush.  Raising opacity here rather
+   than globally keeps the 通透感 across the rest of the panel and doubles as the
+   thing that makes the raised ear read as raised. */
+.dock-header-scrim {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 11;
+  pointer-events: none;
+  background: radial-gradient(ellipse 540px 180px at 82px 84px,
+    rgba(20, 26, 56, .74) 0%,
+    rgba(20, 26, 56, .52) 36%,
+    rgba(20, 26, 56, .20) 62%,
+    transparent 80%);
+}
+
+.dock-frost {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 12;
+  pointer-events: none;
+  opacity: .50;
+  mix-blend-mode: soft-light;
+  background: url("/assets/frost.png") repeat;
+}
+
+/* Edge guiding on the two vertical edges.  The dock's left and right edges are at
+   the same x as the shell's, so these are the shell's stops at reduced strength --
+   the two light guides line up and the pair reads as one lit column. */
+.dock-edge {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#dockClip);
+  z-index: 13;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  background:
+    linear-gradient(90deg,
+      rgba(250, 168, 168, .17) 23px,
+      rgba(242, 148, 140, .14) 31px,
+      rgba(238, 122, 100, .10) 38px,
+      rgba(248, 92, 48, .06) 48px,
+      rgba(255, 60, 12, .03) 64px,
+      rgba(255, 51, 0, 0) 92px),
+    linear-gradient(90deg,
+      rgba(244, 228, 255, .09) 24px,
+      rgba(238, 234, 255, .07) 34px,
+      rgba(214, 238, 255, .045) 46px,
+      rgba(192, 234, 255, .02) 62px,
+      rgba(190, 235, 255, 0) 84px),
+    linear-gradient(90deg,
+      rgba(250, 150, 75, 0) 1576px,
+      rgba(250, 150, 88, .05) 1602px,
+      rgba(243, 150, 100, .09) 1618px,
+      rgba(250, 156, 112, .14) 1632px,
+      rgba(255, 171, 135, .19) 1641px,
+      rgba(255, 157, 116, .12) 1647px);
+}
+
+.dock-underglow,
+.dock-lens,
+.dock-rim {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  overflow: visible;
+  pointer-events: none;
+}
+.dock-underglow { z-index: 13; mix-blend-mode: plus-lighter; }
+.dock-lens      { z-index: 14; mix-blend-mode: plus-lighter; }
+.dock-rim       { z-index: 40; }
+
+/* ---------------------------------------------------------------- ornaments */
+/* Above the rim, because the blossom is meant to sit *on* the panel's corner --
+   drawn under the rim it would be sliced by the very edge it is dressing. */
+.dock-art {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+.dock-art img,
+.dock-art .head-caption { position: absolute; }
+.dock-blossom-art {
+  filter: drop-shadow(0 2px 7px rgba(12, 10, 30, .42));
+}
+/* The script was cut off the mockup's own glass, so it arrives a little cool and
+   a little flat; screen puts it back to being light rather than paint. */
+.dock-title-art {
+  mix-blend-mode: screen;
+  filter: brightness(1.22) saturate(1.15) drop-shadow(0 1px 4px rgba(255, 226, 198, .3));
+}
+.dock-art .head-caption { z-index: 1; }
+
+/* The section marker is inline type-height, so it scales with the title row. */
+.dock-mark {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  opacity: .92;
+  filter: drop-shadow(0 0 5px rgba(255, 176, 214, .5));
+}
+
+/* ----------------------------------------------------------------- content */
+.dock-bays {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+.dock-bay {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+  pointer-events: auto;
+}
+
+/* Sized and placed to fit the band between the top edge and the pod bay, so it
+   never lands on top of the content it sits beside. */
+.dock-close {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  z-index: 24;
+  width: var(--d);
+  height: var(--d);
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  border: 1px solid rgba(235, 237, 255, .32);
+  border-radius: 50%;
+  background: rgba(28, 34, 70, .48);
+  color: rgba(255, 255, 255, .84);
+  font: 300 21px/1 'Outfit', sans-serif;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+@media (hover: hover) {
+  .dock-close:hover { background: rgba(118, 126, 185, .52); border-color: rgba(255, 255, 255, .62); }
+}
+.dock-close { --hit-d: 30px; }
+
+/* ------------------------------------------------------- bay 1: portrait */
+.bay-ear { display: flex; }
+.dock-portrait {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 21px;
+  border: 1px solid var(--rim, rgba(230, 235, 255, .7));
+  background: var(--pane, rgba(185, 200, 255, .2));
+  box-shadow:
+    0 0 18px var(--glow, rgba(180, 190, 255, .3)),
+    inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.dock-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 16%;
+  filter: saturate(.94) brightness(1.04);
+}
+.dock-portrait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .10), transparent 26%,
+      transparent 58%, rgba(9, 11, 30, .58));
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------- bay 2: identity + meters */
+.bay-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+/* No bottom margin: bay-main is space-between, so the gaps are the bay's slack
+   distributed evenly rather than a number picked here. */
+.dock-id {
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
+}
+.dock-id h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  font: 700 33px/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .05em;
+  text-shadow: 0 2px 8px rgba(7, 8, 24, .38);
+}
+.dock-id h2 small {
+  font: 400 23px/1 'Pinyon Script', cursive;
+  color: rgba(245, 231, 250, .74);
+}
+.dock-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 220, 240, .30);
+  border-radius: 13px;
+  background: rgba(255, 208, 235, .12);
+  font: 500 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(252, 240, 248, .90);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.dock-chip .ic { font-size: 13px; color: #ffd3e7; }
+.dock-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font: 400 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 246, .58);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.dock-where .ic { font-size: 13px; color: rgba(242, 214, 200, .8); }
+
+.dock-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+.dock-group-title b {
+  font: 500 15px/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .90);
+  letter-spacing: .10em;
+}
+.dock-group-title span {
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(224, 225, 243, .42);
+  letter-spacing: .08em;
+}
+.dock-group-title i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(226, 231, 255, .18), transparent);
+}
+
+/* Sub-panels.  This is what the mockups have and the flat version did not: content
+   sits on its own faint pane instead of floating directly on the glass, which is
+   what gives the panel depth without adding a single opaque pixel.  Very low alpha
+   on purpose -- at .22 it fought the 通透感 it was meant to support. */
+.dock-panel {
+  padding: 12px 16px 13px;
+  border: 1px solid rgba(228, 233, 255, .13);
+  border-radius: 16px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .012) 46%, transparent),
+    rgba(24, 30, 64, .13);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .11),
+    0 1px 10px rgba(9, 11, 30, .10);
+}
+
+.dock-bond   { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.dock-vitals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.dock-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(226, 231, 255, .10);
+}
+.dock-status-row .dock-sub { margin: 0; flex: none; }
+
+/* An ordered enum reads as filled pips: level and ceiling at once, no false
+   precision.  Used for 私密度 0~5 here and 开发度 0~5 in the archive. */
+.dock-pips-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.dock-pips-head span { font: 500 12px/1 'Noto Sans SC', sans-serif; color: rgba(242, 240, 250, .78); }
+.dock-pips-head b { font: 500 12px/1 'Noto Sans SC', sans-serif; color: #fff; }
+.dock-pips-head em { margin-left: auto; font: 400 10px/1 'Outfit', sans-serif; color: rgba(225, 224, 242, .45); }
+.dock-pips-row { display: flex; gap: 4px; }
+.dock-pips-row i {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(10, 13, 34, .40);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .34);
+}
+.dock-pips.tone-violet i.on {
+  background: linear-gradient(90deg, #a897ff, #da89e8);
+  box-shadow: 0 0 8px rgba(170, 150, 255, .5);
+}
+.dock-pips.tone-blue i.on {
+  background: linear-gradient(90deg, #7fc6ff, #b79dff);
+  box-shadow: 0 0 8px rgba(140, 175, 255, .5);
+}
+
+/* ------------------------------------------------- bay 3: place + statuses */
+.bay-pod {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.bay-pod .dock-where { margin-left: 0; margin-bottom: 5px; font-size: 13px; color: rgba(240, 238, 250, .88); }
+.bay-pod .dock-where b { font-weight: 500; }
+.dock-place {
+  margin: 0 0 8px 19px;
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 244, .52);
+  letter-spacing: .06em;
+}
+.dock-fan {
+  margin: 0 0 12px 19px;
+  font: 400 11px/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(226, 226, 244, .62);
+  letter-spacing: .04em;
+}
+.dock-sub {
+  display: block;
+  margin-bottom: 9px;
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(224, 225, 243, .46);
+  letter-spacing: .12em;
+}
+.dock-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.dock-tags span {
+  display: inline-flex;
+  align-items: center;
+  height: 25px;
+  padding: 0 10px;
+  border: 1px solid rgba(240, 218, 239, .24);
+  border-radius: 13px;
+  background: rgba(218, 164, 205, .13);
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(248, 235, 246, .82);
+}
+.dock-tags span.is-muted { border-color: rgba(226, 229, 253, .14); background: rgba(25, 30, 67, .24); color: rgba(230, 230, 242, .44); }
+.dock-tags span.is-key { border-color: rgba(255, 226, 244, .42); background: rgba(255, 190, 226, .18); color: rgba(255, 246, 251, .94); }
+
+/* At 470px a meter row with the value pinned right reads as two unrelated
+   things.  In the dock the value sits straight after its label and the track
+   takes the full width underneath. */
+.dock-bay .page-meter-head { gap: 0; }
+.dock-bay .page-meter-head .ic { margin-right: 7px; font-size: 14px; }
+.dock-bay .page-meter-head span { margin-right: 9px; }
+.dock-bay .page-meter-head b { font-size: 18px; }
+.dock-bay .page-meter-head em { margin-right: auto; }
+.dock-bay .tone-pink .page-meter-head .ic    { color: #ff87bd; filter: drop-shadow(0 0 6px rgba(255, 110, 175, .7)); }
+.dock-bay .tone-violet .page-meter-head .ic  { color: #bda4ff; filter: drop-shadow(0 0 6px rgba(160, 140, 255, .6)); }
+.dock-bay .tone-rose .page-meter-head .ic    { color: #ff8fae; filter: drop-shadow(0 0 6px rgba(255, 120, 150, .6)); }
+.dock-bay .tone-blue .page-meter-head .ic    { color: #86c8ff; filter: drop-shadow(0 0 6px rgba(110, 185, 255, .6)); }
+.dock-bay .tone-gold .page-meter-head .ic    { color: #ffca8a; filter: drop-shadow(0 0 6px rgba(255, 180, 100, .6)); }
+
+.bay-pod .page-primary { width: 100%; }
+
+@keyframes dock-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}

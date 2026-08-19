@@ -1,0 +1,843 @@
+/* 送礼: the tray cells, the confirm card, and the portrait gift page.
+   ------------------------------------------------------------------
+   Panel chrome is not here.  The tray *is* the item drawer's panel -- same
+   silhouette, same glass stack, same rail box (see mountRailPanel in drawer.js) --
+   so everything in drawer.css applies and this file only carries what differs: the
+   wide platform-gift cell and the two confirmation surfaces.
+
+   There is deliberately nothing here that draws a verdict on a gift.  An earlier pass
+   marked every bag cell with a computed 契合度 band; it came out as an unreadable
+   three-pip smudge, and worse, it was a guess -- the bag is filled by an AI, so the
+   item names are open-ended and keyword matching against them regularly disagrees with
+   what the model then narrates.  The 喜好 rules live in the world book entry
+   (变量相关/送礼与喜好.md), on the side that does the judging.
+
+   `--fit` survives as the name of the accent hue a confirmation surface tints itself
+   with.  For a bag row that is the item's category hue; for a tip row, the gift's own. */
+
+/* ------------------------------------------------------- platform gift cell */
+
+/* 112 wide rather than the item cell's 66.  The menu is closed and short enough to
+   fit the rail without scrolling, and that is worth the width: a tip is picked in a
+   hurry, and 火箭 against 小飞机 differs mostly in price -- which therefore has to be
+   on the cell rather than one click away. */
+/* 120, sized to the longest name in the menu rather than to a round number: 心愿盲盒
+   and 摩天大楼 are four characters, and at 112 both came out as 心愿… / 摩天…, which
+   loses exactly the half that says which gift it is.  Eleven of these plus the three
+   dividers is 1522 of the rail's 1573, so the whole closed menu still fits without
+   scrolling -- which is the reason the wide cell exists at all. */
+.gift-slot {
+  width: 120px;
+  --hit-d: 66px;
+}
+
+/* The cast shadow the item cell inherits is an ellipse tuned for a 66 square; at 112
+   it reads as a smear under the label. */
+.gift-slot::before {
+  left: 10px;
+  right: 76px;
+  bottom: 6px;
+}
+
+.gift-face {
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 52px;
+  height: 52px;
+}
+
+.gift-icon,
+.gift-gem {
+  position: absolute;
+  inset: 0;
+  transition: transform .16s ease;
+  transform: translateY(var(--lift, 0));
+}
+/* width/height must be set: an <img> with only inset:0 keeps its intrinsic 256px
+   and paints over the label.  .slot-icon already does this; the gem placeholder
+   never hit the bug because it is a span. */
+.gift-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(6, 8, 22, .45));
+}
+
+/* Placeholder while public/assets/gifts/ is empty: the <img> removes itself on error
+   and this shows through, the same drop-in contract the item cells use.  Rounder and
+   more saturated than the item gem on purpose -- a platform gift is a designed symbol,
+   not a photographed object, and the two kinds share the rail. */
+.gift-gem {
+  inset: 7px;
+  border-radius: 50%;
+  border: 1px solid hsl(var(--hue) 60% 86% / .38);
+  background: radial-gradient(circle at 34% 26%,
+    hsl(var(--hue) 60% 97%), hsl(var(--hue) 88% 72%) 34%,
+    hsl(var(--hue) 66% 46%) 72%, hsl(var(--hue) 44% 24%));
+  box-shadow: 0 0 12px hsl(var(--hue) 84% 60% / .30), inset 0 1px 0 rgba(255, 255, 255, .44);
+}
+.gift-icon + .gift-gem { display: none; }
+
+.gift-copy {
+  position: absolute;
+  left: 58px;
+  right: 6px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+/* 11px, not 12: four characters at 12 need 48 of the 56 available and left nothing
+   for the ellipsis to be avoided by. */
+.gift-copy b {
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(248, 246, 255, .94);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gift-copy em {
+  font: 400 11px/1 'Outfit', sans-serif;
+  color: hsl(var(--hue) 70% 82% / .92);
+  letter-spacing: .02em;
+}
+
+/* 飘屏 gifts get a mark rather than a word: at this size the phrase would not fit, and
+   which gifts cross the screen is the one thing about the high tiers that is not
+   already said by the price. */
+.gift-flair {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: hsl(var(--hue) 92% 78%);
+  box-shadow: 0 0 7px hsl(var(--hue) 92% 70% / .9);
+}
+
+/* 办卡 is a subscription, not a gift, so the cell says so before it is opened. */
+.gift-slot.is-guard .slot-well {
+  box-shadow:
+    inset 0 3px 5px rgba(4, 6, 18, .55),
+    inset 0 -1.5px 0 rgba(255, 242, 232, .26),
+    inset 0 0 0 1px hsl(var(--hue) 72% 78% / .40);
+}
+
+/* Cannot be afforded, so it cannot be pressed -- and it stays visible rather than
+   being filtered out, because "there is a tier above this" is part of the ladder. */
+.gift-slot.is-broke {
+  cursor: not-allowed;
+  opacity: .40;
+}
+.gift-slot.is-broke::before { opacity: 0; }
+
+/* --------------------------------------------------------------- confirm card */
+
+/* Lighter than .page-shade's .24 and with no blur.  This is a confirmation, not a new
+   context: her 速览 above and the tray below both have to stay readable, because what
+   is being confirmed is a relationship between the two. */
+/* Stops at the tray's top edge -- 208 is the canvas height minus geometry.json's
+   drawer.top (941 - 733).  Covering the rail would mean a press on another gift cell
+   landed on the shade and dismissed the card instead of switching to that gift, which
+   reads as the click having been swallowed.  Picking a different gift with one press
+   is the whole point of leaving the rail standing underneath. */
+.gift-shade {
+  position: absolute;
+  inset: 0 0 208px;
+  z-index: 1;
+  pointer-events: auto;
+  background: rgba(7, 8, 22, .14);
+  animation: page-fade .18s ease both;
+}
+
+/* Sat over the shell, between the dock and the tray: she is above, the gift is below,
+   the confirmation is between them.  720x306 centred at x, and vertically inside the
+   shell's own 411..720 band so neither of the other two panels is covered. */
+/* Height follows the content, anchored on the shell band's centre (411..720 -> 566).
+   The three shapes differ by a lot -- 打赏 adds a stepper, 私下 adds 附言 and possibly
+   its fact chips -- and at a fixed height the shortest of them was a card with a hole
+   in the middle.  Centring rather than growing downward keeps it clear of the
+   tray at every height. */
+.gift-confirm {
+  position: absolute;
+  left: 476px;
+  top: 566px;
+  width: 720px;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid rgba(232, 236, 255, .56);
+  border-radius: 28px;
+  background: rgba(36, 50, 96, .44);
+  backdrop-filter: blur(26px) saturate(1.34);
+  -webkit-backdrop-filter: blur(26px) saturate(1.34);
+  box-shadow:
+    0 24px 62px rgba(7, 8, 27, .34),
+    inset 0 1px 0 rgba(255, 255, 255, .40),
+    inset 1px 0 0 rgba(255, 255, 255, .14),
+    inset 0 -1px 0 rgba(255, 215, 232, .16);
+  /* Its own keyframes, because the centring lives in a transform and modal-in would
+     overwrite it -- the card would land 153 units low. */
+  animation: gift-card-in .22s cubic-bezier(.2, .82, .25, 1) both;
+}
+@keyframes gift-card-in {
+  from { opacity: 0; transform: translateY(calc(-50% + 14px)) scale(.99); }
+  to { opacity: 1; transform: translateY(-50%); }
+}
+.gift-confirm > .gift-confirm-body,
+.gift-confirm > .gift-actions { position: relative; z-index: 1; }
+
+/* The row's height is whichever column is taller, and that is always the detail
+   column -- the shortest shape it can take still exceeds the hero's 132 plus its
+   caption, so the caption never collides with the footer. */
+.gift-confirm-body {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 22px;
+  padding: 22px 26px 4px;
+}
+
+/* The gift at a size where it is the subject rather than an icon: this is the last
+   place before the message is generated, so the object is worth showing properly. */
+.gift-hero {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  align-self: start;
+}
+.gift-hero-well {
+  position: absolute;
+  inset: 0;
+  border-radius: 26px;
+  background: linear-gradient(180deg,
+    rgba(6, 8, 24, .46), rgba(14, 18, 40, .26) 52%, rgba(255, 236, 224, .06));
+  box-shadow:
+    inset 0 3px 6px rgba(4, 6, 18, .55),
+    inset 0 -1.5px 0 rgba(255, 242, 232, .26),
+    inset 0 0 0 1px rgba(214, 222, 255, .16);
+}
+.gift-hero-well::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  mix-blend-mode: plus-lighter;
+  background: radial-gradient(ellipse 62% 64% at 50% 106%,
+    hsl(var(--hue) 92% 72% / .20), transparent 78%);
+}
+.gift-hero-icon,
+.gift-hero-gem { position: absolute; }
+.gift-hero-icon {
+  left: 14px;
+  top: 12px;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(6, 8, 22, .45));
+}
+.gift-hero-gem {
+  left: 30px;
+  top: 28px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px solid hsl(var(--hue) 56% 86% / .34);
+  background: radial-gradient(circle at 34% 26%,
+    hsl(var(--hue) 56% 96%), hsl(var(--hue) 84% 72%) 32%,
+    hsl(var(--hue) 62% 44%) 70%, hsl(var(--hue) 40% 22%));
+  box-shadow: 0 0 18px hsl(var(--hue) 80% 60% / .26), inset 0 1px 0 rgba(255, 255, 255, .42);
+}
+.gift-hero-icon + .gift-hero-gem { display: none; }
+.gift-hero figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -20px;
+  text-align: center;
+  font: 400 10px/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .14em;
+  color: rgba(224, 226, 248, .52);
+}
+
+.gift-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.gift-head { display: flex; align-items: baseline; gap: 12px; }
+.gift-head h3 {
+  font: 500 19px/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .03em;
+}
+.gift-to {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 400 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(232, 226, 248, .68);
+}
+.gift-to .ic { font-size: 12px; color: rgba(232, 226, 248, .46); }
+
+.gift-desc {
+  min-height: 32px;
+  font: 400 11px/1.55 'Noto Sans SC', sans-serif;
+  color: rgba(229, 229, 244, .58);
+}
+
+/* What the object is, and what pressing 送出 will cost.  `--fit` is now just the
+   object's own hue -- it kept its name because both scenes set it and only one of them
+   has a category. */
+.gift-read {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 13px;
+  border: 1px solid hsl(var(--fit) 60% 78% / .22);
+  border-radius: 15px;
+  background: hsl(var(--fit) 60% 60% / .07);
+}
+/* Facts about the object, as chips.  Nothing here is a verdict on whether she wants
+   it -- that reading belongs to the model, against the 喜好 table in the world book. */
+.gift-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.gift-facts em {
+  padding: 3px 9px 4px;
+  border: 1px solid hsl(var(--fit) 56% 76% / .26);
+  border-radius: 9px;
+  background: rgba(16, 20, 48, .38);
+  font: 400 10px/1 'Noto Sans SC', sans-serif;
+  color: hsl(var(--fit) 60% 86% / .84);
+}
+.gift-hint {
+  font: 400 10px/1.5 'Noto Sans SC', sans-serif;
+  color: rgba(224, 224, 244, .46);
+}
+
+/* Stacking, presets only.  A stream client's combo is preset-driven and every extra
+   input is another state to validate on a panel used in a hurry. */
+.gift-qty { display: flex; align-items: center; gap: 6px; }
+.gift-qty > span {
+  margin-right: 2px;
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .54);
+}
+.gift-qty button {
+  min-width: 38px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(226, 230, 255, .16);
+  border-radius: 10px;
+  background: rgba(15, 20, 52, .34);
+  color: rgba(229, 229, 244, .62);
+  font: 400 12px/1 'Outfit', sans-serif;
+  cursor: pointer;
+  --hit-d: 26px;
+  position: relative;
+}
+.gift-qty button.is-active {
+  border-color: rgba(255, 255, 255, .44);
+  background: linear-gradient(135deg, rgba(211, 162, 207, .38), rgba(117, 135, 198, .38));
+  color: #fff;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .18);
+}
+@media (hover: hover) {
+  .gift-qty button:not(.is-active):hover { background: rgba(226, 230, 255, .12); }
+}
+.gift-qty > b {
+  margin-left: auto;
+  font: 500 16px/1 'Outfit', sans-serif;
+  color: rgba(255, 255, 255, .9);
+}
+
+/* 附言.  The cheapest high-value control on the card: it turns a mechanical -1 into a
+   line the model can act on. */
+.gift-remark { display: flex; align-items: center; gap: 10px; }
+.gift-remark > span {
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .54);
+}
+.gift-remark input {
+  flex: 1;
+  height: 30px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(226, 230, 255, .18);
+  border-radius: 11px;
+  background: rgba(10, 14, 38, .40);
+  color: rgba(244, 244, 255, .92);
+  font: 400 12px/1 'Noto Sans SC', sans-serif;
+}
+.gift-remark input::placeholder { color: rgba(224, 224, 244, .32); }
+.gift-remark input:focus-visible {
+  outline: 2px solid rgba(255, 226, 244, .7);
+  outline-offset: 1px;
+}
+
+/* The line the player is actually handing over.  Shown outright rather than described,
+   because this is an AIRP and that string is the whole output of the panel. */
+.gift-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 3px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(226, 231, 255, .10);
+}
+.gift-preview > span {
+  flex: none;
+  font: 400 10px/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(224, 224, 244, .40);
+  letter-spacing: .1em;
+}
+.gift-preview code {
+  font: 400 11px/1.5 'Noto Sans SC', sans-serif;
+  color: rgba(238, 234, 252, .84);
+}
+
+/* In flow now that the card's height follows its content, rather than pinned to a
+   bottom that no longer stays put. */
+.gift-actions {
+  margin: 0 26px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(226, 231, 255, .12);
+}
+.gift-actions .settings-stub { margin-right: auto; }
+.gift-broke {
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 168, 168, .82);
+}
+.gift-actions .page-primary[disabled] {
+  opacity: .42;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* What actually happened, said plainly.  There is no transport yet, so the panel
+   reports what it produced instead of implying a send -- an inventory that visibly
+   fails to decrement would be the worse lie. */
+/* Just above the tray rather than where the card was: the card is already gone by the
+   time this appears, and rising off the rail is what says it came from there. */
+.gift-toast {
+  position: absolute;
+  left: 476px;
+  top: 646px;
+  width: 720px;
+  z-index: 3;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 11px 18px;
+  pointer-events: none;
+  border: 1px solid rgba(232, 236, 255, .34);
+  border-radius: 16px;
+  background: rgba(24, 30, 62, .78);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 14px 34px rgba(7, 8, 27, .34), inset 0 1px 0 rgba(255, 255, 255, .22);
+  animation: gift-toast-in .24s cubic-bezier(.2, .82, .25, 1) both;
+}
+.gift-toast b {
+  flex: none;
+  font: 500 11px/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(198, 240, 214, .96);
+}
+.gift-toast code {
+  flex: 1;
+  font: 400 11px/1.5 'Noto Sans SC', sans-serif;
+  color: rgba(238, 234, 252, .86);
+}
+.gift-toast em {
+  flex: none;
+  font: 400 10px/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(224, 224, 244, .44);
+}
+@keyframes gift-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------------------- dock entry */
+
+/* Riding the 羁绊 header, because 好感度 is the value it moves.  Sized to that row
+   rather than to .page-primary: it is an action on a group, not the panel's primary. */
+.dock-gift {
+  flex: none;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px;
+  border: 1px solid rgba(239, 226, 246, .44);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(222, 173, 216, .40), rgba(122, 137, 207, .34));
+  color: rgba(255, 255, 255, .94);
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .22);
+  --hit-d: 25px;
+  position: relative;
+}
+.dock-gift .ic { font-size: 11px; }
+@media (hover: hover) {
+  .dock-gift:hover { border-color: rgba(255, 255, 255, .78); filter: brightness(1.08); }
+}
+
+/* Neither scene is open, so it says which rather than looking pressable.  Same rule
+   the settings page's 尚未生效 chips follow: a dead control that looks live teaches
+   the reader that the panel does not respond. */
+.dock-gift.is-off {
+  border-style: dashed;
+  border-color: rgba(226, 230, 255, .20);
+  background: rgba(16, 20, 48, .38);
+  color: rgba(226, 226, 242, .44);
+  cursor: default;
+  box-shadow: none;
+}
+
+/* 直播中, on the dock next to her name: it is the one thing about her that is
+   happening elsewhere and right now, so it belongs beside the mood chip rather than
+   in a row further down. */
+.dock-chip.is-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(255, 168, 190, .48);
+  background: rgba(96, 26, 52, .40);
+  color: rgba(255, 226, 236, .94);
+}
+.dock-chip.is-live > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5f89;
+  box-shadow: 0 0 8px rgba(255, 95, 137, .9);
+  animation: gift-live-pulse 1.9s ease-in-out infinite;
+}
+.dock-chip.is-live em {
+  padding: 1px 6px 2px;
+  border-radius: 7px;
+  background: rgba(255, 226, 236, .18);
+  font: 500 10px/1 'Noto Sans SC', sans-serif;
+}
+@keyframes gift-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .40; }
+}
+
+/* On the roster card, so finding who is live does not mean opening seven 速览.
+   Top-left of the art, where nothing else sits: the star is top-right and the text
+   column is bottom-left of the body, below the art clip.
+
+   Only what does not carry a length is shared.
+   ------------------------------------------------------------------
+   The two badges used to be one rule, lengths included, and that is a bug rather than
+   reuse: the portrait canvas is about 2.8x the landscape one, so a shared `10px` is
+   10 units on a 260-unit card in one layout and 10 units on a 330-unit card whose
+   smallest other tier is 36 in the other.  The portrait badge was therefore drawn at
+   0.28x the size of the type beside it and landed at 3.6 real px on a 320-wide phone --
+   the one element in the whole portrait tree under the 13px floor that --fs-micro: 36
+   exists to hold, and the sole failure in scripts/check-responsive.mjs's sweep.
+
+   It is the same trap the note at the top of the portrait half of this file warns about
+   ("written as raw pixels the whole page came out at a third of its size"); this rule
+   predated that note and was never brought over.  So: colour, weight, placement and the
+   relative letter-spacing stay shared, and every length is stated per canvas. */
+.card-live,
+.pcard-live {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(150, 26, 60, .72);
+  color: rgba(255, 234, 240, .96);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: .06em;
+  pointer-events: none;
+}
+
+.card-live {
+  left: 10px;
+  top: 10px;
+  padding: 3px 8px 4px;
+  border: 1px solid rgba(255, 190, 208, .52);
+  border-radius: 9px;
+  font-size: 10px;
+  box-shadow: 0 2px 8px rgba(8, 6, 20, .42), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+/* Portrait units.  --fs-micro rather than a scaled 10: the portrait floor is 36 and the
+   reason it is 36 is that anything below it drops under 13 real px on a 360-wide phone,
+   so there is no tier for a badge to be smaller than the card's other text -- the floor
+   is the answer.  2px rim to match `.pstage .card-rim`, and 20/20 to sit symmetric with
+   `.pcard-star`'s right/top 20, which is the other corner ornament on the same card. */
+.pcard-live {
+  left: 20px;
+  top: 20px;
+  padding: 8px 22px 10px;
+  border: 2px solid rgba(255, 190, 208, .52);
+  border-radius: 26px;
+  font-size: var(--fs-micro);
+  box-shadow: 0 6px 20px rgba(8, 6, 20, .42), inset 0 2px 0 rgba(255, 255, 255, .22);
+}
+
+/* ------------------------------------------------------- portrait gift page */
+
+/* The entry, under the preview's footer rather than inside it: 完整档案 is where the
+   panel wants you to go next, and 送礼 is a different kind of thing -- an action on
+   her rather than a deeper view of her. */
+/* Everything below is in portrait canvas units, which are about 2.9x the landscape
+   ones -- so these read the tokens rather than carrying px, exactly as portrait.css
+   does.  Written as raw pixels the whole page came out at a third of its size. */
+.pgift-entry {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: 0 var(--sp-5);
+  border: 2px solid rgba(239, 226, 246, .40);
+  border-radius: 40px;
+  background: linear-gradient(135deg, rgba(222, 173, 216, .34), rgba(122, 137, 207, .30));
+  color: rgba(255, 255, 255, .94);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 2px rgba(255, 255, 255, .20);
+}
+.pgift-entry > em {
+  margin-left: auto;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(248, 240, 255, .70);
+}
+.pgift-entry > .ic:last-child { color: rgba(255, 255, 255, .62); }
+.pgift-entry.is-off {
+  border-style: dashed;
+  border-color: rgba(226, 230, 255, .20);
+  background: rgba(16, 20, 48, .34);
+  color: rgba(226, 226, 242, .48);
+  cursor: default;
+  box-shadow: none;
+}
+.pgift-entry.is-off > span { font-weight: 400; font-size: var(--fs-micro); }
+
+/* The recipient header.  The landscape tray gets this for free -- her 速览 is mounted
+   above it -- but a portrait page replaces the column, so there is nothing behind it
+   and the page has to restate who this is for. */
+.pgift-who {
+  display: grid;
+  grid-template-columns: 208px 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+  margin: var(--sp-1) 0 var(--sp-5);
+}
+.pgift-who img {
+  width: 208px;
+  height: 208px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 40px;
+  border: 2px solid rgba(255, 255, 255, .26);
+}
+.pgift-who-copy { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.pgift-who-copy > b { font: 500 var(--fs-value)/1 'Noto Sans SC', sans-serif; color: #fff; }
+.pgift-who-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.pgift-who-tags em {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 5px 15px 6px;
+  border: 2px solid rgba(226, 230, 255, .18);
+  border-radius: 18px;
+  background: rgba(16, 20, 48, .40);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(228, 228, 246, .66);
+}
+.pgift-who-tags em .ic { font-size: var(--fs-micro); }
+.pgift-who-tags .is-near {
+  border-color: rgba(190, 240, 210, .38);
+  color: rgba(210, 244, 224, .92);
+}
+.pgift-who-tags .is-live {
+  border-color: rgba(255, 168, 190, .46);
+  background: rgba(96, 26, 52, .40);
+  color: rgba(255, 226, 236, .94);
+}
+.pgift-who-tags .is-guard {
+  border-color: rgba(180, 214, 255, .40);
+  color: rgba(214, 234, 255, .92);
+}
+
+/* A row, not a grid tile.  The column has 795 units of usable width, which is enough to
+   show the 描述 -- and the 描述 is the thing the landscape tray can only show after a
+   cell has been picked. */
+/* 128 is the .pslot cell's own size in portrait units, so the first column is exactly
+   the cell and the row stays aligned with the 背包 page's rows.  Two columns for a bag
+   row and three for a tip row: a price is genuinely a right-aligned number that the
+   ladder is read by scanning, whereas a bag item has nothing to put there. */
+.pgift-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-3);
+  border: 2px solid rgba(226, 230, 255, .13);
+  border-radius: 28px;
+  background: linear-gradient(160deg,
+    rgba(255, 255, 255, .05), rgba(24, 30, 64, .14) 46%, rgba(24, 30, 64, .12));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+/* A bag row has only the item's own hue; a tip row sets --fit inline, which wins. */
+.pgift-row { --fit: var(--hue); }
+.pgift-row.is-tip { grid-template-columns: 128px 1fr 200px; }
+.pgift-row.is-broke { opacity: .44; cursor: not-allowed; }
+
+.pgift-copy { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.pgift-copy > b { font: 500 var(--fs-lead)/1.15 'Noto Sans SC', sans-serif; }
+.pgift-copy > p {
+  font: 400 var(--fs-caption)/1.6 'Noto Sans SC', sans-serif;
+  color: rgba(229, 229, 244, .56);
+}
+.pgift-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.pgift-tags em {
+  padding: 5px 15px 6px;
+  border: 2px solid rgba(226, 230, 255, .16);
+  border-radius: 18px;
+  background: rgba(20, 25, 60, .30);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(230, 229, 246, .64);
+}
+
+/* Tip rows only: the price, right-aligned so the ladder can be scanned. */
+.pgift-fit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding-top: 5px;
+  text-align: right;
+}
+.pgift-fit > b {
+  font: 500 var(--fs-caption)/1 'Outfit', sans-serif;
+  color: hsl(var(--fit) 86% 84%);
+}
+.pgift-fit > em {
+  font: 400 var(--fs-micro)/1.3 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(224, 224, 244, .48);
+}
+
+/* The price band caption inside 直播打赏 -- a hairline with a word, the horizontal
+   equivalent of the tray's vertical divider. */
+.pgift-band {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-5) var(--sp-0) var(--sp-3);
+}
+.pgift-band > b {
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: rgba(238, 234, 252, .70);
+  letter-spacing: .14em;
+}
+.pgift-band > i {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(228, 232, 255, .22), transparent);
+}
+
+/* Confirmation opens inside the row.
+   ------------------------------------------------------------------
+   Not an overlay, for the same reason the 开发度 评语 opens inside its tile: the
+   portrait canvas is elastic so growing the row is free, it keeps the reader's place
+   in a page that runs several screens, and it is one fewer level to back out of.  The
+   landscape layout has to float a card only because its canvas is fixed and the tray
+   is 66 units tall. */
+.pgift-row.is-confirming {
+  border-color: hsl(var(--fit) 78% 76% / .56);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .12), 0 0 44px hsl(var(--fit) 80% 60% / .18);
+}
+.pgift-confirm,
+.pgift-done {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 2px solid rgba(226, 231, 255, .14);
+}
+.pgift-confirm label { display: flex; align-items: center; gap: var(--sp-3); }
+.pgift-confirm label > span {
+  flex: none;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .54);
+}
+.pgift-confirm input {
+  flex: 1;
+  height: 88px;
+  min-width: 0;
+  padding: 0 var(--sp-4);
+  border: 2px solid rgba(226, 230, 255, .18);
+  border-radius: 26px;
+  background: rgba(10, 14, 38, .42);
+  color: rgba(244, 244, 255, .92);
+  font: 400 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+}
+.pgift-line > span,
+.pgift-done > em {
+  font: 400 var(--fs-micro)/1.4 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(224, 224, 244, .44);
+  letter-spacing: .1em;
+}
+.pgift-line code,
+.pgift-done code {
+  display: block;
+  margin-top: var(--sp-1);
+  font: 400 var(--fs-caption)/1.6 'Noto Sans SC', sans-serif;
+  color: rgba(238, 234, 252, .86);
+}
+.pgift-again {
+  align-self: flex-start;
+  padding: 6px 18px 7px;
+  border: 2px solid hsl(var(--fit) 66% 70% / .38);
+  border-radius: 20px;
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: hsl(var(--fit) 84% 84%);
+}
+.pgift-done > b {
+  font: 500 var(--fs-caption)/1.4 'Noto Sans SC', sans-serif;
+  color: rgba(198, 240, 214, .96);
+}
+.pgift-stub {
+  margin-top: var(--sp-5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font: 400 var(--fs-micro)/1.6 'Noto Sans SC', sans-serif;
+  color: rgba(224, 224, 244, .46);
+}
+.pgift-stub .pstub { flex: none; white-space: nowrap; }
+
+/* A platform gift is a designed symbol, so its placeholder is round -- the bucket
+   silhouettes (.b-material round, .b-goods square) describe bag items, and a tip row
+   carries no bucket at all. */
+.pgift-row.is-tip .pslot-gem { border-radius: 50%; }

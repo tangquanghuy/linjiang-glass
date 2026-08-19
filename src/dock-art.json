@@ -1,0 +1,17 @@
+{
+  "dockBlossom": {
+    "src": "/assets/dock-blossom.png",
+    "w": 65,
+    "h": 53
+  },
+  "markSakura": {
+    "src": "/assets/mark-sakura.png",
+    "w": 34,
+    "h": 35
+  },
+  "heroineTitle": {
+    "src": "/assets/title-heroine.png",
+    "w": 121,
+    "h": 43
+  }
+}

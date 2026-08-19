@@ -1,0 +1,99 @@
+/* Design canvas and unit system.
+   ------------------------------------------------------------------
+   The canvas is fixed at the prototype's native 1672x941 and every value in the
+   stylesheets is a prototype pixel, so CSS reads directly against the measured
+   numbers in tools/geometry.py.  Fluid sizing comes from scaling the whole canvas
+   as one unit, which keeps proportions exact instead of letting each element
+   round independently.  At a 1672x941 viewport the scale is exactly 1, which is
+   what the pixel diff in scripts/diff.mjs relies on. */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: #05040a;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  color: #fff;
+  cursor: default;
+  user-select: none;
+}
+
+.viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.stage {
+  /* Cover: crop the scene, never letterbox.  Division of two lengths is a
+     unitless ratio — scale() rejects a px value and drops the whole transform,
+     which is what pinned the canvas to the bottom-right. */
+  --k: max(100vw / 1672px, 100vh / 941px);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1672px;
+  height: 941px;
+  margin-left: -836px;
+  margin-top: -470.5px;
+  transform: scale(var(--k));
+  transform-origin: center center;
+  /* Establish a backdrop root so the glass samples the plate, and a stacking
+     context so the additive glow layers blend against the glass only. */
+  isolation: isolate;
+}
+
+.plate {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* Touch target floor.
+   ------------------------------------------------------------------
+   The landscape canvas is read at k ~ 1 on a desktop but only k ~ 0.5 on a phone
+   held sideways, and a finger does not shrink with it: the 46-unit tool ring lands
+   at 23 real px (3.8mm) and the 20-unit card star at 10 (1.7mm), against a ~7mm
+   guideline.  Everything else about the landscape layout survives being halved --
+   the aspect nearly matches a landscape phone, and the type ends up at 62% of its
+   desktop angular size -- but a finger does not, so this is the one thing that has
+   to be fixed for the composition to be usable on a phone.
+
+   Growing the controls would change a measured drawing, so the hit area is widened
+   by a pseudo-element instead: --hit-d is the drawn size in canvas units, and
+   44px / var(--k) is 44 real pixels expressed in canvas units.  Same mechanism as
+   portrait.css; each control declares its own --hit-d next to its own rules.
+
+   position is only set on the controls that do not already have one -- .card-star,
+   .page-close and .dock-close are absolutely positioned by their own stylesheets. */
+.btn-ghost,
+.dev-sheet-close,
+.page-primary,
+.page-secondary { position: relative; }
+
+.tool-btn::after,
+.card-star::after,
+.btn-ghost::after,
+.page-close::after,
+.dock-close::after,
+.dev-sheet-close::after,
+.page-primary::after,
+.page-secondary::after,
+.segmented button::after,
+.drawer-slot::after {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * max(0px, (44px / var(--k, 1) - var(--hit-d, 44px)) / 2));
+  border-radius: inherit;
+}

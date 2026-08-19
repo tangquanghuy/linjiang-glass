@@ -1,0 +1,18 @@
+{
+  "consumable-daily": 3,
+  "consumable-drink": 3,
+  "consumable-food": 3,
+  "consumable-medicine": 3,
+  "consumable-other": 3,
+  "goods-accessory": 3,
+  "goods-clothing": 3,
+  "goods-equipment": 3,
+  "goods-implement": 3,
+  "goods-other": 3,
+  "material-animal": 3,
+  "material-chemical": 3,
+  "material-fabric": 3,
+  "material-mineral": 3,
+  "material-other": 3,
+  "material-plant": 3
+}

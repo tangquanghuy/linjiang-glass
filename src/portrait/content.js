@@ -1,0 +1,579 @@
+/* Portrait content.
+   ------------------------------------------------------------------
+   Two panels, and the second one has two states:
+
+     Status   the player's own state.  Least interactive, so it takes the top of
+              the column where a thumb cannot comfortably reach.
+     Girls    either the roster as a swipeable rail, or one character's 速览.
+              Tapping a card turns this panel into that character; closing turns it
+              back.  Its title ear morphs with it -- "Girls / 女主角一览" becomes her
+              romaji and name.
+
+   The preview deliberately is *not* a third panel appended below.  A third panel
+   would be a third level to back out of, and the rail it opens from is the natural
+   place for it: the row you tapped becomes the thing you tapped.  The column stays
+   two panels deep in both states, so there is never an empty region and never an
+   extra step.  The document still grows when the preview opens, because the preview
+   is taller than the rail -- that is what the elastic canvas is for.
+
+   The landscape layout instead puts the character dock *above* the shell, because up
+   there is empty scene and the shell alone is already a complete picture.  Portrait
+   has no such empty region to borrow, which is why it swaps in place.
+
+   Two label errors in the portrait reference are corrected here: it labels
+   physiology.desire as 性格 and physiology.bladder as 疲惫.  Both values match
+   沙花叉's record exactly (27 and 31), and 疲惫 would in any case be redundant with
+   体力.  The meters below use the schema's own names. */
+
+import {
+  NO_STATUS, PRIVACY, THRESHOLDS,
+  characterDetails, fanLine, giftLabel, giftScenes, girls, player, protagonist, tools, world,
+} from '../data.js';
+import { buildGift } from '../data.js';
+import { isPinned, orderedGirls, placeCardArts, togglePin } from '../content.js';
+import { CARD, TOOL } from './geometry.js';
+import { PORTRAIT_PAGES } from './pages.js';
+import { head, ic, meter, pct } from './parts.js';
+import { setPref } from '../prefs.js';
+import { onLive } from '../data.js';
+import { requestClockIn, sendChat } from '../bridge.js';
+
+/* ------------------------------------------------------------------ status */
+
+function stat(s) {
+  return `
+  <div class="pstat">
+    <div class="pstat-label">${ic(s.icon)}<span>${s.label}</span></div>
+    <div class="pstat-value">
+      <b>${s.unit ? `<span class="unit">${s.unit}</span>` : ''}${s.value}</b>
+      ${s.note ? `<em>${s.note}</em>` : ''}
+    </div>
+    ${s.sub ? `<div class="pstat-sub">${s.sub.pill
+      ? `<span class="ppill">${s.sub.pill}</span>`
+      : `${ic(s.sub.icon)}<span>${s.sub.text}</span>`}</div>` : ''}
+  </div>`;
+}
+
+/* Hierarchy, not just height.
+   ------------------------------------------------------------------
+   Laying 资金 / 日期 / 时间 out as equal cells made them the largest
+   block on the first screen.  Only 资金 is a resource the player
+   spends; the calendar and the clock are context.  So one prominent
+   number, and the rest demoted to a wrapping meta row at caption size. */
+function statusPanel() {
+  const { stats, stamina } = protagonist;
+  const money = stats[0];
+  const c = world.calendar;
+
+  const meta = [
+    `<b>${c.date}</b><em>${c.weekday}</em>`,
+    `<span>${c.season} · ${c.week}</span>`,
+    `${ic('moon')}<b>${world.time.clock}</b><em>${world.time.period}</em>`,
+  ];
+
+  return `
+<section class="ppanel" data-panel="status" data-pod>
+  ${head('Status', '主角状态')}
+  <div class="ptools">
+    ${tools.map((t) => `
+    <button class="ptool" type="button" data-page="${t.page}" aria-label="${t.label}">
+      ${ic(t.icon)}${t.badge ? '<span class="pdot"></span>' : ''}
+    </button>`).join('')}
+  </div>
+
+  <div class="pworld">
+    <div class="pworld-main">
+      <div class="pworld-where">${ic('mapPin')}<b>${world.location.area}</b></div>
+      <div class="pworld-place">
+        <span>${world.location.place}</span>
+        <em>${PRIVACY[world.location.privacy]} ${world.location.privacy}/5</em>
+      </div>
+    </div>
+    <div class="pworld-with">${player.companion ? `同行 · ${player.companion}` : '独行'}</div>
+  </div>
+
+  <div class="pmoney">
+    ${ic(money.valueIcon)}
+    <b><span class="unit">${money.unit}</span>${money.value}</b>
+    ${money.sub?.pill ? `<span class="ppill">${money.sub.pill}</span>` : ''}
+  </div>
+
+  <div class="pmeta">${meta.map((m) => `<span>${m}</span>`).join('')}</div>
+
+  <hr class="prule">
+
+  <div class="pfavor is-stamina">
+    ${ic('clock')}
+    <span>${stamina.label}</span>
+    <div class="pbar is-stamina"><i style="--pct:${pct(stamina.value, stamina.max)}%"></i></div>
+    <b>${stamina.value}</b><em>/ ${stamina.max}</em>
+    <button class="pbtn-ghost" type="button" data-page="profile">${stamina.action}${ic('arrowRight')}</button>
+  </div>
+</section>`;
+}
+
+/* ------------------------------------------------------------------- girls */
+
+/* The card is a picker, not a dossier: name, favour, mood, 异常状态.
+   `--card-*` tokens are not reused: this card's art and text stack vertically, so
+   the horizontal split those tokens describe does not apply. */
+function card(g, selected) {
+  const pinnedOn = isPinned(g.name);
+  return `
+<article class="pcard${selected ? ' is-selected' : ''}${pinnedOn ? ' is-pinned' : ''} t-${g.theme}"
+  data-name="${g.name}" role="listitem" tabindex="0" aria-label="查看 ${g.name} 的速览">
+  <div class="card-inner">
+    <div class="card-glass"></div>
+    <div class="pcard-art">
+      <img class="card-art" src="${g.art}" alt="" draggable="false"
+        data-fx="${g.artFx ?? 0.5}" data-fy="${g.artFy ?? 0.16}"
+        data-z="${g.artZ ?? 1.32}" data-ox="0"
+        data-tx="0.5" data-ty="0.24">
+    </div>
+    <div class="pcard-scrim"></div>
+    ${g.live ? '<span class="pcard-live" title="正在直播">直播中</span>' : ''}
+    <button class="pcard-star" type="button" data-pin="${g.name}"
+      aria-pressed="${pinnedOn}" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}"
+      style="--star-image:url('/assets/card-${g.ornament === 'star' ? 'star' : 'sparkle'}.png')"></button>
+    <div class="pcard-body">
+      <div class="pcard-name">
+        <b class="${g.name.length > 3 ? 'long' : ''}">${g.name}</b><em>${g.romaji}</em>
+      </div>
+      <div class="pcard-favor">
+        ${ic(g.metric.icon)}<b>${g.metric.value}</b><span>/ ${g.metric.max}</span>
+      </div>
+      <div class="pcard-bar"><i style="--pct:${pct(g.metric.value, g.metric.max)}%"></i></div>
+      <div class="chip">${ic(g.chip.icon)}<span>${g.chip.value}</span></div>
+      <div class="pcard-status${g.status.abnormal ? ' is-abnormal' : ''}"
+        ><i></i><b>${g.status.text}</b>${g.status.extra ? `<em>+${g.status.extra}</em>` : ''}</div>
+    </div>
+    <div class="card-rim"></div>
+  </div>
+</article>`;
+}
+
+
+/* Pinned characters come first, from the same store the landscape rail reads.
+   One dot per character, because the rail snaps one card at a time rather than
+   paging a fixed group -- the reference's five dots matched neither the seven
+   characters nor a three-up page count. */
+function railBody() {
+  const list = orderedGirls();
+  return `
+  ${head('Girls', '女主角一览')}
+  <div class="prail" role="list">${list.map(card).join('')}</div>
+  <div class="pdots">${list.map((_, i) =>
+    `<i class="${i === 0 ? 'on' : ''}" data-dot="${i}"></i>`).join('')}</div>`;
+}
+
+/* ----------------------------------------------------------------- preview */
+
+/* The 送礼 entry, label following her state.  Portrait routes it to a page rather
+   than to a tray: there is no desktop band under the column for a rail to sit in,
+   which is the same reason the portrait 背包 is a page and not the drawer. */
+function giftEntry(name) {
+  const scenes = giftScenes(name);
+  if (!scenes.any) {
+    return `<div class="pgift-entry is-off">${ic('heart')}<span>${scenes.reason}</span></div>`;
+  }
+  const { stream } = characterDetails[name];
+  return `
+  <button class="pgift-entry" type="button" data-gift-page="${name}">
+    ${ic('heart')}<span>${giftLabel(scenes)}</span>
+    <em>${scenes.near ? '在身边' : ''}${scenes.near && scenes.live ? ' · ' : ''}${
+      scenes.live ? `直播中 ${stream.viewers.toLocaleString('en-US')} 人` : ''}</em>
+    ${ic('arrowRight')}
+  </button>`;
+}
+
+function previewBody(girl) {
+  const { bond, physiology, location, fan } = characterDetails[girl.name];
+  const statuses = physiology.statuses.length
+    ? physiology.statuses.map((s) => `<span>${s}</span>`).join('')
+    : `<span class="is-muted">${NO_STATUS}</span>`;
+  const here = location || world.location;
+  const fl = fanLine(fan);
+
+  return `
+  ${head(girl.romaji, `${girl.name} · 速览`)}
+  <button class="pclose" type="button" data-preview-close aria-label="返回女主角一览">×</button>
+
+  <div class="ppreview-body">
+    <figure class="ppreview-art">
+      <img src="${girl.art}" alt="" draggable="false">
+    </figure>
+
+    <div class="ppreview-data">
+      <div class="ppreview-id">
+        <h3>${girl.name}</h3>
+        <span class="pchip">${ic('smile')}心情 · ${bond.mood}</span>
+      </div>
+
+      <div class="ppreview-group">
+        <h4>羁绊</h4>
+        ${meter('好感度', bond.favor, 1000, 'pink')}
+        ${meter('顺从度', bond.obedience, 1000, 'violet', THRESHOLDS.obedience)}
+      </div>
+
+      <div class="ppreview-group">
+        <h4>生理</h4>
+        ${meter('性欲', physiology.desire, 100, 'pink', THRESHOLDS.desire)}
+        ${meter('体力', physiology.stamina, 100, 'blue', THRESHOLDS.stamina)}
+        ${meter('尿意', physiology.bladder, 100, 'gold', THRESHOLDS.bladder)}
+      </div>
+
+      <div class="ppreview-status"><small>异常状态</small><div>${statuses}</div></div>
+
+      <div class="ppreview-group">
+        <h4>所在</h4>
+        <div class="ppreview-where">${ic('mapPin')}<b>${here.area}</b>
+          <span>${here.place || '—'}</span>
+          <em>${PRIVACY[here.privacy] ?? ''} ${here.privacy}/5</em>
+        </div>
+        <p class="ppreview-fan">${fl.follow ? '关注' : '未关注'} · ${fl.tier} · ${fl.lv} · ${fl.yen}</p>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="ppreview-foot">
+    <button class="pnav" type="button" data-preview-step="-1" aria-label="上一位">${ic('chevronRight')}</button>
+    <button class="pbtn-primary" type="button" data-character-full="${girl.name}">
+      完整档案${ic('arrowRight')}
+    </button>
+    <button class="pnav" type="button" data-preview-step="1" aria-label="下一位">${ic('chevronRight')}</button>
+  </div>
+
+  <!-- 送礼 is a second action on the same character, so it sits under the footer
+       rather than competing with 完整档案 inside it.  Disabled with the reason on it
+       when neither scene is open, the same rule the landscape dock follows. -->
+  ${giftEntry(girl.name)}`;
+}
+
+/* The second panel, in whichever state it is in.  One element either way, so the
+   stage measures the same two panels and the seam arithmetic does not change. */
+function girlsPanel(open) {
+  if (!open) return `<section class="ppanel" data-panel="girls">${railBody()}</section>`;
+  const girl = girls.find((g) => g.name === open) || girls[0];
+  return `
+<section class="ppanel is-preview t-${girl.theme}" data-panel="girls"
+  role="dialog" aria-label="${girl.name} 速览">${previewBody(girl)}</section>`;
+}
+
+/* -------------------------------------------------------------------- wire */
+
+export function mountPortraitContent(stage, { onPage } = {}) {
+  const { content, sync } = stage;
+  let open = null;
+  /* Kept across a state swap so closing the preview lands the rail back where the
+     reader left it rather than at the first card. */
+  let railScroll = 0;
+  /* Which full page has taken the column over, or null for the base view.  See the
+     note at the top of pages.js for why a page replaces the column rather than being
+     appended to it. */
+  let workspace = null;
+  /* The argument the current page was opened with.  The gift page needs it after the
+     fact: a row press has to know whose gift it is, and the row cannot carry the name
+     as well without repeating it on every one of them. */
+  let workspaceArg = null;
+  /* Where the reader was in the document before the page took over, so closing puts
+     them back rather than at the top of a column they had already scrolled past. */
+  let baseScrollY = 0;
+
+  const panel = () => content.querySelector('[data-panel="girls"]');
+  const rail = () => content.querySelector('.prail');
+  const dots = () => content.querySelector('.pdots');
+  const pitch = CARD.w + CARD.gap;
+
+  const syncDots = () => {
+    const r = rail();
+    if (!r) return;
+    const i = Math.round(r.scrollLeft / pitch);
+    dots()?.querySelectorAll('i').forEach((d, n) => d.classList.toggle('on', n === i));
+  };
+
+  /* Wiring the rail needs doing after any rebuild that produced one, whether that was
+     a swap of the second panel or a full return from a page. */
+  const wireRail = ({ restoreScroll = true } = {}) => {
+    placeCardArts(content);
+    const r = rail();
+    if (r) {
+      r.scrollLeft = restoreScroll ? railScroll : 0;
+      r.addEventListener('scroll', onRailScroll, { passive: true });
+      syncDots();
+    }
+    sync();
+  };
+
+  /* Only the second panel is rebuilt; the Status panel never changes, so leaving it
+     alone keeps its layout (and the stage's measurement of it) stable.  A no-op while a
+     page owns the column -- there is no girls panel to swap then. */
+  const render = (options) => {
+    if (workspace) return;
+    panel().outerHTML = girlsPanel(open);
+    wireRail(options);
+  };
+
+  /* Both panels, from scratch.  Needed when returning from a page, since a page
+     replaces the column rather than sitting on top of it. */
+  const paintBase = ({ restoreScroll = true } = {}) => {
+    content.innerHTML = statusPanel() + girlsPanel(open);
+    wireRail({ restoreScroll });
+  };
+
+  const openPage = (page, arg) => {
+    const build = PORTRAIT_PAGES[page];
+    /* Anything unrouted falls through to the caller rather than opening an empty
+       panel -- so an unknown name is visible as a no-op with a warning, not as a blank
+       screen. */
+    if (!build) { onPage?.(page, arg); return; }
+    /* Remember the rail before it is thrown away, and the document position, so both
+       come back on close.  Only on the way *in*: a page opening another page (羁绊总览
+       into a 档案) must not overwrite where the base column was. */
+    if (!workspace) {
+      railScroll = rail()?.scrollLeft ?? railScroll;
+      baseScrollY = scrollY;
+    }
+    workspace = page;
+    workspaceArg = arg ?? null;
+    content.innerHTML = build(arg);
+    sync();
+    /* A page is a new view, not a continuation of the one underneath: start it at the
+       top even if the reader had scrolled the column. */
+    scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const closePage = () => {
+    if (!workspace) return;
+    workspace = null;
+    workspaceArg = null;
+    paintBase();
+    /* After the layout settles, or the restore lands against the page's height rather
+       than the column's. */
+    requestAnimationFrame(() => scrollTo({ top: baseScrollY, behavior: 'auto' }));
+  };
+
+  /* Confirming a gift, in place.
+     ------------------------------------------------------------------
+     No overlay: the row expands into its own confirmation, the same pattern the
+     开发度 tiles use for 评语 and for the same reason -- portrait's canvas is elastic,
+     so growing the row costs nothing, and it keeps the reader's place in a page that
+     is several screens long.  The landscape layout needs a floating card because its
+     canvas is fixed and the tray is only 66 units tall; here there is no such
+     constraint, and one fewer overlay is one fewer level to back out of. */
+  const confirmGift = (kind, key) => {
+    const name = workspace === 'gift' ? workspaceArg : null;
+    if (!name) return;
+    const row = content.querySelector(kind === 'private'
+      ? `[data-gift-send-item="${CSS.escape(key)}"]`
+      : `[data-gift-send-tip="${CSS.escape(key)}"]`);
+    if (!row) return;
+
+    /* A second press on the row that is already confirming is the send. */
+    if (row.classList.contains('is-confirming')) {
+      const remark = row.querySelector('[data-gift-remark]')?.value || '';
+      const built = buildGift(name, kind, key, { remark });
+      if (built) {
+        console.info('[gift] payload', built.payload);
+        sendChat(built.message).then((ok) => {
+          row.classList.remove('is-confirming');
+          row.querySelector('.pgift-confirm')?.remove();
+          row.insertAdjacentHTML('beforeend', `
+      <span class="pgift-done"><b>${ok ? '已写入输入框' : '已生成消息'}</b><code>${built.message}</code>
+        <em>${ok ? '请在酒馆发送' : '独立预览，未接入酒馆'}</em></span>`);
+          sync();
+        }).catch((err) => console.warn('[gift]', err));
+      }
+      return;
+    }
+
+    content.querySelectorAll('.pgift-row.is-confirming').forEach((other) => {
+      other.classList.remove('is-confirming');
+      other.querySelector('.pgift-confirm')?.remove();
+    });
+    content.querySelectorAll('.pgift-done').forEach((el) => el.remove());
+
+    const built = buildGift(name, kind, key);
+    if (!built) return;
+    row.classList.add('is-confirming');
+    row.insertAdjacentHTML('beforeend', `
+      <span class="pgift-confirm">
+        ${kind === 'private'
+    ? '<label><span>附言</span><input type="text" maxlength="30" placeholder="可选，一句话" data-gift-remark></label>'
+    : ''}
+        <span class="pgift-line"><span>将发送</span><code>${built.message}</code></span>
+        <span class="pgift-again">再按一次确认送出</span>
+      </span>`);
+    sync();
+  };
+
+  let tick = 0;
+  function onRailScroll() {
+    railScroll = rail()?.scrollLeft ?? 0;
+    if (tick) return;
+    tick = requestAnimationFrame(() => { tick = 0; syncDots(); });
+  }
+
+  const openPreview = (name) => {
+    /* Remember where the rail was before it is replaced. */
+    railScroll = rail()?.scrollLeft ?? railScroll;
+    open = name;
+    render();
+    /* The panel just grew; bring its top into view rather than leaving the reader
+       looking at the Status panel. */
+    requestAnimationFrame(() => {
+      panel()?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  };
+
+  const close = () => {
+    const wasOpen = open;
+    open = null;
+    /* Land on the card that was being read. */
+    const i = orderedGirls().findIndex((g) => g.name === wasOpen);
+    if (i >= 0) railScroll = i * pitch;
+    render();
+    requestAnimationFrame(() => {
+      panel()?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  };
+
+  const step = (delta) => {
+    const list = orderedGirls();
+    const i = list.findIndex((g) => g.name === open);
+    if (i < 0) return;
+    const next = list[(i + delta + list.length) % list.length];
+    railScroll = ((i + delta + list.length) % list.length) * pitch;
+    open = next.name;
+    render();
+  };
+
+  /* Pinning reorders the roster.  In rail state that means rebuilding the rail; in
+     preview state the panel is showing one character and the order is not visible,
+     so only the store changes and the rail picks it up on the way back. */
+  const repin = (name) => {
+    togglePin(name);
+    if (!open) {
+      const i = orderedGirls().findIndex((g) => g.name === name);
+      railScroll = Math.max(0, i) * pitch;
+      render();
+    }
+  };
+
+  paintBase({ restoreScroll: false });
+
+  content.addEventListener('click', (event) => {
+    if (event.target.closest('[data-page-close]')) { closePage(); return; }
+    if (event.target.closest('[data-preview-close]')) { close(); return; }
+
+    /* 评语 opens inside its own tile rather than in a sheet, so it is a class toggle and
+       not a re-render: the reader keeps their place in a page that may be several
+       screens long.  Only one open at a time -- four expanded notes is the wall of text
+       the tiles exist to avoid. */
+    const devOpen = event.target.closest('[data-dev-part]');
+    if (devOpen) {
+      const tile = devOpen.parentElement;
+      const wasOpen = tile.classList.contains('is-open');
+      content.querySelectorAll('.pdev-tile.is-open').forEach((other) => {
+        other.classList.remove('is-open');
+        other.querySelector('[data-dev-part]')?.setAttribute('aria-expanded', 'false');
+        other.querySelector('.pdev-note')?.setAttribute('hidden', '');
+      });
+      if (!wasOpen) {
+        tile.classList.add('is-open');
+        devOpen.setAttribute('aria-expanded', 'true');
+        tile.querySelector('.pdev-note')?.removeAttribute('hidden');
+      }
+      /* The panel just changed height, so the silhouette has to be redrawn. */
+      sync();
+      return;
+    }
+
+    /* Preferences are updated in place for the same reason: a re-render of the settings
+       page for a two-class change would throw away the scroll position. */
+    const choice = event.target.closest('[data-pref]');
+    if (choice) {
+      setPref(choice.dataset.pref, choice.dataset.prefValue);
+      choice.parentElement.querySelectorAll('[data-pref]').forEach((button) => {
+        const on = button === choice;
+        button.classList.toggle('is-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      });
+      return;
+    }
+
+    const pin = event.target.closest('[data-pin]');
+    if (pin) { repin(pin.dataset.pin); return; }
+
+    const nav = event.target.closest('[data-preview-step]');
+    if (nav) { step(Number(nav.dataset.previewStep)); return; }
+
+    const clock = event.target.closest('[data-clock-in]');
+    if (clock) {
+      requestClockIn().catch((err) => console.warn('[work]', err));
+      return;
+    }
+
+    const page = event.target.closest('[data-page]');
+    if (page) { openPage(page.dataset.page); return; }
+
+    const full = event.target.closest('[data-character-full]');
+    if (full) { openPage('character', full.dataset.characterFull); return; }
+
+    const giftPage = event.target.closest('[data-gift-page]');
+    if (giftPage) { openPage('gift', giftPage.dataset.giftPage); return; }
+
+    const giveItem = event.target.closest('[data-gift-send-item]');
+    if (giveItem) { confirmGift('private', giveItem.dataset.giftSendItem); return; }
+    const giveTip = event.target.closest('[data-gift-send-tip]');
+    if (giveTip) { confirmGift('tip', giveTip.dataset.giftSendTip); return; }
+
+    const hit = event.target.closest('.prail > .pcard');
+    if (hit) {
+      openPreview(hit.dataset.name);
+    }
+  });
+
+  content.addEventListener('keydown', (event) => {
+    const hit = event.target.closest('.prail > .pcard');
+    if (!hit || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    openPreview(hit.dataset.name);
+  });
+
+  /* One level per press, the same order the landscape layer peels in: a page first,
+     then the preview.  The two are never both standing, since a page replaces the
+     column the preview lives in, but the order still has to be stated or a press with
+     a page open would try to close a preview that is not there. */
+  addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (workspace) closePage();
+    else if (open) close();
+  });
+
+  /* Delegated, because the dots are rebuilt with the panel.  Which card is scrolled
+     to drives them; scroll-snap does the paging, so there is no next-page button to
+     miss on a touch screen. */
+  content.addEventListener('click', (event) => {
+    const dot = event.target.closest('[data-dot]');
+    if (!dot) return;
+    rail()?.scrollTo({ left: Number(dot.dataset.dot) * pitch, behavior: 'smooth' });
+  });
+
+  onLive(() => {
+    if (workspace) return;
+    paintBase({ restoreScroll: true });
+  });
+
+  return {
+    openPreview,
+    close,
+    openPage,
+    closePage,
+    openedPage: () => workspace,
+    relayout: () => { placeCardArts(content); sync(); },
+  };
+}
+
+export { TOOL };

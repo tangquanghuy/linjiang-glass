@@ -1,0 +1,364 @@
+﻿/* Girls region and the cards.
+   ------------------------------------------------------------------
+   The rail is a flex row, so a fifth card is a data entry.  A card is a flex
+   column, so a new stat row is one more element -- nothing inside is positioned.
+   overflow:hidden on the card matters: the mood chip and the status row are the
+   widest rows and used to spill into the gap between cards, which showed up in the
+   pixel diff as stray light on the glass. */
+
+.pane-girls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 14px 0 0 20px;
+  overflow: visible;
+}
+.girls-head {
+  margin: 0 0 var(--sp-3) 23px;
+}
+
+.rail {
+  display: flex;
+  gap: var(--rail-gap);
+  overflow: visible;
+}
+
+/* --------------------------------------------------------------- a card */
+.card {
+  --rim: rgba(255, 214, 232, .88);
+  --glow: rgba(255, 150, 198, .38);
+  --wash: rgba(255, 190, 220, .27);
+  --pane: rgba(255, 196, 220, .25);
+  --ornament: #ffd8e8;
+  --ornament-glow: rgba(255, 160, 204, .82);
+
+  position: relative;
+  flex: none;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-r);
+  overflow: visible;
+  cursor: pointer;
+  filter: drop-shadow(0 5px 14px rgba(9, 12, 35, .16));
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  isolation: isolate;
+  z-index: 1;
+}
+
+.t-rose    { --rim: rgba(255, 218, 235, .92); --glow: rgba(255, 148, 198, .42); --wash: rgba(255, 178, 213, .28); --pane: rgba(255, 198, 222, .25); --ornament: #ffe0ed; --ornament-glow: rgba(255, 151, 198, .90); }
+.t-ice     { --rim: rgba(220, 242, 255, .92); --glow: rgba(143, 211, 255, .38); --wash: rgba(174, 216, 255, .25); --pane: rgba(194, 226, 255, .22); --ornament: #c6eeff; --ornament-glow: rgba(114, 203, 255, .90); }
+.t-violet  { --rim: rgba(239, 224, 255, .92); --glow: rgba(204, 160, 255, .40); --wash: rgba(220, 191, 255, .26); --pane: rgba(224, 210, 255, .23); --ornament: #f3d3ff; --ornament-glow: rgba(211, 151, 255, .90); }
+.t-gold    { --rim: rgba(255, 239, 203, .94); --glow: rgba(255, 211, 137, .42); --wash: rgba(255, 222, 169, .27); --pane: rgba(255, 229, 188, .25); --ornament: #ffe19a; --ornament-glow: rgba(255, 198, 91, .92); }
+.t-crimson { --rim: rgba(255, 195, 207, .92); --glow: rgba(255, 92, 126, .40); --wash: rgba(255, 131, 160, .25); --pane: rgba(255, 169, 189, .22); --ornament: #ffd3dd; --ornament-glow: rgba(255, 106, 140, .90); }
+.t-scarlet { --rim: rgba(255, 201, 205, .92); --glow: rgba(255, 93, 104, .39); --wash: rgba(255, 132, 143, .24); --pane: rgba(255, 169, 176, .21); --ornament: #ffd3ba; --ornament-glow: rgba(255, 142, 110, .88); }
+.t-candy   { --rim: rgba(255, 216, 238, .92); --glow: rgba(255, 139, 201, .42); --wash: rgba(255, 167, 210, .27); --pane: rgba(255, 194, 222, .24); --ornament: #ffd4ec; --ornament-glow: rgba(255, 133, 197, .92); }
+
+.card-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 86% 56% at 15% -8%, rgba(255, 255, 255, .34), transparent 61%),
+    linear-gradient(112deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .045) 28%, transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, .10), transparent 38%, rgba(255, 255, 255, .055)),
+    var(--pane);
+  backdrop-filter: blur(10px) saturate(1.30) brightness(1.12);
+  -webkit-backdrop-filter: blur(10px) saturate(1.30) brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .38),
+    inset 1px 0 0 rgba(255, 255, 255, .16),
+    inset 0 -1px 0 rgba(255, 224, 239, .13);
+}
+
+/* Proto art is sharp to ~144px (55%), then a ~28px join.  A wide mask
+   starting at 26% was painting the pane over the face. */
+.card-glass::before,
+.card-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.card-glass::before {
+  background:
+    linear-gradient(104deg, transparent 8%, rgba(255, 255, 255, .13) 23%, rgba(255, 255, 255, .025) 39%, transparent 54%),
+    radial-gradient(ellipse 52% 22% at 74% 0%, rgba(255, 255, 255, .22), transparent 74%);
+  mix-blend-mode: screen;
+}
+.card-glass::after {
+  background: url("/assets/frost.png") repeat;
+  background-size: 128px 128px;
+  opacity: .13;
+  mix-blend-mode: soft-light;
+}
+
+.card-art-clip {
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: calc(var(--card-r) - 1px);
+  -webkit-mask-image: linear-gradient(90deg,
+    #000 0%,
+    #000 53%,
+    rgba(0, 0, 0, .4) 58%,
+    transparent 63%);
+  mask-image: linear-gradient(90deg,
+    #000 0%,
+    #000 53%,
+    rgba(0, 0, 0, .4) 58%,
+    transparent 63%);
+}
+
+.card-art {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.card-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 72% 92% at 108% 16%, rgba(255, 255, 255, .18), transparent 68%),
+    linear-gradient(90deg,
+      transparent 48%,
+      color-mix(in srgb, var(--wash) 24%, transparent) 58%,
+      color-mix(in srgb, var(--wash) 72%, transparent) 72%,
+      var(--wash) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, .08), transparent 32%, rgba(255, 255, 255, .035));
+}
+
+.card-rim {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  border: 1px solid var(--rim);
+  background:
+    radial-gradient(ellipse 84px 40px at 12% 0%, rgba(255, 255, 255, .16), transparent 72%),
+    radial-gradient(ellipse 76px 46px at 100% 100%, color-mix(in srgb, var(--glow) 32%, transparent), transparent 74%);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--glow) 88%, transparent),
+    0 0 18px color-mix(in srgb, var(--glow) 48%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .62),
+    inset 1px 0 0 rgba(255, 255, 255, .30),
+    inset 0 -1px 0 color-mix(in srgb, var(--rim) 55%, transparent);
+  pointer-events: none;
+}
+.card-rim::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  right: 17px;
+  top: 1px;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .68) 24%, rgba(255, 255, 255, .34) 72%, transparent);
+  opacity: .78;
+}
+
+.card.is-pinned { z-index: 3; }
+
+/* ------------------------------------------------------------ card rows */
+.card-body {
+  position: absolute;
+  left: var(--card-body-x);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 16px 0 0 0;
+}
+/* Rows are single-line by contract: the card is a fixed box, so a name that wraps
+   pushes every row below it out of the card instead of just looking cramped. */
+.card-body > * { white-space: nowrap; }
+.card-name,
+.card-romaji,
+.card-metric-label,
+.card-metric { margin-left: var(--card-stat-x); }
+.chip { margin-left: var(--card-chip-x); }
+
+.card-name {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-0);
+  padding-right: 36px;
+}
+.card-name b {
+  font: 700 var(--fs-title)/1 'Noto Sans SC', sans-serif;
+  color: #fff;
+  letter-spacing: .04em;
+  text-shadow: 0 1px 4px rgba(16, 8, 24, .4);
+}
+.card-name b.long { font-size: 21px; }
+.card-name b.xl { font-size: 18px; }
+.card-star {
+  --hit-d: 20px;
+  position: absolute;
+  top: 18px;
+  right: 11px;
+  width: 20px;
+  height: 20px;
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  background: var(--ornament);
+  -webkit-mask: var(--star-image) center / contain no-repeat;
+  mask: var(--star-image) center / contain no-repeat;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, .72))
+    drop-shadow(0 0 7px var(--ornament-glow));
+  opacity: .96;
+  cursor: pointer;
+  transition: transform .16s, opacity .16s;
+}
+/* Hover only where there is a pointer: on a touch screen :hover sticks after a tap
+   and leaves the control looking permanently active. */
+@media (hover: hover) {
+  .card-star:hover { transform: scale(1.14) rotate(8deg); opacity: 1; }
+}
+
+.card-romaji {
+  margin-bottom: var(--sp-4);
+  font: 400 var(--fs-lead)/1 'Pinyon Script', cursive;
+  color: rgba(244, 240, 252, .84);
+  letter-spacing: .03em;
+}
+
+.card-metric-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif;
+  color: rgba(246, 242, 252, .88);
+  letter-spacing: .03em;
+}
+.card-metric-label .ic {
+  font-size: var(--icon-sm);
+  color: #ff7fbe;
+  filter: drop-shadow(0 0 7px rgba(255, 105, 175, .8));
+}
+
+.card-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: var(--sp-4);
+}
+.card-metric b {
+  font: 400 var(--fs-display)/1 'Outfit', sans-serif;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(16, 6, 26, .45);
+}
+.card-metric span { font: 400 13px/1 'Outfit', sans-serif; color: rgba(228, 226, 246, .52); }
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  height: 24px;
+  padding: 0 10px 0 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 228, 186, .40);
+  background: rgba(255, 236, 204, .78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+  font: 500 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(72, 48, 52, .82);
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.chip .ic {
+  font-size: 13px;
+  color: #c47a38;
+  filter: none;
+}
+
+/* 异常状态.  Occupies the row 心里话 used to, at the same size and indent, so the
+   card's vertical rhythm is unchanged. */
+.card-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--card-chip-x);
+  padding-right: 12px;
+  font: 400 12px/1.5 'Noto Sans SC', sans-serif;
+  letter-spacing: .06em;
+  color: rgba(232, 226, 240, .56);
+}
+.card-status > i {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(226, 230, 255, .38);
+}
+/* min-width:0 so the ellipsis can engage: .card-body pins every row to one line,
+   and a flex item will not shrink below its content without it. */
+.card-status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card-status > em { flex: none; font-style: normal; opacity: .62; }
+
+.card-status.is-abnormal { color: rgba(255, 228, 241, .94); }
+.card-status.is-abnormal > i {
+  background: radial-gradient(circle at 34% 30%, #ffb0d2, #f0509b 62%);
+  box-shadow: 0 0 7px rgba(255, 90, 160, .85);
+}
+
+/* The paging control is portalled to the stage so it can sit above the shell
+   rim.  Its opaque core keeps the rim and bright background from crossing the
+   chevron, matching the prototype's foreground puck. */
+.tool-btn.rail-next {
+  position: absolute;
+  left: var(--next-left);
+  top: var(--next-top);
+  right: auto;
+  z-index: 52;
+  width: 38px;
+  height: 38px;
+  transform: none;
+  border: 1px solid rgba(246, 238, 249, .68);
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, .18), transparent 36%),
+    linear-gradient(145deg, #94899f 0%, #746a82 48%, #5b536b 100%);
+  color: #fff;
+  box-shadow:
+    0 3px 10px rgba(15, 12, 31, .42),
+    0 0 9px rgba(235, 210, 232, .20),
+    inset 0 1px 0 rgba(255, 255, 255, .36),
+    inset 0 -1px 0 rgba(35, 28, 48, .30);
+}
+.tool-btn.rail-next .ic {
+  font-size: 22px;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(18, 13, 29, .78));
+}
+@media (hover: hover) {
+  .tool-btn.rail-next:hover {
+    border-color: rgba(255, 248, 255, .88);
+    background:
+      radial-gradient(circle at 34% 24%, rgba(255, 255, 255, .22), transparent 38%),
+      linear-gradient(145deg, #a198ab 0%, #81758f 48%, #665d75 100%);
+  }
+}
+
+

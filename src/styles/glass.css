@@ -1,0 +1,188 @@
+/* The glass system.
+   ------------------------------------------------------------------
+   High-frequency edges through the glass are ~11% of the plate -- that is why
+   the frost looks frosted.  Mid-size colour blobs (a blossom, a lamp, 6-40px)
+   are a different story: in the prototype they still correlate 0.40 with the
+   plate and keep about the same energy, which is the 通透感 -- the fog is the
+   scene's own colour, slightly scattered.  A 64px blur + 0.66 indigo veil
+   matches the mean but drops that correlation to 0.15 and the energy to 23%,
+   which is the flat dark slab in artifacts/side.png.
+
+   tools/fit_blur.py: blur ~22px and tint ~0.50 keep the blobs; a second, less
+   blurred, more saturated pass screened on top is the 微光晕. */
+
+.glass-blur {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#shellClip);
+  backdrop-filter: blur(26px) saturate(1.18);
+  -webkit-backdrop-filter: blur(26px) saturate(1.18);
+  z-index: 10;
+}
+
+/* Coloured scatter: a tighter, hotter view of the same plate, screened so the
+   sunset and the blossoms read as a misty halo inside the frost instead of as
+   a grey film on top of it.  Sits under the tint so it samples the plate. */
+.glass-scatter {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#shellClip);
+  pointer-events: none;
+  z-index: 10;
+  backdrop-filter: blur(12px) saturate(1.45);
+  -webkit-backdrop-filter: blur(12px) saturate(1.45);
+  mix-blend-mode: screen;
+  opacity: .10;
+}
+
+.glass {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#shellClip);
+  z-index: 11;
+}
+
+/* Deep indigo body.  Deliberately a flat colour rather than a gradient: the
+   prototype's horizontal warm-to-cool shift and its local variation (the title ear
+   reads 133 blue, the tool pod only 83) are properties of the scene behind the
+   glass, not of the glass, so they belong in the plate.  tools/calibrate_plate.py
+   solves for the plate that makes this composite land on the prototype, which
+   keeps the tint here a single honest value and lets the glass behave correctly
+   over any other background too.
+
+   Alpha is 0.50 so the plate's colour blobs still show; 0.66 was matching the
+   mean by burying them. */
+.glass-tint {
+  position: absolute;
+  inset: 0;
+  background: rgba(36, 50, 96, .56);
+}
+
+/* Light piped along the two vertical edges.  A 64px backdrop blur cannot carry a
+   20px feature, so this cannot come from the plate -- it is the edge itself acting
+   as a light guide, and it has to be painted.
+
+   plus-lighter rather than screen so each stop is literally the RGB the prototype
+   adds over the local body colour, which is what tools/probe measures.  Left
+   (measured at y 560-650 over a rgb(83,85,115) body) is a red-dominant peach that
+   decays over ~70px; right (y 500-660) is stronger, warmer and tighter. */
+.glass-edge {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#shellClip);
+  mix-blend-mode: plus-lighter;
+  z-index: 13;
+  pointer-events: none;
+  background:
+    /* Tight peach pool sitting on each bottom corner — the 透光.  A wide
+       ellipse washed the body past the prototype; the look is a bloom on
+       the quarter-circle, not a lift of the whole corner. */
+    radial-gradient(ellipse 78px 64px at 34px 712px,
+      rgba(255, 232, 214, .26) 0%,
+      rgba(255, 200, 178, .14) 42%,
+      rgba(255, 160, 145, 0) 78%),
+    radial-gradient(ellipse 86px 68px at 1638px 712px,
+      rgba(255, 224, 196, .28) 0%,
+      rgba(255, 190, 155, .15) 44%,
+      rgba(255, 150, 120, 0) 80%),
+    linear-gradient(90deg,
+      rgba(252, 152, 152, .25) 23px,
+      rgba(245, 140, 135, .20) 30px,
+      rgba(238, 125, 106, .16) 34px,
+      rgba(238, 115, 77, .13) 38px,
+      rgba(244, 89, 44, .09) 44px,
+      rgba(255, 68, 17, .06) 50px,
+      rgba(244, 67, 0, .045) 62px,
+      rgba(255, 51, 0, .02) 80px,
+      rgba(255, 51, 0, 0) 104px),
+    linear-gradient(90deg,
+      rgba(245, 225, 255, .125) 24px,
+      rgba(250, 235, 255, .115) 30px,
+      rgba(240, 235, 255, .095) 36px,
+      rgba(225, 240, 255, .066) 44px,
+      rgba(200, 235, 255, .048) 52px,
+      rgba(190, 235, 255, .032) 62px,
+      rgba(190, 235, 255, .012) 76px,
+      rgba(190, 235, 255, 0) 92px),
+    linear-gradient(90deg,
+      rgba(250, 150, 75, 0) 1570px,
+      rgba(250, 150, 75, .04) 1590px,
+      rgba(250, 150, 88, .08) 1604px,
+      rgba(243, 150, 100, .14) 1616px,
+      rgba(242, 153, 105, .19) 1624px,
+      rgba(252, 157, 113, .21) 1632px,
+      rgba(255, 171, 135, .28) 1640px,
+      rgba(255, 157, 116, .18) 1646px),
+    var(--bottom-ramp);
+}
+
+/* Desk light coming up through the underside.  The prototype rises monotonically
+   from the body colour to the rim over the last ~120px, not the ~40 it looks like:
+   the rise is imperceptible until y 650 and only then accelerates, and cutting it
+   short is what makes the rim read as a bar laid on top of flat glass.  It also
+   turns from violet to pink on the way down.  Solved by tools/fit_bottom_ramp.py
+   against bare-glass columns; additive, so each stop is the light it contributes. */
+:root {
+  --bottom-ramp: linear-gradient(180deg,
+    rgba(0, 9, 255, .009) 596px,
+    rgba(0, 0, 255, .009) 608px,
+    rgba(154, 128, 255, .021) 620px,
+    rgba(114, 115, 255, .035) 632px,
+    rgba(29, 66, 255, .048) 644px,
+    rgba(222, 181, 255, .073) 656px,
+    rgba(235, 167, 255, .079) 668px,
+    rgba(255, 191, 242, .128) 680px,
+    rgba(255, 179, 210, .198) 692px,
+    rgba(255, 176, 186, .318) 704px,
+    rgba(255, 177, 175, .384) 710px,
+    rgba(255, 156, 179, .424) 716px,
+    rgba(255, 119, 165, .345) 719px);
+}
+
+/* Convex-lens fog.  The prototype is not frosted glass: the open body stays
+   clear enough to read the scene, and only a few convex arcs -- the title ear,
+   the two S-fillet convexes, the pod corner -- scatter like a lightly ground
+   convex mirror.  plus-lighter so the fog adds light instead of covering the
+   plate. */
+.glass-lens {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 14;
+  mix-blend-mode: plus-lighter;
+}
+
+/* Soft frost veil.  ~2px fog plus a little silk; mean a little above 128 so
+   soft-light milks the body.  The 10px drift was what read as coarse clumps. */
+.glass-frost {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#shellClip);
+  z-index: 12;
+  pointer-events: none;
+  opacity: .50;
+  mix-blend-mode: soft-light;
+  background: url("/assets/frost.png") repeat;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+/* Rim sits above the glass so its inner glow can bleed inward over the body.
+   overflow:visible lets the outward half of the bloom stroke escape the canvas
+   box without being cut. */
+.rim {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 40;
+}

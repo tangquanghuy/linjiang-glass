@@ -1,0 +1,72 @@
+/* Design tokens.
+   ------------------------------------------------------------------
+   The content layer places nothing by coordinate.  Each region gets a frame from
+   geometry.json -- those are part of the measured glass shape -- and everything
+   inside it flows, sized from the scales below.  So the way to move a row is to
+   change a token here, and adding a field or a fifth card needs no measurement at
+   all.
+
+   Values are prototype pixels: the whole canvas is scaled as one unit (see
+   base.css), so 1 unit here is 1 pixel in the reference image and the numbers can
+   be checked against tools/ink_runs.py output directly. */
+
+:root {
+  /* Type scale ---------------------------------------------------------- */
+  --fs-script-lg: 52px;    /* "Girls" */
+  --fs-script-md: 51px;    /* "Status" */
+  --fs-display: 28px;      /* card favour number */
+  --fs-title: 29px;        /* card name */
+  --fs-numeral: 26px;      /* favour total */
+  --fs-value: 23px;        /* money, date, time */
+  --fs-lead: 17px;         /* romaji, slash */
+  --fs-body: 15px;
+  --fs-caption: 14px;
+  --fs-micro: 13px;        /* smallest tier; portrait.css raises it to its own floor */
+
+  /* Icon sizes ---------------------------------------------------------- */
+  --icon-sm: 19px;
+  --icon-md: 25px;
+  --icon-lg: 27px;
+  --icon-xl: 30px;
+
+  /* Spacing scale.  Roughly x1.3 a step, and every gap in the HUD rounds to one
+     of these -- the vertical rhythm of a pane is the sequence it picks. */
+  --sp-0: 2px;
+  --sp-1: 4px;
+  --sp-2: 7px;
+  --sp-3: 11px;
+  --sp-4: 14px;
+  --sp-5: 17px;
+  --sp-6: 21px;
+  --sp-7: 24px;
+  --sp-8: 34px;
+
+  /* Ink ----------------------------------------------------------------- */
+  --ink-strong: #f4f6ff;
+  --ink: rgba(236, 236, 252, .93);
+  --ink-mute: rgba(228, 228, 250, .72);
+  --ink-faint: rgba(224, 226, 248, .58);
+  --ink-script: #f7e9d4;
+  --ink-gold: rgba(248, 236, 216, .93);
+
+  --shadow-ink: 0 1px 4px rgba(4, 6, 18, .55);
+
+  /* Component metrics --------------------------------------------------- */
+  --pane-pad-x: 32px;
+  --pane-pad-top: 11px;
+  /* --stat-col / --stat-indent are gone with the Status pane's three-cell stat row: the
+     pane now has one numeral on a row of its own, so there is no column width to share
+     and no sub-line to indent under a value. */
+  --rail-gap: 17px;
+  --card-w: 260px;
+  --card-h: 234px;
+  --card-r: 18px;
+  /* The card's text block starts where its widest row does -- the status row.  The
+     stat rows are indented from there, and the chip sits between the two, so no
+     row has to hang outside the card and bleed into the gap. */
+  --card-body-x: 131px;
+  --card-stat-x: 32px;
+  --card-chip-x: 20px;
+  --btn-d: 46px;
+  --btn-gap: 31.5px;
+}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Glass HUD — 状态栏复刻</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Great+Vibes&family=Italianno&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="viewport">
+  <!-- Design canvas: 1672x941, the prototype's native size, scaled as one unit so
+       proportions stay exact at any viewport size.  Sizes are therefore prototype
+       pixels throughout.  The glass shape is measured geometry; the content inside
+       it is laid out by flow from the scales in src/styles/tokens.css. -->
+  <div class="stage" id="stage">
+    <img class="plate" src="/assets/bg-plate.png" alt="" draggable="false">
+
+    <!-- Shape and paint definitions, populated from src/geometry.json -->
+    <svg class="defs" id="defs" aria-hidden="true"></svg>
+
+    <!-- The refracting layer is kept as its own element with no children: an
+         element carrying clip-path may act as a backdrop root, which would starve
+         a nested backdrop-filter of anything to sample. -->
+    <div class="glass-blur"></div>
+    <div class="glass-scatter"></div>
+
+    <!-- Paint layers, clipped to the fused silhouette (rounded body + raised
+         title ear + raised tool pod). -->
+    <div class="glass" id="glass">
+      <div class="glass-tint"></div>
+    </div>
+
+    <!-- Microscopic frost.  Overlay on the already-coloured body so the silk
+         takes the scene hue; the tile is mean-128 band-pass (no 8px clouds,
+         no 1px sparkle) so it cannot resolve into countable white particles. -->
+    <div class="glass-frost"></div>
+
+    <!-- Additive light: edge guiding and the underside ramp.  Deliberately a
+         sibling of .glass rather than a child -- plus-lighter adds alpha as well as
+         colour, so inside the glass group it would cut how much plate shows through
+         and land at roughly half the intended value.  Over the opaque plate the
+         backdrop is already solid, so here it is exact addition. -->
+    <div class="glass-edge"></div>
+
+    <!-- Convex-lens fog: only a few raised arcs scatter.  A sibling of .glass so
+         plus-lighter adds light without covering the plate. -->
+    <svg class="glass-lens" id="lens" aria-hidden="true"></svg>
+
+    <div class="content" id="content"></div>
+
+    <!-- Rim lives above the glass so its bloom can bleed inward over the body. -->
+    <svg class="rim" id="rim" aria-hidden="true"></svg>
+  </div>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

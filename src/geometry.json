@@ -1,0 +1,502 @@
+{
+  "canvas": {
+    "w": 1672,
+    "h": 941
+  },
+  "shell": {
+    "left": 23,
+    "right": 1648,
+    "top": 411,
+    "bottom": 720,
+    "r": 32,
+    "ear": {
+      "right": 307,
+      "top": 390,
+      "r_tl": 29,
+      "fillet": 34,
+      "flat_end": 356
+    },
+    "pod": {
+      "left": 1430,
+      "top": 350,
+      "r_tr": 45,
+      "fillet": 54,
+      "flat_start": 1333
+    }
+  },
+  "shellPath": "M 52 390 L 307 390 A 34 34 0 0 1 331.5 400.5 A 34 34 0 0 0 356 411 L 1333 411 A 54 54 0 0 0 1381.5 380.5 A 54 54 0 0 1 1430 350 L 1603 350 A 45 45 0 0 1 1648 395 L 1648 688 A 32 32 0 0 1 1616 720 L 55 720 A 32 32 0 0 1 23 688 L 23 419 A 29 29 0 0 1 52 390 Z",
+  "rimSegments": [
+    {
+      "id": "tl-ear",
+      "d": "M 23 419 A 29 29 0 0 1 52 390 L 307 390",
+      "color": "rgb(236,226,240)",
+      "opacity": 0.96,
+      "width": 2.15
+    },
+    {
+      "id": "main-top",
+      "d": "M 307 390 A 34 34 0 0 1 331.5 400.5 A 34 34 0 0 0 356 411 L 1333 411",
+      "color": "rgb(208,204,228)",
+      "opacity": 0.9,
+      "width": 2.0
+    },
+    {
+      "id": "pod-rise",
+      "d": "M 1333 411 A 54 54 0 0 0 1381.5 380.5 A 54 54 0 0 1 1430 350",
+      "color": "rgb(252,244,248)",
+      "opacity": 1.0,
+      "width": 2.35
+    },
+    {
+      "id": "pod-top",
+      "d": "M 1430 350 L 1603 350",
+      "color": "rgb(198,176,184)",
+      "opacity": 0.78,
+      "width": 1.85
+    },
+    {
+      "id": "right",
+      "d": "M 1603 350 A 45 45 0 0 1 1648 395 L 1648 688",
+      "color": "url(#rimRightGrad)",
+      "opacity": 0.92,
+      "width": 2.0
+    },
+    {
+      "id": "bottom",
+      "d": "M 1648 688 A 32 32 0 0 1 1616 720 L 55 720 A 32 32 0 0 1 23 688",
+      "color": "rgb(255,248,250)",
+      "opacity": 1.0,
+      "width": 2.25
+    },
+    {
+      "id": "left",
+      "d": "M 23 688 L 23 419",
+      "color": "url(#rimLeftGrad)",
+      "opacity": 0.9,
+      "width": 2.0
+    }
+  ],
+  "convexArcs": [
+    {
+      "id": "ear-corner",
+      "d": "M 23 419 A 29 29 0 0 1 52 390",
+      "color": "rgb(220, 228, 255)",
+      "width": 14,
+      "opacity": 0.1
+    },
+    {
+      "id": "ear-fillet",
+      "d": "M 307 390 A 34 34 0 0 1 331.5 400.5",
+      "color": "rgb(210, 220, 255)",
+      "width": 18,
+      "opacity": 0.12
+    },
+    {
+      "id": "pod-fillet",
+      "d": "M 1381.5 380.5 A 54 54 0 0 1 1430 350",
+      "color": "rgb(255, 232, 242)",
+      "width": 20,
+      "opacity": 0.14
+    },
+    {
+      "id": "pod-corner",
+      "d": "M 1603 350 A 45 45 0 0 1 1648 395",
+      "color": "rgb(255, 236, 220)",
+      "width": 14,
+      "opacity": 0.08
+    }
+  ],
+  "podFloorPath": "M 1336 440 L 1603 440 A 45 45 0 0 1 1648 395",
+  "statusPane": {
+    "right": 517,
+    "bottom": 718,
+    "r": 55
+  },
+  "statusPanePath": "M 462 411 A 55 55 0 0 1 517 466 L 517 663 A 55 55 0 0 1 462 718",
+  "cards": {
+    "top": 467,
+    "height": 234,
+    "width": 260,
+    "pitch": 277,
+    "first_left": 537,
+    "r": 18,
+    "boxes": [
+      {
+        "x": 537,
+        "y": 467,
+        "w": 260,
+        "h": 234
+      },
+      {
+        "x": 814,
+        "y": 467,
+        "w": 260,
+        "h": 234
+      },
+      {
+        "x": 1091,
+        "y": 467,
+        "w": 260,
+        "h": 234
+      },
+      {
+        "x": 1368,
+        "y": 467,
+        "w": 260,
+        "h": 234
+      }
+    ],
+    "artFrac": 0.56,
+    "artW": 144,
+    "artH": 232
+  },
+  "regions": {
+    "status": {
+      "x": 23,
+      "y": 390,
+      "w": 494,
+      "h": 328
+    },
+    "girls": {
+      "x": 517,
+      "y": 390,
+      "w": 1131,
+      "h": 330
+    },
+    "pod": {
+      "x": 1430,
+      "y": 350,
+      "w": 218,
+      "h": 82
+    }
+  },
+  "dock": {
+    "_note": "Upper panel. Its bottom edge is the shell's top edge offset outward by `gap`, so the shell's raised title ear and tool pod seat into matching notches and the seam stays one width all the way across. Arc radii follow the offset rule: convex arcs grow by gap, concave arcs shrink by gap, centres unchanged. Left and right edges are aligned with the shell's so the two pieces read as one column.",
+    "gap": 13,
+    "left": 23,
+    "right": 1648,
+    "top": 94,
+    "r_top": 30,
+    "r_bot": 16,
+    "_ear": "A raised title ear on the top edge, the rhyme of the shell's: same r=29 corner, and an S-fillet built by the same rule (dx^2 = drop * (4r - drop), so drop 24 with r 30 gives dx 48 exactly). It spans x 52..340 -- long enough that the script title and its caption both finish before the step down, which they did not at 300 -- and the blossom straddles its corner the way the mockup's does. The main top sits at 94 rather than hard against the canvas: the bottom edge is pinned by the joint, so every pixel of top clearance is a pixel off the content area, and 94 is as low as the three bays can go and still hold their rows.",
+    "earTop": 70,
+    "levels": {
+      "ear": 377,
+      "main": 398,
+      "pod": 337
+    },
+    "path": "M 52 70 L 340 70 A 30 30 0 0 1 364 82 A 30 30 0 0 0 388 94 L 1618 94 A 30 30 0 0 1 1648 124 L 1648 321 A 16 16 0 0 1 1632 337 L 1430 337 A 67 67 0 0 0 1369.8 374.83 A 41 41 0 0 1 1333 398 L 356 398 A 21 21 0 0 1 340.88 391.5 A 47 47 0 0 0 307 377 L 39 377 A 16 16 0 0 1 23 361 L 23 99 A 29 29 0 0 1 52 70 Z",
+    "topPath": "M 23 99 A 29 29 0 0 1 52 70 L 340 70 A 30 30 0 0 1 364 82 A 30 30 0 0 0 388 94 L 1618 94 A 30 30 0 0 1 1648 124",
+    "bottomPath": "M 23 361 A 16 16 0 0 0 39 377 L 307 377 A 47 47 0 0 1 340.88 391.5 A 21 21 0 0 0 356 398 L 1333 398 A 41 41 0 0 0 1369.8 374.83 A 67 67 0 0 1 1430 337 L 1632 337 A 16 16 0 0 0 1648 321",
+    "rimSegments": [
+      {
+        "id": "d-ear-top",
+        "d": "M 23 99 A 29 29 0 0 1 52 70 L 340 70",
+        "color": "rgb(240,231,244)",
+        "opacity": 0.96,
+        "width": 2.15
+      },
+      {
+        "id": "d-ear-fall",
+        "d": "M 340 70 A 30 30 0 0 1 364 82 A 30 30 0 0 0 388 94",
+        "color": "rgb(250,242,248)",
+        "opacity": 1.0,
+        "width": 2.3
+      },
+      {
+        "id": "d-top",
+        "d": "M 388 94 L 1618 94 A 30 30 0 0 1 1648 124",
+        "color": "rgb(226,222,242)",
+        "opacity": 0.92,
+        "width": 2.05
+      },
+      {
+        "id": "d-right",
+        "d": "M 1648 124 L 1648 321",
+        "color": "url(#dockRimRightGrad)",
+        "opacity": 0.92,
+        "width": 1.9
+      },
+      {
+        "id": "d-br",
+        "d": "M 1648 321 A 16 16 0 0 1 1632 337",
+        "color": "rgb(248,240,244)",
+        "opacity": 0.96,
+        "width": 2.1
+      },
+      {
+        "id": "d-pod-face",
+        "d": "M 1632 337 L 1430 337",
+        "color": "rgb(228,214,222)",
+        "opacity": 0.84,
+        "width": 1.9
+      },
+      {
+        "id": "d-pod-notch",
+        "d": "M 1430 337 A 67 67 0 0 0 1369.8 374.83 A 41 41 0 0 1 1333 398",
+        "color": "rgb(255,250,252)",
+        "opacity": 1.0,
+        "width": 2.4
+      },
+      {
+        "id": "d-valley",
+        "d": "M 1333 398 L 356 398",
+        "color": "rgb(252,246,250)",
+        "opacity": 0.97,
+        "width": 2.25
+      },
+      {
+        "id": "d-ear-notch",
+        "d": "M 356 398 A 21 21 0 0 1 340.88 391.5 A 47 47 0 0 0 307 377",
+        "color": "rgb(255,249,251)",
+        "opacity": 1.0,
+        "width": 2.3
+      },
+      {
+        "id": "d-ear-face",
+        "d": "M 307 377 L 39 377",
+        "color": "rgb(244,236,246)",
+        "opacity": 0.94,
+        "width": 2.05
+      },
+      {
+        "id": "d-bl",
+        "d": "M 39 377 A 16 16 0 0 1 23 361",
+        "color": "rgb(248,242,248)",
+        "opacity": 0.96,
+        "width": 2.1
+      },
+      {
+        "id": "d-left",
+        "d": "M 23 361 L 23 99",
+        "color": "url(#dockRimLeftGrad)",
+        "opacity": 0.9,
+        "width": 1.9
+      }
+    ],
+    "litSegments": ["d-br", "d-pod-face", "d-pod-notch", "d-valley", "d-ear-notch", "d-ear-face", "d-bl"],
+    "hotSegments": ["d-ear-notch", "d-pod-notch", "d-ear-fall"],
+    "convexArcs": [
+      {
+        "id": "d-ear-corner",
+        "d": "M 23 99 A 29 29 0 0 1 52 70",
+        "color": "rgb(222,230,255)",
+        "width": 15,
+        "opacity": 0.11
+      },
+      {
+        "id": "d-ear-fillet",
+        "d": "M 340 70 A 30 30 0 0 1 364 82",
+        "color": "rgb(255,236,246)",
+        "width": 18,
+        "opacity": 0.13
+      },
+      {
+        "id": "d-ear-tenon",
+        "d": "M 340.88 391.5 A 47 47 0 0 0 307 377",
+        "color": "rgb(255,232,242)",
+        "width": 19,
+        "opacity": 0.13
+      },
+      {
+        "id": "d-pod-tenon",
+        "d": "M 1430 337 A 67 67 0 0 0 1369.8 374.83",
+        "color": "rgb(255,236,228)",
+        "width": 22,
+        "opacity": 0.14
+      },
+      {
+        "id": "d-bl-corner",
+        "d": "M 39 377 A 16 16 0 0 1 23 361",
+        "color": "rgb(226,232,255)",
+        "width": 13,
+        "opacity": 0.1
+      },
+      {
+        "id": "d-br-corner",
+        "d": "M 1648 321 A 16 16 0 0 1 1632 337",
+        "color": "rgb(255,236,224)",
+        "width": 13,
+        "opacity": 0.1
+      }
+    ],
+    "bays": {
+      "_note": "Content bays are the structural spans of the silhouette, not an arbitrary grid: `ear` sits over the title-ear notch (floor 377), `main` over the valley tongue (floor 398), `pod` over the tool-pod notch (floor 337). They all start below the header band so the script title and the blossom own the raised ear.",
+      "ear": { "x": 47, "y": 126, "w": 264, "h": 235 },
+      "main": { "x": 356, "y": 120, "w": 977, "h": 262 },
+      "pod": { "x": 1378, "y": 132, "w": 246, "h": 189 }
+    },
+    "art": {
+      "_note": "Ornaments cut from the mockups by tools/extract_dock_art.py. The blossom is centred on the ear's corner arc so it straddles the edge -- half on the glass, half on the scene -- which is what the mockup does and what stops the corner reading as a bare radius.",
+      "blossom": { "x": 18, "y": 54 },
+      "title": { "x": 118, "y": 66 },
+      "caption": { "x": 250, "y": 82 }
+    },
+    "closeBtn": { "x": 1602, "y": 96, "d": 30 }
+  },
+  "drawer": {
+    "_note": "Lower panel, the item rail. Its top edge is the shell's bottom edge offset outward by the same `gap` the dock uses, so the three pieces read as one column with one seam width throughout. The shell's bottom edge is flat, so unlike the dock's underside this edge needs no notch -- there is no raised ear or pod to seat into. Left and right are aligned with the shell's and the dock's.",
+    "gap": 13,
+    "left": 23,
+    "right": 1648,
+    "top": 733,
+    "bottom": 823,
+    "_bottom": "823, not 897. The canvas is cover-scaled (k = max(vw/1672, vh/941)), so the wider the display the more of the canvas's height is cropped: a 21:9 viewport can only see down to y=823 (2560x1080 -> k 1.531 -> 117.8 units cropped top and bottom). 897 would lose 45% of the drawer on those displays. 90 units is the tallest drawer every aspect ratio can show, and it is exactly one row of 66-unit slots plus padding.",
+    "r_top": 16,
+    "r_bot": 30,
+    "_radii": "Top corners take the dock's bottom-corner radius and the bottom corners the dock's top-corner radius, so the column's two outer ends match and the two seam-facing ends match. The offset rule (convex +gap, concave -gap, centres unchanged) is not applied at the corners for the same reason the dock does not apply it either: the left and right edges are aligned with the shell's, so the corner treatment is the piece's own. The seam is therefore 13 across the straight span and slightly wider at the corners, exactly as it is between the dock and the shell.",
+    "path": "M 23 749 A 16 16 0 0 1 39 733 L 1632 733 A 16 16 0 0 1 1648 749 L 1648 793 A 30 30 0 0 1 1618 823 L 53 823 A 30 30 0 0 1 23 793 Z",
+    "topPath": "M 23 749 A 16 16 0 0 1 39 733 L 1632 733 A 16 16 0 0 1 1648 749",
+    "bottomPath": "M 1648 793 A 30 30 0 0 1 1618 823 L 53 823 A 30 30 0 0 1 23 793",
+    "rimSegments": [
+      {
+        "id": "dr-tl",
+        "d": "M 23 749 A 16 16 0 0 1 39 733",
+        "color": "rgb(248,242,248)",
+        "opacity": 0.96,
+        "width": 2.1
+      },
+      {
+        "id": "dr-top",
+        "d": "M 39 733 L 1632 733",
+        "color": "rgb(252,246,250)",
+        "opacity": 0.97,
+        "width": 2.25
+      },
+      {
+        "id": "dr-tr",
+        "d": "M 1632 733 A 16 16 0 0 1 1648 749",
+        "color": "rgb(248,240,244)",
+        "opacity": 0.96,
+        "width": 2.1
+      },
+      {
+        "id": "dr-right",
+        "d": "M 1648 749 L 1648 793",
+        "color": "url(#drawerRimRightGrad)",
+        "opacity": 0.92,
+        "width": 1.9
+      },
+      {
+        "id": "dr-br",
+        "d": "M 1648 793 A 30 30 0 0 1 1618 823",
+        "color": "rgb(255,240,224)",
+        "opacity": 0.98,
+        "width": 2.2
+      },
+      {
+        "id": "dr-bottom",
+        "d": "M 1618 823 L 53 823",
+        "color": "rgb(255,248,250)",
+        "opacity": 1.0,
+        "width": 2.25
+      },
+      {
+        "id": "dr-bl",
+        "d": "M 53 823 A 30 30 0 0 1 23 793",
+        "color": "rgb(255,246,236)",
+        "opacity": 0.98,
+        "width": 2.2
+      },
+      {
+        "id": "dr-left",
+        "d": "M 23 793 L 23 749",
+        "color": "url(#drawerRimLeftGrad)",
+        "opacity": 0.9,
+        "width": 1.9
+      }
+    ],
+    "_lit": "Both horizontal faces are lit, for two different reasons. The top faces the shell's bottom rim, which is the brightest line in the scene and sits 13 away -- the same mutual glow that sells the dock's joint. The bottom is now the outermost edge of the whole column, so it inherits the treatment the shell's bottom had: near-white at full opacity, with the bloom confined to the desk side.",
+    "litSegments": ["dr-tl", "dr-top", "dr-tr", "dr-br", "dr-bottom", "dr-bl"],
+    "hotSegments": ["dr-top"],
+    "hairSegments": ["dr-tl", "dr-top", "dr-tr"],
+    "_hair": "The dark hairline that reads as glass thickness goes on the upper faces only. It is kept off the bottom for the same reason the shell keeps it off its own bottom: there the body ramps continuously into the rim, and a dark line is exactly what turns a rim into a bar pasted on top. The straight sides are excluded because they are drawn outside the clip.",
+    "convexArcs": [
+      {
+        "id": "dr-tl-corner",
+        "d": "M 23 749 A 16 16 0 0 1 39 733",
+        "color": "rgb(226,232,255)",
+        "width": 13,
+        "opacity": 0.1
+      },
+      {
+        "id": "dr-tr-corner",
+        "d": "M 1632 733 A 16 16 0 0 1 1648 749",
+        "color": "rgb(255,236,224)",
+        "width": 13,
+        "opacity": 0.1
+      },
+      {
+        "id": "dr-bl-corner",
+        "d": "M 53 823 A 30 30 0 0 1 23 793",
+        "color": "rgb(255,236,220)",
+        "width": 20,
+        "opacity": 0.13
+      },
+      {
+        "id": "dr-br-corner",
+        "d": "M 1648 793 A 30 30 0 0 1 1618 823",
+        "color": "rgb(255,230,210)",
+        "width": 21,
+        "opacity": 0.13
+      }
+    ],
+    "rail": {
+      "_note": "One row of slots, because 90 units of drawer is one row. `pad` is measured from the silhouette edge; `slot` is the drawn cell, `slotTop` where it is drawn and `pitch` its stride. `label` is the vertical bucket caption that divides the rail into groups. At 1672 canvas width the rail shows about 19 cells, so a bag of twenty to thirty items is one or two swipes.",
+      "pad": 26,
+      "top": 734,
+      "height": 88,
+      "_box": "The scroll box is 88 tall while the row it holds is 66, and the slots are centred in it. The 11 units of slack above and below are hit area: a 66-unit cell is 66 real px on a desktop but 33 on a phone held sideways, under the ~44 floor, and the ::after trick base.css uses cannot expand past the scroll box because overflow-y is hidden. 11 is exactly (44 / 0.5 - 66) / 2, the expansion needed at the landscape layout's worst case k.",
+      "slotTop": 745,
+      "slot": 66,
+      "gap": 12,
+      "pitch": 78,
+      "label": 30
+    }
+  },
+  "nextBtn": {
+    "cx": 1648,
+    "cy": 566,
+    "d": 38
+  },
+  "toolBtn": {
+    "d": 46,
+    "cy": 391,
+    "first_cx": 1439,
+    "pitch": 77.5
+  },
+  "favorBar": {
+    "left": 95,
+    "top": 666,
+    "w": 232,
+    "h": 14
+  },
+  "detailBtn": {
+    "left": 419,
+    "top": 654,
+    "w": 74,
+    "h": 30,
+    "r": 15
+  },
+  "optics": {
+    "rim_peak": [
+      218,
+      215,
+      230
+    ],
+    "body_left": [
+      65,
+      70,
+      103
+    ],
+    "body_right": [
+      47,
+      61,
+      102
+    ],
+    "top_glow_falloff": 40,
+    "bottom_bloom_rise": 85,
+    "bottom_rim_lum": 250,
+    "backdrop_sd_ratio": 0.11
+  }
+}

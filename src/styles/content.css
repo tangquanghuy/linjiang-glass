@@ -1,0 +1,475 @@
+﻿/* Content layer: regions and the Status pane.
+   ------------------------------------------------------------------
+   A region is the only thing here with a position, and it comes from
+   geometry.json.  Inside one, rows are a flex column and the vertical rhythm is
+   the gap sequence -- so a new stat column or a new row is a data change, and
+   nudging the rhythm is a token change in tokens.css. */
+
+.region {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+}
+
+.ic {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  line-height: 0;
+}
+.ic > svg { width: 100%; height: 100%; display: block; }
+
+/* Cursive titles and the blossom are prototype crops.  The CJK captions are
+   live type -- those two strings are garbled in the reference. */
+.sprite {
+  position: absolute;
+  pointer-events: none;
+  z-index: 21;
+}
+.sprite-blossom {
+  z-index: 41;
+}
+
+.head-caption {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  z-index: 21;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.slash {
+  font: 300 14px/1 'Outfit', sans-serif;
+  color: rgba(226, 228, 250, .42);
+}
+.cjk {
+  font: 400 14px/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 236, 248, .88);
+  letter-spacing: .04em;
+  text-shadow: 0 1px 2px rgba(4, 6, 18, .4);
+}
+
+.pane-head {
+  flex: none;
+  height: 52px;
+}
+
+.rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg,
+      transparent, rgba(214, 220, 250, .16) 10%,
+      rgba(214, 220, 250, .22) 52%, rgba(214, 220, 250, .07) 88%, transparent);
+}
+
+/* ----------------------------------------------------------- status pane */
+.pane-status {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--pane-pad-top) var(--sp-6) 0 var(--pane-pad-x);
+}
+/* The title band carries 主角档案.  The script title and its CJK caption are absolutely
+   positioned sprites that finish at about x 262, so the right two thirds of this 52-unit
+   band were empty glass -- on a pane that had 18 units of floor clearance.  Bottom-aligned
+   rather than centred: the button then sits on the caption's line instead of floating
+   above it. */
+.pane-status > .pane-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin-bottom: var(--sp-3);
+}
+
+/* No box of its own.
+   ------------------------------------------------------------------
+   This was a rimmed, washed, drop-shadowed 34-unit capsule with two more rimmed capsules
+   inside it -- a pill in a pill, and the single loudest source of clutter in a pane that
+   also holds a 日收入 pill, two 状态 tags and a button.  The container is gone; the two
+   chips stay, because they are the things that should look like objects: each carries one
+   character's 代表色, and that colour is the whole point of drawing them as chips.
+
+   Losing the capsule also fixed a misalignment it was causing.  Its 10 units of left
+   padding put 鼓岭区 at x 42 while every other row in the pane starts its icon at x 32, so
+   the strip was indented from the column it belongs to -- which is a large part of why it
+   read as a separate panel rather than as this pane's first line.  Now one left edge runs
+   the height of the pane.
+
+   The row is the chips' own height rather than 34: the capsule needed the extra units to
+   sit around its contents, and nothing else does. */
+.world-strip {
+  flex: none;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.world-location {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(244, 239, 250, .94);
+}
+.world-location .ic {
+  font-size: 17px;
+  color: #f4d7c1;
+  filter: drop-shadow(0 0 5px rgba(255, 193, 170, .30));
+}
+.world-location b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Without this the ellipsis is unreachable and a long area name wraps instead, which on
+     a single-line row means the second line pushes the rows below it rather than being
+     shortened. */
+  white-space: nowrap;
+  font: 500 13px/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .045em;
+}
+.world-place {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 400 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(228, 228, 248, .64);
+  white-space: nowrap;
+}
+.world-place::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(242, 215, 229, .66);
+  box-shadow: 0 0 5px rgba(255, 185, 216, .42);
+}
+.world-fill { flex: 1; min-width: var(--sp-3); }
+
+/* 同行 / 在看, in her own colour.
+   ------------------------------------------------------------------
+   The pill this replaces was `min-width: 29px` with `place-items: center` and no
+   horizontal padding -- a 29-unit box that a four-character name overflowed on both
+   sides, so the border cut straight through the type.  A chip is padding plus content:
+   it is as wide as what is in it, and it cannot be outgrown.
+
+   Colour comes from `.t-*` in cards.css, the same tokens the cards, the dock and the
+   roster rows read, so a character's 代表色 is stated once and picked up wherever she is
+   named.  Values stay low: these are two 24-unit chips on frosted glass, and at card
+   strength they would outweigh 资金 and 体力 below them.  They are now the only rimmed
+   shapes on this line -- the capsule that used to contain them is gone -- so the wash no
+   longer has a second one competing with it either. */
+.world-who {
+  flex: none;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--rim, rgba(215, 224, 255, .5)) 52%, transparent);
+  border-radius: 12px;
+  background:
+    linear-gradient(140deg,
+      color-mix(in srgb, var(--wash, rgba(166, 181, 235, .2)) 62%, transparent),
+      color-mix(in srgb, var(--wash, rgba(166, 181, 235, .2)) 24%, transparent)),
+    rgba(24, 30, 64, .18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .14),
+    0 0 12px color-mix(in srgb, var(--glow, transparent) 40%, transparent);
+  white-space: nowrap;
+}
+.world-who em {
+  font: 400 11px/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(230, 232, 250, .58);
+  letter-spacing: .06em;
+}
+/* The dot is the colour said plainly, for the reader who is not going to notice that a
+   chip's rim is two shades cooler than the one beside it. */
+.world-who i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ornament, #e6ecff);
+  box-shadow: 0 0 6px var(--ornament-glow, rgba(226, 232, 255, .8));
+}
+.world-who b {
+  font: 500 12px/1 'Noto Sans SC', sans-serif;
+  color: rgba(248, 248, 255, .94);
+  letter-spacing: .03em;
+}
+/* 直播中 is the one state on this chip that is happening now and elsewhere, so it is the
+   dot that says it -- a second word would double the chip's width. */
+.world-who.is-live i { animation: who-live 1.9s ease-in-out infinite; }
+@keyframes who-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .55; transform: scale(.82); }
+}
+.world-who.is-none {
+  border-color: rgba(215, 224, 255, .16);
+  background: rgba(24, 30, 64, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.world-who.is-none b { color: rgba(236, 239, 255, .52); font-weight: 400; }
+
+/* 何时: date, weekday, season and the clock, on one caption-size line.
+   ------------------------------------------------------------------
+   This replaces two thirds of the old three-cell .stat-row.  Those cells put 日期 and
+   时间 at --fs-value beside 资金, which made the row 54 units tall and gave the pane three
+   competing focal points; the portrait column's .pmeta already demotes exactly these two
+   for exactly that reason, and the type here matches it so the same fact is not two
+   different sizes on two layouts.
+   Above the rule, because 何时 is context in the same sense 在哪 and 和谁 are -- it belongs
+   with the strip, not with the numbers the player owns. */
+.when-line {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+  margin-top: var(--sp-2);
+}
+.when-line > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+.when-line .ic {
+  align-self: center;
+  font-size: var(--icon-sm);
+  color: rgba(246, 232, 210, .78);
+}
+.when-line b {
+  font: 400 var(--fs-caption)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  color: rgba(240, 240, 254, .90);
+}
+.when-line em {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: var(--ink-faint);
+}
+
+/* The one rule left in the pane, and the one boundary in it: above, the world the player
+   is standing in; below, what belongs to the player.  The 工作 / 住所 block is divided from
+   资金 / 体力 by a wider gap instead of a third hairline -- see life-rows below. */
+.pane-status > .rule { margin: var(--sp-3) 0; }
+
+/* 资金 is the pane's only numeral now, so it gets the row to itself and the 日收入 pill
+   sits inline with it rather than on a line underneath. */
+.money-line {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.money-line .ic { font-size: var(--icon-lg); color: var(--ink-gold); }
+.num {
+  font: 400 var(--fs-value)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  color: var(--ink-strong);
+  letter-spacing: .01em;
+  text-shadow: var(--shadow-ink);
+}
+.num .unit { font-size: .86em; margin-right: 1px; }
+
+.pill {
+  font: 500 var(--fs-caption)/1 'Outfit', sans-serif;
+  color: #cfe0ff;
+  padding: 3px 9px 4px;
+  border-radius: 7px;
+  background: rgba(86, 116, 214, .32);
+  border: 1px solid rgba(150, 180, 255, .34);
+  box-shadow: 0 0 12px rgba(94, 130, 240, .3), inset 0 1px 0 rgba(206, 224, 255, .22);
+}
+
+/* ------------------------------------------------------------ favor line */
+.favor-line {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.favor-line .ic {
+  flex: none;
+  font-size: var(--icon-lg);
+  color: #ff8ec2;
+  filter: drop-shadow(0 0 9px rgba(255, 110, 180, .75));
+}
+.favor-name {
+  flex: none;
+  font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif;
+  color: rgba(236, 232, 246, .8);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.bar {
+  flex: 1;
+  min-width: 56px;
+  max-width: 232px;
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(10, 14, 32, .46);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5), inset 0 -1px 0 rgba(255, 255, 255, .07);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  width: var(--pct);
+  height: 100%;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #ff8dc6 0%, #ff7ed2 34%, #cf8cf0 62%, #74b8ff 88%, #63c4ff 100%);
+  box-shadow: 0 0 12px rgba(255, 130, 200, .6), 0 0 18px rgba(120, 180, 255, .35),
+              inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+
+.favor-line.is-stamina .ic { color: #9ec7ff; filter: drop-shadow(0 0 9px rgba(120, 190, 255, .55)); }
+.favor-line.is-stamina .bar {
+  max-width: none;
+}
+.favor-line.is-stamina .bar > i {
+  background: linear-gradient(90deg, #76c9ff, #a89aff);
+  box-shadow: 0 0 12px rgba(120, 190, 255, .45);
+}
+
+.favor-num {
+  display: flex;
+  align-items: baseline;
+  flex: none;
+  gap: var(--sp-1);
+  margin-left: var(--sp-1);
+}
+.favor-num b {
+  font: 400 var(--fs-numeral)/1 'Outfit', sans-serif;
+  color: var(--ink-strong);
+  text-shadow: 0 1px 4px rgba(4, 6, 18, .5);
+}
+.favor-num span { font: 400 var(--fs-body)/1 'Outfit', sans-serif; color: var(--ink-faint); }
+
+.btn-ghost {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  height: 31px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border: 1px solid rgba(212, 216, 250, .42);
+  border-radius: 16px;
+  background: rgba(120, 130, 190, .12);
+  backdrop-filter: blur(6px);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.btn-ghost .ic { font-size: var(--fs-body); }
+
+/* The same rim, wash and blur as the text form, squared off into a circle: 主角档案 is now
+   the person glyph alone, in a title band that already says what pane this is.  Icon-only
+   is the pod's own pattern three panels over, so it is not a new kind of control here.
+   The label is on the button as title and aria-label, and --hit-d below now describes both
+   axes truthfully -- it always said 31, which was right for the height and 70 units short
+   of the width. */
+.btn-ghost.is-icon {
+  width: 31px;
+  padding: 0;
+  border-radius: 50%;
+}
+.btn-ghost.is-icon .ic { font-size: var(--icon-sm); }
+
+@media (hover: hover) {
+  .btn-ghost:hover { background: rgba(150, 160, 220, .24); border-color: rgba(226, 230, 255, .7); }
+}
+.btn-ghost { --hit-d: 31px; }
+
+/* -------------------------------------------------------------- life rows */
+/* 工作 and 住所 close the pane out.  Deliberately the quietest rows in it: no wells,
+   no bars, caption-weight labels -- they are context for the numbers above, and given
+   panels of their own they would outweigh 资金 and 体力, which are what the pane is
+   actually for. */
+.pane-status > .favor-line { margin: var(--sp-4) 0 0; }
+
+/* --sp-6 where the block above uses --sp-4 and --sp-3.  This is the gap doing the work
+   the pane's third hairline used to do: two steps up in the sequence separate the two
+   groups without adding a seventh horizontal line to a 328-unit pane.  It went 17 -> 21
+   when the world capsule was flattened: that freed 10 units, and pooling all of them at
+   the floor would have left the pane loose at the bottom instead of spending some on the
+   one boundary that is now carried by spacing alone. */
+.life-rows {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--sp-6);
+}
+.life-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  height: 25px;
+}
+.life-line > .ic {
+  flex: none;
+  font-size: var(--icon-sm);
+  color: rgba(246, 232, 210, .82);
+}
+.life-label {
+  flex: none;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink-faint);
+  letter-spacing: .08em;
+}
+.life-name {
+  flex: none;
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink);
+  letter-spacing: .03em;
+}
+.life-sub {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  overflow: hidden;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.life-sub::before {
+  content: "";
+  flex: none;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(242, 215, 229, .5);
+}
+/* An element rather than an auto margin: which of the two trailing parts exists
+   varies by row, and an auto margin would attach to whichever came first. */
+.life-fill { flex: 1; min-width: var(--sp-2); }
+
+.life-tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid rgba(215, 224, 255, .20);
+  border-radius: 10px;
+  background: rgba(166, 181, 235, .10);
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+/* The four 到岗 cases keep the same colours the档案 page gives them, so the row and the
+   page cannot say the same state in two different colours. */
+.life-tag.is-warn { border-color: rgba(255, 208, 160, .34); background: rgba(255, 190, 120, .12); color: #ffd7a0; }
+.life-tag.is-ready { border-color: rgba(255, 224, 140, .36); background: rgba(255, 220, 130, .12); color: #ffe08a; }
+.life-tag.is-ok { border-color: rgba(150, 230, 190, .30); background: rgba(120, 220, 180, .11); color: #b6f0d2; }
+
+
+
