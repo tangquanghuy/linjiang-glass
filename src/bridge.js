@@ -98,7 +98,6 @@ export function startBridge() {
   addEventListener('mousedown', (event) => {
     if (event.button !== 1) return;
     event.preventDefault();
-    autoscrollActive = !autoscrollActive;
     postPointerEvent('autoscrollToggle', event);
   }, { capture: true, passive: false });
   addEventListener('auxclick', (event) => {
