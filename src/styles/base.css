@@ -33,8 +33,11 @@ body {
 .stage {
   /* Cover: crop the scene, never letterbox.  Division of two lengths is a
      unitless ratio — scale() rejects a px value and drops the whole transform,
-     which is what pinned the canvas to the bottom-right. */
+     which is what pinned the canvas to the bottom-right.
+     --shift-y is extra canvas-space translation so a short tavern iframe
+     keeps the glass shell (y 350–720) in view instead of the empty plate. */
   --k: max(100vw / 1672px, 100vh / 941px);
+  --shift-y: 0px;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -42,7 +45,7 @@ body {
   height: 941px;
   margin-left: -836px;
   margin-top: -470.5px;
-  transform: scale(var(--k));
+  transform: scale(var(--k)) translateY(var(--shift-y));
   transform-origin: center center;
   /* Establish a backdrop root so the glass samples the plate, and a stacking
      context so the additive glow layers blend against the glass only. */

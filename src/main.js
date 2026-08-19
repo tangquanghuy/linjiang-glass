@@ -57,8 +57,24 @@ function bootLandscape() {
   renderContent(document.getElementById('content'));
 
   const fitStage = () => {
-    const k = Math.max(innerWidth / 1672, innerHeight / 941);
+    const canvasW = 1672;
+    const canvasH = 941;
+    /* Glass shell band in prototype px (pod top 350 … rim bottom 720). */
+    const shellCenter = 535;
+    const kW = innerWidth / canvasW;
+    const kH = innerHeight / canvasH;
+    const k = Math.max(kW, kH);
+    let shiftY = 0;
+    if (kW >= kH) {
+      const visibleH = innerHeight / kW;
+      let centerY = shellCenter;
+      const half = visibleH / 2;
+      if (centerY - half < 0) centerY = half;
+      if (centerY + half > canvasH) centerY = canvasH - half;
+      shiftY = canvasH / 2 - centerY;
+    }
     stage.style.setProperty('--k', String(k));
+    stage.style.setProperty('--shift-y', `${shiftY}px`);
   };
   fitStage();
   addEventListener('resize', fitStage);
