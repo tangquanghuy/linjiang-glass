@@ -343,17 +343,16 @@
   left: 50%;
   top: 50%;
   z-index: 9;
-  /* Wider than the old text-only card: 360 of crop plus a 14px-measure column still
-     fits inside the 1520 archive with margin, and 3:2 of 360 is the same frame the
-     part art is authored against. */
-  width: 940px;
-  max-height: min(70%, calc(var(--hud-band-bottom) - var(--hud-band-top) - 24px));
+  /* Two steps up from 940×360: the sheet was a caption card on a 1520 archive.
+     480 of crop at 3:2 still clears the archive's side margins. */
+  width: 1280px;
+  max-height: min(88%, calc(var(--hud-band-bottom) - var(--hud-band-top) - 16px));
   display: flex;
   flex-direction: column;
   pointer-events: auto;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255,226,244,.40);
-  border-radius: 26px;
+  border-radius: 32px;
   background: rgba(44, 44, 92, .52);
   backdrop-filter: blur(22px) saturate(1.30);
   -webkit-backdrop-filter: blur(22px) saturate(1.30);
@@ -367,23 +366,25 @@
   from { opacity: 0; transform: translate(-50%, -46%) scale(.985); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
-.dev-sheet > header { display: flex; align-items: center; gap: 13px; padding: 22px 26px 16px; border-bottom: 1px solid rgba(255,222,242,.14); }
-.dev-sheet-part { font: 500 21px/1 'Noto Sans SC'; color: #fff; letter-spacing: .12em; }
-.dev-sheet > header b { font: 400 13px/1 'Noto Sans SC'; color: rgba(255,222,242,.80); letter-spacing: .06em; }
-.dev-sheet .dev-pips { width: 120px; flex: none; margin-left: auto; padding: 0; }
-.dev-sheet-close { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border: 1px solid rgba(255,235,248,.30); border-radius: 50%; background: rgba(30,26,58,.5); color: rgba(255,255,255,.86); font: 300 20px/1 'Outfit', sans-serif; cursor: pointer; }
+.dev-sheet > header { display: flex; align-items: center; gap: 16px; padding: 28px 36px 22px; border-bottom: 1px solid rgba(255,222,242,.14); }
+.dev-sheet-part { font: 500 28px/1 'Noto Sans SC'; color: #fff; letter-spacing: .12em; }
+.dev-sheet > header b { font: 400 16px/1 'Noto Sans SC'; color: rgba(255,222,242,.80); letter-spacing: .06em; }
+.dev-sheet .dev-tier { font-size: 15px; }
+.dev-sheet .dev-pips { width: 160px; flex: none; margin-left: auto; padding: 0; }
+.dev-sheet .dev-pips i { height: 7px; }
+.dev-sheet-close { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 1px solid rgba(255,235,248,.30); border-radius: 50%; background: rgba(30,26,58,.5); color: rgba(255,255,255,.86); font: 300 24px/1 'Outfit', sans-serif; cursor: pointer; }
 @media (hover: hover) {
   .dev-sheet-close:hover { background: rgba(140,120,180,.55); border-color: rgba(255,255,255,.66); }
 }
-.dev-sheet-close { --hit-d: 30px; }
+.dev-sheet-close { --hit-d: 36px; }
 .dev-sheet-body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 480px minmax(0, 1fr);
+  gap: 32px;
   align-items: start;
-  padding: 18px 22px 22px;
+  padding: 26px 32px 32px;
   overflow: hidden;
 }
 .dev-sheet-crop {
@@ -393,7 +394,7 @@
   width: 100%;
   aspect-ratio: 3 / 2;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 20px;
   background:
     radial-gradient(ellipse 70% 60% at 50% 38%, rgba(255,196,226,.12), transparent 72%),
     linear-gradient(160deg, rgba(120,110,170,.18), rgba(28,32,66,.32));
@@ -401,19 +402,19 @@
 }
 .dev-sheet-crop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .dev-sheet-crop em {
-  padding: 7px 12px;
+  padding: 8px 14px;
   border: 1px dashed rgba(232,228,250,.20);
   border-radius: 9px;
-  font: 400 11px/1 'Noto Sans SC';
+  font: 400 13px/1 'Noto Sans SC';
   font-style: normal;
   color: rgba(236,232,248,.30);
   letter-spacing: .18em;
 }
 .dev-sheet-crop img + em { display: none; }
 .dev-sheet-copy { min-height: 0; max-height: 100%; overflow: auto; }
-.dev-sheet-copy p { font: 400 14px/2.05 'Noto Sans SC'; color: rgba(240,236,250,.86); letter-spacing: .03em; text-align: justify; }
-.dev-sheet-copy p.is-muted { color: rgba(232,230,246,.56); line-height: 1.9; }
-.dev-sheet-copy code { padding: 2px 6px; border-radius: 5px; background: rgba(12,14,34,.46); font: 400 12px/1 'Outfit', monospace; color: rgba(255,224,242,.86); }
+.dev-sheet-copy p { font: 400 18px/2 'Noto Sans SC'; color: rgba(240,236,250,.86); letter-spacing: .03em; text-align: justify; }
+.dev-sheet-copy p.is-muted { color: rgba(232,230,246,.56); font-size: 17px; line-height: 1.9; }
+.dev-sheet-copy code { padding: 3px 8px; border-radius: 5px; background: rgba(12,14,34,.46); font: 400 14px/1 'Outfit', monospace; color: rgba(255,224,242,.86); }
 .dev-sheet-copy::-webkit-scrollbar { width: 6px; }
 .dev-sheet-copy::-webkit-scrollbar-thumb { background: rgba(255,214,236,.30); border-radius: 4px; }
 
