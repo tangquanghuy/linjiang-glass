@@ -1,6 +1,6 @@
 ﻿import geo from './geometry.json';
 import spritesRaw from './sprites.json';
-import { asset, rebaseRecord } from './asset.js';
+import { pinMaskStyle, rebaseRecord } from './asset.js';
 import {
   characterDetails, girls, homeState, onLive, player, protagonist, tools, workBadge, workState, world,
 } from './data.js';
@@ -255,7 +255,7 @@ function girlCard(g) {
     ${g.live ? '<span class="card-live" title="正在直播">直播中</span>' : ''}
     <div class="card-body">
       <div class="card-name"><b class="${g.name.length > 3 ? 'xl' : g.name.length >= 3 ? 'long' : ''}">${g.name}</b>
-        <button class="card-star" type="button" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}" title="${pinnedOn ? '取消置顶' : '置顶角色'}" style="--star-image:url('${asset(`card-${g.ornament === 'star' ? 'star' : 'sparkle'}.png`)}')"></button></div>
+        <button class="card-star" type="button" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}" title="${pinnedOn ? '取消置顶' : '置顶角色'}" style="${pinMaskStyle(g.ornament)}"></button></div>
       <div class="card-romaji">${g.romaji}</div>
       <div class="card-metric-label">${ic(g.metric.icon)}<span>${g.metric.label}</span></div>
       <div class="card-metric"><b>${g.metric.value}</b><span>/ ${g.metric.max}</span></div>

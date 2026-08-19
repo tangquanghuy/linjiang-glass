@@ -1,13 +1,29 @@
 /* Public files live under public/assets and are copied to dist/assets.
-   Vite's BASE_URL is `./` so GitHub project pages, jsDelivr and local preview
-   all resolve against the HTML document rather than the domain root. */
+   Paths are resolved against the HTML document, not the JS/CSS bundle: Vite
+   emits those under /assets/, and a relative url() used as a CSS mask would
+   become /assets/assets/*.png and 404. */
 
 export function asset(path) {
   const file = String(path || '')
     .replace(/^.*\/assets\//, '')
     .replace(/^assets\//, '')
     .replace(/^\//, '');
-  return `${import.meta.env.BASE_URL}assets/${file}`;
+  const relative = `${import.meta.env.BASE_URL}assets/${file}`;
+  try {
+    const base = globalThis.document?.baseURI || globalThis.location?.href;
+    return base ? new URL(relative, base).href : relative;
+  } catch {
+    return relative;
+  }
+}
+
+export function cssUrl(path) {
+  return `url("${asset(path)}")`;
+}
+
+export function pinMaskStyle(ornament) {
+  const image = cssUrl(ornament === 'star' ? 'card-star.png' : 'card-sparkle.png');
+  return `-webkit-mask-image:${image};mask-image:${image}`;
 }
 
 export function rebaseSrc(entry) {

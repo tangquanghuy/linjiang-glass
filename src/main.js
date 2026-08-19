@@ -12,8 +12,8 @@ import './styles/drawer.css';
 import './styles/gifts.css';
 import './styles/portrait.css';
 
-import { asset } from './asset.js';
-document.documentElement.style.setProperty('--hud-frost', `url("${asset('frost.png')}")`);
+import { cssUrl } from './asset.js';
+document.documentElement.style.setProperty('--hud-frost', cssUrl('frost.png'));
 
 import { buildDefs, buildRim, buildLens } from './glass.js';
 import { buildDockDefs } from './dock.js';
