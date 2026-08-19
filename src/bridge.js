@@ -79,6 +79,32 @@ export function startBridge() {
   started = true;
   addEventListener('message', onMessage);
   if (!isEmbedded()) return;
+  addEventListener('wheel', (event) => {
+    if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;
+    let node = event.target;
+    if (node && node.nodeType !== 1) node = node.parentElement;
+    while (node && node !== document.body) {
+      const style = getComputedStyle(node);
+      const y = style.overflowY;
+      if ((y === 'auto' || y === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+        const top = node.scrollTop;
+        const atStart = top <= 0 && event.deltaY < 0;
+        const atEnd = top + node.clientHeight >= node.scrollHeight - 1 && event.deltaY > 0;
+        if (!atStart && !atEnd) return;
+      }
+      node = node.parentElement;
+    }
+    let dy = event.deltaY;
+    if (event.deltaMode === 1) dy *= 16;
+    if (event.deltaMode === 2) dy *= innerHeight || 800;
+    if (!dy) return;
+    window.parent.postMessage({
+      channel: CHANNEL,
+      kind: 'event',
+      type: 'wheel',
+      payload: { deltaY: dy },
+    }, '*');
+  }, { passive: true });
   rpc('handshake').then(() => rpc('getSnapshot')).then((payload) => {
     applyStatData(payload?.stat_data);
   }).catch((err) => {
