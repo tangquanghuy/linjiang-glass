@@ -104,6 +104,16 @@ export function startBridge() {
       type: 'wheel',
       payload: { deltaY: dy },
     }, '*');
+    try {
+      if (window.top && window.top !== window.parent) {
+        window.top.postMessage({
+          channel: CHANNEL,
+          kind: 'event',
+          type: 'wheel',
+          payload: { deltaY: dy },
+        }, '*');
+      }
+    } catch (e) {}
   }, { passive: true });
   rpc('handshake').then(() => rpc('getSnapshot')).then((payload) => {
     applyStatData(payload?.stat_data);
