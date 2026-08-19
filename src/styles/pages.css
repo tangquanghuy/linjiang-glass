@@ -549,6 +549,22 @@
 .item-copy span { font-size:10px; color:rgba(213,205,233,.4); }
 .item-card > b { font:500 16px/1 'Outfit'; color:rgba(255,255,255,.76); }
 
+.inventory-page .page-modal-head span { font-size: 28px; }
+.inventory-page .page-modal-head h2 { font-size: 19px; }
+.inventory-page .inventory-side > span { height: 46px; font-size: 15px; }
+.inventory-page .inventory-side > span b { font-size: 15px; }
+.inventory-page .stamina-card small,
+.inventory-page .stamina-card em { font-size: 13px; }
+.inventory-page .stamina-card > b { font-size: 32px; }
+.inventory-page .inventory-content h3 { font-size: 18px; }
+.inventory-page .inventory-content header span { font-size: 13px; }
+.inventory-page .item-card { min-height: 132px; }
+.inventory-page .item-copy h3 { font-size: 18px; }
+.inventory-page .item-copy p { font-size: 14px; line-height: 1.65; color: rgba(229,229,244,.62); }
+.inventory-page .item-copy span { font-size: 13px; }
+.inventory-page .item-card > b { font-size: 18px; }
+.inventory-page .item-card.is-worn > b { font-size: 14px; }
+
 /* relationships */
 .relation-list { display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; }
 .relation-row { height:77px; display:grid; grid-template-columns:54px 175px 1fr 85px 20px; gap:14px; align-items:center; padding:10px 17px 10px 10px; border:1px solid rgba(226,230,255,.13); border-radius:19px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); color:#fff; text-align:left; cursor:pointer; }
