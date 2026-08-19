@@ -52,13 +52,13 @@
   z-index: 1;
 }
 
-.t-rose    { --rim: rgba(255, 218, 235, .92); --glow: rgba(255, 148, 198, .42); --wash: rgba(255, 178, 213, .28); --pane: rgba(255, 198, 222, .25); --ornament: #ffe0ed; --ornament-glow: rgba(255, 151, 198, .90); }
-.t-ice     { --rim: rgba(220, 242, 255, .92); --glow: rgba(143, 211, 255, .38); --wash: rgba(174, 216, 255, .25); --pane: rgba(194, 226, 255, .22); --ornament: #c6eeff; --ornament-glow: rgba(114, 203, 255, .90); }
-.t-violet  { --rim: rgba(239, 224, 255, .92); --glow: rgba(204, 160, 255, .40); --wash: rgba(220, 191, 255, .26); --pane: rgba(224, 210, 255, .23); --ornament: #f3d3ff; --ornament-glow: rgba(211, 151, 255, .90); }
-.t-gold    { --rim: rgba(255, 239, 203, .94); --glow: rgba(255, 211, 137, .42); --wash: rgba(255, 222, 169, .27); --pane: rgba(255, 229, 188, .25); --ornament: #ffe19a; --ornament-glow: rgba(255, 198, 91, .92); }
-.t-crimson { --rim: rgba(255, 195, 207, .92); --glow: rgba(255, 92, 126, .40); --wash: rgba(255, 131, 160, .25); --pane: rgba(255, 169, 189, .22); --ornament: #ffd3dd; --ornament-glow: rgba(255, 106, 140, .90); }
-.t-scarlet { --rim: rgba(255, 201, 205, .92); --glow: rgba(255, 93, 104, .39); --wash: rgba(255, 132, 143, .24); --pane: rgba(255, 169, 176, .21); --ornament: #ffd3ba; --ornament-glow: rgba(255, 142, 110, .88); }
-.t-candy   { --rim: rgba(255, 216, 238, .92); --glow: rgba(255, 139, 201, .42); --wash: rgba(255, 167, 210, .27); --pane: rgba(255, 194, 222, .24); --ornament: #ffd4ec; --ornament-glow: rgba(255, 133, 197, .92); }
+.t-rose    { --signal: #ff3d9a; --rim: rgba(255, 218, 235, .92); --glow: rgba(255, 148, 198, .42); --wash: rgba(255, 178, 213, .28); --pane: rgba(255, 198, 222, .25); --ornament: #ffe0ed; --ornament-glow: rgba(255, 151, 198, .90); }
+.t-ice     { --signal: #27d7ff; --rim: rgba(220, 242, 255, .92); --glow: rgba(143, 211, 255, .38); --wash: rgba(174, 216, 255, .25); --pane: rgba(194, 226, 255, .22); --ornament: #c6eeff; --ornament-glow: rgba(114, 203, 255, .90); }
+.t-violet  { --signal: #9b5cff; --rim: rgba(239, 224, 255, .92); --glow: rgba(204, 160, 255, .40); --wash: rgba(220, 191, 255, .26); --pane: rgba(224, 210, 255, .23); --ornament: #f3d3ff; --ornament-glow: rgba(211, 151, 255, .90); }
+.t-gold    { --signal: #ffd12f; --rim: rgba(255, 239, 203, .94); --glow: rgba(255, 211, 137, .42); --wash: rgba(255, 222, 169, .27); --pane: rgba(255, 229, 188, .25); --ornament: #ffe19a; --ornament-glow: rgba(255, 198, 91, .92); }
+.t-crimson { --signal: #ff355d; --rim: rgba(255, 195, 207, .92); --glow: rgba(255, 92, 126, .40); --wash: rgba(255, 131, 160, .25); --pane: rgba(255, 169, 189, .22); --ornament: #ffd3dd; --ornament-glow: rgba(255, 106, 140, .90); }
+.t-scarlet { --signal: #ff7a2f; --rim: rgba(255, 201, 205, .92); --glow: rgba(255, 93, 104, .39); --wash: rgba(255, 132, 143, .24); --pane: rgba(255, 169, 176, .21); --ornament: #ffd3ba; --ornament-glow: rgba(255, 142, 110, .88); }
+.t-candy   { --signal: #42e6a4; --rim: rgba(255, 216, 238, .92); --glow: rgba(255, 139, 201, .42); --wash: rgba(255, 167, 210, .27); --pane: rgba(255, 194, 222, .24); --ornament: #ffd4ec; --ornament-glow: rgba(255, 133, 197, .92); }
 
 .card-glass {
   position: absolute;

@@ -2045,7 +2045,7 @@
 .pschedule-today::-webkit-scrollbar { display:none; }
 .pschedule-today > b { flex:none; margin-right:var(--sp-1); font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.58); }
 .pschedule-today-chip { flex:none; display:inline-flex; align-items:center; gap:var(--sp-1); padding:var(--sp-2) var(--sp-3); border:2px solid color-mix(in srgb,var(--rim) 28%,transparent); border-radius:var(--sp-3); background:color-mix(in srgb,var(--wash) 14%,rgba(16,20,48,.34)); font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(244,242,252,.76); }
-.pschedule-today-chip i { width:16px; height:16px; border-radius:50%; background:var(--ornament); }
+.pschedule-today-chip i { width:16px; height:16px; border-radius:50%; background:var(--signal,var(--ornament)); }
 .pschedule-today-chip b { font:500 var(--fs-caption)/1 'Outfit',sans-serif; color:#fff; }
 .pschedule-today-chip.is-live { border-color:color-mix(in srgb,var(--rim) 70%,transparent); box-shadow:0 0 22px color-mix(in srgb,var(--glow) 40%,transparent); }
 .pschedule-lines { display:flex; flex-direction:column; gap:var(--sp-3); }
@@ -2053,7 +2053,7 @@
 .pschedule-line.is-watching { border-color:color-mix(in srgb,var(--rim) 58%,transparent); }
 .pschedule-line-top { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:var(--sp-3); }
 .pschedule-line-id { display:flex; align-items:center; gap:var(--sp-2); min-width:0; }
-.pschedule-line-id > i { flex:none; width:15px; height:62px; border-radius:8px; background:linear-gradient(180deg,var(--ornament),color-mix(in srgb,var(--ornament) 38%,transparent)); box-shadow:0 0 22px var(--glow); }
+.pschedule-line-id > i { flex:none; width:15px; height:62px; border-radius:8px; background:linear-gradient(180deg,var(--signal,var(--ornament)),color-mix(in srgb,var(--signal,var(--ornament)) 38%,transparent)); box-shadow:0 0 22px var(--glow); }
 .pschedule-line-id > span { min-width:0; display:flex; align-items:baseline; gap:var(--sp-2); }
 .pschedule-line-id b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.94); }
 .pschedule-line-id em { font:400 var(--fs-caption)/1 'Pinyon Script',cursive; color:rgba(242,227,246,.58); }
@@ -2076,7 +2076,7 @@
 .pschedule-run-day { position:relative; height:100%; border-left:2px solid rgba(226,230,255,.07); }
 .pschedule-run-day:last-child { border-right:2px solid rgba(226,230,255,.07); }
 .pschedule-run-day i { position:absolute; left:8px; right:8px; top:17px; height:20px; border-radius:12px; background:rgba(140,150,190,.11); }
-.pschedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--ornament) 72%,transparent),var(--ornament)); box-shadow:0 0 18px color-mix(in srgb,var(--glow) 48%,transparent); }
+.pschedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--signal,var(--ornament)) 72%,transparent),var(--signal,var(--ornament))); box-shadow:0 0 18px color-mix(in srgb,var(--glow) 48%,transparent); }
 .pschedule-run-day.is-active.joins-previous i { left:-2px; border-top-left-radius:0; border-bottom-left-radius:0; }
 .pschedule-run-day.is-active.joins-next i { right:-2px; border-top-right-radius:0; border-bottom-right-radius:0; }
 .pschedule-run-day.is-today { background:rgba(255,156,205,.06); }

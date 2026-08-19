@@ -12,6 +12,12 @@
 
 :root {
   --hud-frost: url("/assets/frost.png");
+  /* Overlay band.  Tavern ?fit=body shows canvas y 48..835 (main.js); the glass
+     column itself runs dock ear/blossom ~70 to drawer floor 823.  Full-canvas
+     Pages still paints 1672×941 -- these only keep sheets inside that column
+     so the iframe crop does not chop their footers. */
+  --hud-band-top: 52px;
+  --hud-band-bottom: 823px;
   /* Type scale ---------------------------------------------------------- */
   --fs-script-lg: 52px;    /* "Girls" */
   --fs-script-md: 51px;    /* "Status" */

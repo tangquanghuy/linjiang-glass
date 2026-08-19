@@ -186,11 +186,13 @@
 .tone-blue .page-meter-track i { background: linear-gradient(90deg, #78c9ff, #929dff); }
 .tone-gold .page-meter-track i { background: linear-gradient(90deg, #ffd18d, #ffad7d); }
 /* ------------------------------------------------ full workspaces */
+/* Old 52+820=872 sat 49px past the drawer and 37px past the tavern crop, so the
+   iframe chopped the sheet footer.  Height is the band, body scrolls inside. */
 .page-modal {
   left: 76px;
-  top: 52px;
+  top: var(--hud-band-top);
   width: 1520px;
-  height: 820px;
+  height: calc(var(--hud-band-bottom) - var(--hud-band-top));
   border-radius: 38px;
   animation: modal-in .26s cubic-bezier(.2,.82,.25,1) both;
 }
@@ -220,6 +222,7 @@
    exactly, which is checked in tools/shot_dock.mjs.  A档案 that needs scrolling to
    reach its own footer is the "冗长" problem, so height here is a budget, not a
    guess. */
+/* 104+716=820, still 3px above the drawer floor -- keep the no-scroll budget. */
 .page-modal.character-archive { top: 104px; height: 716px; }
 .character-archive .page-modal-body {
   display: grid;
@@ -344,7 +347,7 @@
      fits inside the 1520 archive with margin, and 3:2 of 360 is the same frame the
      part art is authored against. */
   width: 940px;
-  max-height: 70%;
+  max-height: min(70%, calc(var(--hud-band-bottom) - var(--hud-band-top) - 24px));
   display: flex;
   flex-direction: column;
   pointer-events: auto;
@@ -578,7 +581,7 @@
    one tracks a line across.  Same centre, so the sheet does not appear to move when a
    page is swapped. */
 .page-modal.profile-page { left:136px; width:1400px; }
-.profile-page .page-modal-body { padding:26px 52px 30px; overflow:hidden; }
+.profile-page .page-modal-body { padding:26px 52px 30px; overflow:auto; }
 .profile-layout {
   height:100%;
   display:grid;
@@ -936,7 +939,7 @@
 .schedule-today { display:flex; align-items:center; gap:9px; min-height:36px; margin-bottom:10px; overflow:hidden; }
 .schedule-today > b { flex:none; margin-right:5px; font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.56); }
 .schedule-today-chip { min-width:0; display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid color-mix(in srgb,var(--rim) 26%,transparent); border-radius:13px; background:color-mix(in srgb,var(--wash) 13%,rgba(16,20,48,.34)); font:400 11px/1 'Noto Sans SC',sans-serif; color:rgba(244,242,252,.72); white-space:nowrap; }
-.schedule-today-chip i { width:6px; height:6px; border-radius:50%; background:var(--ornament); }
+.schedule-today-chip i { width:6px; height:6px; border-radius:50%; background:var(--signal,var(--ornament)); }
 .schedule-today-chip b { font:500 12px/1 'Outfit',sans-serif; color:rgba(255,255,255,.92); }
 .schedule-today-chip.is-live { border-color:color-mix(in srgb,var(--rim) 64%,transparent); box-shadow:0 0 12px color-mix(in srgb,var(--glow) 38%,transparent); }
 .schedule-board-head,
@@ -952,7 +955,7 @@
 .schedule-line { min-height:0; padding:7px 15px; border:1px solid rgba(226,230,255,.11); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(23,29,62,.13)); box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
 .schedule-line.is-watching { border-color:color-mix(in srgb,var(--rim) 54%,transparent); }
 .schedule-line-id { display:flex; align-items:center; gap:10px; min-width:0; }
-.schedule-line-id > i { flex:none; width:8px; height:34px; border-radius:6px; background:linear-gradient(180deg,var(--ornament),color-mix(in srgb,var(--ornament) 38%,transparent)); box-shadow:0 0 13px var(--glow); }
+.schedule-line-id > i { flex:none; width:8px; height:34px; border-radius:6px; background:linear-gradient(180deg,var(--signal,var(--ornament)),color-mix(in srgb,var(--signal,var(--ornament)) 38%,transparent)); box-shadow:0 0 13px var(--glow); }
 .schedule-line-id > span { min-width:0; display:flex; align-items:baseline; gap:8px; }
 .schedule-line-id b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 15px/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.94); }
 .schedule-line-id em { font:400 13px/1 'Pinyon Script',cursive; color:rgba(242,227,246,.58); }
@@ -965,7 +968,7 @@
 .schedule-run-day { position:relative; height:100%; display:flex; align-items:center; justify-content:center; border-left:1px solid rgba(226,230,255,.07); }
 .schedule-run-day:last-child { border-right:1px solid rgba(226,230,255,.07); }
 .schedule-run-day i { position:absolute; left:5px; right:5px; height:14px; border-radius:8px; background:rgba(140,150,190,.11); }
-.schedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--ornament) 72%,transparent),var(--ornament)); box-shadow:0 0 11px color-mix(in srgb,var(--glow) 42%,transparent); }
+.schedule-run-day.is-active i { background:linear-gradient(90deg,color-mix(in srgb,var(--signal,var(--ornament)) 72%,transparent),var(--signal,var(--ornament))); box-shadow:0 0 11px color-mix(in srgb,var(--glow) 42%,transparent); }
 .schedule-run-day.is-active.joins-previous i { left:-1px; border-top-left-radius:0; border-bottom-left-radius:0; }
 .schedule-run-day.is-active.joins-next i { right:-1px; border-top-right-radius:0; border-bottom-right-radius:0; }
 .schedule-run-day.is-today { background:rgba(255,156,205,.055); }

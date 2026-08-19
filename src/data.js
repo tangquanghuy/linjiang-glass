@@ -846,6 +846,13 @@ function clockMinutes(clock) {
   return (hour || 0) * 60 + (minute || 0);
 }
 
+function inScheduleWindow(now, start, end) {
+  if (!start || !end) return false;
+  const a = clockMinutes(start);
+  const b = clockMinutes(end);
+  return b <= a ? now >= a || now <= b : now >= a && now <= b;
+}
+
 export function streamSchedule() {
   const weekday = world.calendar.weekday;
   const dayIndex = Math.max(0, WEEKDAYS.indexOf(weekday));
@@ -856,9 +863,12 @@ export function streamSchedule() {
     const schedule = stream.schedule || { start: '', end: '', days: [], note: '' };
     const plannedDays = schedule.days || [];
     const plannedToday = plannedDays.includes(weekday);
-    const currentState = stream.live
-      ? (plannedToday ? 'live' : 'unplanned')
-      : (plannedToday ? 'off' : null);
+    const nowInWindow = inScheduleWindow(clockMinutes(world.time.clock), schedule.start, schedule.end);
+    const currentState = !plannedToday
+      ? (stream.live ? 'unplanned' : null)
+      : stream.live
+        ? (nowInWindow ? 'live' : 'unplanned')
+        : (nowInWindow ? 'off' : 'booked');
 
     const days = WEEKDAYS.map((day, index) => {
       const planned = plannedDays.includes(day);

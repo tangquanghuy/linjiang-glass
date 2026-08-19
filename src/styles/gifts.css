@@ -166,8 +166,10 @@
   left: 476px;
   top: 566px;
   width: 720px;
+  /* Centered at 566; 2 * min(566-52, 823-566) = 514 keeps both ends in the band. */
+  max-height: 514px;
   z-index: 2;
-  overflow: hidden;
+  overflow: hidden auto;
   pointer-events: auto;
   border: 1px solid rgba(232, 236, 255, .56);
   border-radius: 28px;

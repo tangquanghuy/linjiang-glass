@@ -2,7 +2,7 @@
    ------------------------------------------------------------------
    A page here replaces the column rather than being appended below it.  Three reasons,
    and the first is the one that rules out every alternative: the landscape pages cannot
-   be reused at all, because .page-modal is 1520x820 pinned at (76,52) in landscape
+   be reused at all, because .page-modal is 1520×771 pinned at (76,52) in landscape
    canvas coordinates, and inside the portrait scale that is about 340 real pixels tall
    on a phone.
 
