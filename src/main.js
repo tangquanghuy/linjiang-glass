@@ -59,13 +59,14 @@ function bootLandscape() {
   const fitStage = () => {
     const canvasW = 1672;
     const canvasH = 941;
+    const contain = new URLSearchParams(location.search).get('fit') === 'contain';
     /* Glass shell band in prototype px (pod top 350 … rim bottom 720). */
     const shellCenter = 535;
     const kW = innerWidth / canvasW;
     const kH = innerHeight / canvasH;
-    const k = Math.max(kW, kH);
+    const k = contain ? Math.min(kW, kH) : Math.max(kW, kH);
     let shiftY = 0;
-    if (kW >= kH) {
+    if (!contain && kW >= kH) {
       const visibleH = innerHeight / kW;
       let centerY = shellCenter;
       const half = visibleH / 2;
