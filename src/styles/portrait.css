@@ -885,19 +885,20 @@
   height: var(--d);
   padding: 0;
   border: 0;
-  background: var(--ornament);
-  -webkit-mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-position: center;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  filter:
-    drop-shadow(0 0 5px rgba(255, 255, 255, .72))
-    drop-shadow(0 0 12px var(--ornament-glow));
+  background: none;
   opacity: .62;
   cursor: pointer;
   transition: transform .16s, opacity .16s;
+}
+.pcard-star img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 255, 255, .72))
+    drop-shadow(0 0 12px var(--ornament-glow));
 }
 .pcard.is-pinned > .pcard-star { opacity: 1; transform: scale(1.06); }
 .pcard.is-pinned .card-rim { border-color: color-mix(in srgb, var(--rim) 92%, #fff); }

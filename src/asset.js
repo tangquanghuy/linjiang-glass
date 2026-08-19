@@ -21,11 +21,6 @@ export function cssUrl(path) {
   return `url("${asset(path)}")`;
 }
 
-export function pinMaskStyle(ornament) {
-  const image = cssUrl(ornament === 'star' ? 'card-star.png' : 'card-sparkle.png');
-  return `-webkit-mask-image:${image};mask-image:${image}`;
-}
-
 export function rebaseSrc(entry) {
   if (!entry || typeof entry !== 'object') return entry;
   if (typeof entry.src !== 'string') return entry;

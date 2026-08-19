@@ -37,7 +37,7 @@ import { head, ic, meter, pct } from './parts.js';
 import { setPref } from '../prefs.js';
 import { onLive } from '../data.js';
 import { requestClockIn, sendChat } from '../bridge.js';
-import { pinMaskStyle } from '../asset.js';
+import { pinImg } from '../pin-art.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -135,7 +135,7 @@ function card(g, selected) {
     ${g.live ? '<span class="pcard-live" title="正在直播">直播中</span>' : ''}
     <button class="pcard-star" type="button" data-pin="${g.name}"
       aria-pressed="${pinnedOn}" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}"
-      style="${pinMaskStyle(g.ornament)}"></button>
+      >${pinImg(g.ornament)}</button>
     <div class="pcard-body">
       <div class="pcard-name">
         <b class="${g.name.length > 3 ? 'long' : ''}">${g.name}</b><em>${g.romaji}</em>
