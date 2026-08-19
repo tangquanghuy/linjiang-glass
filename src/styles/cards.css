@@ -201,7 +201,7 @@
   display: flex;
   align-items: center;
   margin-bottom: var(--sp-0);
-  padding-right: 36px;
+  padding-right: 44px;
 }
 .card-name b {
   font: 700 var(--fs-title)/1 'Noto Sans SC', sans-serif;
@@ -212,20 +212,20 @@
 .card-name b.long { font-size: 21px; }
 .card-name b.xl { font-size: 18px; }
 .card-star {
-  --hit-d: 20px;
+  --hit-d: 30px;
   position: absolute;
-  top: 18px;
-  right: 11px;
+  top: 11px;
+  right: 4px;
   z-index: 5;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   pointer-events: auto;
   padding: 0;
   border: 0;
   background: none;
-  opacity: .96;
+  opacity: 1;
   cursor: pointer;
-  transition: transform .16s, opacity .16s;
+  transition: transform .16s, filter .16s;
 }
 .card-star img {
   display: block;
@@ -233,9 +233,24 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+  transform: scale(1.55);
   filter:
-    drop-shadow(0 0 3px rgba(255, 255, 255, .72))
-    drop-shadow(0 0 7px var(--ornament-glow));
+    brightness(1.55)
+    saturate(1.85)
+    contrast(1.2)
+    drop-shadow(0 0 1px #fff)
+    drop-shadow(0 0 3px var(--signal))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--signal) 85%, transparent));
+}
+.card.is-pinned .card-star img {
+  transform: scale(1.7);
+  filter:
+    brightness(1.7)
+    saturate(2)
+    contrast(1.25)
+    drop-shadow(0 0 1px #fff)
+    drop-shadow(0 0 4px var(--signal))
+    drop-shadow(0 0 14px var(--signal));
 }
 /* Hover only where there is a pointer: on a touch screen :hover sticks after a tap
    and leaves the control looking permanently active. */
