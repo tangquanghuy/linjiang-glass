@@ -59,8 +59,18 @@ function bootLandscape() {
   const fitStage = () => {
     const canvasW = 1672;
     const canvasH = 941;
-    const contain = new URLSearchParams(location.search).get('fit') === 'contain';
-    /* Glass shell band in prototype px (pod top 350 … rim bottom 720). */
+    const fit = new URLSearchParams(location.search).get('fit');
+    /* Dock ear/blossom ~y 54, drawer bottom 823 (geometry.json). Pad a few
+       units so the glass rim still sits inside the iframe. */
+    const body = { x: 16, y: 48, w: 1640, h: 787 };
+    if (fit === 'body') {
+      const k = Math.min(innerWidth / body.w, innerHeight / body.h);
+      const shiftY = canvasH / 2 - (body.y + body.h / 2);
+      stage.style.setProperty('--k', String(k));
+      stage.style.setProperty('--shift-y', `${shiftY}px`);
+      return;
+    }
+    const contain = fit === 'contain';
     const shellCenter = 535;
     const kW = innerWidth / canvasW;
     const kH = innerHeight / canvasH;
