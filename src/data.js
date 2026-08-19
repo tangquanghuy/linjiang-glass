@@ -285,7 +285,7 @@ export function resolveCategory(bucket, category) {
 /* Where the category art is served from.  One constant because it will not stay local:
    moving to a CDN is then this line, the same way the character covers already read from
    a remote host through COVER below. */
-export const ITEM_ART = '/assets/items';
+export const ITEM_ART = `${import.meta.env.BASE_URL}assets/items`;
 
 /* How many art sets a category can have: <slug>.png, <slug>-2.png, <slug>-3.png.
    This is only the ceiling -- how many a category *actually* has comes from
@@ -560,7 +560,7 @@ const roster = [
     development: { oral: 1, chest: 1, vagina: 0, anus: 0 },
     location: { area: '鼓岭区 · 云庭公寓', place: '客厅', privacy: 5 },
     fan: fan({ follow: true }),
-    /* `slots` is her 档期 -- authored, stable, her habit.  `live` is the fact, written back
+    /* `schedule` is her 档期 -- authored, stable, her habit.  `live` is the fact, written back
        by the tavern script.  The two are allowed to disagree, and the disagreement is the
        point: a 周五 夜 slot with live false is 今日休播, which is what the player wants to
        know.  See streamSchedule below. */
@@ -620,8 +620,8 @@ const roster = [
     development: { oral: 0, chest: 0, vagina: 0, anus: 0 },
     location: { area: '鼓岭区 · 梧桐里', place: '画室', privacy: 4 },
     fan: fan(),
-    /* 不开播的人.  An empty slot list is a state the grid has to render, not a hole to
-       patch: one blank row is how the page says 她不是主播, and 时雨羽衣 is the case that
+    /* 不开播的人.  Her schedule is intentionally sparse: the row shows only two weekly
+       broadcast days, which is how the page says she is an occasional streamer rather than a daily one, and 时雨羽衣 is the case that
        keeps whoever builds it from assuming every character has a week. */
     stream: {
       live: false, title: '', viewers: 0,
@@ -641,7 +641,7 @@ const roster = [
     development: { oral: 4, chest: 3, vagina: 4, anus: 2 },
     location: { area: '乌溪区 · 夜巷', place: '情侣酒店', privacy: 5 },
     /* 路人 on the player's side and a streamer on her own: `fan` is the player's account on
-       her channel, `slots` is her schedule.  Keeping one of the two unfollowed streamers in
+       her channel, `schedule` is her schedule.  Keeping one of the two unfollowed streamers in
        the sample stops the grid from being read as "only the ones I follow". */
     fan: fan(),
     stream: {
@@ -942,7 +942,7 @@ export const tools = [
    falls back to the hue-derived gem, the same drop-in slot the item cells use, so
    dropping the PNGs in later is the whole integration.  See
    变量相关/直播礼物图标素材.md for the eleven files and their requirements. */
-export const GIFT_ART = '/assets/gifts';
+export const GIFT_ART = `${import.meta.env.BASE_URL}assets/gifts`;
 
 /* 念ID 的概率档.  Deliberately words rather than a number: the world book gives no
    rate and inventing one would state a precision the fiction does not have. */

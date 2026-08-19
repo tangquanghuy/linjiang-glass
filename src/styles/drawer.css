@@ -70,7 +70,7 @@
   pointer-events: none;
   opacity: .50;
   mix-blend-mode: soft-light;
-  background: url("/assets/frost.png") repeat;
+  background: var(--hud-frost) repeat;
 }
 
 /* The vertical edges are at the same x as the shell's and the dock's, so these are

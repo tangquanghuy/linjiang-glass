@@ -1,5 +1,6 @@
 ﻿import geo from './geometry.json';
-import dockArt from './dock-art.json';
+import dockArtRaw from './dock-art.json';
+import { rebaseRecord } from './asset.js';
 import devMatrix from './dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, NO_STATUS, PRIVACY, THRESHOLDS,
@@ -10,6 +11,8 @@ import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { PREF_CHOICES, pref, setPref } from './prefs.js';
 import { icons } from './icons.js';
 import { requestClockIn } from './bridge.js';
+
+const dockArt = rebaseRecord(dockArtRaw);
 
 const ic = (name) => (name ? `<i class="ic">${icons[name]}</i>` : '');
 const clampPct = (value, max = 100) => Math.max(0, Math.min(100, (value / max) * 100));

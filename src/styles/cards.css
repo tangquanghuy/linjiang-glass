@@ -94,7 +94,7 @@
   mix-blend-mode: screen;
 }
 .card-glass::after {
-  background: url("/assets/frost.png") repeat;
+  background: var(--hud-frost) repeat;
   background-size: 128px 128px;
   opacity: .13;
   mix-blend-mode: soft-light;

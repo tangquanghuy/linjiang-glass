@@ -30,7 +30,10 @@
 
 import { EAR, PANEL, PW, SEAM, TOOL, canvasWidth, panelPath, podRowLeft } from './geometry.js';
 import { buildPortraitDefs, paintPortraitRim } from './glass.js';
-import dockArt from '../dock-art.json';
+import dockArtRaw from '../dock-art.json';
+import { asset, rebaseRecord } from '../asset.js';
+
+const dockArt = rebaseRecord(dockArtRaw);
 
 /* Upper bound on k.  The smallest type is 36 units, so k above 17/36 draws it past
    17 real px -- larger than any platform's body size, and the whole column starts
@@ -122,7 +125,7 @@ const glassLayers = (p) => {
    the narrower Status bloom had 31% of itself out over the dark scene against the wider
    one's 19%, which made it read as the dimmer of the two. */
 const ORNAMENT = {
-  status: { src: '/assets/blossom-bloom.png', w: 68, h: 90 },
+  status: { src: asset('blossom-bloom.png'), w: 68, h: 90 },
   girls: { src: dockArt.dockBlossom.src, w: 110, h: 90 },
   /* Every full page shares one id, so it shares one clip path and this one entry.  It
      takes the fuller 速览 bloom rather than the Status one because a page is the
@@ -149,7 +152,7 @@ export function createPortraitStage(host) {
   host.classList.add('pstage');
   host.innerHTML = `
 <div class="pscale">
-  <img class="pplate" src="/assets/bg-plate.png" alt="" draggable="false">
+  <img class="pplate" src="${asset('bg-plate.png')}" alt="" draggable="false">
   <svg class="pdefs" aria-hidden="true"></svg>
   <div class="pglass" aria-hidden="true"></div>
   <div class="pcontent"></div>

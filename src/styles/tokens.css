@@ -11,6 +11,7 @@
    be checked against tools/ink_runs.py output directly. */
 
 :root {
+  --hud-frost: url("/assets/frost.png");
   /* Type scale ---------------------------------------------------------- */
   --fs-script-lg: 52px;    /* "Girls" */
   --fs-script-md: 51px;    /* "Status" */

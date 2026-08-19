@@ -148,7 +148,7 @@
   inset: 0;
   opacity: .50;
   mix-blend-mode: soft-light;
-  background: url("/assets/frost.png") repeat;
+  background: var(--hud-frost) repeat;
   background-size: 198px 198px;
 }
 
