@@ -876,10 +876,10 @@
 /* 置顶.  Same ornament crop and the same mask-plus-glow treatment as the landscape
    card's star; sized up for portrait and given the 44-real-px hit area. */
 .pcard-star {
-  --d: 24px;
+  --d: 40px;
   position: absolute;
-  right: 22px;
-  top: 30px;
+  right: 20px;
+  top: 24px;
   z-index: 4;
   width: var(--d);
   height: var(--d);

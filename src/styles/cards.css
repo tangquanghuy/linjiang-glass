@@ -214,11 +214,11 @@
 .card-star {
   --hit-d: 28px;
   position: absolute;
-  top: 22px;
-  right: 10px;
+  top: 17px;
+  right: 8px;
   z-index: 5;
-  width: 12px;
-  height: 12px;
+  width: 26px;
+  height: 26px;
   pointer-events: auto;
   padding: 0;
   border: 0;
@@ -226,12 +226,16 @@
   cursor: pointer;
   transition: transform .16s, filter .16s;
 }
-.card:has(b.long) .card-star,
+.card:has(b.long) .card-star {
+  width: 22px;
+  height: 22px;
+  top: 16px;
+}
 .card:has(b.xl) .card-star {
-  width: 10px;
-  height: 10px;
-  top: 20px;
-  right: 8px;
+  width: 20px;
+  height: 20px;
+  top: 15px;
+  right: 6px;
 }
 .card-star img {
   display: block;
