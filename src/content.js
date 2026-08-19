@@ -263,7 +263,7 @@ function girlCard(g) {
       ${cardStatus(g.status)}
     </div>
     <div class="card-rim"></div>
-    <button class="card-star" type="button" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}" title="${pinnedOn ? '取消置顶' : '置顶角色'}">${pinImg(g.ornament)}</button>
+    <button class="card-star" type="button" data-ornament="${g.ornament === 'star' ? 'star' : 'sparkle'}" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}" title="${pinnedOn ? '取消置顶' : '置顶角色'}">${pinImg(g.ornament)}</button>
   </div>
 </article>`;
 }

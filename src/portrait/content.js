@@ -133,7 +133,7 @@ function card(g, selected) {
     </div>
     <div class="pcard-scrim"></div>
     ${g.live ? '<span class="pcard-live" title="正在直播">直播中</span>' : ''}
-    <button class="pcard-star" type="button" data-pin="${g.name}"
+    <button class="pcard-star" type="button" data-pin="${g.name}" data-ornament="${g.ornament === 'star' ? 'star' : 'sparkle'}"
       aria-pressed="${pinnedOn}" aria-label="${pinnedOn ? '取消置顶' : '置顶角色'}"
       >${pinImg(g.ornament)}</button>
     <div class="pcard-body">

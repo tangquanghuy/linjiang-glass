@@ -876,17 +876,17 @@
 /* 置顶.  Same ornament crop and the same mask-plus-glow treatment as the landscape
    card's star; sized up for portrait and given the 44-real-px hit area. */
 .pcard-star {
-  --d: 52px;
+  --d: 24px;
   position: absolute;
-  right: 16px;
-  top: 16px;
+  right: 22px;
+  top: 30px;
   z-index: 4;
   width: var(--d);
   height: var(--d);
   padding: 0;
   border: 0;
   background: none;
-  opacity: .88;
+  opacity: .92;
   cursor: pointer;
   transition: transform .16s, opacity .16s, filter .16s;
 }
@@ -896,16 +896,13 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  transform: scale(1.5);
   filter:
-    brightness(1.55)
-    saturate(1.85)
-    contrast(1.2)
-    drop-shadow(0 0 2px #fff)
-    drop-shadow(0 0 6px var(--signal))
-    drop-shadow(0 0 16px color-mix(in srgb, var(--signal) 85%, transparent));
+    brightness(1.28)
+    saturate(1.3)
+    drop-shadow(0 0 0.8px #fff)
+    drop-shadow(0 0 2px color-mix(in srgb, var(--signal) 75%, transparent));
 }
-.pcard.is-pinned > .pcard-star { opacity: 1; transform: scale(1.08); }
+.pcard.is-pinned > .pcard-star { opacity: 1; }
 .pcard.is-pinned .card-rim { border-color: color-mix(in srgb, var(--rim) 92%, #fff); }
 
 .pcard-name { display: flex; align-items: baseline; gap: var(--sp-2); }

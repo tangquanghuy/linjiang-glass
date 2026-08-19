@@ -201,7 +201,7 @@
   display: flex;
   align-items: center;
   margin-bottom: var(--sp-0);
-  padding-right: 44px;
+  padding-right: 36px;
 }
 .card-name b {
   font: 700 var(--fs-title)/1 'Noto Sans SC', sans-serif;
@@ -212,20 +212,26 @@
 .card-name b.long { font-size: 21px; }
 .card-name b.xl { font-size: 18px; }
 .card-star {
-  --hit-d: 30px;
+  --hit-d: 28px;
   position: absolute;
-  top: 11px;
-  right: 4px;
+  top: 22px;
+  right: 10px;
   z-index: 5;
-  width: 30px;
-  height: 30px;
+  width: 12px;
+  height: 12px;
   pointer-events: auto;
   padding: 0;
   border: 0;
   background: none;
-  opacity: 1;
   cursor: pointer;
   transition: transform .16s, filter .16s;
+}
+.card:has(b.long) .card-star,
+.card:has(b.xl) .card-star {
+  width: 10px;
+  height: 10px;
+  top: 20px;
+  right: 8px;
 }
 .card-star img {
   display: block;
@@ -233,24 +239,18 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  transform: scale(1.55);
   filter:
-    brightness(1.55)
-    saturate(1.85)
-    contrast(1.2)
-    drop-shadow(0 0 1px #fff)
-    drop-shadow(0 0 3px var(--signal))
-    drop-shadow(0 0 10px color-mix(in srgb, var(--signal) 85%, transparent));
+    brightness(1.28)
+    saturate(1.3)
+    drop-shadow(0 0 0.8px #fff)
+    drop-shadow(0 0 2px color-mix(in srgb, var(--signal) 75%, transparent));
 }
 .card.is-pinned .card-star img {
-  transform: scale(1.7);
   filter:
-    brightness(1.7)
-    saturate(2)
-    contrast(1.25)
+    brightness(1.38)
+    saturate(1.4)
     drop-shadow(0 0 1px #fff)
-    drop-shadow(0 0 4px var(--signal))
-    drop-shadow(0 0 14px var(--signal));
+    drop-shadow(0 0 2.5px color-mix(in srgb, var(--signal) 85%, transparent));
 }
 /* Hover only where there is a pointer: on a touch screen :hover sticks after a tap
    and leaves the control looking permanently active. */
