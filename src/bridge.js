@@ -94,15 +94,16 @@ export function startBridge() {
       }
       node = node.parentElement;
     }
-    let dy = event.deltaY;
-    if (event.deltaMode === 1) dy *= 16;
-    if (event.deltaMode === 2) dy *= innerHeight || 800;
-    if (!dy) return;
+    if (!event.deltaY && !event.deltaX) return;
     window.parent.postMessage({
       channel: CHANNEL,
       kind: 'event',
       type: 'wheel',
-      payload: { deltaY: dy },
+      payload: {
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        deltaMode: event.deltaMode,
+      },
     }, '*');
   }, { passive: true });
   rpc('handshake').then(() => rpc('getSnapshot')).then((payload) => {
