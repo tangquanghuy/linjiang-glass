@@ -36,11 +36,12 @@ import { startBridge } from './bridge.js';
    ?mode=portrait / ?mode=landscape forces one for testing. */
 function wantsPortrait() {
   const forced = new URLSearchParams(location.search).get('mode');
+  /* A tavern status iframe on a phone is a tall, narrow column.  Honour that
+     even if the shell still has ?mode=landscape from a desktop first paint. */
+  const phoneColumn = innerWidth < 880 && innerWidth < innerHeight;
+  if (phoneColumn) return true;
   if (forced === 'portrait') return true;
   if (forced === 'landscape') return false;
-  /* innerWidth < innerHeight is right for a real phone, wrong for a tavern
-     status iframe: those are often a chat-column wide and a viewport tall.
-     Portrait is the phone composition; a desktop embed should cover-fill. */
   return innerWidth < innerHeight && innerWidth < 720;
 }
 
