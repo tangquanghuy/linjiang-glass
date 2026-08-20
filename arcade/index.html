@@ -54,6 +54,7 @@ a{color:inherit}
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
 }
 html.is-hud .topbar{padding-right:58px}
+html.is-hud .wallet-mint{display:none!important}
 
 .tabs{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
@@ -248,13 +249,13 @@ html.is-force-landscape .stage[data-fit=content] .frame{
       </button>
       <div class="pop" id="walletPop" hidden>
         <h3>共享钱包</h3>
-        <p>四个游戏共用同一份余额，数据保存在本机浏览器中。</p>
-        <div class="pop-row">
+        <p id="walletHint">四个游戏共用同一份余额，数据保存在本机浏览器中。</p>
+        <div class="pop-row wallet-mint">
           <button type="button" data-add="1000">+1,000</button>
           <button type="button" data-add="5000">+5,000</button>
         </div>
         <div class="pop-row">
-          <button type="button" data-set="1000">重置余额</button>
+          <button type="button" class="wallet-mint" data-set="1000">重置余额</button>
           <button type="button" class="danger" data-reset-game="1">重开本局</button>
         </div>
         <div class="pop-themes">
@@ -322,7 +323,15 @@ const el = {
 let current = GAMES[0];
 let theme = document.documentElement.dataset.theme || 'dark';
 
-try { if (parent !== window) document.documentElement.classList.add('is-hud'); } catch (_) {}
+const embedded = (() => { try { return parent !== window; } catch (_) { return false; } })();
+let hostReady = !embedded;
+let helloTimer = 0;
+
+try { if (embedded) document.documentElement.classList.add('is-hud'); } catch (_) {}
+if (embedded) {
+  const hint = document.getElementById('walletHint');
+  if (hint) hint.textContent = '四个游戏共用角色资金，与世界「金钱」同步。';
+}
 
 function portraitPhone() { return innerHeight > innerWidth; }
 
@@ -353,16 +362,69 @@ function readBalance() {
 
 /* Mirrors the shrine's writeBalance(): update the wallet and push the
    value into every game's saved state so no page starts out stale. */
-function writeBalance(value) {
+function notifyHost(value) {
+  if (!embedded || !hostReady) return;
+  try { parent.postMessage({ type: 'airp-arcade:balance', balance: money(value) }, '*'); }
+  catch (_) {}
+}
+
+function requestHost() {
+  if (!embedded || hostReady) return;
+  try { parent.postMessage({ type: 'airp-arcade:hello' }, '*'); }
+  catch (_) {}
+}
+
+function writeBalance(value, { fromHost = false } = {}) {
   const v = money(value);
-  writeJSON(WALLET_KEY, {balance: v, updatedAt: Date.now(), source: 'lobby'});
+  writeJSON(WALLET_KEY, {balance: v, updatedAt: Date.now(), source: fromHost ? 'host' : 'lobby'});
   for (const k of GAME_STATE_KEYS) {
     const s = readJSON(k);
     if (s && typeof s === 'object') { s.balance = v; writeJSON(k, s); }
   }
   renderBalance();
   send(current.ns + ':set-balance', {balance: v});
+  // Games write localStorage before posting, so the lobby purse may already match.
+  if (!fromHost) notifyHost(v);
   return v;
+}
+
+function pickBalance(d) {
+  if (!d || typeof d !== 'object') return NaN;
+  const bag = d.detail && typeof d.detail === 'object' ? d.detail : {};
+  const candidates = [bag.balance, bag.balanceAfter, bag.after, d.balance, d.balanceAfter, d.after];
+  for (const c of candidates) {
+    if (c == null || c === '') continue;
+    const n = Number(c);
+    if (Number.isFinite(n)) return money(n);
+  }
+  return NaN;
+}
+
+function dateKey() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function creditUnsyncedShrine(hostValue) {
+  const f = readJSON('airp_shrine_fortune_v1');
+  if (!f || f.claimed !== true || f.synced) return hostValue;
+  if (f.date !== dateKey()) return hostValue;
+  const reward = Number(f.reward);
+  if (!Number.isFinite(reward) || reward <= 0) return hostValue;
+  f.synced = true;
+  writeJSON('airp_shrine_fortune_v1', f);
+  return money(hostValue) + money(reward);
+}
+
+function applyHostBalance(raw) {
+  const seeded = money(raw);
+  const v = creditUnsyncedShrine(seeded);
+  hostReady = true;
+  if (helloTimer) { clearInterval(helloTimer); helloTimer = 0; }
+  writeBalance(v, { fromHost: true });
+  if (v !== seeded) notifyHost(v);
+  if (!el.frame.getAttribute('src')) show(gameFromHash());
 }
 
 function renderBalance() { el.balance.textContent = fmt(readBalance()); }
@@ -452,6 +514,10 @@ function show(game) {
 
 function route() {
   const g = gameFromHash();
+  if (embedded && !hostReady) {
+    requestHost();
+    return;
+  }
   if (g === current && el.frame.getAttribute('src') === g.file) return;
   show(g);
 }
@@ -491,6 +557,7 @@ el.frame.addEventListener('load', () => {
   // Re-assert theme and balance now that the page has booted.
   send('kivotos-theme-change', {theme});
   if (current.themed) send(current.ns + ':set-theme', {theme});
+  send(current.ns + ':set-balance', {balance: readBalance()});
   fit(); watchFrame();
   setTimeout(fit, 260);
   setTimeout(fit, 900);
@@ -533,16 +600,18 @@ el.walletPop.addEventListener('click', (e) => {
 
 /* ---------------- inbound game events ---------------- */
 addEventListener('message', (e) => {
-  if (e.source !== el.frame.contentWindow) return;
   const d = e.data || {};
+  if (e.source === parent) {
+    if (d.type === 'airp-arcade:set-balance' && Number.isFinite(+d.balance)) applyHostBalance(d.balance);
+    return;
+  }
+  if (e.source !== el.frame.contentWindow) return;
   if (typeof d.type !== 'string' || d.type.indexOf('airp-') !== 0) return;
-  const b = d.detail && d.detail.balance;
-  if (Number.isFinite(+b)) {
-    // Keep the shared wallet authoritative as games settle rounds.
-    const w = readJSON(WALLET_KEY);
-    if (!w || money(w.balance) !== money(b)) {
-      writeJSON(WALLET_KEY, {balance: money(b), updatedAt: Date.now(), source: current.id});
-    }
+  const b = pickBalance(d);
+  if (Number.isFinite(b) && hostReady) writeBalance(b);
+  if (d.type === 'airp-shrine:claimed') {
+    const reward = Number((d.detail && d.detail.reward) ?? d.reward);
+    if (Number.isFinite(reward) && reward > 0) toast('签到福礼 +' + fmt(reward));
   }
   renderBalance();
 });
@@ -567,9 +636,14 @@ function toast(msg) {
 buildTabs();
 buildThemes();
 applyTheme(theme, {persist: false, notify: false});
-if (!location.hash) location.replace('#' + GAMES[0].id);
 addEventListener('hashchange', route);
-show(gameFromHash());
+if (!location.hash) location.replace('#' + GAMES[0].id);
+if (embedded) {
+  requestHost();
+  helloTimer = setInterval(requestHost, 400);
+} else {
+  show(gameFromHash());
+}
 renderBalance();
 })();
 </script>

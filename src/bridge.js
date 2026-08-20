@@ -1,7 +1,7 @@
 /* Talks to 变量相关/状态栏.html.  That shell is same-origin with SillyTavern and
    owns Mvu; this page is the GitHub / Vite HUD and must not touch parent.Mvu. */
 
-import { applyStatData } from './data.js';
+import { applyStatData, applyMoney } from './data.js';
 
 export const CHANNEL = 'linjiang-hud';
 
@@ -77,6 +77,49 @@ export async function requestClockIn() {
   }
   await rpc('clockIn');
   return true;
+}
+
+let moneyChain = Promise.resolve();
+let pendingMoney = null;
+let moneyTimer = 0;
+
+function sendMoney(n) {
+  moneyChain = moneyChain.then(async () => {
+    await rpc('patch', {
+      patches: [{ op: 'replace', path: '/玩家信息/金钱', value: n }],
+    });
+    return true;
+  }).catch((err) => {
+    console.warn('[hud] setMoney', err);
+    return false;
+  });
+  return moneyChain;
+}
+
+export function setMoney(value) {
+  const n = Math.max(0, Math.round(Number(value) || 0));
+  applyMoney(n);
+  if (!isEmbedded()) return Promise.resolve(true);
+  pendingMoney = n;
+  clearTimeout(moneyTimer);
+  moneyTimer = setTimeout(() => {
+    moneyTimer = 0;
+    const v = pendingMoney;
+    pendingMoney = null;
+    if (v != null) sendMoney(v);
+  }, 280);
+  return moneyChain;
+}
+
+export function flushMoney() {
+  if (moneyTimer) {
+    clearTimeout(moneyTimer);
+    moneyTimer = 0;
+  }
+  if (pendingMoney == null) return moneyChain;
+  const v = pendingMoney;
+  pendingMoney = null;
+  return sendMoney(v);
 }
 
 let lastPortraitH = 0;

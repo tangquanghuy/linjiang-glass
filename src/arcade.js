@@ -8,7 +8,11 @@
    So the arcade is an iframe covering the unscaled viewport, matching the
    map overlay.  Scratch and fishing force a landscape stage on portrait
    phones inside that iframe (see arcade/index.html); this module only
-   mounts, closes, and tells the tavern shell to expand. */
+   mounts, closes, seeds the shared purse from 玩家信息.金钱, and writes
+   wins/losses back through the tavern shell. */
+
+import { player, onLive } from './data.js';
+import { setMoney, flushMoney } from './bridge.js';
 
 export function arcadeSrc() {
   return new URL(`${import.meta.env.BASE_URL}arcade/index.html`, document.baseURI).href;
@@ -36,7 +40,34 @@ export function mountArcadeOverlay(host, { onClose } = {}) {
   const layer = root.querySelector(':scope > .arcade-layer') || document.querySelector('.arcade-layer');
   layer.querySelector('[data-arcade-close]').addEventListener('click', () => onClose?.());
   document.documentElement.classList.add('has-arcade');
+
+  const iframe = layer.querySelector('[data-arcade-frame]');
+  let lastPushed = NaN;
+  const cash = () => Math.max(0, Math.round(Number(player.money) || 0));
+  const push = () => {
+    const n = cash();
+    lastPushed = n;
+    try { iframe.contentWindow?.postMessage({ type: 'airp-arcade:set-balance', balance: n }, '*'); }
+    catch (_) {}
+  };
+  const onFrameMsg = (event) => {
+    if (event.source !== iframe.contentWindow) return;
+    const data = event.data || {};
+    if (data.type === 'airp-arcade:hello') { push(); return; }
+    if (data.type !== 'airp-arcade:balance') return;
+    const n = Math.max(0, Math.round(Number(data.balance) || 0));
+    if (!Number.isFinite(n) || n === lastPushed) return;
+    lastPushed = n;
+    setMoney(n);
+  };
+  iframe.addEventListener('load', push);
+  addEventListener('message', onFrameMsg);
+  const offLive = onLive(push);
+
   return () => {
+    offLive();
+    removeEventListener('message', onFrameMsg);
+    flushMoney();
     layer.remove();
     if (!document.querySelector('.arcade-layer')) document.documentElement.classList.remove('has-arcade');
   };

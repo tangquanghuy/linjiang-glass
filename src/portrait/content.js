@@ -650,7 +650,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   });
 
   onLive(() => {
-    if (workspace) return;
+    if (workspace && workspace !== 'map' && workspace !== 'arcade') return;
     paintBase({ restoreScroll: true });
   });
 

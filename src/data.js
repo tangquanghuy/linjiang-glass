@@ -1204,6 +1204,16 @@ export function onLive(fn) {
   return () => liveListeners.delete(fn);
 }
 
+/* Arcade / clock-in write 金钱 without waiting for the next full snapshot. */
+export function applyMoney(value) {
+  const n = Math.max(0, Math.round(asNum(value)));
+  if (n === Math.round(asNum(player.money))) return false;
+  player.money = n;
+  syncViews();
+  emitLive();
+  return true;
+}
+
 function emitLive() {
   liveListeners.forEach((fn) => {
     try { fn(); }
