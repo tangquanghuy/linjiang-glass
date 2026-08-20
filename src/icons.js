@@ -26,6 +26,11 @@ export const icons = {
   mapPin: svg(`<path d="M12 21s6.5-5.8 6.5-11.1a6.5 6.5 0 1 0-13 0C5.5 15.2 12 21 12 21Z"/>
                   <circle cx="12" cy="9.8" r="2.2"/>`),
 
+  arcade: svg(`<rect x="3.2" y="15.4" width="17.6" height="5.2" rx="1.6"/>
+               <path d="M8.4 15.4V10.2"/>
+               <circle cx="8.4" cy="7.6" r="2.7"/>
+               <path d="M13.8 15.4v-2.6M16.8 12.2h.01M11.2 12.2h.01" stroke-width="1.9"/>`),
+
   moon: svg(`<path d="M18.6 14.4A7.4 7.4 0 0 1 9 5.1a7.8 7.8 0 1 0 9.6 9.3Z"
                  fill="currentColor" stroke="none"/>`),
 

@@ -5,10 +5,9 @@
    reader and not to a save: pinning a character or preferring the drawer should hold
    across reloads and across the two layouts.
 
-   Deliberately not a settings *object* passed down through mount calls.  The controls
-   that write these live in the settings page, which is built and thrown away on every
-   open, while the things that read them are mounted once at boot -- so a subscription
-   is the only shape that lets the two meet without one owning the other. */
+   Deliberately not a settings object passed down through mount calls.  inventoryOpen
+   is read by the landscape 背包 button; a subscription is the only shape that lets
+   the store meet a shell that is mounted once at boot. */
 
 const KEY = 'glass-hud-prefs';
 

@@ -376,7 +376,8 @@ export function mountGifts(stage, { onSend } = {}) {
      because closing it should land back on the 速览 you opened it from. */
   addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    if (stage.querySelector('.dev-sheet, .page-modal')) return;
+    if (stage.querySelector('.dev-sheet, .page-modal')
+      || document.querySelector('.map-layer, .arcade-layer')) return;
     if (state) { dropCard(); event.stopPropagation(); return; }
     if (tray.isOpen()) { close(); event.stopPropagation(); }
   }, { capture: true });

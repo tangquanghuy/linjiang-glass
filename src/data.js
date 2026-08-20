@@ -930,7 +930,8 @@ export function scheduleHint(model = streamSchedule()) {
 export const tools = [
   { icon: 'mail', label: '当日事件', page: 'events', badge: true },
   { icon: 'memo', label: '背包', page: 'inventory' },
-  { icon: 'gear', label: '设置', page: 'settings' },
+  { icon: 'mapPin', label: '地图', page: 'map' },
+  { icon: 'arcade', label: '街机', page: 'arcade' },
 ];
 
 /* ------------------------------------------------------------------- 送礼 */

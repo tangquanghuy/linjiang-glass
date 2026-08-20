@@ -289,7 +289,7 @@ export function mountRailPanel(stage, {
   onPick,
   pickSelector = '.drawer-slot',
   escapeKey,
-  blockedBy = '.dev-sheet, .page-modal',
+  blockedBy = '.dev-sheet, .page-modal, .map-layer, .arcade-layer',
 } = {}) {
   let root = null;
   /* The rail's ResizeObserver outlives a synchronous remove(): it fires on the next
@@ -510,7 +510,7 @@ export function mountRailPanel(stage, {
     stage.dataset[escapeKey] = '1';
     addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || !root) return;
-      if (stage.querySelector(blockedBy)) return;
+      if (document.querySelector(blockedBy)) return;
       close();
     }, { capture: true });
   }
@@ -526,7 +526,7 @@ export function mountDrawer(stage, { onItem } = {}) {
     onPick: (cell) => onItem?.(cell.dataset.item),
     escapeKey: 'drawerEscapeBound',
     /* The gift confirm card stacks above this, so it peels first. */
-    blockedBy: '.dev-sheet, .page-modal, .gift-confirm',
+    blockedBy: '.dev-sheet, .page-modal, .gift-confirm, .map-layer, .arcade-layer',
   });
 }
 

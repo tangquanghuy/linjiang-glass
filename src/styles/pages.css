@@ -1064,7 +1064,7 @@
 .schedule-run-day.is-rest i { display:none; }
 .schedule-run-day em { position:absolute; top:-2px; font:400 9px/1 'Noto Sans SC',sans-serif; font-style:normal; color:#ffc0dc; }
 .schedule-line-state { min-width:0; display:flex; flex-direction:column; gap:5px; padding-left:13px; border-left:1px solid rgba(226,230,255,.1); }
-.schedule-line-state b { font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.66); }
+.schedule-line-state b { flex:none; white-space:nowrap; font:500 12px/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.66); }
 .schedule-line-state small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 10px/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.43); }
 .schedule-line-state.is-live b { color:#ffafd2; }
 .schedule-line-state.is-unplanned b { color:#ffd68b; }

@@ -5,12 +5,15 @@ import './styles/content.css';
 import './styles/cards.css';
 import './styles/tools.css';
 import './styles/pages.css';
+import './styles/map.css';
+import './styles/arcade.css';
 import './styles/dock.css';
 import './styles/drawer.css';
 /* After drawer.css: the gift tray is the drawer's panel with different cells, so its
    overrides have to land on top of the cell rules they narrow. */
 import './styles/gifts.css';
 import './styles/portrait.css';
+import './styles/perf.css';
 
 import { cssUrl } from './asset.js';
 document.documentElement.style.setProperty('--hud-frost', cssUrl('frost.png'));
@@ -120,6 +123,12 @@ let portraitStage = null;
 function applyMode() {
   const portrait = wantsPortrait();
   const viewport = document.querySelector('.viewport');
+  /* The overlay is owned by whichever layout opened it.  Switching composition
+     would leave Escape wired to the hidden one, so peel it first. */
+  if (viewport.classList.contains('is-portrait') !== portrait) {
+    document.querySelector('[data-map-close]')?.click();
+    document.querySelector('[data-arcade-close]')?.click();
+  }
 
   viewport.classList.toggle('is-portrait', portrait);
   /* The document only scrolls in portrait: the whole point of the elastic canvas

@@ -1,21 +1,23 @@
 /* Tool pod.
    The pod is part of the shell silhouette, so the glass and the outer rim are
    already there; only the ring buttons are drawn here.  The row is right-aligned
-   so a fourth button grows leftward into the pod rather than off the edge. */
+   so extra buttons grow leftward into the pod rather than off the edge.  Four
+   40-unit rings at an 8-unit gap fit the 218-unit pod; the previous 46 / 31.5
+   rhythm was sized for three. */
 
 .pane-pod {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--btn-gap);
-  padding-right: 31px;
+  gap: 8px;
+  padding-right: 22px;
 }
 
 .tool-btn {
   position: relative;
   flex: none;
-  width: var(--btn-d);
-  height: var(--btn-d);
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(226, 230, 252, .30);
@@ -26,14 +28,14 @@
   transition: background .18s, border-color .18s;
 }
 .tool-btn .ic {
-  font-size: var(--icon-lg);
+  font-size: 22px;
   filter: drop-shadow(0 1px 3px rgba(6, 8, 22, .55));
 }
 @media (hover: hover) {
   .tool-btn:hover { background: rgba(178, 190, 240, .2); border-color: rgba(240, 244, 255, .62); }
 }
 
-.tool-btn { --hit-d: var(--btn-d); }
+.tool-btn { --hit-d: 44px; }
 .tool-btn.rail-next { --hit-d: 38px; }
 
 .tool-btn .dot {

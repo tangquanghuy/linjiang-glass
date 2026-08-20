@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>临江市 · 地图（底板 + 节点层）</title>
+  <script src="./city_mapdata.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #070a14;
+      font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      touch-action: none;
+    }
+
+    #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+
+    /* ============ 底板层 ============
+       总览是世界坐标，每张区底板按自己在总览上的 footprint 摆进来，
+       随缩放淡入淡出——不做硬切换，所以要允许多张同时在场。
+       每张图一套统一校正 filter：底板由 AI 分别生成，
+       亮度色相必然漂移，这里是把它们拉回同一个调子的地方。 */
+    #plates {
+      position: absolute; inset: 0; z-index: 1;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+    #plates.grabbing { cursor: grabbing; }
+
+    #plates img {
+      position: absolute; left: 0; top: 0;
+      transform-origin: 0 0;
+      user-select: none; -webkit-user-drag: none;
+      will-change: transform, opacity;
+      transition: opacity .3s linear;
+    }
+
+    /* 区底板四边羽化。硬边在溶解过程里会露出一条竖线——
+       两张图本来就不是同一个相机拍的，接缝一亮就全看出来了。
+       羽化留 3%，配合淡入收在 r=1.06（略微溢出视口），
+       全不透明时羽化带正好在视口外。 */
+    #plates img.dp {
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%),
+        linear-gradient(180deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%),
+        linear-gradient(180deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+      mask-composite: intersect;
+    }
+
+    /* 时段调色：底板只出夜景，其余时段靠这一层压出来 */
+    #tint {
+      position: absolute; inset: 0; z-index: 3;
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+      transition: background .5s, opacity .5s;
+    }
+
+    #tint2 {
+      position: absolute; inset: 0; z-index: 4;
+      pointer-events: none;
+      transition: background .5s, opacity .5s;
+    }
+
+    /* 颗粒：把底板的软和卡片的锐利缝在一起 */
+    /* inset 只要盖住动画位移那点量就够，铺 -50% 等于白白多光栅化三倍面积 */
+    #grain {
+      position: absolute; inset: -12%; z-index: 5;
+      pointer-events: none; opacity: .035;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: gshift 6s steps(6) infinite;
+    }
+    @keyframes gshift {
+      0% { transform: translate(0, 0); } 16% { transform: translate(-3%, 2%); }
+      33% { transform: translate(2%, -3%); } 50% { transform: translate(-2%, -2%); }
+      66% { transform: translate(3%, 1%); } 83% { transform: translate(-1%, 3%); }
+    }
+
+    /* 暗角收着来。之前连 bloom 一起上，两层叠着把画面糊成一片雾 */
+    #vignette {
+      position: absolute; inset: 0; z-index: 6; pointer-events: none;
+      background:
+        radial-gradient(132% 120% at 50% 44%, transparent 56%, rgba(3, 6, 16, .44) 100%),
+        linear-gradient(180deg, rgba(3, 6, 16, .26) 0%, transparent 15%, transparent 78%, rgba(3, 6, 16, .38) 100%);
+    }
+
+    /* 樱花：只飘几片，多了就俗 */
+    .petal {
+      position: absolute; z-index: 7; pointer-events: none;
+      width: 22px; height: 22px;
+      background: url('../assets/blossom.png') center/contain no-repeat;
+      opacity: 0; will-change: transform;
+    }
+
+    #link { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+    #nodes { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
+
+    /* ============ 节点 ============
+       照 city_map 那套：圆盘精确落在坐标上，标签是独立的一枚小牌，
+       挂在圆盘外面、可以换到上下左右去避让。
+       颜色由分组给，不是所有节点一个灰蓝壳——那样一屏下来全是同一个调子，
+       什么都不突出，等于没有层级。 */
+    .np {
+      position: absolute;
+      pointer-events: auto; cursor: pointer;
+      /* 进场带一点缩放。纯靠 opacity 淡入的话，标记是"原地浮现"，
+         在连续缩放的画面里读起来像突然弹出来的贴片；
+         从 .88 收到 1 就跟着推近的动势走了 */
+      transform: translate(-50%, -50%) scale(.88);
+      opacity: 0; visibility: hidden;
+      transition: opacity .28s ease, transform .28s cubic-bezier(.2, .7, .3, 1), visibility .28s;
+    }
+    .np.on { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1); }
+    .np:hover { z-index: 30; }
+    .np:hover .ni { transform: scale(1.08); }
+
+    /* 托底的一团暗雾。夜景照片上到处是亮点，标记要读得出来就得比背景更亮，
+       于是越做越亮、越做越硬，最后像一排贴纸浮在图上面。
+       反过来做：先在标记底下压暗一小片，背景让开了，标记就不用那么亮 */
+    .np::before {
+      content: ''; position: absolute; z-index: 0;
+      left: 50%; top: 50%;
+      width: 108px; height: 108px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(6, 11, 26, .46), rgba(6, 11, 26, .22) 52%, transparent 78%);
+      pointer-events: none;
+    }
+    .np[data-tier="scene"]::before { width: 46px; height: 46px; }
+
+    /* 圆盘：白底 + 彩环 + 彩色字形 */
+    /* 尺寸和边都收了一档。之前圆盘 34px、2px 实白边、白牌硬边框，
+       贴在夜景照片上像贴纸——太亮太硬，和底下的图不在一个空间里。
+       现在靠柔化的深色投影把标记压进画面，亮部收着来。 */
+    .ni {
+      position: relative; z-index: 2;
+      display: grid; place-items: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      color: var(--nc, #6b7d94);
+      background: rgba(252, 253, 255, .95);
+      border: 1.5px solid var(--nc, #6b7d94);
+      box-shadow: 0 4px 14px -3px rgba(2, 6, 18, .62), 0 0 0 4px rgba(8, 14, 30, .16);
+      transition: transform .18s;
+    }
+    .ni svg { display: block; width: 17px; height: 17px; }
+
+    /* 城市级地标：实心彩盘 + 白色字形 + 外圈 */
+    /* 外圈的彩色光晕撤了（原来是 0 0 14px 那条）。底下已经有一团暗雾托着，
+       再加一圈自发光就是双份分离手段，叠起来发艳、也更像贴上去的 */
+    .np[data-tier="major"] .ni {
+      width: 36px; height: 36px;
+      color: #fff;
+      background: var(--nc, #2f7fd6);
+      border-color: rgba(255, 255, 255, .78);
+      box-shadow: 0 5px 15px -5px rgba(2, 6, 18, .75);
+    }
+    .np[data-tier="major"] .ni svg { width: 20px; height: 20px; }
+    .np[data-tier="major"] .ni::after {
+      content: ''; position: absolute; inset: -4px;
+      border-radius: 50%;
+      border: 1.5px solid var(--nc, #2f7fd6);
+      opacity: .3;
+    }
+
+    .np[data-tier="minor"] .ni { width: 24px; height: 24px; }
+    .np[data-tier="minor"] .ni svg { width: 14px; height: 14px; }
+
+    /* 子场景：一枚彩色小点，没有字形 */
+    .np[data-tier="scene"] .ni {
+      width: 11px; height: 11px;
+      background: var(--nc, #6b7d94);
+      border: 2px solid rgba(255, 255, 255, .92);
+      box-shadow: 0 1px 5px -1px rgba(2, 6, 18, .8);
+    }
+    .np[data-tier="scene"] .ni svg { display: none; }
+
+    /* 当前所在：绿环呼吸 */
+    .np[data-here="1"] .ni::before {
+      content: ''; position: absolute; inset: -7px;
+      border-radius: 50%;
+      border: 2px solid rgba(96, 236, 190, .8);
+      animation: brea 2.4s ease-in-out infinite;
+    }
+
+    /* 标签：白底小牌，暗字。夜景底板上要压得住，
+       所以不做半透明玻璃——玻璃在密集屋顶上根本读不出来 */
+    /* 位置由 JS 直接给 left/top。用 CSS 的 left:50% + translate 那套的话，
+       JS 算的碰撞盒和 CSS 实际摆的位置会对不上——尤其角标占位那部分 */
+    .nl {
+      position: absolute; left: 0; top: 0; z-index: 3;
+      white-space: nowrap; text-align: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px; font-weight: 600; line-height: 1.3;
+      color: #202a3b;
+      background: rgba(246, 249, 253, .88);
+      border: none;
+      /* 影子放长放软，牌子才像落在场景里而不是浮在上面 */
+      box-shadow: 0 5px 18px -6px rgba(2, 6, 18, .9), 0 0 0 1px rgba(10, 18, 36, .1);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .nl b { display: block; font-weight: 700; letter-spacing: .2px; }
+    .nl i {
+      display: block; font-style: normal;
+      margin-top: 1px;
+      font-size: 10.5px; font-weight: 500;
+      color: #667891;
+    }
+    .nl .nh {
+      display: none;
+      font-style: normal;
+      margin-top: 2px;
+      font-size: 10px; font-weight: 700;
+      color: #1a7a58;
+    }
+    .np[data-here="1"] .nl .nh { display: block; }
+    .np[data-tier="major"] .nl { font-size: 13px; padding: 3px 10px; }
+    .np[data-tier="major"] .nl b { font-weight: 800; }
+    /* 窄屏总览以前一屏九张卡，副标题会挤。竖屏 cover 只留眼前几张，介绍留着。 */
+    @media (max-width: 560px) {
+      .np[data-tier="major"] .nl { font-size: 12px; padding: 2px 8px; }
+    }
+    .np[data-tier="minor"] .nl { font-size: 11px; padding: 1px 7px; }
+    .np[data-tier="scene"] .nl {
+      font-size: 10.5px; padding: 1px 6px; margin-top: 4px;
+      color: #33405a;
+      background: rgba(255, 255, 255, .82);
+      font-weight: 500;
+    }
+
+    .nl.hide { display: none; }
+
+    /* 可打工角标。
+       原来是 top:-5 right:-13——那套偏移抄的是 city_map，但它的圆盘有 42~62px，
+       这里最小的只有 24px，角标反而比节点还宽，直接把圆盘盖掉大半，
+       层级整个倒过来了。现在压小一号，并且按 tier 往外挂，
+       只让左下角搭在圆盘的右上角上。
+       溢出量和 JS 里的 JOB_OVER_* 是一对，改这儿记得同步 */
+    .nj {
+      position: absolute; top: -8px; right: -20px; z-index: 4;
+      padding: 0 5px; border-radius: 999px;
+      font-size: 9px; font-weight: 800; letter-spacing: .3px; line-height: 14px;
+      color: #7a4a06;
+      background: linear-gradient(180deg, #ffe08a, #ffc94d);
+      border: 1px solid rgba(255, 255, 255, .8);
+      box-shadow: 0 2px 6px -1px rgba(120, 80, 6, .65);
+      pointer-events: none;
+    }
+    .np[data-tier="major"] .nj { top: -7px; right: -18px; }
+    .np[data-tier="minor"] .nj { top: -9px; right: -22px; }
+
+    /* 事件红点。溢出量和 JS 的 EV_OVER_* 成对 */
+    .nv {
+      position: absolute; top: -7px; left: -12px; z-index: 5;
+      width: 17px; height: 17px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      font-size: 11px; font-weight: 800; color: #fff;
+      background: #e0453a;
+      border: 1.5px solid rgba(255, 255, 255, .92);
+      box-shadow: 0 3px 9px -2px rgba(150, 30, 22, .9);
+      animation: evp 1.7s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes evp {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.14); }
+    }
+    @keyframes brea {
+      0%, 100% { opacity: .9; transform: scale(1); }
+      50% { opacity: .3; transform: scale(1.06); }
+    }
+
+    /* ============ 在场人物 ============ */
+    .pin {
+      position: absolute; z-index: 12;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      opacity: 0; visibility: hidden;
+      transition: opacity .24s linear, visibility .24s;
+    }
+    .pin.on { opacity: 1; visibility: visible; }
+    .pin-av {
+      width: 46px; height: 46px; border-radius: 50%; overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, .95);
+      box-shadow: 0 6px 16px -4px rgba(2, 6, 18, .85);
+      background: #16203c;
+    }
+    .pin-av img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 10%; display: block; }
+    .pin-tail {
+      position: absolute; left: 50%; bottom: -4px;
+      width: 9px; height: 9px;
+      transform: translateX(-50%) rotate(45deg);
+      background: rgba(255, 255, 255, .95);
+    }
+    .pin-nm {
+      position: absolute; left: 50%; top: -13px;
+      transform: translateX(-50%);
+      padding: 1px 8px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; letter-spacing: .4px;
+      color: #fff;
+      background: rgba(104, 88, 208, .95);
+      border: 1px solid rgba(255, 255, 255, .55);
+      white-space: nowrap;
+    }
+
+    /* ============ 地图自己的控件 ============
+       日期、行动力、羁绊、本日目标、立绘面板、底部标签栏都撤了。
+       那些是宿主页面的 HUD，不是地图的东西——这张图以后要嵌进别的页面，
+       壳子归宿主管，地图只管地图。留下的只有缩放和回全城。 */
+    #ctl {
+      position: absolute; right: 16px; bottom: 16px; z-index: 20;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    #ctl button {
+      width: 34px; height: 34px;
+      display: grid; place-items: center;
+      border: 1px solid rgba(190, 210, 255, .18);
+      border-radius: 10px;
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      color: rgba(226, 236, 255, .84);
+      background: linear-gradient(168deg, rgba(44, 56, 100, .5), rgba(22, 31, 64, .62));
+      box-shadow: 0 8px 20px -8px rgba(2, 5, 16, .8), inset 0 1px 0 rgba(255, 255, 255, .1);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      cursor: pointer;
+      transition: color .16s, border-color .16s;
+    }
+    #ctl button:hover { color: #fff; border-color: rgba(210, 226, 255, .42); }
+    #ctl button.fit { font-size: 11px; letter-spacing: .5px; }
+
+    /* 时段：地图自己的显示状态，不是玩法数据，所以留着 */
+    #phase {
+      position: absolute; left: 16px; bottom: 16px; z-index: 20;
+      display: flex; gap: 2px; padding: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(190, 210, 255, .16);
+      background: linear-gradient(168deg, rgba(44, 56, 100, .46), rgba(22, 31, 64, .58));
+      box-shadow: 0 8px 20px -8px rgba(2, 5, 16, .8);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    #phase button {
+      padding: 5px 13px; border: none; border-radius: 999px;
+      font-family: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: .6px;
+      color: rgba(206, 218, 250, .62); background: transparent; cursor: pointer;
+    }
+    #phase button.on { color: #10182e; background: rgba(228, 236, 255, .9); }
+
+    /* ============ 开发用切换条 ============ */
+    #dev[hidden] { display: none; }
+    #dev {
+      position: absolute; right: 16px; bottom: 138px; z-index: 30;
+      display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+    }
+    .glass {
+      border: 1px solid rgba(190, 210, 255, .16);
+      background: linear-gradient(168deg, rgba(44, 56, 100, .46), rgba(22, 31, 64, .58));
+      box-shadow: 0 8px 20px -8px rgba(2, 5, 16, .8);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .devrow { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; padding: 5px; border-radius: 999px; max-width: 430px; }
+    .devrow button {
+      padding: 5px 13px; border: none; border-radius: 999px;
+      font-family: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: .6px;
+      color: rgba(206, 218, 250, .66); background: transparent; cursor: pointer;
+    }
+    .devrow button.on { color: #10182e; background: rgba(228, 236, 255, .9); }
+    .devrow span.zi {
+      padding: 5px 12px; border-radius: 999px;
+      font-size: 11px; font-variant-numeric: tabular-nums;
+      color: rgba(206, 218, 250, .8); background: rgba(120, 148, 230, .16);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="stage">
+    <div id="plates"></div>
+    <div id="tint"></div>
+    <div id="tint2"></div>
+    <div id="grain"></div>
+    <div id="vignette"></div>
+    <canvas id="link"></canvas>
+    <div id="nodes"></div>
+
+    <div id="phase"></div>
+
+    <div id="ctl">
+      <button id="c-in" title="放大">+</button>
+      <button id="c-out" title="缩小">−</button>
+      <button id="c-fit" class="fit" title="回到全城">全城</button>
+    </div>
+
+    <!-- 开发用：底板跳转和 z / r 读数。默认不出，加 ?dev=1 才显示 -->
+    <div id="dev" hidden>
+      <div class="devrow glass" id="dev-plate"></div>
+      <div class="devrow glass" id="dev-zoom"></div>
+    </div>
+  </div>
+
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg"><defs id="icons"></defs></svg>
+  <script src="./plate_map.js"></script>
+</body>
+
+</html>

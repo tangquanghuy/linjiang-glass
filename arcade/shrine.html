@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>每日一签</title>
+<style>
+:root{--night:#10142a;--gold:#ead2a1;--ink:#4b2f25;--wood-dark:#704532;--wood-light:#d7a368}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden}
+body{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;color:#fff;background:var(--night)}
+button{font:inherit}
+button:focus-visible,[role="button"]:focus-visible{outline:2px solid rgba(255,240,196,.96);outline-offset:4px}
+.scene{position:relative;isolation:isolate;width:100%;height:100%;min-height:560px;background:url("assets/shrine/wishing-tree-bg.png") center/cover no-repeat}
+.scene:before{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(180deg,rgba(6,10,35,.1),transparent 48%,rgba(7,8,25,.32)),radial-gradient(circle at 49% 46%,transparent 0 28%,rgba(7,8,24,.12) 80%)}
+.topbar{position:absolute;z-index:50;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:21px 29px;text-shadow:0 2px 12px rgba(7,8,26,.8)}
+.brand{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:700;letter-spacing:.16em}
+.brand:before{content:"";width:7px;height:7px;border-radius:50%;background:#f0d39e;box-shadow:0 0 14px #f8ce83}
+.controls{display:flex;align-items:center;gap:10px}
+.wallet{padding:8px 14px;border:1px solid rgba(244,221,176,.3);border-radius:999px;background:rgba(14,17,43,.4);backdrop-filter:blur(10px);font-size:14px;color:#fff9eb}
+.ledger-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid rgba(244,221,176,.3);border-radius:999px;background:rgba(14,17,43,.4);backdrop-filter:blur(10px);color:#fff9eb;font-size:14px;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:background .18s,border-color .18s}
+.ledger-btn:hover{background:rgba(24,27,58,.58);border-color:rgba(246,211,146,.55)}
+.ledger{position:absolute;z-index:80;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(6,8,24,.62);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s}
+.ledger.show{opacity:1;pointer-events:auto}
+.ledger-panel{width:min(440px,92vw);max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid rgba(214,163,104,.32);border-radius:16px;background:linear-gradient(180deg,rgba(28,22,42,.98),rgba(18,15,32,.98));box-shadow:0 30px 70px rgba(4,5,18,.6);color:#f3e7d3;transform:translateY(12px) scale(.98);transition:transform .25s}
+.ledger.show .ledger-panel{transform:none}
+.ledger-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid rgba(214,163,104,.16)}
+.ledger-head h2{margin:0;font-family:"STKaiti","KaiTi",serif;font-size:19px;font-weight:800;letter-spacing:.12em;color:#f0d7a6}
+.ledger-close{width:30px;height:30px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.06);color:#e9dcc6;font-size:20px;line-height:26px;cursor:pointer;transition:background .18s}
+.ledger-close:hover{background:rgba(255,255,255,.14)}
+.ledger-list{margin:0;padding:12px 16px 18px;list-style:none;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.ledger-empty{padding:34px 20px;text-align:center;color:rgba(243,231,211,.56);font-size:14px;letter-spacing:.06em}
+.ledger-item{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(214,163,104,.16);border-radius:12px;background:rgba(255,247,230,.04)}
+.ledger-item.is-today{border-color:rgba(246,207,133,.5);background:rgba(246,207,133,.08)}
+.ledger-date{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:46px;line-height:1.15}
+.ledger-date b{font-size:16px;font-weight:800;color:#f0d7a6}.ledger-date span{font-size:11px;color:rgba(243,231,211,.6)}
+.ledger-main{min-width:0}
+.ledger-grade{font-family:"STKaiti","KaiTi",serif;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--g,#e7c489)}
+.ledger-line{margin-top:2px;font-size:12px;line-height:1.4;color:rgba(243,231,211,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ledger-gift{text-align:right;line-height:1.2;white-space:nowrap}
+.ledger-gift b{display:block;font-family:"STKaiti","KaiTi",serif;font-size:16px;font-weight:800;color:#e9b98f}
+.ledger-gift span{font-size:10px;letter-spacing:.1em;color:rgba(243,231,211,.5)}
+.ledger-gift span.got{color:#8bbf8b}
+.plaque-field{position:absolute;inset:0;perspective:1500px}
+.ema-slot{position:absolute;z-index:5;left:var(--x);top:var(--y);width:var(--size);aspect-ratio:1;opacity:1;transform:translate(-50%,0) rotate(var(--tilt));transform-origin:50% 5%;cursor:pointer;transition:left .72s cubic-bezier(.2,.75,.18,1),top .72s cubic-bezier(.2,.75,.18,1),width .72s cubic-bezier(.2,.75,.18,1),transform .72s cubic-bezier(.2,.75,.18,1),opacity .4s,filter .4s;filter:brightness(.9) saturate(.88) drop-shadow(0 13px 13px rgba(7,8,24,.42));-webkit-tap-highlight-color:transparent}
+.ema-slot:before{content:"";position:absolute;z-index:-1;left:50%;top:-42px;width:2px;height:68px;transform:translateX(-50%);background:linear-gradient(90deg,#392133,#a87472 48%,#3e2434);box-shadow:0 0 4px rgba(8,7,20,.55);transition:opacity .25s}
+.ema-slot:hover,.ema-slot:focus-visible{filter:brightness(1.05) saturate(1) drop-shadow(0 16px 18px rgba(7,8,24,.55))}
+.ema-card{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 10%;animation:sway 4.8s ease-in-out infinite;animation-delay:var(--delay);transition:transform .88s cubic-bezier(.22,.72,.2,1)}
+.ema-slot:nth-child(even) .ema-card{animation-duration:5.4s}
+@keyframes sway{0%,100%{transform:rotateY(0) rotateZ(-1.15deg)}50%{transform:rotateY(3deg) rotateZ(1.2deg)}}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform-style:preserve-3d}
+.face.back{transform:rotateY(180deg)}
+.plaque-img{display:block;width:100%;height:100%;object-fit:contain;opacity:1;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.plaque-motif{position:absolute;z-index:2;left:15%;top:27%;width:70%;height:58%;object-fit:contain;opacity:.88;mix-blend-mode:multiply;filter:saturate(.9) contrast(.96);pointer-events:none;user-select:none;-webkit-user-drag:none}
+.ema-slot.today .plaque-motif{opacity:1;filter:saturate(1.08) contrast(1.05) brightness(1.05)}
+.ema-slot.today{z-index:8;transform:translate(-50%,0) rotate(var(--tilt)) scale(1.08);filter:brightness(1.06) saturate(1.02) drop-shadow(0 17px 18px rgba(6,7,22,.5))}
+.ema-slot.locked{opacity:1;cursor:default;pointer-events:none;filter:brightness(.62) saturate(.66) drop-shadow(0 12px 13px rgba(7,8,24,.4))}
+.plaque-field.choosing .ema-slot:not(.selected){opacity:0;filter:blur(2px) brightness(.45);pointer-events:none}
+.ema-slot.selected{z-index:30;left:50%;top:12%;width:min(34vw,450px);opacity:1;transform:translate(-50%,0) rotate(0);filter:brightness(1.02) saturate(1) drop-shadow(0 30px 40px rgba(5,6,20,.58));cursor:default}
+.ema-slot.selected:before,.ema-slot.selected:after{opacity:0}
+.ema-slot.selected .ema-card{animation:none}
+.ema-slot.selected.flipped .ema-card{transform:rotateY(180deg)}
+.ema-slot.saved{filter:brightness(1) saturate(.96) drop-shadow(0 14px 16px rgba(6,7,22,.42))}
+.fortune{position:absolute;z-index:2;left:12.5%;right:12.5%;top:26%;bottom:11%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#3d241a;opacity:0;transition:opacity .24s .5s;transform:translateZ(2px);text-shadow:0 1px 0 rgba(255,239,200,.62)}
+.flipped .fortune{opacity:1}
+.fortune-grade{margin:0 0 11px;font-family:"STKaiti","KaiTi",serif;font-size:clamp(34px,3.2vw,47px);font-weight:900;line-height:1;color:var(--grade,#855748);letter-spacing:.1em;filter:brightness(.72) saturate(1.22);text-shadow:0 1px 0 rgba(255,245,214,.72),0 0 1px rgba(63,34,25,.5)}
+.fortune-words{display:flex;min-height:62px;flex-direction:column;justify-content:center;gap:4px}
+.fortune-words p{margin:0;font-family:"STKaiti","KaiTi","Microsoft YaHei",serif;font-size:clamp(15px,1.28vw,18px);font-weight:600;line-height:1.55;letter-spacing:.025em;color:#3b2319}
+.packet{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:11px;width:min(100%,264px);margin-top:10px;padding:8px 13px;border:1px solid rgba(120,72,44,.42);border-radius:10px;background:linear-gradient(180deg,rgba(74,44,31,.14),rgba(58,33,22,.2));color:#4a2c1c;box-shadow:inset 0 1px rgba(255,240,205,.5),inset 0 0 0 1px rgba(198,150,90,.22),0 2px 5px rgba(48,27,17,.14);cursor:pointer;transition:transform .18s,box-shadow .18s,background .18s}
+.packet:hover{transform:translateY(-1px);background:linear-gradient(180deg,rgba(88,52,35,.17),rgba(64,37,24,.24));box-shadow:inset 0 1px rgba(255,242,210,.6),inset 0 0 0 1px rgba(214,164,100,.4),0 4px 9px rgba(48,27,17,.2)}
+.gift-icon{display:grid;width:34px;height:34px;place-items:center;border-radius:7px;background:linear-gradient(160deg,#a23d2b,#7c2618);color:#ffe6cf;font-family:"STKaiti","KaiTi",serif;font-size:20px;font-weight:800;line-height:1;box-shadow:inset 0 1px rgba(255,206,178,.5),inset 0 -2px 3px rgba(60,12,6,.5),0 1px 3px rgba(52,16,10,.4)}
+.gift-copy{text-align:left;line-height:1.12}.packet b{display:block;margin-top:2px;font-family:"STKaiti","KaiTi",serif;font-size:21px;font-weight:900;letter-spacing:.02em;color:#a5321c;text-shadow:0 1px 0 rgba(255,240,214,.5)}.packet small{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;color:#5e3a22}
+.gift-action{padding-left:12px;border-left:1px solid rgba(120,72,44,.34);font-size:12px;font-weight:800;letter-spacing:.08em;white-space:nowrap;color:#7c4a2e}
+.packet.claimed{background:linear-gradient(180deg,rgba(70,50,34,.1),rgba(52,37,26,.12));border-color:rgba(110,80,54,.32);color:#6a563f;cursor:default;box-shadow:inset 0 0 0 1px rgba(160,130,92,.18)}
+.packet.claimed .gift-icon{background:linear-gradient(160deg,#a23d2b,#7c2618);color:#ffe6cf;box-shadow:inset 0 1px rgba(255,206,178,.5),inset 0 -2px 3px rgba(60,12,6,.5),0 1px 3px rgba(52,16,10,.4)}
+.packet.claimed b{color:#a5321c}.packet.claimed .gift-action{color:#8a6c4c}
+.rtp{margin-top:6px;padding:3px 12px;border:1px dashed rgba(120,72,44,.5);border-radius:999px;background:transparent;color:#6a4126;font-size:11px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:.18s}
+.rtp:hover{border-color:rgba(120,72,44,.8);background:rgba(74,44,31,.08)}
+.rtp .rtp-value{display:none;color:#8a2f1c;font-family:"STKaiti","KaiTi",serif;font-weight:900}
+.rtp.shown{border-style:solid;cursor:default}
+.rtp.shown .rtp-label{display:none}
+.rtp.shown .rtp-value{display:inline}
+.close{position:absolute;z-index:4;right:12.5%;top:23%;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:rgba(75,47,38,.08);color:rgba(74,46,37,.62);font-size:22px;line-height:28px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s .6s}
+.flipped .close{opacity:1;pointer-events:auto}
+.guide{position:absolute;z-index:40;left:50%;bottom:clamp(28px,4.6vh,48px);transform:translateX(-50%);padding:9px 16px;border:1px solid rgba(239,215,174,.18);border-radius:999px;background:rgba(15,17,44,.28);backdrop-filter:blur(8px);text-align:center;white-space:nowrap;text-shadow:0 2px 12px rgba(9,10,29,.9);transition:opacity .25s,transform .25s}
+.guide.hidden{opacity:0;transform:translate(-50%,8px);pointer-events:none}
+.hint{margin:0;font-size:13px;font-weight:600;letter-spacing:.12em;color:rgba(255,249,232,.9)}
+.back-btn{position:absolute;z-index:41;left:50%;bottom:clamp(28px,4.6vh,48px);transform:translate(-50%,10px);display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:1px solid rgba(239,215,174,.3);border-radius:999px;background:rgba(15,17,44,.42);backdrop-filter:blur(10px);color:rgba(255,249,232,.94);font-size:14px;font-weight:600;letter-spacing:.14em;cursor:pointer;opacity:0;pointer-events:none;text-shadow:0 2px 12px rgba(9,10,29,.9);transition:opacity .25s,transform .25s,background .18s,border-color .18s}
+.back-btn:before{content:"←";font-size:16px;line-height:1}
+.back-btn.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.back-btn:hover{background:rgba(24,27,58,.6);border-color:rgba(246,211,146,.55)}
+@media (max-width:800px){
+ .topbar{padding:17px 18px}.brand{font-size:16px}.wallet{padding:7px 11px;font-size:13px}
+ .scene{background-position:58% center}
+ .ema-slot{width:var(--mobile-size,86px)}
+ .ema-slot:nth-child(1){--x:12%!important;--y:22%!important}.ema-slot:nth-child(2){--x:37%!important;--y:26%!important}.ema-slot:nth-child(3){--x:63%!important;--y:22%!important}.ema-slot:nth-child(4){--x:88%!important;--y:27%!important}.ema-slot:nth-child(5){--x:22%!important;--y:43%!important}.ema-slot:nth-child(6){--x:50%!important;--y:47%!important}.ema-slot:nth-child(7){--x:78%!important;--y:42%!important}
+ .ema-slot.selected{left:50%!important;top:18%!important;width:min(86vw,360px)!important}
+ .fortune{top:27%;bottom:12%}.fortune-grade{font-size:36px}.fortune-words p{font-size:14px}.packet{margin-top:8px}
+ .guide{bottom:24px;padding:8px 14px}.hint{font-size:12px}
+}
+@media (max-width:430px){.ema-slot{--mobile-size:78px}.ema-slot.selected{width:min(90vw,350px)!important}.topbar{padding:15px}.brand{letter-spacing:.1em}}
+@media (max-width:430px) and (orientation:portrait){
+  .scene{min-height:100dvh}
+  .topbar{padding:12px 14px 12px 12px}
+  .brand{font-size:15px;letter-spacing:.08em}
+  .wallet,.ledger-btn{padding:6px 10px;font-size:12px}
+  .ema-slot{--mobile-size:72px}
+  .guide{bottom:max(16px,env(safe-area-inset-bottom,0px));padding:8px 12px}
+  .hint{font-size:12px}
+  .packet{width:min(100%,240px);gap:8px;padding:7px 10px}
+  .fortune-grade{font-size:30px}
+  .fortune-words p{font-size:13px}
+}
+html.is-hud .brand{display:none}
+html.is-hud .wallet{display:none}
+html.is-hud .topbar{top:58px;padding:10px 18px}
+html.is-hud .controls{width:100%;justify-content:flex-end}
+html.is-hud .ledger-btn{background:rgba(14,17,43,.55)}
+@media (max-width:800px){
+  html.is-hud .topbar{top:54px;padding:8px 12px}
+}
+@media (max-height:680px) and (min-width:801px){.ema-slot.selected{top:8%;width:min(29vw,340px)}.guide{bottom:18px}.fortune{top:26%;bottom:11%}.fortune-grade{font-size:34px}.fortune-words{min-height:58px}.packet{margin-top:6px}}
+</style>
+</head>
+<body>
+<main class="scene">
+  <header class="topbar">
+    <div class="brand">每日一签</div>
+    <div class="controls">
+      <button class="ledger-btn" id="ledgerBtn" type="button">往期签文</button>
+      <div class="wallet">余额 <b id="balance">¥0</b></div>
+    </div>
+  </header>
+
+  <section class="plaque-field" id="plaqueField" aria-live="polite">
+    <article class="ema-slot" data-index="0" role="button" tabindex="-1" aria-label="周一每日一签" style="--x:13%;--y:24%;--size:124px;--tilt:-4deg;--delay:-1.2s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-1.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="1" role="button" tabindex="-1" aria-label="周二每日一签" style="--x:25.5%;--y:35%;--size:118px;--tilt:3deg;--delay:-3.1s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-2.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="2" role="button" tabindex="-1" aria-label="周三每日一签" style="--x:38%;--y:22%;--size:132px;--tilt:-2deg;--delay:-.4s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-3.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="3" role="button" tabindex="-1" aria-label="周四每日一签" style="--x:50.5%;--y:35%;--size:120px;--tilt:4deg;--delay:-2.3s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-4.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="4" role="button" tabindex="-1" aria-label="周五每日一签" style="--x:63%;--y:22.5%;--size:130px;--tilt:-3deg;--delay:-4s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-5.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="5" role="button" tabindex="-1" aria-label="周六每日一签" style="--x:75.5%;--y:35.5%;--size:116px;--tilt:3deg;--delay:-1.7s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-6.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+    <article class="ema-slot" data-index="6" role="button" tabindex="-1" aria-label="周日每日一签" style="--x:88%;--y:24%;--size:124px;--tilt:-2deg;--delay:-2.8s">
+      <div class="ema-card">
+        <div class="face front"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><img class="plaque-motif" src="assets/shrine/ema-motif-7.png" alt=""></div>
+        <div class="face back"><img class="plaque-img" src="assets/shrine/ema-plaque.png" alt=""><div class="fortune"><h2 class="fortune-grade"></h2><div class="fortune-words"></div><button class="packet" type="button"><span class="gift-icon">福</span><span class="gift-copy"><small></small><b></b></span><span class="gift-action"></span></button><button class="rtp" type="button" aria-expanded="false"><span class="rtp-label">点击查看今日回报率</span><span class="rtp-value"></span></button></div><button class="close" type="button" aria-label="收起">×</button></div>
+      </div>
+    </article>
+  </section>
+
+  <div class="guide" id="guide">
+    <p class="hint" id="hint">开启今日一签</p>
+  </div>
+  <button class="back-btn" id="backBtn" type="button">返回</button>
+
+  <div class="ledger" id="ledger" role="dialog" aria-modal="true" aria-labelledby="ledgerTitle">
+    <div class="ledger-panel">
+      <div class="ledger-head">
+        <h2 id="ledgerTitle">往期签文</h2>
+        <button class="ledger-close" id="ledgerClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <ul class="ledger-list" id="ledgerList"></ul>
+    </div>
+  </div>
+</main>
+<script>
+(()=>{'use strict';
+try{if(parent!==window)document.documentElement.classList.add('is-hud')}catch(_){}
+const VERSION='4.1.0';
+const FORTUNE_KEY='airp_shrine_fortune_v1',HISTORY_KEY='airp_shrine_history_v1',WALLET_KEY='airp_arcade_wallet_v1';
+const GAME_KEYS=['airp_scratch_card_state_v2','airp_physical_slot_state_v2','airp_fishing_state_v1'];
+const WEEKDAYS=['周一','周二','周三','周四','周五','周六','周日'];
+const TIERS=[
+ {id:'great_misfortune',name:'平',rtp:.93,weight:8,color:'#6b7280',reward:[233,288],lead:['今日宜稳，不宜急进。','眼前多雾，放慢一步。','此时求快，反易生乱。','小事可守，大事暂缓。','心绪未定，先静后行。','路有微阻，谨慎为先。','运势偏弱，守成为好。','莫争一时，平安最重。'],tail:['少做决定，便少一分波折。','把手边之事做好，转机自会出现。','今日留有余地，明日更好回身。','听从直觉里的那一点迟疑。','避开冲动，也是在积攒好运。','不必逞强，安稳度过便是福。','先整理心绪，再处理事情。','慢一点，反而走得更稳。']},
+ {id:'misfortune',name:'末吉',rtp:.94,weight:14,color:'#7c8a6b',reward:[266,366],lead:['今日稍有阻滞，宜多留心。','风向未明，暂且缓行。','小有不顺，不必放大。','心急易错，稳住即可。','事有反复，耐心为上。','眼前略乱，先理清头绪。','莫被杂音扰了判断。','今日守好分寸，便可无碍。'],tail:['少说一句，或能少一场误会。','先完成简单的事，再碰难题。','退半步看，事情会更清楚。','凡事留个余地，便有转圜。','专注眼前，不必预支烦恼。','谨慎不是停下，而是走稳。','照顾好自己，运势会慢慢回升。','不争不抢，也能避开波折。']},
+ {id:'small_luck',name:'小吉',rtp:.95,weight:18,color:'#708370',reward:[333,488],lead:['微风送暖，小有喜意。','今日平顺，可从小事起步。','一念安定，便有好兆头。','小小机缘，正在靠近。','心中所想，可试着迈一步。','寻常日子里藏着微光。','宜顺势而行，不必用力过猛。','运势初升，耐心可得。'],tail:['认真对待一件小事，会有回应。','一句真诚的话，可能带来好消息。','先做容易完成的事，好运会接上来。','保持轻松，机会更容易被看见。','不必追赶，好事正在路上。','今日的温柔，会变成明日的福气。','相信自己的节奏，便能走顺。','小有所得，记得知足。']},
+ {id:'middle_luck',name:'中吉',rtp:.96,weight:24,color:'#4f8777',reward:[466,588],lead:['云开半月，诸事渐明。','今日有顺意，可安心前行。','所求虽缓，终有回应。','心正则路顺，事可渐成。','好消息正在靠近。','眼前之事，多有转机。','今日适合把想法落到实处。','步履从容，自有收获。'],tail:['稳稳走完这一步，后面会更轻松。','与人和气相处，容易得到助力。','抓住眼前的小机会，便能有所进展。','把握分寸，所行多顺。','耐心等待一下，结果会更合心意。','今日所做，会在不久后开花。','保持清醒，也保留一点期待。','顺势而为，福气自然相随。']},
+ {id:'upper_luck',name:'上吉',rtp:.97,weight:22,color:'#a27b4d',reward:[588,733],lead:['清风入怀，佳运正盛。','今日行事，多得顺遂。','贵人将近，好事可期。','心愿有路，所行有光。','时机渐熟，可以向前。','福意盈门，诸事可谋。','今日宜把握，不宜迟疑。','前路开阔，心想渐成。'],tail:['勇敢迈出一步，会看见新的可能。','真诚与行动，会带来漂亮的回应。','把握今日，收获或比预想更多。','所求之事，已有好兆头。','有人愿意帮你，也有人正在想起你。','保持专注，机会便不会错过。','今日付出的心意，容易得到回响。','顺着心里的光走，答案就在前方。']},
+ {id:'great_luck',name:'大吉',rtp:.98,weight:14,color:'#b56e58',reward:[666,888],lead:['福星高照，万事皆宜。','花开正好，心愿可成。','今日大吉，所行皆有助力。','好运临门，喜事将近。','前路明亮，诸事顺遂。','时来运转，佳音可期。','心有所愿，必有回响。','好风正盛，宜乘势而上。'],tail:['大胆去做想做的事，好运会站在你这边。','今日的决定，可能带来意外之喜。','所求有望，所盼将至。','珍惜眼前的机缘，喜悦会接连而来。','你的认真正在被看见。','愿望已经启程，只需带着信心前行。','与人分享喜气，福运会更加圆满。','今日宜笑，宜期待，宜迎接好消息。']}
+];
+const field=document.getElementById('plaqueField'),slots=[...field.querySelectorAll('.ema-slot')],balance=document.getElementById('balance'),guide=document.getElementById('guide'),hint=document.getElementById('hint'),backBtn=document.getElementById('backBtn'),ledger=document.getElementById('ledger'),ledgerBtn=document.getElementById('ledgerBtn'),ledgerList=document.getElementById('ledgerList'),ledgerClose=document.getElementById('ledgerClose');
+const HISTORY_DAYS=7;
+let phase='idle',result=null,activeSlot=null,busy=false;
+function readJSON(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(_){return null}}
+function writeJSON(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch(_){}}
+function money(value,fallback=0){const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.round(n*100)/100):fallback}
+function formatMoney(value){return '¥'+money(value).toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function dateKey(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}
+function weekdayIndex(){return(new Date().getDay()+6)%7}
+function readBalance(){const w=readJSON(WALLET_KEY);if(w&&Number.isFinite(+w.balance))return money(w.balance);for(const key of GAME_KEYS){const x=readJSON(key);if(x&&Number.isFinite(+x.balance))return money(x.balance)}return 1000}
+function writeBalance(value){value=money(value);writeJSON(WALLET_KEY,{balance:value,updatedAt:Date.now(),source:'shrine'});for(const key of GAME_KEYS){const x=readJSON(key);if(x&&typeof x==='object'){x.balance=value;writeJSON(key,x)}}return value}
+function weightedTier(){let n=Math.random()*TIERS.reduce((s,x)=>s+x.weight,0);for(const tier of TIERS){n-=tier.weight;if(n<=0)return tier}return TIERS.at(-1)}
+function pick(list){return list[Math.floor(Math.random()*list.length)]}
+function randomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function findTier(raw){if(!raw)return null;return TIERS.find(x=>x.id===raw.tierId||x.name===raw.tierName)||TIERS.find(x=>Math.abs(x.rtp-Number(raw.rtp))<.001)||null}
+function buildResult(tier,old={}){return{version:VERSION,date:dateKey(),createdAt:old.createdAt||Date.now(),tierId:tier.id,tierName:tier.name,rtp:tier.rtp,color:tier.color,reward:Number.isFinite(+old.reward)?money(old.reward):randomInt(...tier.reward),lines:Array.isArray(old.lines)&&old.lines.length?old.lines.slice(0,2):[pick(tier.lead),pick(tier.tail)],selected:weekdayIndex(),claimed:old.claimed===true,balanceAfter:old.balanceAfter??null}}
+function currentResult(){const old=readJSON(FORTUNE_KEY);if(!old||old.date!==dateKey())return null;const tier=findTier(old);if(!tier)return null;if(old.version===VERSION&&Array.isArray(old.lines)&&Number.isInteger(+old.selected))return old;const migrated=buildResult(tier,old);writeJSON(FORTUNE_KEY,migrated);return migrated}
+function pruneHistory(list){return list.filter(x=>x&&x.date).sort((a,b)=>a.date<b.date?1:-1).slice(0,HISTORY_DAYS)}
+function saveResult(value){result=value;writeJSON(FORTUNE_KEY,value);const h=readJSON(HISTORY_KEY);const history=Array.isArray(h)?h.filter(x=>x.date!==value.date):[];history.unshift(value);writeJSON(HISTORY_KEY,pruneHistory(history))}
+function updateHistory(value){const h=readJSON(HISTORY_KEY);if(!Array.isArray(h))return;const i=h.findIndex(x=>x.date===value.date);if(i>=0){h[i]=value;writeJSON(HISTORY_KEY,pruneHistory(h))}}
+function emit(type,detail){try{dispatchEvent(new CustomEvent(type,{detail}))}catch(_){}try{if(parent!==window)parent.postMessage({type,detail},'*')}catch(_){}}
+function renderBalance(){balance.textContent=formatMoney(readBalance())}
+function renderResult(slot){if(!result||!slot)return;const grade=slot.querySelector('.fortune-grade'),words=slot.querySelector('.fortune-words'),packet=slot.querySelector('.packet');grade.textContent=result.tierName;grade.style.setProperty('--grade',result.color);words.innerHTML=result.lines.slice(0,2).map(x=>`<p>${x}</p>`).join('');packet.querySelector('b').textContent=formatMoney(result.reward);packet.querySelector('small').textContent='今日福礼';packet.querySelector('.gift-action').textContent=result.claimed?'已收下':'收下';packet.classList.toggle('claimed',result.claimed);packet.disabled=result.claimed;const rtp=slot.querySelector('.rtp');if(rtp){rtp.querySelector('.rtp-value').textContent='今日回报率 '+Math.round(result.rtp*100)+'%';rtp.classList.remove('shown');rtp.setAttribute('aria-expanded','false')}}
+function resetField(){field.classList.remove('choosing');for(const slot of slots){slot.classList.remove('selected','flipped','saved','locked','today');slot.removeAttribute('aria-disabled')}activeSlot=null;busy=false;phase='idle'}
+function showIdle(){resetField();const dayIndex=weekdayIndex(),today=currentResult();slots.forEach((slot,index)=>{const isToday=index===dayIndex;slot.classList.toggle('today',isToday);slot.classList.toggle('locked',!isToday);slot.tabIndex=isToday?0:-1;slot.setAttribute('aria-disabled',String(!isToday))});const daySlot=slots[dayIndex]||slots[0];if(today)daySlot.classList.add('saved');hint.textContent=today?'点击今日木牌 · 查看今日签文':'点击今日木牌 · 开启今日一签';guide.classList.remove('hidden');backBtn.classList.remove('show')}
+function openPlaque(index,existing){if(busy||phase!=='idle')return;busy=true;phase='moving';result=existing||buildResult(weightedTier(),{selected:index});if(!existing){saveResult(result);emit('airp-shrine:drawn',result)}activeSlot=slots[result.selected]||slots[index]||slots[0];renderResult(activeSlot);field.classList.add('choosing');activeSlot.classList.remove('saved','locked');activeSlot.classList.add('selected');guide.classList.add('hidden');setTimeout(()=>{activeSlot.classList.add('flipped');backBtn.classList.add('show');phase='open';busy=false},620)}
+function closePlaque(){if(phase!=='open')return;activeSlot?.classList.remove('flipped');backBtn.classList.remove('show');phase='closing';setTimeout(showIdle,650)}
+function claim(slot){if(!result||result.claimed||slot!==activeSlot)return;const newBalance=writeBalance(readBalance()+result.reward);result={...result,claimed:true,balanceAfter:newBalance};writeJSON(FORTUNE_KEY,result);updateHistory(result);renderBalance();renderResult(slot);renderLedger();emit('airp-shrine:claimed',result)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function ledgerEntries(){const h=readJSON(HISTORY_KEY);if(!Array.isArray(h))return[];return pruneHistory(h).map(raw=>{const tier=findTier(raw);return{...raw,tierName:raw.tierName||tier?.name||'—',color:raw.color||tier?.color||'#e7c489'}})}
+function renderLedger(){const items=ledgerEntries(),todayKey=dateKey();if(!items.length){ledgerList.innerHTML='<li class="ledger-empty">还没有签文记录，抽一签开始吧。</li>';return}ledgerList.innerHTML=items.map(it=>{const[y,m,d]=String(it.date).split('-');const wd=WEEKDAYS[it.selected]||'';const line=Array.isArray(it.lines)&&it.lines.length?it.lines[0]:'';const got=it.claimed;return `<li class="ledger-item${it.date===todayKey?' is-today':''}"><div class="ledger-date"><b>${esc(m)}.${esc(d)}</b><span>${esc(wd)}</span></div><div class="ledger-main"><div class="ledger-grade" style="--g:${esc(it.color)}">${esc(it.tierName)}</div><div class="ledger-line">${esc(line)}</div></div><div class="ledger-gift"><b>${formatMoney(it.reward)}</b><span class="${got?'got':''}">${got?'已收下':'未领取'}</span></div></li>`}).join('')}
+function openLedger(){renderLedger();ledger.classList.add('show')}
+function closeLedger(){ledger.classList.remove('show')}
+for(const slot of slots){const activate=()=>{if(phase!=='idle'||busy||+slot.dataset.index!==weekdayIndex())return;const today=currentResult();openPlaque(weekdayIndex(),today)};slot.addEventListener('click',e=>{if(e.target.closest('.packet,.close,.rtp'))return;activate()});slot.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button')){e.preventDefault();activate()}});slot.querySelector('.packet').addEventListener('click',e=>{e.stopPropagation();claim(slot)});slot.querySelector('.rtp').addEventListener('click',e=>{e.stopPropagation();const b=e.currentTarget;b.classList.add('shown');b.setAttribute('aria-expanded','true')});slot.querySelector('.close').addEventListener('click',e=>{e.stopPropagation();closePlaque()})}
+backBtn.addEventListener('click',closePlaque);
+ledgerBtn.addEventListener('click',openLedger);
+ledgerClose.addEventListener('click',closeLedger);
+ledger.addEventListener('click',e=>{if(e.target===ledger)closeLedger()});
+addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(ledger.classList.contains('show'))closeLedger();else if(phase==='open')closePlaque()});
+addEventListener('storage',e=>{if(e.key===HISTORY_KEY&&ledger.classList.contains('show'))renderLedger();if([WALLET_KEY,FORTUNE_KEY,...GAME_KEYS].includes(e.key)){renderBalance();if(phase==='idle')showIdle()}});
+window.AIRPShrineFortune=Object.freeze({version:VERSION,draw:()=>{const r=buildResult(weightedTier());saveResult(r);return r},getFortune:currentResult,getBalance:readBalance,setBalance:writeBalance,open:()=>{const r=currentResult();if(r)openPlaque(r.selected,r)},clearToday:()=>{try{localStorage.removeItem(FORTUNE_KEY)}catch(_){}result=null;showIdle()}});
+renderBalance();showIdle();
+})();
+</script>
+</body>
+</html>

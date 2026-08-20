@@ -15,9 +15,17 @@ __pycache__/
 原型/
 参考/
 变量相关/
-city/
 public/ref/
 public/art/
+
+# 城市地图：HUD 只吃 plate_map 运行时（html/js + 底板 webp）；源 PNG 和独立 demo 仍留本地
+city/*
+!city/plate_map.html
+!city/plate_map.js
+!city/city_mapdata.js
+!city/plate/
+city/plate/*
+!city/plate/*.webp
 
 # 编辑器与系统垃圾
 .DS_Store

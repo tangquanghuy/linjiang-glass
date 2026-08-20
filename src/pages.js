@@ -8,9 +8,10 @@ import {
   itemIconTag, partArt, player, potencyNotches, scheduleHint, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
-import { PREF_CHOICES, pref, setPref } from './prefs.js';
 import { icons } from './icons.js';
 import { requestClockIn } from './bridge.js';
+import { isMapOpen, mountMapOverlay } from './map.js';
+import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
 
@@ -276,7 +277,7 @@ function partCrop(girl, key, cls) {
         <span class="${cls}">
           <img src="${partArt(girl.name, key)}" alt="" draggable="false"
             onerror="this.remove()">
-          <em>待补部位截图</em>
+          <em>暂无截图</em>
         </span>`;
 }
 
@@ -306,8 +307,7 @@ function developmentNote(name, partKey) {
         <div class="dev-sheet-copy">
         ${note
           ? `<p>${note}</p>`
-          : `<p class="is-muted">${girl.name} 的开发度评语矩阵尚未撰写。<br>
-               在 变量相关/ 下按同样格式补一份，再跑 <code>python tools/extract_dev_matrix.py</code> 即可接入。</p>`}
+          : `<p class="is-muted">暂无评语</p>`}
         </div>
       </div>
     </section>`;
@@ -332,8 +332,7 @@ function characterFull(name) {
         <span class="archive-id-sub">${bond.mood} · 好感 ${bond.favor} · 顺从 ${bond.obedience}</span>
       </header>
       <section class="archive-sec archive-sec-dev">
-        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降</span><i></i>
-          <em>点击部位查看评语</em></div>
+        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降</span><i></i></div>
         <div class="dev-grid">${developmentTiles(girl, development)}</div>
       </section>
       <section class="archive-sec">
@@ -390,7 +389,6 @@ function schedulePage() {
   return pageShell('Weekly Schedule', '开播日程表', `
     <div class="schedule-summary">
       <div><b>${hint}</b><span>${model.weekday} · ${model.clock}</span></div>
-      <p>每人一条周线；有色段是固定开播日，断开处是周休。</p>
     </div>
     <div class="schedule-today"><b>今日顺序</b>${today}</div>
     <div class="schedule-board-head"><span>主播</span><span>常用时间</span><div>${dayHead}</div><span>今日状态</span></div>
@@ -425,7 +423,6 @@ function eventsPage() {
   return pageShell('Today Events', '当日事件', `
     <div class="page-summary">
       <div><span>${world.calendar.full} · ${world.time.period}</span><b>${dailyEvents.length} 条事件线索</b></div>
-      <p>按区域与触发状态整理。主界面只保留红点提醒，触发条件集中在这里。</p>
     </div>
     <div class="event-grid">${cards}</div>
   `, 'events-page');
@@ -599,8 +596,7 @@ function profilePage() {
     </div>
 
     <aside class="profile-fans-col">
-      <div class="archive-head">${mark()}<b>粉丝身份</b><span>${fanHint}</span><i></i>
-        <em>点一行进速览</em></div>
+      <div class="archive-head">${mark()}<b>粉丝身份</b><span>${fanHint}</span><i></i></div>
       <div class="profile-fans">${fans}</div>
       <button class="profile-schedule-link" type="button" data-page="schedule">
         <span><b>查看开播日程</b><small>${scheduleHint()}</small></span>${ic('arrowRight')}
@@ -705,57 +701,16 @@ function relationsPage() {
   return pageShell('Relationship Index', '羁绊总览', `<div class="relation-list">${rows}</div>`, 'relations-page');
 }
 
-/* A live segmented control, reading and writing src/prefs.js.  The choices come from
-   the store rather than being spelled out here so the enum and its labels cannot
-   drift; `data-pref` is what the layer's delegated listener looks for. */
-function segmented(name) {
-  const current = pref(name);
-  return `<div class="segmented">${PREF_CHOICES[name].map(([value, label]) =>
-    `<button type="button" data-pref="${name}" data-pref-value="${value}"
-      aria-pressed="${value === current}"
-      class="${value === current ? 'is-active' : ''}">${label}</button>`).join('')}</div>`;
-}
-
-/* The controls that are not wired to anything say so, and cannot be pressed.
-   A dead control that looks identical to a live one next to it is worse than no
-   control: it teaches the reader that the page does not respond. */
-const stub = () => '<span class="settings-stub">尚未生效</span>';
-
-function settingsPage() {
-  return pageShell('Interface', '界面设置', `
-    <div class="settings-grid">
-      <section>
-        <h3>道具栏打开方式</h3>
-        <p>底部抽屉在主状态栏下方展开一排道具，不遮挡场景，点某一格再进全屏；直接全屏则跳过抽屉。抽屉是横屏专有的，竖屏没有那条桌面带。</p>
-        ${segmented('inventoryOpen')}
-      </section>
-      <section>
-        <h3>详情展开方式${stub()}</h3>
-        <p>角色卡默认在主状态栏上方展开速览，两块玻璃以等宽缝隙互扣；完整档案再进入大页面。改成直接全屏会让档案缺掉羁绊与生理——那两组现在是靠速览留在后面才没有重复，所以这个开关要先改档案的内容与高度预算。</p>
-        <div class="segmented is-stub"><button type="button" disabled class="is-active">上方速览</button><button type="button" disabled>直接全屏</button></div>
-      </section>
-      <section>
-        <h3>玻璃效果${stub()}</h3>
-        <p>上下面板共用同一套折射、亮边与霜面参数，扩展页面沿用原型的材质语言。满场同时有六处面板级折射加每张卡一处，移动端应当能关掉散射层并降低模糊半径。</p>
-        <label class="fake-switch is-stub"><span>高质量模糊</span><i></i></label>
-        <label class="fake-switch is-stub"><span>晶亮高光</span><i></i></label>
-      </section>
-      <section>
-        <h3>信息密度${stub()}</h3>
-        <p>主状态栏只放行动中最常看的变量，其余按页面归档。</p>
-        <div class="segmented is-stub"><button type="button" disabled>精简</button><button type="button" disabled class="is-active">标准</button><button type="button" disabled>详细</button></div>
-      </section>
-    </div>
-  `, 'settings-page');
-}
-
 /* Three stacked layers, not one slot.
    ------------------------------------------------------------------
    The dock stays mounted while a page is open on top of it, so closing the page
    lands back on the quick view by itself -- which is why there is no longer a
    "收起到上方速览" button; it was doing what Escape and × already do.
 
-   Escape and × peel exactly one layer: 评语 sheet -> page -> dock. */
+   Escape and × peel exactly one layer: 评语 sheet -> page -> dock.
+   The city map and the arcade are not sheets: they cover the unscaled viewport
+   so pan/zoom and game pointers are not fighting the canvas transform, and they
+   peel as a page. */
 export function mountPages(stage, { onGift, onDock } = {}) {
   let layer = stage.querySelector(':scope > .page-layer');
   if (!layer) {
@@ -764,23 +719,52 @@ export function mountPages(stage, { onGift, onDock } = {}) {
     stage.appendChild(layer);
   }
 
+  const viewport = stage.parentElement;
+  let unmountMap = null;
+  let unmountArcade = null;
   let dockName = null;
   let inventoryLeaf = 0;
   const has = (sel) => !!layer.querySelector(sel);
   const drop = (sel) => layer.querySelectorAll(sel).forEach((el) => el.remove());
+  const overlayOpen = () => !!unmountMap || !!unmountArcade || isMapOpen() || isArcadeOpen();
 
   const sync = () => {
+    const dock = has('.dock-root');
+    const modal = has('.page-modal');
+    const sheet = has('.dev-sheet');
     layer.className = 'page-layer'
-      + (has('.dock-root') || has('.page-modal') ? ' is-open' : '')
-      + (has('.page-modal') ? ' has-modal' : '');
+      + (dock || modal || overlayOpen() ? ' is-open' : '')
+      + (modal ? ' has-modal' : '')
+      + (sheet ? ' has-sheet' : '');
+    /* Classes live on the stage so perf.css can freeze glass *behind* the layer
+       (the shell, the dock, the drawer are siblings of .page-layer). */
+    stage.classList.toggle('has-dock', dock);
+    stage.classList.toggle('has-modal', modal || overlayOpen());
+    stage.classList.toggle('has-sheet', sheet);
   };
 
-  const closeNote = () => { drop('.dev-sheet, .dev-sheet-shade'); };
-  const closePage = () => { closeNote(); drop('.page-shade, .page-modal'); sync(); };
+  const closeMap = () => {
+    unmountMap?.();
+    unmountMap = null;
+  };
+
+  const closeArcade = () => {
+    unmountArcade?.();
+    unmountArcade = null;
+  };
+
+  const closeNote = () => { drop('.dev-sheet, .dev-sheet-shade'); sync(); };
+  const closePage = () => {
+    closeNote();
+    closeMap();
+    closeArcade();
+    drop('.page-shade, .page-modal');
+    sync();
+  };
   /* The gift tray and its card live outside this layer but are scoped to whoever the
      dock is showing, so whoever owns them has to hear that the dock changed -- see
      the wiring in content.js. */
-  const closeAll = () => { layer.innerHTML = ''; dockName = null; sync(); onDock?.(null); };
+  const closeAll = () => { closeMap(); closeArcade(); layer.innerHTML = ''; dockName = null; sync(); onDock?.(null); };
 
   /* Pages append after the dock rather than replacing the layer, so the dock keeps
      its DOM, its scroll and its already-built rim SVGs underneath. */
@@ -790,11 +774,29 @@ export function mountPages(stage, { onGift, onDock } = {}) {
     sync();
   };
 
+  const openMap = () => {
+    closeNote();
+    drop('.page-shade, .page-modal');
+    closeMap();
+    closeArcade();
+    unmountMap = mountMapOverlay(viewport, { onClose: closePage });
+    sync();
+  };
+
+  const openArcade = () => {
+    closeNote();
+    drop('.page-shade, .page-modal');
+    closeMap();
+    closeArcade();
+    unmountArcade = mountArcadeOverlay(viewport, { onClose: closePage });
+    sync();
+  };
+
   const openCharacter = (name) => {
     const girl = girls.find((item) => item.name === name) || girls[0];
     /* Same portrait again with nothing on top of it means "collapse": the card is
        a toggle, so a second click puts the scene back. */
-    if (dockName === girl.name && !has('.page-modal')) { closeAll(); return; }
+    if (dockName === girl.name && !has('.page-modal') && !overlayOpen()) { closeAll(); return; }
     closePage();
     drop('.dock-root');
     layer.insertAdjacentHTML('afterbegin', characterDock(girl));
@@ -814,16 +816,21 @@ export function mountPages(stage, { onGift, onDock } = {}) {
     board.innerHTML = inventoryBoard(inventoryLeaf);
   };
 
+  const PAGES = {
+    events: eventsPage,
+    inventory: () => inventoryPage(inventoryLeaf),
+    relations: relationsPage,
+    profile: profilePage,
+    schedule: schedulePage,
+  };
+
   const open = (page) => {
+    if (page === 'map') { openMap(); return; }
+    if (page === 'arcade') { openArcade(); return; }
     if (page === 'inventory') inventoryLeaf = 0;
-    openPage(
-      page === 'events' ? eventsPage()
-        : page === 'inventory' ? inventoryPage(inventoryLeaf)
-          : page === 'relations' ? relationsPage()
-            : page === 'profile' ? profilePage()
-              : page === 'schedule' ? schedulePage()
-                : settingsPage(),
-    );
+    const build = PAGES[page];
+    if (!build) return;
+    openPage(build());
   };
 
   /* The 评语 sheet is appended to the modal rather than replacing it, so closing
@@ -838,18 +845,6 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   };
 
   layer.addEventListener('click', (event) => {
-    /* Updated in place rather than by re-rendering the page: a re-render would be
-       correct but flashes the whole sheet for a two-class change. */
-    const choice = event.target.closest('[data-pref]');
-    if (choice) {
-      setPref(choice.dataset.pref, choice.dataset.prefValue);
-      choice.parentElement.querySelectorAll('[data-pref]').forEach((button) => {
-        const on = button === choice;
-        button.classList.toggle('is-active', on);
-        button.setAttribute('aria-pressed', String(on));
-      });
-      return;
-    }
     const gift = event.target.closest('[data-gift-open]');
     if (gift) { onGift?.(gift.dataset.giftOpen); return; }
     const page = event.target.closest('[data-page]');
@@ -886,7 +881,7 @@ export function mountPages(stage, { onGift, onDock } = {}) {
       }
       if (event.key !== 'Escape') return;
       if (has('.dev-sheet')) closeNote();
-      else if (has('.page-modal')) closePage();
+      else if (has('.page-modal') || overlayOpen()) closePage();
       else closeAll();
     });
   }

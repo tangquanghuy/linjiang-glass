@@ -30,6 +30,7 @@
 
 import { EAR, PANEL, PW, SEAM, TOOL, canvasWidth, panelPath, podRowLeft } from './geometry.js';
 import { buildPortraitDefs, paintPortraitRim } from './glass.js';
+import { reportPortraitSize } from '../bridge.js';
 import dockArtRaw from '../dock-art.json';
 import { asset, rebaseRecord } from '../asset.js';
 
@@ -47,9 +48,11 @@ export const PANEL_MARGIN = SEAM - EAR.drop;
 const glassLayers = (p) => {
   const clip = `clip-path:url(#pClip-${p.id});-webkit-clip-path:url(#pClip-${p.id})`;
   const vars = `--pt:${p.earTop + EAR.drop}px;--pb:${p.bottom}px`;
+  /* One backdrop-filter pass per panel.  The scatter layer is the landscape
+     微光晕; on this canvas it is a second full-size blur for a 10% screen blend,
+     and perf.css hides any leftover .pg-scatter on phones. */
   return `
 <div class="pg pg-blur"    style="${clip}"></div>
-<div class="pg pg-scatter" style="${clip}"></div>
 <div class="pg pg-paint"   style="${clip};${vars}">
   <div class="pg-tint"></div>
   <div class="pg-frost"></div>
@@ -188,6 +191,7 @@ export function createPortraitStage(host) {
   };
 
   let raf = 0;
+  let painted = '';
   const paint = () => {
     raf = 0;
     /* Hidden by the mode switch: clientWidth is 0, and painting would set a k of 0
@@ -208,6 +212,10 @@ export function createPortraitStage(host) {
 
     scale.style.setProperty('--k', String(k));
     scale.style.setProperty('--pw', `${pw}px`);
+    /* A short full-screen page should still carry glass to the visual viewport's
+       bottom.  Expose the viewport in portrait canvas units; long pages simply
+       exceed this minimum and keep their natural elastic height. */
+    scale.style.setProperty('--viewport-canvas-h', `${Math.ceil(innerHeight / k)}px`);
     /* Derived positions the stylesheet would otherwise have to hard-code. */
     scale.style.setProperty('--pod-row-left', `${podRowLeft(pw)}px`);
     scale.style.setProperty('--tool-d', `${TOOL.d}px`);
@@ -224,6 +232,21 @@ export function createPortraitStage(host) {
     const h = Math.ceil(content.offsetHeight);
     if (!panels.length || !h) return;
 
+    const drawnH = Math.ceil(h * k);
+    scale.style.height = `${h}px`;
+    /* The wrapper is what the host page lays out against, so it carries the
+       scaled height.  Rounding up avoids a sub-pixel gap at the bottom. */
+    host.style.height = `${drawnH}px`;
+    reportPortraitSize(drawnH);
+
+    /* k can change without the silhouettes changing.  Rebuilding the glass DOM
+       tears down every backdrop-filter layer; skip that unless a panel box or
+       the canvas width actually moved. */
+    const sig = `${pw}|${h}|` + panels.map((p) =>
+      `${p.id}:${p.earTop}:${p.bottom}:${p.pod ? 1 : 0}`).join('|');
+    if (sig === painted) return;
+    painted = sig;
+
     for (const svg of [defs, rim]) {
       svg.setAttribute('width', String(pw));
       svg.setAttribute('height', String(h));
@@ -232,11 +255,6 @@ export function createPortraitStage(host) {
     glass.innerHTML = panels.map(glassLayers).join('');
     paintPortraitRim(rim, panels, h, pw);
     blossoms.innerHTML = panels.map(blossom).join('');
-
-    scale.style.height = `${h}px`;
-    /* The wrapper is what the host page lays out against, so it carries the
-       scaled height.  Rounding up avoids a sub-pixel gap at the bottom. */
-    host.style.height = `${Math.ceil(h * k)}px`;
   };
 
   const sync = () => {

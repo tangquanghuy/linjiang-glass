@@ -1,4 +1,4 @@
-/* Portrait pages.
+﻿/* Portrait pages.
    ------------------------------------------------------------------
    A page here replaces the column rather than being appended below it.  Three reasons,
    and the first is the one that rules out every alternative: the landscape pages cannot
@@ -28,7 +28,6 @@ import {
   characterDetails, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
   homeState, inventoryRail, itemIconTag, partArt, player, potencyNotches, scheduleHint, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
-import { PREF_CHOICES, pref } from '../prefs.js';
 import { head, ic, meter, pct, section } from './parts.js';
 
 /* The one-line reminder of what a bucket's numbers mean, the same wording the
@@ -88,9 +87,9 @@ function row(item) {
   </button>`;
 }
 
-function group(g) {
+function group(g, index) {
   return `
-  <section class="pinv-group">
+  <section class="pinv-group${index === 0 ? ' is-active' : ''}" data-inventory-page-panel="${index}"${index === 0 ? '' : ' hidden'}>
     <div class="pinv-head">
       <b>${g.label}</b><span>${BUCKET_NOTE[g.bucket]}</span><i></i><em>${g.items.length}</em>
     </div>
@@ -98,9 +97,7 @@ function group(g) {
   </section>`;
 }
 
-/* Grouped by bucket in the order data.js defines -- 用品 first, 素材 last -- and no
-   category filter.  With a bag this size the groups already are the filter, and a
-   filter would be a control to learn for a list that fits on one or two screens. */
+/* One named category per page keeps the full-screen mobile bag bounded even as the AI adds items. */
 export function inventoryPage() {
   const groups = inventoryRail();
   const total = groups.reduce((n, g) => n + g.items.length, 0);
@@ -120,7 +117,15 @@ export function inventoryPage() {
 
   <hr class="prule">
 
-  ${groups.length ? groups.map(group).join('') : '<div class="pinv-empty">背包是空的</div>'}
+  ${groups.length ? `
+  <div class="pinv-pager" role="tablist" aria-label="背包分类">
+    ${groups.map((group, index) => `<button type="button" role="tab" data-inventory-page="${index}"
+      aria-selected="${index === 0}" class="${index === 0 ? 'is-active' : ''}">
+      <b>${group.label}</b><span>${group.items.length}</span>
+    </button>`).join('')}
+  </div>
+  <p class="pinv-page-note"><b data-inventory-page-current>1</b><span>/ ${groups.length}</span></p>
+  ${groups.map(group).join('')}` : '<div class="pinv-empty">背包是空的</div>'}
 </section>`;
 }
 
@@ -152,7 +157,7 @@ function devTiles(girl, development) {
         aria-expanded="false" aria-controls="${id}">
         <span class="pdev-crop">
           <img src="${partArt(girl.name, key)}" alt="" draggable="false" onerror="this.remove()">
-          <em>待补部位截图</em>
+          <em>暂无截图</em>
         </span>
         <span class="pdev-meta">
           <b>${label}</b><span>${tier} · ${DEV_TIERS[tier]}</span>
@@ -164,7 +169,7 @@ function devTiles(girl, development) {
       <div class="pdev-note" id="${id}" hidden>
         ${note
           ? `<p>${note}</p>`
-          : `<p class="is-muted">${girl.name} 的开发度评语矩阵尚未撰写。在 变量相关/ 下按同样格式补一份，再跑 <code>tools/extract_dev_matrix.py</code> 即可接入。</p>`}
+          : `<p class="is-muted">暂无评语</p>`}
       </div>
     </div>`;
   }).join('');
@@ -240,7 +245,7 @@ export function characterPage(name) {
   ${meter('体力', physiology.stamina, 100, 'blue', THRESHOLDS.stamina)}
   ${meter('尿意', physiology.bladder, 100, 'gold', THRESHOLDS.bladder)}
 
-  ${section('身体开发度', '四部位', '点击展开评语')}
+  ${section('身体开发度', '四部位')}
   <div class="pdev-grid">${devTiles(girl, development)}</div>
 
   ${section('性经历', '计数')}
@@ -334,7 +339,6 @@ export function giftPage(name) {
   if (scenes.near) {
     blocks.push(`
   ${section('私下送礼', '数量 -1', '任何东西都能送')}
-  <p class="ppage-note">这里才是好感度真正移动的地方。她喜不喜欢由剧情判断，界面不替她表态。</p>
   ${bag.length
     ? bag.map((g) => `
   <div class="pgift-band"><b>${g.label}</b><i></i></div>
@@ -344,7 +348,6 @@ export function giftPage(name) {
   if (scenes.live) {
     blocks.push(`
   ${section('直播打赏', `${stream.viewers.toLocaleString('en-US')} 人在看`, '不动背包')}
-  <p class="ppage-note">打赏买到的是被看见的概率——念 ID、记住 ID。好感度几乎不动，也换不来私人时间。</p>
   ${giftRail().map((g) => `
   <div class="pgift-band"><b>${g.label}</b><i></i></div>
   ${g.items.map(tipRow).join('')}`).join('')}`);
@@ -374,7 +377,7 @@ export function giftPage(name) {
     ? blocks.join('')
     : `<p class="ppage-note">${scenes.reason}，现在没有可送的东西。</p>`}
 
-  <p class="pgift-stub"><span class="pstub">发送尚未接线</span>点任意一行会生成要发出的那句话并打到 console，不扣库存。</p>
+  <p class="pgift-stub"><span class="pstub">发送尚未接线</span></p>
 </section>`;
 }
 
@@ -432,7 +435,6 @@ export function eventsPage() {
     <div><b class="is-ready">${ready}</b><span>可触发</span></div>
     <em>${world.calendar.full} · ${world.time.period}</em>
   </div>
-  <p class="ppage-note">按状态、是否在当前区域、优先级排序。触发条件默认收起。</p>
 
   ${cards}
 </section>`;
@@ -481,10 +483,9 @@ export function schedulePage() {
 
   return `
 <section class="ppanel is-page pschedule-page" data-panel="page" role="dialog" aria-label="开播日程表">
-  ${head('Weekly Schedule', '开播日程表')}
+  ${head('Schedule', '开播日程表')}
   <button class="pclose" type="button" data-page-close aria-label="返回">&times;</button>
   <div class="pschedule-summary"><b>${hint}</b><span>${model.weekday} · ${model.clock}</span></div>
-  <p class="ppage-note">每位主播占一行，色线连过固定开播日，休息日自然断开。</p>
   <div class="pschedule-today"><b>今日顺序</b>${today}</div>
   <div class="pschedule-lines">${rows}</div>
 </section>`;
@@ -523,7 +524,6 @@ export function relationsPage() {
 <section class="ppanel is-page" data-panel="page" role="dialog" aria-label="羁绊总览">
   ${head('Bonds', '羁绊总览')}
   <button class="pclose" type="button" data-page-close aria-label="返回">×</button>
-  <p class="ppage-note">按好感度排序。点任意一行进入她的完整档案。</p>
   <div class="prel-list">${rows}</div>
 </section>`;
 }
@@ -542,13 +542,6 @@ export function profilePage() {
     : work.workedToday ? '今日已上班'
       : work.atWork ? '在岗未上'
         : '未到岗';
-  const followedLive = accounts.filter((row) => row.follow && row.live).length;
-  const fanHint = [
-    `${accounts.length} 人`,
-    followedLive ? `开播 ${followedLive}` : '',
-    watching ? `正在看 ${watching}` : '未进房',
-  ].filter(Boolean).join(' · ');
-
   const fans = accounts.map((row) => `
     <button class="pfan t-${row.theme}${row.watching ? ' is-watching' : ''}${row.live ? ' is-live' : ''}"
       type="button" data-character-full="${row.name}" aria-label="查看 ${row.name}">
@@ -598,64 +591,19 @@ export function profilePage() {
   <details class="pfans-fold">
     <summary>
       <b>粉丝身份</b>
-      <small>${fanHint}</small>
       <em class="is-shut">展开</em>
       <em class="is-open">收起</em>
       ${ic('chevronRight')}
     </summary>
     <div class="pfans">${fans}</div>
   </details>
-  <button class="pprofile-schedule" type="button" data-page="schedule">
-    <span><b>查看开播日程</b><small>${scheduleHint()}</small></span>${ic('arrowRight')}
-  </button>
-</section>`;
-}
-
-/* ----------------------------------------------------------------- settings */
-
-function segmented(name) {
-  const current = pref(name);
-  return `<div class="pseg">${PREF_CHOICES[name].map(([value, label]) =>
-    `<button type="button" data-pref="${name}" data-pref-value="${value}"
-      aria-pressed="${value === current}"
-      class="${value === current ? 'is-active' : ''}">${label}</button>`).join('')}</div>`;
-}
-
-const stub = () => '<span class="pstub">尚未生效</span>';
-
-export function settingsPage() {
-  return `
-<section class="ppanel is-page" data-panel="page" role="dialog" aria-label="界面设置">
-  ${head('Interface', '界面设置')}
-  <button class="pclose" type="button" data-page-close aria-label="返回">×</button>
-
-  <div class="pset">
-    <section>
-      <h3>道具栏打开方式<span class="pstub is-note">横屏生效</span></h3>
-      <p>横屏的底部抽屉在主状态栏下方展开一排道具，不遮挡场景；直接全屏则跳过抽屉。竖屏没有那条桌面带，所以竖屏的背包一律是整屏的这一页 —— 这个选项存的是同一份偏好，在哪一侧改都算。</p>
-      ${segmented('inventoryOpen')}
-    </section>
-    <section>
-      <h3>详情展开方式${stub()}</h3>
-      <p>横屏的角色卡默认在主状态栏上方展开速览，完整档案再进入大页面。竖屏一律整屏，所以这个开关只对横屏有意义，而改成直接全屏会让横屏的档案缺掉羁绊与生理 —— 那两组现在是靠速览留在后面才没有重复。</p>
-      <div class="pseg is-stub"><button type="button" disabled class="is-active">上方速览</button><button type="button" disabled>直接全屏</button></div>
-    </section>
-    <section>
-      <h3>玻璃效果${stub()}</h3>
-      <p>两套构图共用同一套折射、亮边与霜面参数。满场同时有多处面板级折射加每张卡一处，移动端应当能关掉散射层并降低模糊半径。</p>
-      <label class="pswitch is-stub"><span>高质量模糊</span><i></i></label>
-      <label class="pswitch is-stub"><span>晶亮高光</span><i></i></label>
-    </section>
-    <section>
-      <h3>所在<span class="pstub is-note">只读</span></h3>
-      <p>私密度随进入的具体场所自动对应，不是可调项，列在这里是为了对照事件的触发条件。</p>
-      <div class="pset-where">
-        ${ic('mapPin')}<b>${world.location.area}</b>
-        <span>${world.location.place}</span>
-        <em>${PRIVACY[world.location.privacy]} ${world.location.privacy}/5</em>
-      </div>
-      <div class="pbar"><i style="--pct:${pct(world.location.privacy, 5)}%"></i></div>
-    </section>
+  <div class="pprofile-routes">
+    <button class="pprofile-schedule" type="button" data-page="relations">
+      <b>查看羁绊总览</b>${ic('arrowRight')}
+    </button>
+    <button class="pprofile-schedule" type="button" data-page="schedule">
+      <b>查看开播日程</b>${ic('arrowRight')}
+    </button>
   </div>
 </section>`;
 }
@@ -669,5 +617,4 @@ export const PORTRAIT_PAGES = {
   relations: relationsPage,
   profile: profilePage,
   schedule: schedulePage,
-  settings: settingsPage,
 };

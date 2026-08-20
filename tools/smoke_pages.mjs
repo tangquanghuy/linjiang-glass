@@ -17,7 +17,7 @@ await page.screenshot({ path: 'artifacts/hud_stamina.png', clip: { x: 20, y: 630
 const shots = [
   ['events', ['.pane-pod .tool-btn[data-page="events"]'], '.events-page'],
   ['inventory', ['.pane-pod .tool-btn[data-page="inventory"]', '.drawer-slot'], '.inventory-page'],
-  ['settings', ['.pane-pod .tool-btn[data-page="settings"]'], '.settings-page'],
+  ['map', ['.pane-pod .tool-btn[data-page="map"]'], '.map-layer'],
   ['profile', ['.btn-ghost'], '.profile-page'],
 ];
 

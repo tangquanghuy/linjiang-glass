@@ -27,17 +27,18 @@
 
 import {
   NO_STATUS, PRIVACY, THRESHOLDS,
-  characterDetails, fanLine, giftLabel, giftScenes, girls, player, protagonist, tools, world,
+  characterDetails, fanLine, giftLabel, giftScenes, girls, homeState, player, protagonist, tools, workBadge, workState, world,
 } from '../data.js';
 import { buildGift } from '../data.js';
 import { isPinned, orderedGirls, placeCardArts, togglePin } from '../content.js';
 import { CARD, TOOL } from './geometry.js';
 import { PORTRAIT_PAGES } from './pages.js';
 import { head, ic, meter, pct } from './parts.js';
-import { setPref } from '../prefs.js';
 import { onLive } from '../data.js';
-import { requestClockIn, sendChat } from '../bridge.js';
+import { requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
 import { pinImg } from '../pin-art.js';
+import { mountMapOverlay } from '../map.js';
+import { mountArcadeOverlay } from '../arcade.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -61,14 +62,54 @@ function stat(s) {
    block on the first screen.  Only 资金 is a resource the player
    spends; the calendar and the clock are context.  So one prominent
    number, and the rest demoted to a wrapping meta row at caption size. */
+function portraitWhoChip(label, name, emptyText) {
+  if (!name) return `<span class="pworld-who is-none"><em>${label}</em><b>${emptyText}</b></span>`;
+  const girl = girls.find((item) => item.name === name);
+  const live = !!characterDetails[name]?.stream?.live;
+  return `<span class="pworld-who t-${girl?.theme || 'violet'}${live ? ' is-live' : ''}">
+    <em>${label}</em><i></i><b>${name}</b>
+  </span>`;
+}
+
+function portraitWhoChips() {
+  return portraitWhoChip('同行', player.companion, '独行')
+    + portraitWhoChip('在看', player.watching, '未进房');
+}
+
+function portraitLifeRows() {
+  const work = workState();
+  const home = homeState();
+  const badge = workBadge(work);
+  const house = home.current;
+  const settled = !!house && house.area === home.home;
+  const row = ({ icon, label, name, sub, tag, tone = '' }) => `
+    <div class="plife-line">
+      ${ic(icon)}<span class="plife-label">${label}</span>
+      <b class="plife-name" title="${name}">${name}</b>
+      ${sub ? `<span class="plife-sub" title="${sub}">${sub}</span>` : ''}
+      <span class="plife-fill"></span>
+      ${tag ? `<em class="plife-tag ${tone}">${tag}</em>` : ''}
+    </div>`;
+  return `<div class="plife-rows">
+    ${row({
+    icon: 'briefcase', label: '工作', name: work.job || '无业',
+    sub: work.job ? work.place : '', tag: badge.label, tone: badge.tone,
+  })}
+    ${row({
+    icon: 'home', label: '住所', name: house ? house.name : '无住所',
+    sub: house ? house.tenure : '', tag: house ? (settled ? '当前住所' : '未设住所') : '',
+    tone: settled ? 'is-ok' : '',
+  })}
+  </div>`;
+}
+
 function statusPanel() {
   const { stats, stamina } = protagonist;
   const money = stats[0];
   const c = world.calendar;
 
   const meta = [
-    `<b>${c.date}</b><em>${c.weekday}</em>`,
-    `<span>${c.season} · ${c.week}</span>`,
+    `${ic('calendarSmall')}<b>${c.date}</b><em>${c.weekday} · ${c.season}</em>`,
     `${ic('moon')}<b>${world.time.clock}</b><em>${world.time.period}</em>`,
   ];
 
@@ -85,12 +126,9 @@ function statusPanel() {
   <div class="pworld">
     <div class="pworld-main">
       <div class="pworld-where">${ic('mapPin')}<b>${world.location.area}</b></div>
-      <div class="pworld-place">
-        <span>${world.location.place}</span>
-        <em>${PRIVACY[world.location.privacy]} ${world.location.privacy}/5</em>
-      </div>
+      <div class="pworld-place"><span>${world.location.place}</span></div>
     </div>
-    <div class="pworld-with">${player.companion ? `同行 · ${player.companion}` : '独行'}</div>
+    <div class="pworld-people">${portraitWhoChips()}</div>
   </div>
 
   <div class="pmoney">
@@ -103,13 +141,19 @@ function statusPanel() {
 
   <hr class="prule">
 
+  <!-- 主角档案 spelled out was a ~260-unit pill on this row, so the bar sat at its
+       80-unit floor.  The person glyph is the same control the landscape pane uses;
+       stamina.action stays as the accessible name.  The slack goes to the bar. -->
   <div class="pfavor is-stamina">
     ${ic('clock')}
     <span>${stamina.label}</span>
     <div class="pbar is-stamina"><i style="--pct:${pct(stamina.value, stamina.max)}%"></i></div>
     <b>${stamina.value}</b><em>/ ${stamina.max}</em>
-    <button class="pbtn-ghost" type="button" data-page="profile">${stamina.action}${ic('arrowRight')}</button>
+    <button class="pbtn-ghost is-icon" type="button" data-page="profile"
+      title="${stamina.action}" aria-label="${stamina.action}">${ic('person')}</button>
   </div>
+
+  ${portraitLifeRows()}
 </section>`;
 }
 
@@ -274,10 +318,9 @@ export function mountPortraitContent(stage, { onPage } = {}) {
      note at the top of pages.js for why a page replaces the column rather than being
      appended to it. */
   let workspace = null;
-  /* The argument the current page was opened with.  The gift page needs it after the
-     fact: a row press has to know whose gift it is, and the row cannot carry the name
-     as well without repeating it on every one of them. */
   let workspaceArg = null;
+  let unmountMap = null;
+  let unmountArcade = null;
   /* Where the reader was in the document before the page took over, so closing puts
      them back rather than at the top of a column they had already scrolled past. */
   let baseScrollY = 0;
@@ -323,12 +366,36 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     wireRail({ restoreScroll });
   };
 
+  const openOverlay = (name, mount) => {
+    if (!workspace) {
+      railScroll = rail()?.scrollLeft ?? railScroll;
+      baseScrollY = scrollY;
+    }
+    workspace = name;
+    workspaceArg = null;
+    document.documentElement.classList.add('is-page-open');
+    reportPortraitPage(true);
+    unmountMap?.();
+    unmountMap = null;
+    unmountArcade?.();
+    unmountArcade = null;
+    const layer = mount(document.querySelector('.viewport'), { onClose: closePage });
+    if (name === 'map') unmountMap = layer;
+    else unmountArcade = layer;
+  };
+
   const openPage = (page, arg) => {
+    if (page === 'map') { openOverlay('map', mountMapOverlay); return; }
+    if (page === 'arcade') { openOverlay('arcade', mountArcadeOverlay); return; }
     const build = PORTRAIT_PAGES[page];
     /* Anything unrouted falls through to the caller rather than opening an empty
        panel -- so an unknown name is visible as a no-op with a warning, not as a blank
        screen. */
     if (!build) { onPage?.(page, arg); return; }
+    unmountMap?.();
+    unmountMap = null;
+    unmountArcade?.();
+    unmountArcade = null;
     /* Remember the rail before it is thrown away, and the document position, so both
        come back on close.  Only on the way *in*: a page opening another page (羁绊总览
        into a 档案) must not overwrite where the base column was. */
@@ -338,6 +405,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     }
     workspace = page;
     workspaceArg = arg ?? null;
+    document.documentElement.classList.add('is-page-open');
+    reportPortraitPage(true);
     content.innerHTML = build(arg);
     sync();
     /* A page is a new view, not a continuation of the one underneath: start it at the
@@ -347,8 +416,16 @@ export function mountPortraitContent(stage, { onPage } = {}) {
 
   const closePage = () => {
     if (!workspace) return;
+    unmountMap?.();
+    unmountMap = null;
+    unmountArcade?.();
+    unmountArcade = null;
+    const wasOverlay = workspace === 'map' || workspace === 'arcade';
     workspace = null;
     workspaceArg = null;
+    document.documentElement.classList.remove('is-page-open');
+    reportPortraitPage(false);
+    if (wasOverlay) return;
     paintBase();
     /* After the layout settles, or the restore lands against the page's height rather
        than the column's. */
@@ -491,15 +568,25 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       return;
     }
 
-    /* Preferences are updated in place for the same reason: a re-render of the settings
-       page for a two-class change would throw away the scroll position. */
-    const choice = event.target.closest('[data-pref]');
-    if (choice) {
-      setPref(choice.dataset.pref, choice.dataset.prefValue);
-      choice.parentElement.querySelectorAll('[data-pref]').forEach((button) => {
-        const on = button === choice;
-        button.classList.toggle('is-active', on);
-        button.setAttribute('aria-pressed', String(on));
+    const inventoryPage = event.target.closest('[data-inventory-page]');
+    if (inventoryPage) {
+      const index = Number(inventoryPage.dataset.inventoryPage) || 0;
+      content.querySelectorAll('[data-inventory-page]').forEach((button) => {
+        const active = Number(button.dataset.inventoryPage) === index;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+      });
+      content.querySelectorAll('[data-inventory-page-panel]').forEach((group) => {
+        const active = Number(group.dataset.inventoryPagePanel) === index;
+        group.classList.toggle('is-active', active);
+        group.toggleAttribute('hidden', !active);
+      });
+      const current = content.querySelector('[data-inventory-page-current]');
+      if (current) current.textContent = String(index + 1);
+      sync();
+      requestAnimationFrame(() => {
+        const body = document.body;
+        if (body) body.scrollTop = 0;
       });
       return;
     }

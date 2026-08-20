@@ -21,6 +21,9 @@
     "ppages": "node tools/shot_portrait_pages.mjs",
     "smoke": "node tools/smoke_pages.mjs",
     "responsive": "node scripts/check-responsive.mjs",
+    "embed": "node scripts/check-embed.mjs",
+    "tavern:real": "node scripts/check-tavern-real.mjs",
+    "tavern:pages": "node scripts/check-tavern-mobile-pages.mjs",
     "split": "node scripts/check-split.mjs",
     "assets": "python tools/export_assets.py && python tools/make_bg_plate.py && python tools/export_item_icons.py && python tools/export_gift_icons.py"
   },

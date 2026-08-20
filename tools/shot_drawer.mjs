@@ -415,8 +415,6 @@ await p4.screenshot({ path: 'artifacts/drawer_many.png', clip: { x: 0, y: 700, w
 await p4.close();
 
 /* ------------------------------------------------------- the opening choice */
-/* Driven through the settings control rather than by writing localStorage, so what is
-   tested is the switch the reader actually presses. */
 console.log('\n道具栏打开方式:');
 const p3 = await browser.newPage({ viewport: { width: 1672, height: 941 }, deviceScaleFactor: 1 });
 p3.on('pageerror', (e) => problems.push(`pageerror prefs: ${e.message}`));
@@ -440,51 +438,6 @@ const press = async (label) => {
 
 const asDrawer = await press('default (底部抽屉)');
 if (!asDrawer.drawer || asDrawer.page) problems.push('default 背包 should open the drawer only');
-
-// Leave the drawer standing, then flip the switch: it has to close itself, because the
-// button that toggles it is about to mean something else.
-await p3.locator('.pane-pod .tool-btn[data-page="settings"]').click();
-await p3.waitForSelector('.settings-page');
-await p3.waitForTimeout(280);
-await p3.screenshot({ path: 'artifacts/page_settings.png' });
-await p3.locator('[data-pref="inventoryOpen"][data-pref-value="page"]').click();
-await p3.waitForTimeout(280);
-const closedItself = await p3.evaluate(() => !document.querySelector('.drawer-root'));
-console.log(`  flipping to 直接全屏 closed the standing drawer: ${closedItself}`);
-if (!closedItself) problems.push('switching to 直接全屏 must close an open drawer');
-
-const asPage = await press('直接全屏');
-if (asPage.drawer || !asPage.page) problems.push('直接全屏 背包 should open the page only');
-
-// And it survives a reload, because it is a reader preference rather than view state.
-await p3.reload({ waitUntil: 'load' });
-await p3.waitForFunction(() => [...document.querySelectorAll('.card-art')].every((i) => i.dataset.laid === '1'));
-const afterReload = await press('直接全屏 after reload');
-if (afterReload.drawer || !afterReload.page) problems.push('the preference did not survive a reload');
-
-// Put it back, and confirm the switch reads its own stored value on open.
-await p3.keyboard.press('Escape');
-await p3.waitForTimeout(150);
-await p3.locator('.pane-pod .tool-btn[data-page="settings"]').click();
-await p3.waitForSelector('.settings-page');
-const shown = await p3.evaluate(() =>
-  document.querySelector('[data-pref="inventoryOpen"].is-active')?.dataset.prefValue);
-console.log(`  reopened settings shows: ${shown}`);
-if (shown !== 'page') problems.push(`settings showed ${shown}, expected the stored 'page'`);
-
-/* The stub controls must be unpressable, not merely styled as if.  Checked while the
-   settings page is still standing -- press() below closes it. */
-const stubs = await p3.evaluate(() => {
-  const buttons = [...document.querySelectorAll('.settings-grid .segmented.is-stub button')];
-  return { count: buttons.length, allDisabled: buttons.every((b) => b.disabled) };
-});
-console.log(`  unwired controls: ${stubs.count}, all disabled: ${stubs.allDisabled}`);
-if (!stubs.count || !stubs.allDisabled) problems.push('unwired settings controls must be disabled');
-
-await p3.locator('[data-pref="inventoryOpen"][data-pref-value="drawer"]').click();
-await p3.waitForTimeout(200);
-const back = await press('back to 底部抽屉');
-if (!back.drawer || back.page) problems.push('switching back to 底部抽屉 did not take effect');
 await p3.close();
 
 /* ------------------------------------------------------ layering and escape */

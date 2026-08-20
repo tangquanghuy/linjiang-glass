@@ -420,7 +420,13 @@ export function renderContent(root) {
       const toDrawer = button.dataset.page === 'inventory' && pref('inventoryOpen') === 'drawer';
       /* Both panels want the same band, so whichever is asked for evicts the other. */
       if (toDrawer) { gifts.close(); drawer.toggle(); }
-      else pages.open(button.dataset.page);
+      else {
+        if (button.dataset.page === 'map' || button.dataset.page === 'arcade') {
+          gifts.close();
+          drawer.close();
+        }
+        pages.open(button.dataset.page);
+      }
     });
   });
   if (rail) placeCardArts(rail);

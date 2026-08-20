@@ -1,4 +1,4 @@
-/* Portrait full pages.
+﻿/* Portrait full pages.
    ------------------------------------------------------------------
    The existing checks cannot cover this: shot_drawer.mjs and smoke_pages.mjs are both
    pinned to a 1672x941 landscape viewport, and scripts/shot-portrait.mjs only exercises
@@ -53,6 +53,11 @@ const state = (page) => page.evaluate(() => {
     })),
     worn: document.querySelectorAll('.pslot-worn').length,
     groups: [...document.querySelectorAll('.pinv-head b')].map((b) => b.textContent),
+    visibleGroups: [...document.querySelectorAll('.pinv-group')].filter((group) => !group.hidden)
+      .map((group) => group.querySelector('.pinv-head b')?.textContent),
+    visibleRows: [...document.querySelectorAll('.pinv-group')].filter((group) => !group.hidden)
+      .reduce((sum, group) => sum + group.querySelectorAll('.pinv-row').length, 0),
+    inventoryPage: document.querySelector('[data-inventory-page][aria-selected="true"]')?.dataset.inventoryPage,
     railScroll: Math.round(document.querySelector('.prail')?.scrollLeft ?? -1),
   };
 });
@@ -98,7 +103,7 @@ const open = await state(page);
 console.log(`\ninventory`);
 console.log(`  panels        ${JSON.stringify(open.ids)}  (a page replaces the column)`);
 console.log(`  clip + ear    clip=${open.clips.join()} blossoms=${open.blossoms}`);
-console.log(`  groups        ${JSON.stringify(open.groups)}`);
+console.log(`  groups        ${JSON.stringify(open.groups)}; visible ${JSON.stringify(open.visibleGroups)} page ${open.inventoryPage}`);
 console.log(`  rows/cells    ${open.rows} rows, ${open.cells} cells, ${open.worn} worn`);
 console.log(`  category art  ${open.iconsLoaded}/${open.icons} loaded, ${open.gemsVisible} placeholder(s) still visible`);
 console.log(`  canvas ${open.canvas}  stage ${open.stage}  doc ${open.doc}  scrollY ${open.scrollY}`);
@@ -126,8 +131,17 @@ const slack = Math.abs(open.stage - Math.round(open.canvas * open.k));
 console.log(`  slack         ${slack} (stage height vs canvas x k)`);
 if (slack > 2) problems.push(`page canvas leaves ${slack}px of slack`);
 
-/* The page must be taller than the base column here, since it holds ten rows. */
-if (open.canvas <= base.canvas) problems.push('the page did not grow the document');
+/* The bag is paged by bucket now, so it should stay bounded rather than rendering
+   all ten rows into one document.  Each named page must reveal exactly its bucket. */
+for (const [index, label, count] of [[1, '消耗品', 4], [2, '素材', 3], [0, '用品', 3]]) {
+  await page.locator(`[data-inventory-page="${index}"]`).click();
+  await page.waitForTimeout(260);
+  const paged = await state(page);
+  console.log(`  page ${index + 1}/3     ${paged.visibleGroups.join()} · ${paged.visibleRows} rows · canvas ${paged.canvas}`);
+  if (paged.inventoryPage !== String(index) || paged.visibleGroups.join() !== label || paged.visibleRows !== count) {
+    problems.push(`inventory page ${index}: ${paged.inventoryPage}, ${paged.visibleGroups}, ${paged.visibleRows}`);
+  }
+}
 
 /* ------------------------------------------------------------------- close */
 await page.locator('[data-page-close]').click();
@@ -177,7 +191,7 @@ await page.waitForTimeout(300);
 console.log('\nroutes:');
 const routes = [
   ['当日事件', '.ptool[data-page="events"]', '.pevt'],
-  ['界面设置', '.ptool[data-page="settings"]', '.pset'],
+  ['地图', '.ptool[data-page="map"]', '.map-layer'],
   ['主角档案', '.pbtn-ghost[data-page="profile"]', '.pfans-fold'],
 ];
 for (const [label, selector, marker] of routes) {
@@ -186,11 +200,13 @@ for (const [label, selector, marker] of routes) {
   await page.waitForTimeout(420);
   const s = await state(page);
   const count = await page.locator(marker).count();
-  const ok = s.ids.join() === 'page' && count > 0;
+  const overlay = label === '地图';
+  const ok = overlay ? count > 0 : s.ids.join() === 'page' && count > 0;
   console.log(`  ${label.padEnd(6)} panels ${JSON.stringify(s.ids).padEnd(10)} ${marker} x${count}  canvas ${s.canvas}  ${ok ? 'ok' : 'FAIL'}`);
   if (!ok) problems.push(`${label}: panels ${s.ids}, ${marker} x${count}`);
   await page.screenshot({ path: `artifacts/portrait-${marker.slice(1)}.png`, fullPage: true });
   await page.keyboard.press('Escape');
+  if (overlay) await page.waitForSelector('.map-layer', { state: 'detached' });
   await page.waitForSelector('.ppanel[data-panel="girls"]');
   await page.waitForTimeout(240);
 }
@@ -259,30 +275,6 @@ console.log('  pressing it again closes it: ok');
 await page.keyboard.press('Escape');
 await page.waitForSelector('.ppanel[data-panel="girls"]');
 console.log('  Escape returns to the column: ok');
-
-/* The settings switch writes the shared preference from the portrait side too. */
-await page.locator('.ptool[data-page="settings"]').click();
-await page.waitForSelector('.pset');
-await page.waitForTimeout(300);
-const before = await page.evaluate(() => JSON.parse(localStorage.getItem('glass-hud-prefs') || '{}').inventoryOpen);
-await page.locator('[data-pref="inventoryOpen"][data-pref-value="page"]').click();
-await page.waitForTimeout(260);
-const after = await page.evaluate(() => ({
-  stored: JSON.parse(localStorage.getItem('glass-hud-prefs') || '{}').inventoryOpen,
-  active: document.querySelector('[data-pref="inventoryOpen"].is-active')?.dataset.prefValue,
-  stubsDisabled: [...document.querySelectorAll('.pseg.is-stub button')].every((b) => b.disabled),
-  stubs: document.querySelectorAll('.pseg.is-stub button').length,
-}));
-console.log(`\nsettings: ${before ?? '(default)'} -> ${after.stored}, control shows ${after.active}, ${after.stubs} unwired controls all disabled: ${after.stubsDisabled}`);
-if (after.stored !== 'page' || after.active !== 'page') problems.push('the portrait settings switch did not write the shared preference');
-if (!after.stubs || !after.stubsDisabled) problems.push('unwired portrait settings controls must be disabled');
-/* 背包 must still be the full page in portrait whatever that preference says -- there is
-   no drawer here for it to select. */
-await page.keyboard.press('Escape');
-await page.waitForTimeout(200);
-await page.locator('.ptool[data-page="inventory"]').click();
-await page.waitForSelector('.pinv-row', { timeout: 3000 });
-console.log("settings: 'page' does not change portrait 背包 (there is no drawer here): ok");
 await page.close();
 
 /* ---------------------------------------------------- a sweep of widths */

@@ -1,0 +1,74 @@
+/* One backdrop-filter per visible glass surface, on every page.
+   ------------------------------------------------------------------
+   Each backdrop-filter is a full-size offscreen blur.  The resting landscape
+   scene was two passes on the shell, two on the dock, two on the drawer, one
+   on every character card, then another on .page-shade / .page-modal / 评语
+   sheet / gift card as those opened -- a dozen blurs of a 1672×941 canvas.
+
+   Budget:
+     - the body blur of whatever glass is actually on screen stays
+     - the 微光晕 scatter pass is dropped (10% screen blend)
+     - cards and buttons keep their fills, not a second filter
+     - .page-shade is a dim only; the sheet behind it already blurs
+     - a full page hides the dock's unused blur; a 评语 sheet hides the
+       archive's blur so two sheets are never both filtering
+
+   Frost, tint and plus-lighter edge are fills, not filters. */
+
+.glass-scatter,
+.dock-scatter,
+.drawer-scatter,
+.pg-scatter {
+  display: none;
+}
+
+.card-glass,
+.pstage .card-glass,
+.btn-ghost,
+.gift-toast {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.page-shade {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Dock stays mounted under a page so closing it restores scroll; it is fully
+   covered, and its blur would sample nothing the reader can see. */
+.stage.has-modal .dock-blur,
+.stage.has-modal .dock-scatter {
+  display: none;
+}
+
+/* 评语 is a sibling of the archive (the archive is a backdrop root).  While it
+   is up, the archive's own blur is behind an opaque-enough sheet. */
+.stage.has-sheet .page-modal {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Gift confirm is the glass in play; the tray under it keeps its body blur so
+   the rail does not flash flat. */
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-blur,
+  .glass-scatter,
+  .dock-blur,
+  .dock-scatter,
+  .drawer-blur,
+  .drawer-scatter,
+  .pg-blur,
+  .pg-scatter,
+  .card-glass,
+  .page-shade,
+  .page-modal,
+  .dev-sheet,
+  .gift-confirm,
+  .gift-toast,
+  .btn-ghost {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

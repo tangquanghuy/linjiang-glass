@@ -22,11 +22,25 @@
    page can grow when the preview opens. */
 .portrait-mode,
 .portrait-mode body { height: auto; overflow-x: hidden; overflow-y: auto; }
+/* Inside the tavern iframe the document must not scroll: the shell sizes the
+   frame to the column and the tavern scrolls.  Standalone Pages still scrolls. */
+html.is-embedded.portrait-mode,
+html.is-embedded.portrait-mode body { overflow-y: hidden; }
 .portrait-mode .viewport {
   width: 100%;
   height: auto;
-  min-height: 100vh;
+  min-height: 0;
   overflow: visible;
+}
+/* Detail pages cover the phone (shell expands the iframe to 100dvh).  The
+   sheet may still be taller than the screen; that one scrollbar is the overlay. */
+html.is-embedded.portrait-mode.is-page-open,
+html.is-embedded.portrait-mode.is-page-open body {
+  height: 100%;
+  overflow-y: auto;
+}
+html.is-embedded.portrait-mode.is-page-open .viewport {
+  min-height: 100%;
 }
 
 /* One layout visible at a time; both stay mounted so rotating does not rebuild
@@ -122,10 +136,12 @@
    so the clip's coordinates are the element's own, and only a full-canvas element
    shares coordinates with the generated path.
 
-   The clipped layers are kept childless for the two backdrop-filter passes -- an
+   The clipped layers are kept childless for the backdrop-filter pass -- an
    element carrying clip-path may act as a backdrop root, which would starve a
    nested blur of anything to sample.  The paint layers do not sample the backdrop,
-   only blend against it, so they can share one clipped wrapper. */
+   only blend against it, so they can share one clipped wrapper.  Portrait mounts
+   one blur layer per panel; the scatter recipe stays in this file for the
+   landscape stack and is omitted from the portrait DOM (see src/styles/perf.css). */
 .pglass { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
 .pg { position: absolute; inset: 0; }
 
@@ -305,7 +321,10 @@
   cursor: pointer;
   transition: background .18s, border-color .18s;
 }
-.ptool .ic { font-size: var(--icon-lg); filter: drop-shadow(0 2px 6px rgba(6, 8, 22, .55)); }
+.ptool .ic {
+  font-size: calc(var(--d) * 0.62);
+  filter: drop-shadow(0 2px 6px rgba(6, 8, 22, .55));
+}
 
 .pdot {
   position: absolute;
@@ -335,8 +354,9 @@
 /* ------------------------------------------------------------ world strip */
 .pworld {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-3);
   padding: var(--sp-4) var(--sp-6);
   border: 2px solid rgba(213, 224, 255, .19);
   border-radius: 38px;
@@ -365,23 +385,50 @@
   font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
   color: rgba(228, 228, 248, .64);
 }
-.pworld-place em { font-style: normal; color: rgba(213, 205, 233, .46); }
-.pworld-main { min-width: 0; flex: 1; }
-.pworld-with {
-  flex: none;
-  margin-left: auto;
-  white-space: nowrap;
-  min-width: 108px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(215, 224, 255, .24);
-  border-radius: 26px;
-  background: rgba(166, 181, 235, .13);
-  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
-  color: rgba(236, 239, 255, .78);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10);
+.pworld-main { width: 100%; min-width: 0; flex: none; }
+.pworld-where b,
+.pworld-place span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pworld-people {
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: var(--sp-2);
 }
+.pworld-who {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 52px;
+  padding: 0 var(--sp-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  border: 2px solid color-mix(in srgb, var(--rim, #d7e0ff) 42%, transparent);
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--wash, #a6b5eb) 38%, transparent);
+  color: rgba(244, 244, 255, .90);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .10), 0 0 18px var(--glow, transparent);
+  white-space: nowrap;
+}
+.pworld-who em {
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 228, 248, .56);
+}
+.pworld-who i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--signal, rgba(220, 224, 250, .42));
+  box-shadow: 0 0 12px var(--signal, transparent);
+}
+.pworld-who b { font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif; }
+.pworld-who.is-none { border-color: rgba(215, 224, 255, .18); background: rgba(166, 181, 235, .09); box-shadow: inset 0 2px 0 rgba(255,255,255,.08); }
+.pworld-who.is-none i { display: none; }
+.pworld-who.is-none b { color: rgba(236, 239, 255, .54); font-weight: 400; }
+.pworld-who.is-live i { animation: who-live 1.9s ease-in-out infinite; }
 
 /* --------------------------------------------------- money and the meta row */
 /* 资金 is the only stat the player spends, so it is the only one drawn as a
@@ -472,6 +519,80 @@
   box-shadow: 0 0 24px rgba(94, 130, 240, .3), inset 0 2px 0 rgba(206, 224, 255, .22);
 }
 
+/* ------------------------------------------------------- work / residence */
+.plife-rows {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 2px solid rgba(226, 228, 250, .10);
+}
+.plife-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--sp-2);
+  min-height: 42px;
+}
+.plife-line > .ic {
+  flex: none;
+  width: var(--icon-md);
+  font-size: var(--icon-sm);
+  color: rgba(218, 226, 255, .72);
+}
+.plife-label {
+  flex: none;
+  width: 82px;
+  white-space: nowrap;
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 248, .56);
+}
+.plife-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: rgba(244, 244, 255, .92);
+}
+.plife-sub {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 248, .50);
+}
+.plife-sub::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--sp-2);
+  vertical-align: 0.22em;
+  border-radius: 50%;
+  background: rgba(242, 215, 229, .5);
+}
+.plife-fill { flex: 1 1 auto; min-width: var(--sp-1); }
+.plife-tag {
+  flex: none;
+  padding: 6px 12px;
+  border: 2px solid rgba(210, 220, 250, .18);
+  border-radius: 18px;
+  background: rgba(130, 145, 200, .10);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(232, 234, 250, .68);
+  white-space: nowrap;
+}
+.plife-tag.is-warn { border-color: rgba(255, 208, 160, .34); background: rgba(255, 190, 120, .12); color: #ffd7a0; }
+.plife-tag.is-ready { border-color: rgba(255, 224, 140, .36); background: rgba(255, 220, 130, .12); color: #ffe08a; }
+.plife-tag.is-ok { border-color: rgba(150, 230, 190, .30); background: rgba(120, 220, 180, .11); color: #b6f0d2; }
+
 /* ------------------------------------------------------------ favor block */
 .pfavor {
   display: flex;
@@ -493,7 +614,7 @@
 }
 .pfavor .pbar {
   flex: 1;
-  min-width: 80px;
+  min-width: 180px;
   height: 28px;
   margin: 0;
 }
@@ -510,9 +631,8 @@
 }
 .pfavor .pbtn-ghost {
   --d: 56px;
-  margin: 0 0 0 auto;
+  margin: 0;
   height: var(--d);
-  white-space: nowrap;
 }
 
 .pbar {
@@ -534,6 +654,7 @@
 .pbtn-ghost {
   --d: 68px;
   position: relative;
+  flex: none;
   margin: var(--sp-4) 0 0 auto;
   display: flex;
   align-items: center;
@@ -549,6 +670,15 @@
   cursor: pointer;
 }
 .pbtn-ghost .ic { font-size: var(--fs-body); }
+
+/* Same rim and wash, squared off into a circle: the four characters were restating
+   a pane that already reads Status / 主角状态.  --d now describes both axes. */
+.pbtn-ghost.is-icon {
+  width: var(--d);
+  padding: 0;
+  border-radius: 50%;
+}
+.pbtn-ghost.is-icon .ic { font-size: var(--icon-sm); }
 
 /* ------------------------------------------------------------------- rail */
 /* Swipe, not paging.  The landscape rail advances four at a time with a button on
@@ -1023,7 +1153,10 @@
    at the top of src/portrait/pages.js.  So it is one .ppanel with no next ear, which
    means the stage gives it a flat bottom and both bottom corners automatically; there
    is no new geometry here, only content. */
-.ppanel.is-page { animation: ppage-in .26s cubic-bezier(.2, .82, .25, 1) both; }
+.ppanel.is-page {
+  min-height: calc(var(--viewport-canvas-h, 0px) - 136px);
+  animation: ppage-in .26s cubic-bezier(.2, .82, .25, 1) both;
+}
 @keyframes ppage-in {
   from { opacity: 0; transform: translateY(-16px); }
   to   { opacity: 1; transform: none; }
@@ -1080,6 +1213,38 @@
 }
 .pbar.is-stamina > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
 .pinv-stamina .pbar > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
+
+.pinv-pager {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-5) 0 var(--sp-2);
+  padding: var(--sp-1);
+  border: 2px solid rgba(215, 224, 255, .14);
+  border-radius: 28px;
+  background: rgba(28, 34, 70, .20);
+}
+.pinv-pager button {
+  min-width: 0;
+  min-height: 66px;
+  padding: 0 var(--sp-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: rgba(226, 228, 248, .60);
+  cursor: pointer;
+}
+.pinv-pager button b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; }
+.pinv-pager button span { flex:none; min-width:34px; height:34px; display:grid; place-items:center; border-radius:17px; background:rgba(210,220,255,.10); font:500 var(--fs-micro)/1 'Outfit',sans-serif; }
+.pinv-pager button.is-active { color:#fff; background:linear-gradient(135deg,rgba(142,166,255,.30),rgba(211,147,235,.20)); box-shadow:inset 0 2px 0 rgba(255,255,255,.15),0 0 20px rgba(120,145,240,.18); }
+.pinv-pager button.is-active span { background:rgba(155,180,255,.24); color:#dfe8ff; }
+.pinv-page-note { margin:0 0 var(--sp-5); text-align:center; font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(226,228,248,.46); }
+.pinv-page-note b { color:rgba(244,244,255,.86); font:500 var(--fs-caption)/1 'Outfit',sans-serif; }
+.pinv-group[hidden] { display:none !important; }
 
 .pinv-group + .pinv-group { margin-top: var(--sp-7); }
 
@@ -1859,12 +2024,8 @@
 .pfans-fold > summary b {
   font: 700 var(--fs-lead)/1 'Noto Sans SC', sans-serif;
 }
-.pfans-fold > summary small {
-  flex: 1;
-  font: 500 var(--fs-caption)/1.3 'Noto Sans SC', sans-serif;
-  color: rgba(236, 238, 255, .84);
-}
 .pfans-fold > summary em {
+  margin-left: auto;
   font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
   font-style: normal;
   color: rgba(236, 238, 255, .84);
@@ -1872,7 +2033,6 @@
 .pfans-fold > summary em.is-open { display: none; }
 .pfans-fold[open] > summary em.is-open { display: inline; }
 .pfans-fold[open] > summary em.is-shut { display: none; }
-.pfans-fold > summary > .ic { margin-left: auto; }
 .pfans-fold[open] > summary { border-bottom: 2px solid rgba(226, 231, 255, .14); }
 .pfans-fold .pfans { padding: var(--sp-3) var(--sp-3) var(--sp-4); }
 .pkicker em {
@@ -2068,7 +2228,7 @@
 .pschedule-line-time b { font:500 var(--fs-lead)/1 'Outfit',sans-serif; color:#fff; }
 .pschedule-line-time span { font:400 var(--fs-caption)/1 'Outfit',sans-serif; color:rgba(230,230,246,.55); }
 .pschedule-line-state { grid-column:1/-1; min-width:0; display:flex; align-items:baseline; gap:var(--sp-2); padding:var(--sp-2) 0 0; border-top:2px solid rgba(226,230,255,.1); }
-.pschedule-line-state b { font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.7); }
+.pschedule-line-state b { flex:none; white-space:nowrap; font:500 var(--fs-caption)/1 'Noto Sans SC',sans-serif; color:rgba(232,232,248,.7); }
 .pschedule-line-state small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.46); }
 .pschedule-line-state.is-live b { color:#ffafd2; }
 .pschedule-line-state.is-unplanned b { color:#ffd68b; }
@@ -2091,8 +2251,8 @@
 .pschedule-run-day.is-live i { top:14px; height:27px; box-shadow:0 0 24px var(--glow),inset 0 0 0 2px rgba(255,255,255,.72); }
 .pschedule-run-day.is-unplanned i { top:14px; height:27px; background:linear-gradient(90deg,#e6ad58,#ffd98f); box-shadow:0 0 24px rgba(255,202,110,.62); }
 .pschedule-run-day.is-rest i { display:none; }
+.pprofile-routes { display:grid; gap:var(--sp-3); margin-top:var(--sp-4); }
+.pprofile-routes .pprofile-schedule { margin-top:0; }
 .pprofile-schedule { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); width:100%; margin-top:var(--sp-5); padding:var(--sp-3) var(--sp-4); border:2px solid rgba(226,230,255,.14); border-radius:var(--sp-3); background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(30,34,70,.18)); color:inherit; text-align:left; }
-.pprofile-schedule span { display:flex; flex-direction:column; gap:var(--sp-1); min-width:0; }
 .pprofile-schedule b { font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.9); }
-.pprofile-schedule small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 var(--fs-micro)/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.5); }
 .pprofile-schedule > .ic { flex:none; font-size:var(--icon-sm); color:rgba(240,236,250,.52); }

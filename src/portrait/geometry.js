@@ -65,10 +65,12 @@ export const EAR = { width: 280, r: 34, drop: 44, fillet: 58 };
 /** Raised tool tab on the top-right -- only the Status panel carries one. */
 export const POD = { width: 356, r: 46 };
 
-/* Tool ring buttons inside the pod.  96 units is 39.8 real px at a 390px-wide
-   container; the hit area is widened to 44 by a pseudo-element rather than by
-   growing the ring, so the drawing keeps its proportions. */
-export const TOOL = { d: 96, gap: 18, count: 3 };
+/* Tool ring buttons inside the pod.  Four 76-unit rings (plus 12 gaps) fill the
+   356-unit pod the way three 96-unit rings used to, leaving the same ~16 units of
+   side slack so the outer two sit inside the pod's corner radius.  76 units is
+   31.5 real px at a 390px-wide container; the hit area is still widened to 44 by
+   a pseudo-element rather than by growing the ring. */
+export const TOOL = { d: 76, gap: 12, count: 4 };
 
 /** One seam width, used for every gap between stacked panels. */
 export const SEAM = 26;

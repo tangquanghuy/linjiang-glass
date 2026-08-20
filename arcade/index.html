@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AIRP 幸运街机 · 游戏厅</title>
+<meta name="description" content="猫爪梦境刮刮乐 / 每日一签 / 直播幸运机 / 深海寻宝 —— 共享钱包的四合一街机页面。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8E%B0%3C/text%3E%3C/svg%3E">
+
+<script>
+/* Theme must be on <body> before any game iframe boots: the games read
+   parent.document.body.dataset.theme during their own init(). */
+(function () {
+  var THEMES = ['dark', 'warm-white', 'green', 'classic-dark'];
+  var t = 'dark';
+  try {
+    var s = localStorage.getItem('kivotos-theme') || localStorage.getItem('theme');
+    if (THEMES.indexOf(s) >= 0) t = s;
+  } catch (_) {}
+  document.documentElement.dataset.theme = t;
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.dataset.theme = t;
+  });
+})();
+</script>
+
+<style>
+/* Theme tokens are copied from the game pages so the shell and the
+   embedded pages resolve to the exact same palette. */
+:root,
+[data-theme=dark]{color-scheme:dark;--stage:#100d17;--panel:#1e182b;--line:#ffffff22;--text:#fff;--muted:#b6aac7;--good:#65f0b5;--bad:#ff7c9d;--accent:#8c7aff;--accent2:#65f0b5}
+[data-theme=warm-white]{color-scheme:light;--stage:#e8e0ee;--panel:#fff9ff;--line:#3b294528;--text:#2e2234;--muted:#76677e;--good:#18815a;--bad:#bd3e61;--accent:#7a5cd8;--accent2:#18815a}
+[data-theme=green]{color-scheme:light;--stage:#dcebe3;--panel:#f8fffb;--line:#234f3a2b;--text:#25372d;--muted:#607468;--good:#1c7650;--bad:#b84962;--accent:#2f7f60;--accent2:#1c7650}
+[data-theme=classic-dark]{color-scheme:dark;--stage:#161310;--panel:#29231e;--line:#e1c99c2a;--text:#eadfcf;--muted:#aa9a84;--good:#8bc6a2;--bad:#d57986;--accent:#c9a86a;--accent2:#8bc6a2}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;min-height:100%}
+body{
+  --nav-h:62px;
+  padding:0;background:var(--stage);color:var(--text);
+  font:14px/1.5 "Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+button{font:inherit;color:inherit}
+a{color:inherit}
+
+/* ---------- dock: one segmented track + a compact purse ---------- */
+.topbar{
+  position:sticky;top:0;z-index:60;
+  display:flex;align-items:center;gap:10px;
+  min-height:var(--nav-h);padding:8px 12px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 88%,transparent),color-mix(in srgb,var(--stage) 70%,transparent));
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+html.is-hud .topbar{padding-right:58px}
+
+.tabs{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  flex:1 1 auto;min-width:0;max-width:640px;
+  gap:3px;padding:4px;
+  border:1px solid var(--line);border-radius:16px;
+  background:#00000028;
+}
+.tab{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  min-width:0;padding:9px 8px;border:0;border-radius:12px;
+  background:transparent;cursor:pointer;
+  font-weight:800;font-size:13px;letter-spacing:.02em;
+  transition:background .16s,color .16s,box-shadow .16s;
+}
+.tab .ico{font-size:16px;line-height:1;flex:none}
+.tab .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab{color:var(--muted)}
+.tab:hover{color:var(--text);background:#ffffff10}
+.tab[aria-selected=true]{
+  color:var(--text);
+  background:color-mix(in srgb,var(--accent) 34%,var(--panel));
+  box-shadow:inset 0 1px 0 #ffffff28,0 6px 16px color-mix(in srgb,var(--accent) 28%,transparent);
+}
+
+.bar-right{display:flex;align-items:center;flex:0 0 auto;margin-left:auto}
+
+.wallet{position:relative}
+.wallet-btn{
+  display:flex;align-items:center;gap:6px;
+  min-height:40px;padding:0 12px 0 10px;
+  border:1px solid color-mix(in srgb,var(--good) 28%,var(--line));
+  border-radius:999px;background:#00000028;cursor:pointer;
+}
+.wallet-btn .mark{
+  display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
+  background:color-mix(in srgb,var(--good) 22%,transparent);
+  color:var(--good);font-size:12px;font-weight:900;
+}
+.wallet-btn b{color:var(--good);font-size:15px;font-variant-numeric:tabular-nums;font-weight:800}
+.wallet-btn:hover{background:#ffffff12}
+.pop{
+  position:absolute;right:0;top:calc(100% + 8px);z-index:70;
+  width:244px;padding:12px;
+  border:1px solid var(--line);border-radius:14px;background:var(--panel);
+  box-shadow:0 18px 44px #00000059;
+}
+.pop h3{margin:0 0 3px;font-size:12px;letter-spacing:.08em}
+.pop p{margin:0 0 10px;color:var(--muted);font-size:10px;line-height:1.5}
+.pop-row{display:flex;gap:6px;margin-bottom:7px}
+.pop-row button{
+  flex:1;padding:7px 0;border:1px solid var(--line);border-radius:9px;
+  background:#ffffff0b;cursor:pointer;font-size:11px;font-weight:800;
+}
+.pop-row button:hover{background:#ffffff1a;border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
+.pop .danger{color:var(--bad)}
+.pop-themes{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--line);
+}
+.pop-themes > span{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em}
+.themes{display:flex;align-items:center;gap:5px}
+.themes[data-inert=true]{opacity:.45}
+.swatch{
+  width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:7px;
+  cursor:pointer;transition:transform .12s,box-shadow .16s;
+}
+.swatch:hover{transform:translateY(-1px)}
+.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--accent2)}
+.swatch[data-theme=dark]{background:linear-gradient(140deg,#1e182b,#100d17)}
+.swatch[data-theme=warm-white]{background:linear-gradient(140deg,#fff9ff,#e8e0ee)}
+.swatch[data-theme=green]{background:linear-gradient(140deg,#f8fffb,#dcebe3)}
+.swatch[data-theme=classic-dark]{background:linear-gradient(140deg,#29231e,#161310)}
+
+/* Shrine is a full-bleed night scene. The dock floats over it instead of
+   eating a solid strip, so the tree is not cut off by a second header. */
+html[data-game=shrine]{
+  height:100%;
+}
+html[data-game=shrine] body{height:100%;--nav-h:0px;overflow:hidden}
+html[data-game=shrine] .topbar{
+  position:absolute;left:0;right:0;top:0;
+  background:linear-gradient(180deg,#100d17f0 0%,#100d17a8 62%,transparent);
+  pointer-events:none;
+}
+html[data-game=shrine] .tab,
+html[data-game=shrine] .wallet{pointer-events:auto}
+html[data-game=shrine] .stage,
+html[data-game=shrine] .stage[data-fit=viewport] .frame{height:100dvh}
+
+/* ---------- stage ---------- */
+.stage{position:relative;width:100%;padding:0}
+.frame{
+  display:block;width:100%;border:0;
+  /* the embedded pages declare background:transparent so --stage shows through */
+  background:transparent;
+}
+.stage[data-fit=viewport] .frame{height:calc(100dvh - var(--nav-h))}
+.stage[data-fit=content] .frame{min-height:calc(100dvh - var(--nav-h))}
+
+.loader{
+  position:absolute;inset:0;z-index:5;
+  display:grid;place-content:center;gap:12px;justify-items:center;
+  background:var(--stage);color:var(--muted);
+  transition:opacity .3s;
+}
+.loader[hidden]{display:none!important}
+.spinner{
+  width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--accent);
+  animation:spin .8s linear infinite;
+}
+.loader span{font-size:11px;letter-spacing:.12em}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast{
+  position:fixed;left:50%;bottom:22px;z-index:200;
+  max-width:min(86vw,400px);padding:9px 16px;
+  border:1px solid var(--line);border-radius:11px;
+  background:var(--panel);color:var(--text);
+  box-shadow:0 14px 36px #00000059;
+  font-size:12px;font-weight:800;text-align:center;
+  transform:translate(-50%,10px);opacity:0;pointer-events:none;transition:.2s;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+
+@media(max-width:720px){
+  .tab{padding:8px 4px;font-size:12px;gap:5px}
+  .tab .ico{font-size:15px}
+}
+@media(max-width:520px){
+  body{--nav-h:56px}
+  .topbar{padding:6px 8px;gap:8px}
+  html.is-hud .topbar{padding-right:50px}
+  .tabs{padding:3px;border-radius:14px}
+  .tab{flex-direction:column;gap:2px;padding:6px 2px;font-size:10px;border-radius:10px}
+  .tab .ico{font-size:16px}
+  .wallet-btn{min-height:36px;padding:0 8px 0 6px}
+  .wallet-btn b{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* Scratch and fishing are landscape games. On a portrait phone the rotator
+   is sized as a landscape stage (width = 100dvh, height = 100dvw) and turned
+   -90deg so the games see a wide viewport without squeezing into a column.
+   Clockwise phone rotation then matches: game-top sits on the phone's left. */
+.rotator{display:contents}
+html.is-force-landscape,html.is-force-landscape body{
+  width:100%;height:100%;overflow:hidden;
+}
+html.is-force-landscape body{--nav-h:52px}
+html.is-force-landscape .rotator{
+  display:block;position:fixed;z-index:1;
+  top:50%;left:50%;
+  width:100dvh;height:100dvw;
+  transform:translate(-50%,-50%) rotate(-90deg);
+  transform-origin:center center;
+  overflow:hidden;background:var(--stage);
+}
+html.is-force-landscape .topbar{
+  position:sticky;padding:6px 10px;gap:8px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 88%,transparent),color-mix(in srgb,var(--stage) 70%,transparent));
+}
+html.is-force-landscape .tabs{max-width:none}
+html.is-force-landscape .tab{flex-direction:row;padding:7px 6px;font-size:12px}
+html.is-force-landscape .stage{
+  height:calc(100% - var(--nav-h));
+  min-height:0;
+  overflow:hidden;
+}
+html.is-force-landscape .stage[data-fit=viewport] .frame,
+html.is-force-landscape .stage[data-fit=content] .frame{
+  height:100%!important;min-height:0!important;
+}
+</style>
+</head>
+<body>
+<div class="rotator" id="rotator">
+
+<header class="topbar">
+  <nav class="tabs" id="tabs" role="tablist" aria-label="游戏切换"></nav>
+
+  <div class="bar-right">
+    <div class="wallet">
+      <button class="wallet-btn" id="walletBtn" type="button" aria-expanded="false" aria-haspopup="true" aria-label="共享钱包">
+        <span class="mark" aria-hidden="true">¥</span>
+        <b id="balance">¥0</b>
+      </button>
+      <div class="pop" id="walletPop" hidden>
+        <h3>共享钱包</h3>
+        <p>四个游戏共用同一份余额，数据保存在本机浏览器中。</p>
+        <div class="pop-row">
+          <button type="button" data-add="1000">+1,000</button>
+          <button type="button" data-add="5000">+5,000</button>
+        </div>
+        <div class="pop-row">
+          <button type="button" data-set="1000">重置余额</button>
+          <button type="button" class="danger" data-reset-game="1">重开本局</button>
+        </div>
+        <div class="pop-themes">
+          <span>主题</span>
+          <div class="themes" id="themes" role="group" aria-label="主题切换"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="stage" id="stage" data-fit="content">
+  <div class="loader" id="loader"><div class="spinner" aria-hidden="true"></div><span>正在载入…</span></div>
+  <iframe class="frame" id="frame" title="游戏画面" allow="autoplay"></iframe>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ * The four pages were authored as one suite. They already share:
+ *   - wallet key      airp_arcade_wallet_v1
+ *   - theme values    dark | warm-white | green | classic-dark
+ *   - a message API   inbound  kivotos-theme-change, airp-<ns>:set-theme,
+ *                             airp-<ns>:set-balance, airp-<ns>:reset-command
+ *                     outbound airp-<ns>:ready / :settled / :balance-set / ...
+ * This shell is the missing host: it routes between them, keeps the
+ * theme and wallet in sync, and sizes each page correctly.
+ * ------------------------------------------------------------------ */
+
+const WALLET_KEY = 'airp_arcade_wallet_v1';
+const THEME_KEY  = 'kivotos-theme';
+const THEMES = ['dark', 'warm-white', 'green', 'classic-dark'];
+const THEME_LABEL = {dark:'暗夜', 'warm-white':'暖白', green:'青竹', 'classic-dark':'古典暗'};
+const DEFAULT_BALANCE = 1000;
+
+const GAMES = [
+  {id:'shrine',  file:'shrine.html',  ns:'airp-shrine',  ico:'⛩️', label:'每日一签',
+   title:'每日一签',       state:null, fit:'viewport', themed:false},
+  {id:'scratch', file:'scratch.html', ns:'airp-scratch', ico:'🐾', label:'刮刮乐',
+   title:'猫爪梦境刮刮乐', state:'airp_scratch_card_state_v2', fit:'content', themed:true, landscape:true},
+  {id:'slots',   file:'slots.html',   ns:'airp-slot',    ico:'🎰', label:'幸运机',
+   title:'直播幸运机',     state:'airp_physical_slot_state_v2', fit:'content', themed:true},
+  {id:'fishing', file:'fishing.html', ns:'airp-fishing', ico:'🐟', label:'深海寻宝',
+   title:'深海寻宝',       state:'airp_fishing_state_v1', fit:'content', themed:true, landscape:true},
+];
+const GAME_STATE_KEYS = GAMES.map(g => g.state).filter(Boolean);
+
+const el = {
+  tabs:      document.getElementById('tabs'),
+  themes:    document.getElementById('themes'),
+  balance:   document.getElementById('balance'),
+  walletBtn: document.getElementById('walletBtn'),
+  walletPop: document.getElementById('walletPop'),
+  stage:     document.getElementById('stage'),
+  frame:     document.getElementById('frame'),
+  loader:    document.getElementById('loader'),
+  toast:     document.getElementById('toast'),
+};
+
+let current = GAMES[0];
+let theme = document.documentElement.dataset.theme || 'dark';
+
+try { if (parent !== window) document.documentElement.classList.add('is-hud'); } catch (_) {}
+
+function portraitPhone() { return innerHeight > innerWidth; }
+
+function syncForceLandscape() {
+  const on = !!current.landscape && portraitPhone();
+  document.documentElement.classList.toggle('is-force-landscape', on);
+  el.stage.dataset.fit = on ? 'viewport' : current.fit;
+  if (on) el.frame.style.height = '';
+}
+
+/* ---------------- storage helpers ---------------- */
+const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { return null; } };
+const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+const money = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.round(n * 100) / 100) : 0; };
+const fmt = (v) => '¥' + money(v).toLocaleString('zh-CN', {maximumFractionDigits: 2});
+
+/* Mirrors the games' own readSharedBalance(): wallet first, then any
+   game state that carries a balance, then the shared default. */
+function readBalance() {
+  const w = readJSON(WALLET_KEY);
+  if (w && Number.isFinite(+w.balance)) return money(w.balance);
+  for (const k of GAME_STATE_KEYS) {
+    const s = readJSON(k);
+    if (s && Number.isFinite(+s.balance)) return money(s.balance);
+  }
+  return DEFAULT_BALANCE;
+}
+
+/* Mirrors the shrine's writeBalance(): update the wallet and push the
+   value into every game's saved state so no page starts out stale. */
+function writeBalance(value) {
+  const v = money(value);
+  writeJSON(WALLET_KEY, {balance: v, updatedAt: Date.now(), source: 'lobby'});
+  for (const k of GAME_STATE_KEYS) {
+    const s = readJSON(k);
+    if (s && typeof s === 'object') { s.balance = v; writeJSON(k, s); }
+  }
+  renderBalance();
+  send(current.ns + ':set-balance', {balance: v});
+  return v;
+}
+
+function renderBalance() { el.balance.textContent = fmt(readBalance()); }
+
+/* ---------------- messaging into the active page ---------------- */
+function send(type, extra) {
+  const win = el.frame.contentWindow;
+  if (!win) return;
+  try { win.postMessage(Object.assign({type}, extra || {}), '*'); } catch (_) {}
+}
+
+/* ---------------- theme ---------------- */
+function applyTheme(next, {persist = true, notify = true} = {}) {
+  theme = THEMES.includes(next) ? next : 'dark';
+  document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
+  if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (_) {} }
+  for (const b of el.themes.querySelectorAll('.swatch')) {
+    b.setAttribute('aria-pressed', String(b.dataset.theme === theme));
+  }
+  // The games accept either the shared kivotos event or their own namespace.
+  if (notify) { send('kivotos-theme-change', {theme}); send(current.ns + ':set-theme', {theme}); }
+}
+
+function buildThemes() {
+  el.themes.innerHTML = '';
+  for (const t of THEMES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.dataset.theme = t;
+    b.title = THEME_LABEL[t];
+    b.setAttribute('aria-label', '主题：' + THEME_LABEL[t]);
+    b.setAttribute('aria-pressed', String(t === theme));
+    b.addEventListener('click', () => {
+      applyTheme(t);
+      if (!current.themed) toast('每日一签使用固定夜景主题，已保存给其他游戏');
+    });
+    el.themes.appendChild(b);
+  }
+}
+
+/* ---------------- tabs / routing ---------------- */
+function buildTabs() {
+  el.tabs.innerHTML = '';
+  for (const g of GAMES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tab';
+    b.id = 'tab-' + g.id;
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', 'false');
+    b.title = g.title;
+    b.innerHTML = '<span class="ico" aria-hidden="true">' + g.ico +
+                  '</span><span class="label">' + g.label + '</span>';
+    b.addEventListener('click', () => { location.hash = '#' + g.id; });
+    el.tabs.appendChild(b);
+  }
+}
+
+function gameFromHash() {
+  const id = decodeURIComponent((location.hash || '').replace(/^#\/?/, '')).trim();
+  return GAMES.find(g => g.id === id) || GAMES[0];
+}
+
+function show(game) {
+  current = game;
+  document.title = game.title + ' · 幸运街机';
+  document.documentElement.dataset.game = game.id;
+  for (const g of GAMES) {
+    const t = document.getElementById('tab-' + g.id);
+    if (t) { t.setAttribute('aria-selected', String(g === game)); t.tabIndex = g === game ? 0 : -1; }
+  }
+  el.themes.dataset.inert = String(!game.themed);
+  el.themes.title = game.themed ? '切换主题' : '每日一签为固定夜景主题';
+
+  el.stage.dataset.fit = game.fit;
+  el.frame.style.height = '';
+  el.frame.title = game.title;
+  el.loader.hidden = false;
+  syncForceLandscape();
+  // One iframe, swapped src: the 2.8MB fishing page is only fetched on demand
+  // and every game persists its own state, so switching loses nothing.
+  el.frame.setAttribute('src', game.file);
+  renderBalance();
+}
+
+function route() {
+  const g = gameFromHash();
+  if (g === current && el.frame.getAttribute('src') === g.file) return;
+  show(g);
+}
+
+/* ---------------- iframe sizing ---------------- */
+let ro = null;
+
+function fit() {
+  if (el.stage.dataset.fit === 'viewport') return;
+  let doc = null;
+  try { doc = el.frame.contentDocument; } catch (_) { doc = null; }
+  if (!doc || !doc.documentElement) {
+    // Cross-origin/file:// fallback: let CSS hold a viewport-tall frame.
+    el.stage.dataset.fit = 'viewport';
+    return;
+  }
+  const h = Math.max(
+    doc.documentElement.scrollHeight || 0,
+    doc.body ? doc.body.scrollHeight : 0
+  );
+  if (h > 0) el.frame.style.height = h + 'px';
+}
+
+function watchFrame() {
+  if (ro) { ro.disconnect(); ro = null; }
+  if (el.stage.dataset.fit === 'viewport') return;
+  let doc = null;
+  try { doc = el.frame.contentDocument; } catch (_) { return; }
+  if (!doc || typeof ResizeObserver === 'undefined') return;
+  ro = new ResizeObserver(fit);
+  if (doc.documentElement) ro.observe(doc.documentElement);
+  if (doc.body) ro.observe(doc.body);
+}
+
+el.frame.addEventListener('load', () => {
+  el.loader.hidden = true;
+  // Re-assert theme and balance now that the page has booted.
+  send('kivotos-theme-change', {theme});
+  if (current.themed) send(current.ns + ':set-theme', {theme});
+  fit(); watchFrame();
+  setTimeout(fit, 260);
+  setTimeout(fit, 900);
+  renderBalance();
+});
+
+addEventListener('resize', () => { syncForceLandscape(); fit(); });
+addEventListener('orientationchange', () => { syncForceLandscape(); fit(); });
+
+/* ---------------- wallet popover ---------------- */
+function togglePop(open) {
+  const next = open === undefined ? el.walletPop.hidden : open;
+  el.walletPop.hidden = !next;
+  el.walletBtn.setAttribute('aria-expanded', String(next));
+}
+
+el.walletBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop(); });
+document.addEventListener('click', (e) => {
+  if (!el.walletPop.hidden && !e.target.closest('.wallet')) togglePop(false);
+});
+addEventListener('keydown', (e) => { if (e.key === 'Escape') togglePop(false); });
+
+el.walletPop.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.add) {
+    writeBalance(readBalance() + Number(b.dataset.add));
+    toast('已充值 ' + fmt(b.dataset.add));
+  } else if (b.dataset.set) {
+    writeBalance(Number(b.dataset.set));
+    toast('余额已重置为 ' + fmt(b.dataset.set));
+  } else if (b.dataset.resetGame) {
+    send(current.ns + ':reset-command', {});
+    toast('已请求重开：' + current.title);
+  } else {
+    return;
+  }
+  togglePop(false);
+});
+
+/* ---------------- inbound game events ---------------- */
+addEventListener('message', (e) => {
+  if (e.source !== el.frame.contentWindow) return;
+  const d = e.data || {};
+  if (typeof d.type !== 'string' || d.type.indexOf('airp-') !== 0) return;
+  const b = d.detail && d.detail.balance;
+  if (Number.isFinite(+b)) {
+    // Keep the shared wallet authoritative as games settle rounds.
+    const w = readJSON(WALLET_KEY);
+    if (!w || money(w.balance) !== money(b)) {
+      writeJSON(WALLET_KEY, {balance: money(b), updatedAt: Date.now(), source: current.id});
+    }
+  }
+  renderBalance();
+});
+
+// A game writing localStorage fires `storage` in this document (same origin).
+addEventListener('storage', (e) => {
+  if (!e.key || e.key === WALLET_KEY || GAME_STATE_KEYS.includes(e.key)) renderBalance();
+  if (e.key === THEME_KEY && THEMES.includes(e.newValue)) applyTheme(e.newValue, {persist: false});
+});
+setInterval(renderBalance, 2000);
+
+/* ---------------- toast ---------------- */
+let toastTimer = 0;
+function toast(msg) {
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
+}
+
+/* ---------------- boot ---------------- */
+buildTabs();
+buildThemes();
+applyTheme(theme, {persist: false, notify: false});
+if (!location.hash) location.replace('#' + GAMES[0].id);
+addEventListener('hashchange', route);
+show(gameFromHash());
+renderBalance();
+})();
+</script>
+</body>
+</html>

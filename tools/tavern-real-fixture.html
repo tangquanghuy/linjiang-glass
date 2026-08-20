@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>真实酒馆嵌入夹具</title>
+<style>
+  :root {
+    --sheldWidth: 50vw;
+    --fontScale: 1;
+    --mainFontSize: calc(var(--fontScale) * 15px);
+    --mainFontFamily: "Noto Sans", "Microsoft YaHei UI", sans-serif;
+    --bottomFormBlockPadding: calc(var(--mainFontSize) / 2.5);
+    --bottomFormIconSize: calc(var(--mainFontSize) * 1.9);
+    --bottomFormBlockSize: calc(var(--bottomFormIconSize) + var(--bottomFormBlockPadding));
+    --topBarIconSize: calc(var(--mainFontSize) * 2);
+    --topBarBlockPadding: calc(var(--mainFontSize) / 3);
+    --topBarBlockSize: calc(var(--topBarIconSize) + var(--topBarBlockPadding));
+    --mes-right-spacing: 30px;
+    --avatar-base-width: 50px;
+    --avatar-base-height: 50px;
+    --avatar-base-border-radius-round: 50%;
+    --SmartThemeBodyColor: rgb(220, 220, 210);
+    --SmartThemeEmColor: rgb(145, 145, 145);
+    --SmartThemeQuoteColor: rgb(140, 122, 230);
+    --SmartThemeBlurTintColor: rgb(23, 23, 23);
+    --SmartThemeChatTintColor: rgb(23, 23, 23);
+    --SmartThemeUserMesBlurTintColor: rgba(30, 30, 30, .9);
+    --SmartThemeBotMesBlurTintColor: rgba(30, 30, 30, .9);
+    --SmartThemeBorderColor: rgba(0, 0, 0, .5);
+    --SmartThemeShadowColor: rgba(0, 0, 0, .5);
+    --SmartThemeBlurStrength: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    color: var(--SmartThemeBodyColor);
+    background: #111319;
+    font: var(--mainFontSize)/1.45 var(--mainFontFamily);
+  }
+  body { text-shadow: 0 0 2px var(--SmartThemeShadowColor); }
+  #fixture_controls {
+    position: fixed;
+    z-index: 5000;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    max-width: calc(100vw - 12px);
+    padding: 4px 7px;
+    border: 1px solid #3a3e52;
+    border-radius: 8px;
+    background: rgba(12, 14, 20, .94);
+    white-space: nowrap;
+  }
+  body.fixture-headless #fixture_controls { display: none; }
+  #fixture_controls select, #fixture_controls button {
+    min-width: 0;
+    color: #e7e8f2;
+    background: #222530;
+    border: 1px solid #42475c;
+    border-radius: 5px;
+    padding: 3px 6px;
+  }
+  #fixture_readout { overflow: hidden; color: #aeb3c9; font-size: 11px; text-overflow: ellipsis; }
+  #top-bar {
+    width: var(--sheldWidth);
+    height: var(--bottomFormBlockSize);
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 3005;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--SmartThemeBlurTintColor);
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    box-shadow: 0 2px 20px rgba(0,0,0,.7);
+  }
+  #top-bar small { opacity: .55; }
+  #sheld {
+    display: flex;
+    flex-direction: column;
+    width: var(--sheldWidth);
+    height: calc(100dvh - var(--topBarBlockSize) - 1px);
+    max-height: calc(100dvh - var(--topBarBlockSize) - 1px);
+    min-width: 100px;
+    min-height: 100px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--topBarBlockSize);
+    z-index: 30;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+  #sheldheader { display: none; }
+  #chat {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(100dvh - var(--topBarBlockSize) - var(--bottomFormBlockSize));
+    padding-bottom: 0;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior: auto;
+    background: var(--SmartThemeChatTintColor);
+    border-left: 1px solid var(--SmartThemeBorderColor);
+    border-right: 1px solid var(--SmartThemeBorderColor);
+    scrollbar-gutter: auto;
+  }
+  #form_sheld { flex: none; width: 100%; margin: 1px auto 0; z-index: 30; white-space: nowrap; }
+  #send_form {
+    display: flex;
+    width: 100%;
+    min-height: var(--bottomFormBlockSize);
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0 0 10px 10px;
+    background: var(--SmartThemeBlurTintColor);
+  }
+  #send_textarea {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    resize: none;
+    color: var(--SmartThemeBodyColor);
+    background: rgba(0,0,0,.3);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+  }
+  .mes {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    position: relative;
+    flex: none;
+    padding: 10px 10px 0;
+    color: var(--SmartThemeBodyColor);
+  }
+  .mes[is_user="true"] { background: var(--SmartThemeUserMesBlurTintColor); }
+  .mes[is_user="false"] { background: var(--SmartThemeBotMesBlurTintColor); }
+  .mesAvatarWrapper { width: var(--avatar-base-width); flex: 0 0 var(--avatar-base-width); }
+  .avatar { width: var(--avatar-base-width); height: var(--avatar-base-height); border-radius: var(--avatar-base-border-radius-round); }
+  .avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; border: 1px solid var(--SmartThemeBorderColor); background: #343746; }
+  .mes_block { width: 100%; min-width: 0; padding-left: 10px; overflow-x: hidden; overflow-y: clip; }
+  .ch_name { min-height: 22px; font-weight: bolder; }
+  .name_text { color: #dadbea; }
+  .timestamp { margin-left: 7px; opacity: .45; font-size: 11px; font-weight: 400; }
+  .mes_text { max-width: 100%; padding: 5px var(--mes-right-spacing) 5px 0; line-height: calc(var(--mainFontSize) + .5rem); overflow-wrap: anywhere; }
+  .mes_text p { margin: 0 0 8px; }
+  .mes_text p:last-child { margin-bottom: 0; }
+  .TH-render { width: 100%; min-width: 0; }
+  .TH-render > pre { display: none !important; }
+  .TH-render > iframe, .w-full { display: block; width: 100%; max-width: 100%; border: 0; }
+  .fixture-filler .mes_text { min-height: 110px; opacity: .88; }
+  .fixture-status-message .mes_text { padding-right: var(--mes-right-spacing); }
+  body.fixture-wrap .TH-render { width: var(--fixture-wrap-width, 140px); margin: 0 auto; }
+  #fixture_probe { position: fixed; left: -9999px; top: -9999px; }
+
+  @media screen and (max-width: 1000px) {
+    #top-bar { position: fixed; width: 100dvw; }
+    #sheld {
+      width: 100dvw !important;
+      max-width: 100dvw;
+      left: 0 !important;
+      margin: 0 auto;
+      resize: none !important;
+      top: var(--topBarBlockSize);
+    }
+    #chat { overflow-y: auto; overflow-x: hidden; align-items: start; align-content: start; }
+    #send_form { max-width: 100dvw; }
+    .mesAvatarWrapper { --avatar-base-width: 42px; --avatar-base-height: 42px; }
+  }
+  @supports (-webkit-touch-callout: none) {
+    #sheld {
+      width: 100dvw;
+      height: calc(100dvh - 36px);
+      padding-right: max(env(safe-area-inset-right), 0px);
+      padding-left: max(env(safe-area-inset-left), 0px);
+    }
+  }
+</style>
+</head>
+<body>
+<div id="fixture_controls">
+  <select id="fixture_preset" aria-label="设备尺寸"></select>
+  <select id="fixture_width" aria-label="阅读栏宽度">
+    <option value="50">50vw 当前配置</option>
+    <option value="60">60vw</option>
+    <option value="70">70vw</option>
+    <option value="80">80vw</option>
+    <option value="90">90vw</option>
+    <option value="100">100vw</option>
+  </select>
+  <select id="fixture_wrap" aria-label="状态槽宽度">
+    <option value="0">真实消息宽度</option>
+    <option value="140">140px 压缩回归</option>
+    <option value="240">240px 压缩</option>
+    <option value="320">320px 压缩</option>
+  </select>
+  <button id="fixture_reload" type="button">重载消息 iframe</button>
+  <span id="fixture_readout"></span>
+</div>
+<div id="top-bar"><b>SillyTavern 1.18.0</b><small>JS-Slash-Runner 4.9.3 夹具</small></div>
+<div id="sheld">
+  <div id="sheldheader"></div>
+  <div id="chat"></div>
+  <div id="form_sheld">
+    <div id="send_form" class="no-connection">
+      <span>☰</span><textarea id="send_textarea" placeholder="Type a message..."></textarea><span>➤</span>
+    </div>
+  </div>
+</div>
+<div id="fixture_probe"></div>
+<script type="module" src="./tavern-real-fixture.js"></script>
+</body>
+</html>

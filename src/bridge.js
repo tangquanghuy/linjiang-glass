@@ -79,9 +79,37 @@ export async function requestClockIn() {
   return true;
 }
 
+let lastPortraitH = 0;
+
+export function reportPortraitSize(height) {
+  if (!isEmbedded()) return;
+  if (document.documentElement.classList.contains('is-page-open')) return;
+  const h = Math.round(Number(height) || 0);
+  if (h < 1 || h === lastPortraitH) return;
+  lastPortraitH = h;
+  window.parent.postMessage({
+    channel: CHANNEL,
+    kind: 'event',
+    type: 'portraitSize',
+    payload: { height: h },
+  }, '*');
+}
+
+export function reportPortraitPage(open) {
+  if (!isEmbedded()) return;
+  if (!open) lastPortraitH = 0;
+  window.parent.postMessage({
+    channel: CHANNEL,
+    kind: 'event',
+    type: 'portraitPage',
+    payload: { open: !!open },
+  }, '*');
+}
+
 export function startBridge() {
   if (started) return;
   started = true;
+  if (isEmbedded()) document.documentElement.classList.add('is-embedded');
   addEventListener('message', onMessage);
   if (!isEmbedded()) return;
   const postPointerEvent = (type, event) => {
