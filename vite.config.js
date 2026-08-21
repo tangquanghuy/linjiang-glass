@@ -6,7 +6,7 @@ function copyCityMap(destRoot) {
   if (!existsSync('city')) return;
   const dest = join(destRoot, 'city');
   mkdirSync(join(dest, 'plate'), { recursive: true });
-  for (const file of ['plate_map.html', 'plate_map.js', 'city_mapdata.js']) {
+  for (const file of ['plate_map.html', 'plate_map.js', 'city_mapdata.js', 'city_net.js']) {
     const from = join('city', file);
     if (existsSync(from)) cpSync(from, join(dest, file));
   }
@@ -21,6 +21,12 @@ function copyArcade(destRoot) {
   cpSync('arcade', join(destRoot, 'arcade'), { recursive: true });
 }
 
+function copyOpening(destRoot) {
+  for (const file of ['opening.html', 'opening.css', 'opening.js']) {
+    if (existsSync(file)) cpSync(file, join(destRoot, file));
+  }
+}
+
 export default defineConfig({
   /* Relative so GitHub project pages (/linjiang-glass/) and local preview both work. */
   base: './',
@@ -31,6 +37,7 @@ export default defineConfig({
     closeBundle() {
       copyCityMap('dist');
       copyArcade('dist');
+      copyOpening('dist');
     },
   }],
 });

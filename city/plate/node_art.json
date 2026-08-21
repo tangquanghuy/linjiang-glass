@@ -1,0 +1,1688 @@
+{
+  "byId": {
+    "wx_home": {
+      "file": "wuxi_night.webp",
+      "nx": 0.205,
+      "ny": 0.288
+    },
+    "wx_dye": {
+      "file": "wuxi_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "wx_adult_shop": {
+      "file": "wuxi_night.webp",
+      "nx": 0.284,
+      "ny": 0.656
+    },
+    "wx_foot": {
+      "file": "wuxi_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "wx_teahouse": {
+      "file": "wuxi_night.webp",
+      "nx": 0.36,
+      "ny": 0.46
+    },
+    "wx_theme_hotel": {
+      "file": "wuxi_night.webp",
+      "nx": 0.42,
+      "ny": 0.5
+    },
+    "wx_script": {
+      "file": "wuxi_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "wx_story": {
+      "file": "wuxi_night.webp",
+      "nx": 0.52,
+      "ny": 0.46
+    },
+    "wx_mendong": {
+      "file": "wuxi_night.webp",
+      "nx": 0.5,
+      "ny": 0.58
+    },
+    "wx_arch": {
+      "file": "wuxi_night.webp",
+      "nx": 0.56,
+      "ny": 0.72
+    },
+    "wx_huafang": {
+      "file": "wuxi_night.webp",
+      "nx": 0.64,
+      "ny": 0.64
+    },
+    "wx_inn": {
+      "file": "wuxi_night.webp",
+      "nx": 0.7,
+      "ny": 0.56
+    },
+    "wx_bathhouse": {
+      "file": "wuxi_night.webp",
+      "nx": 0.868,
+      "ny": 0.672
+    },
+    "mh_yunque": {
+      "file": "minghu_night.webp",
+      "nx": 0.54,
+      "ny": 0.28
+    },
+    "mh_cinema": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.34
+    },
+    "mh_hospital": {
+      "file": "minghu_night.webp",
+      "nx": 0.26,
+      "ny": 0.4
+    },
+    "mh_lake_island": {
+      "file": "minghu_night.webp",
+      "nx": 0.88,
+      "ny": 0.38
+    },
+    "mh_lake": {
+      "file": "minghu_night.webp",
+      "nx": 0.8,
+      "ny": 0.44
+    },
+    "mh_dept": {
+      "file": "minghu_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "mh_plaza": {
+      "file": "minghu_night.webp",
+      "nx": 0.32,
+      "ny": 0.48
+    },
+    "mh_underpass": {
+      "file": "minghu_night.webp",
+      "nx": 0.5,
+      "ny": 0.5
+    },
+    "mh_bank": {
+      "file": "minghu_night.webp",
+      "nx": 0.44,
+      "ny": 0.52
+    },
+    "mh_civic": {
+      "file": "minghu_night.webp",
+      "nx": 0.36,
+      "ny": 0.54
+    },
+    "mh_wedding": {
+      "file": "minghu_night.webp",
+      "nx": 0.58,
+      "ny": 0.56
+    },
+    "mh_pool": {
+      "file": "minghu_night.webp",
+      "nx": 0.28,
+      "ny": 0.62
+    },
+    "mh_mart": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.64
+    },
+    "mh_gym": {
+      "file": "minghu_night.webp",
+      "nx": 0.34,
+      "ny": 0.7
+    },
+    "gl_florist": {
+      "file": "guling_night.webp",
+      "nx": 0.38,
+      "ny": 0.36
+    },
+    "gl_cross_books": {
+      "file": "guling_night.webp",
+      "nx": 0.56,
+      "ny": 0.38
+    },
+    "gl_boutique": {
+      "file": "guling_night.webp",
+      "nx": 0.4,
+      "ny": 0.4
+    },
+    "gl_darkroom": {
+      "file": "guling_night.webp",
+      "nx": 0.34,
+      "ny": 0.42
+    },
+    "gl_music": {
+      "file": "guling_night.webp",
+      "nx": 0.6,
+      "ny": 0.44
+    },
+    "gl_wutong": {
+      "file": "guling_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "gl_pharmacy": {
+      "file": "guling_night.webp",
+      "nx": 0.3,
+      "ny": 0.48
+    },
+    "gl_cafe": {
+      "file": "guling_night.webp",
+      "nx": 0.36,
+      "ny": 0.5
+    },
+    "gl_tailor": {
+      "file": "guling_night.webp",
+      "nx": 0.52,
+      "ny": 0.5
+    },
+    "gl_barber": {
+      "file": "guling_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "gl_pet": {
+      "file": "guling_night.webp",
+      "nx": 0.62,
+      "ny": 0.54
+    },
+    "gl_laundry": {
+      "file": "guling_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "gl_market": {
+      "file": "guling_night.webp",
+      "nx": 0.24,
+      "ny": 0.58
+    },
+    "gl_parcel": {
+      "file": "guling_night.webp",
+      "nx": 0.54,
+      "ny": 0.6
+    },
+    "gl_clinic": {
+      "file": "guling_night.webp",
+      "nx": 0.28,
+      "ny": 0.64
+    },
+    "gl_agency": {
+      "file": "guling_night.webp",
+      "nx": 0.66,
+      "ny": 0.66
+    },
+    "gl_yunting": {
+      "file": "guling_night.webp",
+      "nx": 0.7,
+      "ny": 0.74
+    },
+    "xz_jiangyan": {
+      "file": "xizhou_night.webp",
+      "nx": 0.74,
+      "ny": 0.2
+    },
+    "xz_refuge": {
+      "file": "xizhou_night.webp",
+      "nx": 0.26,
+      "ny": 0.26
+    },
+    "xz_run": {
+      "file": "xizhou_night.webp",
+      "nx": 0.72,
+      "ny": 0.32
+    },
+    "xz_theatre": {
+      "file": "xizhou_night.webp",
+      "nx": 0.4,
+      "ny": 0.36
+    },
+    "xz_yoga": {
+      "file": "xizhou_night.webp",
+      "nx": 0.56,
+      "ny": 0.4
+    },
+    "xz_jiayuan": {
+      "file": "xizhou_night.webp",
+      "nx": 0.22,
+      "ny": 0.42
+    },
+    "xz_yongchu": {
+      "file": "xizhou_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "xz_sound_studio": {
+      "file": "xizhou_night.webp",
+      "nx": 0.68,
+      "ny": 0.46
+    },
+    "xz_esports": {
+      "file": "xizhou_night.webp",
+      "nx": 0.62,
+      "ny": 0.5
+    },
+    "xz_zhoumen": {
+      "file": "xizhou_night.webp",
+      "nx": 0.5,
+      "ny": 0.54
+    },
+    "xz_livehouse": {
+      "file": "xizhou_night.webp",
+      "nx": 0.38,
+      "ny": 0.58
+    },
+    "xz_izakaya": {
+      "file": "xizhou_night.webp",
+      "nx": 0.46,
+      "ny": 0.62
+    },
+    "xz_sales": {
+      "file": "xizhou_night.webp",
+      "nx": 0.58,
+      "ny": 0.68
+    },
+    "xz_mech_garage": {
+      "file": "xizhou_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "xz_warehouse": {
+      "file": "xizhou_night.webp",
+      "nx": 0.16,
+      "ny": 0.78
+    },
+    "lx_lab": {
+      "file": "luoxia_night.webp",
+      "nx": 0.54,
+      "ny": 0.3
+    },
+    "lx_archive": {
+      "file": "luoxia_night.webp",
+      "nx": 0.48,
+      "ny": 0.36
+    },
+    "lx_dorm_roof": {
+      "file": "luoxia_night.webp",
+      "nx": 0.58,
+      "ny": 0.4
+    },
+    "lx_schoolclinic": {
+      "file": "luoxia_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "lx_library": {
+      "file": "luoxia_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "lx_canteen": {
+      "file": "luoxia_night.webp",
+      "nx": 0.4,
+      "ny": 0.5
+    },
+    "lx_gym": {
+      "file": "luoxia_night.webp",
+      "nx": 0.64,
+      "ny": 0.5
+    },
+    "lx_print": {
+      "file": "luoxia_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "lx_netcafe": {
+      "file": "luoxia_night.webp",
+      "nx": 0.52,
+      "ny": 0.56
+    },
+    "lx_backstreet": {
+      "file": "luoxia_night.webp",
+      "nx": 0.36,
+      "ny": 0.62
+    },
+    "lx_share": {
+      "file": "luoxia_night.webp",
+      "nx": 0.5,
+      "ny": 0.66
+    },
+    "lx_capsule": {
+      "file": "luoxia_night.webp",
+      "nx": 0.34,
+      "ny": 0.68
+    },
+    "lx_bus": {
+      "file": "luoxia_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "pj_apt": {
+      "file": "pujiang_night.webp",
+      "nx": 0.56,
+      "ny": 0.22
+    },
+    "pj_village": {
+      "file": "pujiang_night.webp",
+      "nx": 0.4,
+      "ny": 0.3
+    },
+    "ys_rdpark": {
+      "file": "pujiang_night.webp",
+      "nx": 0.64,
+      "ny": 0.34
+    },
+    "pj_morning": {
+      "file": "pujiang_night.webp",
+      "nx": 0.36,
+      "ny": 0.38
+    },
+    "pj_nightshift": {
+      "file": "pujiang_night.webp",
+      "nx": 0.48,
+      "ny": 0.72
+    },
+    "ys_container": {
+      "file": "pujiang_night.webp",
+      "nx": 0.58,
+      "ny": 0.8
+    },
+    "ys_reedbed": {
+      "file": "yushi_night.webp",
+      "nx": 0.8,
+      "ny": 0.36
+    },
+    "ys_station": {
+      "file": "yushi_night.webp",
+      "nx": 0.5,
+      "ny": 0.48
+    },
+    "ys_breakwater": {
+      "file": "yushi_night.webp",
+      "nx": 0.84,
+      "ny": 0.54
+    },
+    "ys_fishmkt": {
+      "file": "yushi_night.webp",
+      "nx": 0.32,
+      "ny": 0.56
+    },
+    "ys_ferry": {
+      "file": "yushi_night.webp",
+      "nx": 0.72,
+      "ny": 0.64
+    },
+    "ys_shipyard": {
+      "file": "yushi_night.webp",
+      "nx": 0.28,
+      "ny": 0.68
+    },
+    "ys_carferry": {
+      "file": "yushi_night.webp",
+      "nx": 0.68,
+      "ny": 0.72
+    },
+    "qp_observatory": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.52,
+      "ny": 0.16
+    },
+    "qp_glass": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.58,
+      "ny": 0.26
+    },
+    "qp_temple": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.44,
+      "ny": 0.34
+    },
+    "qp_villa": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.68,
+      "ny": 0.36
+    },
+    "qp_shade": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.18,
+      "ny": 0.38
+    },
+    "qp_teahouse": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.48,
+      "ny": 0.42
+    },
+    "qp_camp": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.62,
+      "ny": 0.48
+    },
+    "qp_main": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "qp_fall": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.28,
+      "ny": 0.54
+    },
+    "qp_cycle": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.74,
+      "ny": 0.56
+    },
+    "qp_cable": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.34,
+      "ny": 0.62
+    },
+    "qp_farm": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.78,
+      "ny": 0.74
+    },
+    "qp_visitor": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.4,
+      "ny": 0.84
+    },
+    "dt_nursery": {
+      "file": "dongtang_night.webp",
+      "nx": 0.78,
+      "ny": 0.2
+    },
+    "dt_berry": {
+      "file": "dongtang_night.webp",
+      "nx": 0.74,
+      "ny": 0.26
+    },
+    "dt_onsen": {
+      "file": "dongtang_night.webp",
+      "nx": 0.16,
+      "ny": 0.28
+    },
+    "dt_park": {
+      "file": "dongtang_night.webp",
+      "nx": 0.36,
+      "ny": 0.32
+    },
+    "dt_reservoir": {
+      "file": "dongtang_night.webp",
+      "nx": 0.86,
+      "ny": 0.34
+    },
+    "dt_stay": {
+      "file": "dongtang_night.webp",
+      "nx": 0.18,
+      "ny": 0.4
+    },
+    "dt_airport": {
+      "file": "dongtang_night.webp",
+      "nx": 0.5,
+      "ny": 0.42
+    },
+    "dt_outlet": {
+      "file": "dongtang_night.webp",
+      "nx": 0.24,
+      "ny": 0.48
+    },
+    "dt_fish": {
+      "file": "dongtang_night.webp",
+      "nx": 0.82,
+      "ny": 0.48
+    },
+    "dt_kart": {
+      "file": "dongtang_night.webp",
+      "nx": 0.58,
+      "ny": 0.58
+    },
+    "dt_gas": {
+      "file": "dongtang_night.webp",
+      "nx": 0.3,
+      "ny": 0.64
+    },
+    "dt_drive": {
+      "file": "dongtang_night.webp",
+      "nx": 0.64,
+      "ny": 0.72
+    },
+    "dt_service": {
+      "file": "dongtang_night.webp",
+      "nx": 0.44,
+      "ny": 0.8
+    },
+    "dt_townhouse": {
+      "file": "dongtang_night.webp",
+      "nx": 0.4,
+      "ny": 0.88
+    }
+  },
+  "byName": {
+    "自宅": {
+      "file": "wuxi_night.webp",
+      "nx": 0.205,
+      "ny": 0.288
+    },
+    "乌溪染坊": {
+      "file": "wuxi_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "瓦房成人家居": {
+      "file": "wuxi_night.webp",
+      "nx": 0.284,
+      "ny": 0.656
+    },
+    "乌溪修脚店": {
+      "file": "wuxi_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "乌溪茶馆": {
+      "file": "wuxi_night.webp",
+      "nx": 0.36,
+      "ny": 0.46
+    },
+    "花牌楼主题酒店": {
+      "file": "wuxi_night.webp",
+      "nx": 0.42,
+      "ny": 0.5
+    },
+    "乌溪沉浸剧场": {
+      "file": "wuxi_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "乌溪书场": {
+      "file": "wuxi_night.webp",
+      "nx": 0.52,
+      "ny": 0.46
+    },
+    "乌溪门东": {
+      "file": "wuxi_night.webp",
+      "nx": 0.5,
+      "ny": 0.58
+    },
+    "乌溪石拱桥": {
+      "file": "wuxi_night.webp",
+      "nx": 0.56,
+      "ny": 0.72
+    },
+    "乌溪画舫": {
+      "file": "wuxi_night.webp",
+      "nx": 0.64,
+      "ny": 0.64
+    },
+    "乌溪河房客栈": {
+      "file": "wuxi_night.webp",
+      "nx": 0.7,
+      "ny": 0.56
+    },
+    "清河塘澡堂": {
+      "file": "wuxi_night.webp",
+      "nx": 0.868,
+      "ny": 0.672
+    },
+    "明湖云阙": {
+      "file": "minghu_night.webp",
+      "nx": 0.54,
+      "ny": 0.28
+    },
+    "明湖星河巨幕": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.34
+    },
+    "明湖中心医院": {
+      "file": "minghu_night.webp",
+      "nx": 0.26,
+      "ny": 0.4
+    },
+    "明湖湖心岛": {
+      "file": "minghu_night.webp",
+      "nx": 0.88,
+      "ny": 0.38
+    },
+    "明湖环洲": {
+      "file": "minghu_night.webp",
+      "nx": 0.8,
+      "ny": 0.44
+    },
+    "德泰百货": {
+      "file": "minghu_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "明湖街心公园": {
+      "file": "minghu_night.webp",
+      "nx": 0.32,
+      "ny": 0.48
+    },
+    "明湖地下通道": {
+      "file": "minghu_night.webp",
+      "nx": 0.5,
+      "ny": 0.5
+    },
+    "明湖银行厅": {
+      "file": "minghu_night.webp",
+      "nx": 0.44,
+      "ny": 0.52
+    },
+    "明湖市民中心": {
+      "file": "minghu_night.webp",
+      "nx": 0.36,
+      "ny": 0.54
+    },
+    "明湖婚纱楼": {
+      "file": "minghu_night.webp",
+      "nx": 0.58,
+      "ny": 0.56
+    },
+    "明湖游泳馆": {
+      "file": "minghu_night.webp",
+      "nx": 0.28,
+      "ny": 0.62
+    },
+    "明湖通宵便利": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.64
+    },
+    "明湖健身房": {
+      "file": "minghu_night.webp",
+      "nx": 0.34,
+      "ny": 0.7
+    },
+    "鼓岭花店": {
+      "file": "guling_night.webp",
+      "nx": 0.38,
+      "ny": 0.36
+    },
+    "鼓岭十字书店": {
+      "file": "guling_night.webp",
+      "nx": 0.56,
+      "ny": 0.38
+    },
+    "鼓岭买手店": {
+      "file": "guling_night.webp",
+      "nx": 0.4,
+      "ny": 0.4
+    },
+    "梧桐里照相馆": {
+      "file": "guling_night.webp",
+      "nx": 0.34,
+      "ny": 0.42
+    },
+    "鼓岭琴行": {
+      "file": "guling_night.webp",
+      "nx": 0.6,
+      "ny": 0.44
+    },
+    "梧桐里": {
+      "file": "guling_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "鼓岭药店": {
+      "file": "guling_night.webp",
+      "nx": 0.3,
+      "ny": 0.48
+    },
+    "鼓岭青砖咖啡": {
+      "file": "guling_night.webp",
+      "nx": 0.36,
+      "ny": 0.5
+    },
+    "梧桐里裁缝铺": {
+      "file": "guling_night.webp",
+      "nx": 0.52,
+      "ny": 0.5
+    },
+    "鼓岭理发店": {
+      "file": "guling_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "鼓岭爱宠诊疗所": {
+      "file": "guling_night.webp",
+      "nx": 0.62,
+      "ny": 0.54
+    },
+    "梧桐里洗衣房": {
+      "file": "guling_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "鼓岭菜场": {
+      "file": "guling_night.webp",
+      "nx": 0.24,
+      "ny": 0.58
+    },
+    "鼓岭快递驿站": {
+      "file": "guling_night.webp",
+      "nx": 0.54,
+      "ny": 0.6
+    },
+    "鼓岭社区卫生站": {
+      "file": "guling_night.webp",
+      "nx": 0.28,
+      "ny": 0.64
+    },
+    "鼓岭房产中介": {
+      "file": "guling_night.webp",
+      "nx": 0.66,
+      "ny": 0.66
+    },
+    "云庭公寓": {
+      "file": "guling_night.webp",
+      "nx": 0.7,
+      "ny": 0.74
+    },
+    "西洲江眼桥": {
+      "file": "xizhou_night.webp",
+      "nx": 0.74,
+      "ny": 0.2
+    },
+    "江厦塔避难层": {
+      "file": "xizhou_night.webp",
+      "nx": 0.26,
+      "ny": 0.26
+    },
+    "西洲滨江绿道": {
+      "file": "xizhou_night.webp",
+      "nx": 0.72,
+      "ny": 0.32
+    },
+    "西洲大剧院": {
+      "file": "xizhou_night.webp",
+      "nx": 0.4,
+      "ny": 0.36
+    },
+    "西洲瑜伽馆": {
+      "file": "xizhou_night.webp",
+      "nx": 0.56,
+      "ny": 0.4
+    },
+    "西洲嘉苑": {
+      "file": "xizhou_night.webp",
+      "nx": 0.22,
+      "ny": 0.42
+    },
+    "西洲永初里": {
+      "file": "xizhou_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "极光声学棚": {
+      "file": "xizhou_night.webp",
+      "nx": 0.68,
+      "ny": 0.46
+    },
+    "星芒电竞舱": {
+      "file": "xizhou_night.webp",
+      "nx": 0.62,
+      "ny": 0.5
+    },
+    "洲门站": {
+      "file": "xizhou_night.webp",
+      "nx": 0.5,
+      "ny": 0.54
+    },
+    "西洲岸声": {
+      "file": "xizhou_night.webp",
+      "nx": 0.38,
+      "ny": 0.58
+    },
+    "西洲地下居酒屋": {
+      "file": "xizhou_night.webp",
+      "nx": 0.46,
+      "ny": 0.62
+    },
+    "西洲售楼处": {
+      "file": "xizhou_night.webp",
+      "nx": 0.58,
+      "ny": 0.68
+    },
+    "江厦塔机械车库": {
+      "file": "xizhou_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "西洲仓储超市": {
+      "file": "xizhou_night.webp",
+      "nx": 0.16,
+      "ny": 0.78
+    },
+    "落霞实验楼": {
+      "file": "luoxia_night.webp",
+      "nx": 0.54,
+      "ny": 0.3
+    },
+    "落霞古籍文献馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.48,
+      "ny": 0.36
+    },
+    "学府七舍天台": {
+      "file": "luoxia_night.webp",
+      "nx": 0.58,
+      "ny": 0.4
+    },
+    "落霞校医院": {
+      "file": "luoxia_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "大学城自习室": {
+      "file": "luoxia_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "落霞食堂": {
+      "file": "luoxia_night.webp",
+      "nx": 0.4,
+      "ny": 0.5
+    },
+    "落霞体育馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.64,
+      "ny": 0.5
+    },
+    "落霞打印店": {
+      "file": "luoxia_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "落霞极速网咖": {
+      "file": "luoxia_night.webp",
+      "nx": 0.52,
+      "ny": 0.56
+    },
+    "落霞后街": {
+      "file": "luoxia_night.webp",
+      "nx": 0.36,
+      "ny": 0.62
+    },
+    "落霞合租屋": {
+      "file": "luoxia_night.webp",
+      "nx": 0.5,
+      "ny": 0.66
+    },
+    "落霞胶囊旅馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.34,
+      "ny": 0.68
+    },
+    "落霞公交总站": {
+      "file": "luoxia_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "浦江人才公寓": {
+      "file": "pujiang_night.webp",
+      "nx": 0.56,
+      "ny": 0.22
+    },
+    "浦江城中村": {
+      "file": "pujiang_night.webp",
+      "nx": 0.4,
+      "ny": 0.3
+    },
+    "浦江研创园": {
+      "file": "pujiang_night.webp",
+      "nx": 0.64,
+      "ny": 0.34
+    },
+    "浦江早市": {
+      "file": "pujiang_night.webp",
+      "nx": 0.36,
+      "ny": 0.38
+    },
+    "浦江夜班车间": {
+      "file": "pujiang_night.webp",
+      "nx": 0.48,
+      "ny": 0.72
+    },
+    "浦江集装箱堆场": {
+      "file": "pujiang_night.webp",
+      "nx": 0.58,
+      "ny": 0.8
+    },
+    "雨石芦荡": {
+      "file": "yushi_night.webp",
+      "nx": 0.8,
+      "ny": 0.36
+    },
+    "临江南站": {
+      "file": "yushi_night.webp",
+      "nx": 0.5,
+      "ny": 0.48
+    },
+    "雨石防波堤": {
+      "file": "yushi_night.webp",
+      "nx": 0.84,
+      "ny": 0.54
+    },
+    "雨石渔市": {
+      "file": "yushi_night.webp",
+      "nx": 0.32,
+      "ny": 0.56
+    },
+    "雨石码头": {
+      "file": "yushi_night.webp",
+      "nx": 0.72,
+      "ny": 0.64
+    },
+    "雨石修船坞": {
+      "file": "yushi_night.webp",
+      "nx": 0.28,
+      "ny": 0.68
+    },
+    "雨石跨江轮渡": {
+      "file": "yushi_night.webp",
+      "nx": 0.68,
+      "ny": 0.72
+    },
+    "青屏山古天文台": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.52,
+      "ny": 0.16
+    },
+    "青屏玻璃栈道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.58,
+      "ny": 0.26
+    },
+    "青屏寺": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.44,
+      "ny": 0.34
+    },
+    "青屏半山别墅": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.68,
+      "ny": 0.36
+    },
+    "青屏山背阴谷": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.18,
+      "ny": 0.38
+    },
+    "青屏山半山茶社": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.48,
+      "ny": 0.42
+    },
+    "青屏山露营区": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.62,
+      "ny": 0.48
+    },
+    "青屏山密林": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "青屏瀑布": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.28,
+      "ny": 0.54
+    },
+    "青屏骑行绿道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.74,
+      "ny": 0.56
+    },
+    "青屏山索道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.34,
+      "ny": 0.62
+    },
+    "青屏农家乐": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.78,
+      "ny": 0.74
+    },
+    "青屏山游客中心": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.4,
+      "ny": 0.84
+    },
+    "东塘苗圃": {
+      "file": "dongtang_night.webp",
+      "nx": 0.78,
+      "ny": 0.2
+    },
+    "东塘草莓园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.74,
+      "ny": 0.26
+    },
+    "东塘私汤别苑": {
+      "file": "dongtang_night.webp",
+      "nx": 0.16,
+      "ny": 0.28
+    },
+    "东塘临江乐园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.36,
+      "ny": 0.32
+    },
+    "东塘水库": {
+      "file": "dongtang_night.webp",
+      "nx": 0.86,
+      "ny": 0.34
+    },
+    "东塘民宿": {
+      "file": "dongtang_night.webp",
+      "nx": 0.18,
+      "ny": 0.4
+    },
+    "东塘空港": {
+      "file": "dongtang_night.webp",
+      "nx": 0.5,
+      "ny": 0.42
+    },
+    "东塘奥特莱斯": {
+      "file": "dongtang_night.webp",
+      "nx": 0.24,
+      "ny": 0.48
+    },
+    "东塘垂钓园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.82,
+      "ny": 0.48
+    },
+    "东塘卡丁车场": {
+      "file": "dongtang_night.webp",
+      "nx": 0.58,
+      "ny": 0.58
+    },
+    "东塘加油站": {
+      "file": "dongtang_night.webp",
+      "nx": 0.3,
+      "ny": 0.64
+    },
+    "东塘驾校": {
+      "file": "dongtang_night.webp",
+      "nx": 0.64,
+      "ny": 0.72
+    },
+    "东塘服务区": {
+      "file": "dongtang_night.webp",
+      "nx": 0.44,
+      "ny": 0.8
+    },
+    "东塘联排": {
+      "file": "dongtang_night.webp",
+      "nx": 0.4,
+      "ny": 0.88
+    }
+  },
+  "byArea": {
+    "乌溪区·自宅": {
+      "file": "wuxi_night.webp",
+      "nx": 0.205,
+      "ny": 0.288
+    },
+    "乌溪区·乌溪染坊": {
+      "file": "wuxi_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "乌溪区·瓦房成人家居": {
+      "file": "wuxi_night.webp",
+      "nx": 0.284,
+      "ny": 0.656
+    },
+    "乌溪区·乌溪修脚店": {
+      "file": "wuxi_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "乌溪区·乌溪茶馆": {
+      "file": "wuxi_night.webp",
+      "nx": 0.36,
+      "ny": 0.46
+    },
+    "乌溪区·花牌楼主题酒店": {
+      "file": "wuxi_night.webp",
+      "nx": 0.42,
+      "ny": 0.5
+    },
+    "乌溪区·乌溪沉浸剧场": {
+      "file": "wuxi_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "乌溪区·乌溪书场": {
+      "file": "wuxi_night.webp",
+      "nx": 0.52,
+      "ny": 0.46
+    },
+    "乌溪区·乌溪门东": {
+      "file": "wuxi_night.webp",
+      "nx": 0.5,
+      "ny": 0.58
+    },
+    "乌溪区·乌溪石拱桥": {
+      "file": "wuxi_night.webp",
+      "nx": 0.56,
+      "ny": 0.72
+    },
+    "乌溪区·乌溪画舫": {
+      "file": "wuxi_night.webp",
+      "nx": 0.64,
+      "ny": 0.64
+    },
+    "乌溪区·乌溪河房客栈": {
+      "file": "wuxi_night.webp",
+      "nx": 0.7,
+      "ny": 0.56
+    },
+    "乌溪区·清河塘澡堂": {
+      "file": "wuxi_night.webp",
+      "nx": 0.868,
+      "ny": 0.672
+    },
+    "明湖区·明湖云阙": {
+      "file": "minghu_night.webp",
+      "nx": 0.54,
+      "ny": 0.28
+    },
+    "明湖区·明湖星河巨幕": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.34
+    },
+    "明湖区·明湖中心医院": {
+      "file": "minghu_night.webp",
+      "nx": 0.26,
+      "ny": 0.4
+    },
+    "明湖区·明湖湖心岛": {
+      "file": "minghu_night.webp",
+      "nx": 0.88,
+      "ny": 0.38
+    },
+    "明湖区·明湖环洲": {
+      "file": "minghu_night.webp",
+      "nx": 0.8,
+      "ny": 0.44
+    },
+    "明湖区·德泰百货": {
+      "file": "minghu_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "明湖区·明湖街心公园": {
+      "file": "minghu_night.webp",
+      "nx": 0.32,
+      "ny": 0.48
+    },
+    "明湖区·明湖地下通道": {
+      "file": "minghu_night.webp",
+      "nx": 0.5,
+      "ny": 0.5
+    },
+    "明湖区·明湖银行厅": {
+      "file": "minghu_night.webp",
+      "nx": 0.44,
+      "ny": 0.52
+    },
+    "明湖区·明湖市民中心": {
+      "file": "minghu_night.webp",
+      "nx": 0.36,
+      "ny": 0.54
+    },
+    "明湖区·明湖婚纱楼": {
+      "file": "minghu_night.webp",
+      "nx": 0.58,
+      "ny": 0.56
+    },
+    "明湖区·明湖游泳馆": {
+      "file": "minghu_night.webp",
+      "nx": 0.28,
+      "ny": 0.62
+    },
+    "明湖区·明湖通宵便利": {
+      "file": "minghu_night.webp",
+      "nx": 0.4,
+      "ny": 0.64
+    },
+    "明湖区·明湖健身房": {
+      "file": "minghu_night.webp",
+      "nx": 0.34,
+      "ny": 0.7
+    },
+    "鼓岭区·鼓岭花店": {
+      "file": "guling_night.webp",
+      "nx": 0.38,
+      "ny": 0.36
+    },
+    "鼓岭区·鼓岭十字书店": {
+      "file": "guling_night.webp",
+      "nx": 0.56,
+      "ny": 0.38
+    },
+    "鼓岭区·鼓岭买手店": {
+      "file": "guling_night.webp",
+      "nx": 0.4,
+      "ny": 0.4
+    },
+    "鼓岭区·梧桐里照相馆": {
+      "file": "guling_night.webp",
+      "nx": 0.34,
+      "ny": 0.42
+    },
+    "鼓岭区·鼓岭琴行": {
+      "file": "guling_night.webp",
+      "nx": 0.6,
+      "ny": 0.44
+    },
+    "鼓岭区·梧桐里": {
+      "file": "guling_night.webp",
+      "nx": 0.48,
+      "ny": 0.46
+    },
+    "鼓岭区·鼓岭药店": {
+      "file": "guling_night.webp",
+      "nx": 0.3,
+      "ny": 0.48
+    },
+    "鼓岭区·鼓岭青砖咖啡": {
+      "file": "guling_night.webp",
+      "nx": 0.36,
+      "ny": 0.5
+    },
+    "鼓岭区·梧桐里裁缝铺": {
+      "file": "guling_night.webp",
+      "nx": 0.52,
+      "ny": 0.5
+    },
+    "鼓岭区·鼓岭理发店": {
+      "file": "guling_night.webp",
+      "nx": 0.32,
+      "ny": 0.54
+    },
+    "鼓岭区·鼓岭爱宠诊疗所": {
+      "file": "guling_night.webp",
+      "nx": 0.62,
+      "ny": 0.54
+    },
+    "鼓岭区·梧桐里洗衣房": {
+      "file": "guling_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "鼓岭区·鼓岭菜场": {
+      "file": "guling_night.webp",
+      "nx": 0.24,
+      "ny": 0.58
+    },
+    "鼓岭区·鼓岭快递驿站": {
+      "file": "guling_night.webp",
+      "nx": 0.54,
+      "ny": 0.6
+    },
+    "鼓岭区·鼓岭社区卫生站": {
+      "file": "guling_night.webp",
+      "nx": 0.28,
+      "ny": 0.64
+    },
+    "鼓岭区·鼓岭房产中介": {
+      "file": "guling_night.webp",
+      "nx": 0.66,
+      "ny": 0.66
+    },
+    "鼓岭区·云庭公寓": {
+      "file": "guling_night.webp",
+      "nx": 0.7,
+      "ny": 0.74
+    },
+    "西洲区·西洲江眼桥": {
+      "file": "xizhou_night.webp",
+      "nx": 0.74,
+      "ny": 0.2
+    },
+    "西洲区·江厦塔避难层": {
+      "file": "xizhou_night.webp",
+      "nx": 0.26,
+      "ny": 0.26
+    },
+    "西洲区·西洲滨江绿道": {
+      "file": "xizhou_night.webp",
+      "nx": 0.72,
+      "ny": 0.32
+    },
+    "西洲区·西洲大剧院": {
+      "file": "xizhou_night.webp",
+      "nx": 0.4,
+      "ny": 0.36
+    },
+    "西洲区·西洲瑜伽馆": {
+      "file": "xizhou_night.webp",
+      "nx": 0.56,
+      "ny": 0.4
+    },
+    "西洲区·西洲嘉苑": {
+      "file": "xizhou_night.webp",
+      "nx": 0.22,
+      "ny": 0.42
+    },
+    "西洲区·西洲永初里": {
+      "file": "xizhou_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "西洲区·极光声学棚": {
+      "file": "xizhou_night.webp",
+      "nx": 0.68,
+      "ny": 0.46
+    },
+    "西洲区·星芒电竞舱": {
+      "file": "xizhou_night.webp",
+      "nx": 0.62,
+      "ny": 0.5
+    },
+    "西洲区·洲门站": {
+      "file": "xizhou_night.webp",
+      "nx": 0.5,
+      "ny": 0.54
+    },
+    "西洲区·西洲岸声": {
+      "file": "xizhou_night.webp",
+      "nx": 0.38,
+      "ny": 0.58
+    },
+    "西洲区·西洲地下居酒屋": {
+      "file": "xizhou_night.webp",
+      "nx": 0.46,
+      "ny": 0.62
+    },
+    "西洲区·西洲售楼处": {
+      "file": "xizhou_night.webp",
+      "nx": 0.58,
+      "ny": 0.68
+    },
+    "西洲区·江厦塔机械车库": {
+      "file": "xizhou_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "西洲区·西洲仓储超市": {
+      "file": "xizhou_night.webp",
+      "nx": 0.16,
+      "ny": 0.78
+    },
+    "落霞区·落霞实验楼": {
+      "file": "luoxia_night.webp",
+      "nx": 0.54,
+      "ny": 0.3
+    },
+    "落霞区·落霞古籍文献馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.48,
+      "ny": 0.36
+    },
+    "落霞区·学府七舍天台": {
+      "file": "luoxia_night.webp",
+      "nx": 0.58,
+      "ny": 0.4
+    },
+    "落霞区·落霞校医院": {
+      "file": "luoxia_night.webp",
+      "nx": 0.46,
+      "ny": 0.4
+    },
+    "落霞区·大学城自习室": {
+      "file": "luoxia_night.webp",
+      "nx": 0.42,
+      "ny": 0.46
+    },
+    "落霞区·落霞食堂": {
+      "file": "luoxia_night.webp",
+      "nx": 0.4,
+      "ny": 0.5
+    },
+    "落霞区·落霞体育馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.64,
+      "ny": 0.5
+    },
+    "落霞区·落霞打印店": {
+      "file": "luoxia_night.webp",
+      "nx": 0.44,
+      "ny": 0.54
+    },
+    "落霞区·落霞极速网咖": {
+      "file": "luoxia_night.webp",
+      "nx": 0.52,
+      "ny": 0.56
+    },
+    "落霞区·落霞后街": {
+      "file": "luoxia_night.webp",
+      "nx": 0.36,
+      "ny": 0.62
+    },
+    "落霞区·落霞合租屋": {
+      "file": "luoxia_night.webp",
+      "nx": 0.5,
+      "ny": 0.66
+    },
+    "落霞区·落霞胶囊旅馆": {
+      "file": "luoxia_night.webp",
+      "nx": 0.34,
+      "ny": 0.68
+    },
+    "落霞区·落霞公交总站": {
+      "file": "luoxia_night.webp",
+      "nx": 0.3,
+      "ny": 0.74
+    },
+    "雨石与浦江区·浦江人才公寓": {
+      "file": "pujiang_night.webp",
+      "nx": 0.56,
+      "ny": 0.22
+    },
+    "雨石与浦江区·浦江城中村": {
+      "file": "pujiang_night.webp",
+      "nx": 0.4,
+      "ny": 0.3
+    },
+    "雨石与浦江区·浦江研创园": {
+      "file": "pujiang_night.webp",
+      "nx": 0.64,
+      "ny": 0.34
+    },
+    "雨石与浦江区·浦江早市": {
+      "file": "pujiang_night.webp",
+      "nx": 0.36,
+      "ny": 0.38
+    },
+    "雨石与浦江区·浦江夜班车间": {
+      "file": "pujiang_night.webp",
+      "nx": 0.48,
+      "ny": 0.72
+    },
+    "雨石与浦江区·浦江集装箱堆场": {
+      "file": "pujiang_night.webp",
+      "nx": 0.58,
+      "ny": 0.8
+    },
+    "雨石与浦江区·雨石芦荡": {
+      "file": "yushi_night.webp",
+      "nx": 0.8,
+      "ny": 0.36
+    },
+    "雨石与浦江区·临江南站": {
+      "file": "yushi_night.webp",
+      "nx": 0.5,
+      "ny": 0.48
+    },
+    "雨石与浦江区·雨石防波堤": {
+      "file": "yushi_night.webp",
+      "nx": 0.84,
+      "ny": 0.54
+    },
+    "雨石与浦江区·雨石渔市": {
+      "file": "yushi_night.webp",
+      "nx": 0.32,
+      "ny": 0.56
+    },
+    "雨石与浦江区·雨石码头": {
+      "file": "yushi_night.webp",
+      "nx": 0.72,
+      "ny": 0.64
+    },
+    "雨石与浦江区·雨石修船坞": {
+      "file": "yushi_night.webp",
+      "nx": 0.28,
+      "ny": 0.68
+    },
+    "雨石与浦江区·雨石跨江轮渡": {
+      "file": "yushi_night.webp",
+      "nx": 0.68,
+      "ny": 0.72
+    },
+    "青屏山风景区·青屏山古天文台": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.52,
+      "ny": 0.16
+    },
+    "青屏山风景区·青屏玻璃栈道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.58,
+      "ny": 0.26
+    },
+    "青屏山风景区·青屏寺": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.44,
+      "ny": 0.34
+    },
+    "青屏山风景区·青屏半山别墅": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.68,
+      "ny": 0.36
+    },
+    "青屏山风景区·青屏山背阴谷": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.18,
+      "ny": 0.38
+    },
+    "青屏山风景区·青屏山半山茶社": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.48,
+      "ny": 0.42
+    },
+    "青屏山风景区·青屏山露营区": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.62,
+      "ny": 0.48
+    },
+    "青屏山风景区·青屏山密林": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.22,
+      "ny": 0.5
+    },
+    "青屏山风景区·青屏瀑布": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.28,
+      "ny": 0.54
+    },
+    "青屏山风景区·青屏骑行绿道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.74,
+      "ny": 0.56
+    },
+    "青屏山风景区·青屏山索道": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.34,
+      "ny": 0.62
+    },
+    "青屏山风景区·青屏农家乐": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.78,
+      "ny": 0.74
+    },
+    "青屏山风景区·青屏山游客中心": {
+      "file": "qingpingshan_night.webp",
+      "nx": 0.4,
+      "ny": 0.84
+    },
+    "东塘区·东塘苗圃": {
+      "file": "dongtang_night.webp",
+      "nx": 0.78,
+      "ny": 0.2
+    },
+    "东塘区·东塘草莓园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.74,
+      "ny": 0.26
+    },
+    "东塘区·东塘私汤别苑": {
+      "file": "dongtang_night.webp",
+      "nx": 0.16,
+      "ny": 0.28
+    },
+    "东塘区·东塘临江乐园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.36,
+      "ny": 0.32
+    },
+    "东塘区·东塘水库": {
+      "file": "dongtang_night.webp",
+      "nx": 0.86,
+      "ny": 0.34
+    },
+    "东塘区·东塘民宿": {
+      "file": "dongtang_night.webp",
+      "nx": 0.18,
+      "ny": 0.4
+    },
+    "东塘区·东塘空港": {
+      "file": "dongtang_night.webp",
+      "nx": 0.5,
+      "ny": 0.42
+    },
+    "东塘区·东塘奥特莱斯": {
+      "file": "dongtang_night.webp",
+      "nx": 0.24,
+      "ny": 0.48
+    },
+    "东塘区·东塘垂钓园": {
+      "file": "dongtang_night.webp",
+      "nx": 0.82,
+      "ny": 0.48
+    },
+    "东塘区·东塘卡丁车场": {
+      "file": "dongtang_night.webp",
+      "nx": 0.58,
+      "ny": 0.58
+    },
+    "东塘区·东塘加油站": {
+      "file": "dongtang_night.webp",
+      "nx": 0.3,
+      "ny": 0.64
+    },
+    "东塘区·东塘驾校": {
+      "file": "dongtang_night.webp",
+      "nx": 0.64,
+      "ny": 0.72
+    },
+    "东塘区·东塘服务区": {
+      "file": "dongtang_night.webp",
+      "nx": 0.44,
+      "ny": 0.8
+    },
+    "东塘区·东塘联排": {
+      "file": "dongtang_night.webp",
+      "nx": 0.4,
+      "ny": 0.88
+    }
+  }
+}

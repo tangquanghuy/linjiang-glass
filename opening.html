@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>临江市 · 开始生活</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./opening.css">
+</head>
+<body>
+<div class="app"><div class="shell">
+<header class="header">
+  <div class="brand"><div class="brand-mark"><img src="./assets/mark-sakura.png" alt=""></div><div class="brand-script">Linjiang</div><div class="brand-copy"><h1>在临江开始生活</h1><p>Opening Profile · 2026</p></div></div>
+</header>
+<nav class="steps" id="steps"></nav>
+<main class="main">
+<section class="panel active" data-panel="1">
+  <div class="section-head"><div><div class="eyebrow">01 / Player</div><h2>关于你</h2></div></div>
+  <div class="grid-two">
+    <div class="card card-pad"><div class="card-title"><b>玩家资料</b><small>PLAYER PROFILE</small></div><div class="fields">
+      <div class="field"><label>姓名／常用称呼</label><input class="control" id="player-name" placeholder="例如：林舟"></div>
+      <div class="field"><label>直播平台网名</label><input class="control" id="player-handle" placeholder="例如：江边不下雨"></div>
+      <div class="field"><label>年龄</label><input class="control" id="player-age" type="number" min="18" max="99" value="24"></div>
+      <div class="field"><label>性别</label><div class="segment" id="gender-segment"><button class="on" data-value="男性">男性</button><button data-value="女性">女性</button></div></div>
+      <div class="field wide"><label>补充设定（选填）</label><textarea class="control" id="player-note" placeholder="只写希望 AI 明确认识的外貌、经历或身份事实。"></textarea></div>
+    </div></div>
+    <aside class="card side-story"><div class="story-art"><div class="story-copy"><div class="script">Your story</div><h3>生活从一份普通档案开始</h3><p>姓名用于现实交往，网名用于直播间、弹幕和粉丝社区。</p></div></div><div class="mini-facts">
+      <div class="fact"><span>初始日期</span><b>2026年4月1日 · 朝</b></div><div class="fact"><span>初始体力</span><b>100 / 100</b></div><div class="fact"><span>初始存款</span><b>￥20,000</b></div>
+    </div></aside>
+  </div>
+</section>
+<section class="panel" data-panel="2">
+  <div class="section-head"><div><div class="eyebrow">02 / Life</div><h2>住在哪里，靠什么生活</h2></div></div>
+  <div class="life-grid">
+    <div class="card home-card"><div><div class="pinline">⌖ INITIAL HOME</div><div class="home-name empty" id="home-name">尚未选择住所</div><div class="home-meta" id="home-meta">&#x9009;&#x62E9;&#x4E00;&#x5904;&#x4F4F;&#x6240;&#x3002;</div></div><button class="map-btn" type="button" data-open-map="player">打开临江市地图</button></div>
+    <div class="card card-pad"><div class="card-title"><b>初始工作</b><small>&#x53EF;&#x9009;&#x65E0;&#x4E1A;</small></div><div class="jobs" id="jobs"></div></div>
+  </div>
+</section>
+<section class="panel" data-panel="3">
+  <div class="section-head"><div><div class="eyebrow">03 / Streamer</div><h2>追加一名自定义主播</h2></div></div>
+  <div class="stream-layout">
+    <div class="card art-card"><div class="art-preview" id="art-preview"><div class="art-monogram" id="art-monogram">S</div><img id="art-img" alt=""><div class="art-caption"><b id="art-name">新主播</b><span id="art-handle">STREAMER</span></div></div><div class="art-tools">
+      <input class="control" id="art-url" placeholder="网络立绘链接 https://..."><div class="file-row"><button class="secondary" id="apply-art-url" type="button">引用链接</button><label class="file-pick">上传本地立绘<input type="file" id="art-file" accept="image/*"></label></div><small>&#x652F;&#x6301;&#x7F51;&#x7EDC;&#x56FE;&#x7247;&#x6216;&#x672C;&#x5730;&#x4E0A;&#x4F20;&#x3002;</small>
+    </div></div>
+    <div class="card stream-form"><div class="fields">
+      <div class="field"><label>姓名</label><input class="control" id="streamer-name" placeholder="例如：沈遥"></div><div class="field"><label>主播网名</label><input class="control" id="streamer-handle" placeholder="例如：遥夜"></div>
+      <div class="field"><label>年龄</label><input class="control" id="streamer-age" type="number" min="18" max="99" value="23"></div><div class="field"><label>住所</label><button class="control select-control" type="button" data-open-map="streamer" id="streamer-home">从地图选择住所</button></div>
+      <div class="field wide"><label>主播分类</label><div class="tags" id="category-tags"></div></div>
+      <div class="field wide"><div class="stats-grid"><div class="range-box"><label><span>热度</span><b id="heat-value">42</b></label><input id="streamer-heat" type="range" min="0" max="100" value="42"></div><div class="field"><label>粉丝数</label><input class="control" id="streamer-followers" type="number" min="0" value="68000"></div><div class="field"><label>舰长数</label><input class="control" id="streamer-captains" type="number" min="0" value="96"></div></div></div>
+      <div class="field"><label>&#x6C14;&#x8D28;&#x5173;&#x952E;&#x8BCD;&#xFF08;&#x9009;&#x586B;&#xFF09;</label><input class="control" id="streamer-tone" placeholder="例如：慢热、生活感强"></div>
+      <div class="field"><label>&#x5E38;&#x7528;&#x76F4;&#x64AD;&#x65F6;&#x95F4;&#xFF08;&#x9009;&#x586B;&#xFF09;</label><input class="control" id="streamer-hours" placeholder="&#x4F8B;&#x5982;&#xFF1A;20:00 - 24:00"></div>
+      <div class="field wide"><label>玩家提供的人设素材</label><textarea class="control" id="streamer-seed" placeholder="写几条已经确定的事实、气质、说话习惯或直播特点。"></textarea></div>
+    </div><div class="generate-row"><button class="primary" id="generate-profile" type="button">生成人设档案</button><span id="generate-status">&#x751F;&#x6210;&#x540E;&#x53EF;&#x7EE7;&#x7EED;&#x7F16;&#x8F91;</span></div><div class="generated" id="generated"><div class="generated-head"><b>世界书人设草稿</b><span>PROFILE DRAFT</span></div><div class="profile-grid" id="profile-grid"></div></div></div>
+  </div>
+</section>
+<section class="panel" data-panel="4">
+  <div class="section-head"><div><div class="eyebrow">04 / Finish</div><h2>&#x4ECE;&#x8FD9;&#x91CC;&#x5F00;&#x59CB;</h2></div></div>
+  <div class="confirm-grid">
+    <div class="card identity-card">
+      <div class="confirm-scene"><div class="confirm-title"><em>Ready</em><h3 id="confirm-player">&#x672A;&#x547D;&#x540D;&#x73A9;&#x5BB6;</h3></div></div>
+      <div class="confirm-lines" id="confirm-lines"></div>
+    </div>
+    <div class="card book-preview">
+      <div class="card-title"><b>&#x4E16;&#x754C;&#x4E66;&#x9884;&#x89C8;</b><small id="book-name">&#x5C1A;&#x672A;&#x751F;&#x6210;</small></div>
+      <p>&#x786E;&#x8BA4;&#x73A9;&#x5BB6;&#x8D44;&#x6599;&#x3001;&#x521D;&#x59CB;&#x4F4F;&#x6240;&#x548C;&#x5DE5;&#x4F5C;&#xFF1B;&#x82E5;&#x5DF2;&#x521B;&#x5EFA;&#x81EA;&#x5B9A;&#x4E49;&#x4E3B;&#x64AD;&#xFF0C;&#x4E0B;&#x65B9;&#x4F1A;&#x663E;&#x793A;&#x5C06;&#x5199;&#x5165;&#x7684;&#x4EBA;&#x8BBE;&#x5185;&#x5BB9;&#x3002;</p>
+      <div class="book-entry"><pre id="book-content">&#x586B;&#x5199;&#x4E3B;&#x64AD;&#x8D44;&#x6599;&#x5E76;&#x751F;&#x6210;&#x4EBA;&#x8BBE;&#x6863;&#x6848;&#x540E;&#xFF0C;&#x8FD9;&#x91CC;&#x4F1A;&#x663E;&#x793A;&#x4E16;&#x754C;&#x4E66;&#x6B63;&#x6587;&#x9884;&#x89C8;&#x3002;</pre></div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="footer"><div class="footer-note">Linjiang &middot; Opening Profile</div><div class="footer-actions"><button class="secondary" id="prev" type="button">&#x8FD4;&#x56DE;</button><button class="primary" id="next" type="button">&#x7EE7;&#x7EED;</button></div></footer>
+</div></div>
+<div class="map-modal" id="map-modal"><div class="map-dialog"><div class="map-head"><div><h3 id="map-title">选择住所</h3><p>在地图中点击地点；标准住所也可从下方快速选择。</p></div><button class="icon-btn" id="map-close" type="button">×</button></div><div class="map-frame"><iframe id="map-iframe" title="临江市地图" loading="lazy"></iframe></div><div class="map-foot" id="quick-homes"></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="./opening.js"></script>
+</body></html>

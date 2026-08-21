@@ -31,6 +31,40 @@
    * frame 是这张区底板在总览上的 footprint，取总览的归一化坐标：
    * {x, y, w}，高度不用写——底板同比例，所以 ny 方向的高度就等于 w。
    * correct 是统一校正，把各自漂移的亮度色相拉回同一个调子。
+   *
+   * ------------------------------------------------------------
+   * frame 已按 overview_night 重对过位
+   * ------------------------------------------------------------
+   * 上一版是照淡入淡出的观感调的，没照着照片量辖区真正落在哪儿。
+   * 以前这不影响任何东西——节点只在自己那张底板上显示，世界坐标只拿来
+   * 算屏幕位置，没人会拿它跟照片对。
+   *
+   * 加了路网之后它变成硬问题：节点的世界坐标同时是「距离」的来源，也是
+   * 地铁线和换乘环落点的来源。最干净的一次验证是换乘环——五个环里三个
+   * （三牌楼 / 明湖广场 / 德泰百货）浮在开阔江面上，那是没法辩解的。
+   * 按区卡锚点（那个逐个对过照片）量出来的旧偏差：
+   *   浦江 2.4 · 明湖 2.2 · 鼓岭 2.2 · 落霞 1.6 · 乌溪 1.3
+   *   雨石 1.2 · 西洲 0.8 · 青屏山 / 东塘 ≈ 0（单位 km）
+   *
+   * 现在这组是照着照片上各区的【地面】范围量的，不是楼顶：老城的城墙弧线、
+   * CBD 塔基、湖岸、站房屋顶、操场跑道。绕行比也跟着好一档（1.16~1.35 → 1.00~1.26）。
+   *
+   * 三件必须说清楚的：
+   *
+   * 1. 完美对位做不到。总览是约 60° 斜俯视的透视图，纵向随景深非线性压缩，
+   *    而 frame 是正方形（w × w）。明湖在照片上「宽 0.48 / 高 0.21」，
+   *    正方形怎么摆都对不齐。要真几何对位，底板得是接近正交的俯视图。
+   *
+   * 2. 浦江和东塘是硬受限的，不是没量准。江北那条建成带在照片上只有
+   *    0.078~0.141 这 0.06 高；机场和南郊农田几乎全在照片下边界外。
+   *    这两个只能取「进得了 z=1 可见带、且落在照片上说得通的位置」。
+   *
+   * 3. 改这里会连带影响地铁站位和干道走向——但不用手改它们：
+   *    city_net.js 里的折点全部锚在节点上（{n} / {a,b,t}），会自己跟着走。
+   *    水系折线是绝对坐标，那个要一起改，它是跨江边的剔除依据。
+   *
+   * ?dev=1 会把九个 frame 的矩形、中心十字、区卡锚点和两者之间的连线都画出来，
+   * 那条白线有多长就是还差多少。
    */
   const PLATES = {
     overview: {
@@ -39,38 +73,48 @@
     },
     wuxi: {
       label: '乌溪区', file: 'plate/wuxi_night.webp', kind: 'district',
-      district: '乌溪区', frame: { x: 0.150, y: 0.520, w: 0.330 },
+      district: '乌溪区', frame: { x: 0.172, y: 0.475, w: 0.330 },
       correct: 'brightness(1.04) saturate(1.06) contrast(1.02)'
     },
     minghu: {
       label: '明湖区', file: 'plate/minghu_night.webp', kind: 'district',
-      district: '明湖区', frame: { x: 0.395, y: 0.130, w: 0.320 },
+      district: '明湖区', frame: { x: 0.470, y: 0.280, w: 0.320 },
       correct: 'brightness(0.98) saturate(1.02) contrast(1.03)'
     },
     guling: {
       label: '鼓岭区', file: 'plate/guling_night.webp', kind: 'district',
-      district: '鼓岭区', frame: { x: 0.115, y: 0.170, w: 0.250 },
+      district: '鼓岭区', frame: { x: 0.155, y: 0.295, w: 0.250 },
       correct: 'brightness(1.0) saturate(1.04) contrast(1.0)'
     },
     xizhou: {
       label: '西洲区', file: 'plate/xizhou_night.webp', kind: 'district',
-      district: '西洲区', frame: { x: -0.010, y: 0.215, w: 0.230 },
+      district: '西洲区', frame: { x: -0.005, y: 0.295, w: 0.230 },
       correct: 'brightness(1.02) saturate(1.0) contrast(1.0)'
     },
     luoxia: {
       label: '落霞区', file: 'plate/luoxia_night.webp', kind: 'district',
-      district: '落霞区', frame: { x: 0.655, y: 0.385, w: 0.320 },
+      district: '落霞区', frame: { x: 0.705, y: 0.520, w: 0.320 },
       correct: 'brightness(1.0) saturate(1.02) contrast(1.0)'
     },
     pujiang: {
       label: '浦江区', file: 'plate/pujiang_night.webp', kind: 'district',
-      district: '浦江区', frame: { x: 0.045, y: -0.040, w: 0.340 },
+      district: '浦江区', frame: { x: 0.080, y: 0.013, w: 0.340 },
       correct: 'brightness(1.0) saturate(1.0) contrast(1.0)'
     },
     yushi: {
       label: '雨石区', file: 'plate/yushi_night.webp', kind: 'district',
-      district: '雨石区', frame: { x: 0.495, y: 0.645, w: 0.310 },
+      district: '雨石区', frame: { x: 0.455, y: 0.615, w: 0.310 },
       correct: 'brightness(0.96) saturate(1.08) contrast(1.05)'
+    },
+    qingping: {
+      label: '青屏山', file: 'plate/qingpingshan_night.webp', kind: 'district',
+      district: '青屏山风景区', frame: { x: 0.795, y: 0.310, w: 0.260 },
+      correct: 'brightness(1.02) saturate(1.08) contrast(1.02)'
+    },
+    dongtang: {
+      label: '东塘区', file: 'plate/dongtang_night.webp', kind: 'district',
+      district: '东塘区', frame: { x: 0.025, y: 0.655, w: 0.250 },
+      correct: 'brightness(0.98) saturate(0.98) contrast(1.04)'
     }
   };
 
@@ -84,27 +128,134 @@
    */
   const PLACE = {
     wuxi: {
-      wx_zhenhuai: [0.405, 0.860],
-      wx_wenmiao: [0.628, 0.664],
-      wx_wenmiao_stage: [0.702, 0.610],
-      wx_wenmiao_square: [0.506, 0.742],
-      wx_wafang: [0.284, 0.656],
-      wx_store: [0.430, 0.584],
-      wx_store_back: [0.470, 0.550],
-      wx_mopan: [0.330, 0.470],
-      wx_mopan_bike: [0.384, 0.442],
-      wx_noodle: [0.212, 0.398],
-      wx_market: [0.128, 0.520],
-      wx_market_canteen: [0.171, 0.557],
       wx_home: [0.205, 0.288],
-      wx_home_roof: [0.157, 0.251],
-      wx_pawn: [0.560, 0.455],
-      wx_bath: [0.868, 0.672],
-      wx_ruin: [0.912, 0.442],
-      wx_ruin_tower: [0.962, 0.399],
-      wx_ruin_garage: [0.905, 0.492],
-      wx_courier: [0.072, 0.812],
-      wx_care: [0.108, 0.672]
+      wx_dye: [0.220, 0.500],
+      wx_adult_shop: [0.284, 0.656],
+      wx_foot: [0.320, 0.540],
+      wx_teahouse: [0.360, 0.460],
+      wx_theme_hotel: [0.420, 0.500],
+      wx_script: [0.460, 0.400],
+      wx_story: [0.520, 0.460],
+      wx_mendong: [0.500, 0.580],
+      wx_arch: [0.560, 0.720],
+      wx_huafang: [0.640, 0.640],
+      wx_inn: [0.700, 0.560],
+      wx_bathhouse: [0.868, 0.672]
+    },
+    minghu: {
+      mh_yunque: [0.540, 0.280],
+      mh_cinema: [0.400, 0.340],
+      mh_hospital: [0.260, 0.400],
+      mh_lake_island: [0.880, 0.380],
+      mh_lake: [0.800, 0.440],
+      mh_dept: [0.480, 0.460],
+      mh_plaza: [0.320, 0.480],
+      mh_underpass: [0.500, 0.500],
+      mh_bank: [0.440, 0.520],
+      mh_civic: [0.360, 0.540],
+      mh_wedding: [0.580, 0.560],
+      mh_pool: [0.280, 0.620],
+      mh_mart: [0.400, 0.640],
+      mh_gym: [0.340, 0.700]
+    },
+    guling: {
+      gl_florist: [0.380, 0.360],
+      gl_cross_books: [0.560, 0.380],
+      gl_boutique: [0.400, 0.400],
+      gl_darkroom: [0.340, 0.420],
+      gl_music: [0.600, 0.440],
+      gl_wutong: [0.480, 0.460],
+      gl_pharmacy: [0.300, 0.480],
+      gl_cafe: [0.360, 0.500],
+      gl_tailor: [0.520, 0.500],
+      gl_barber: [0.320, 0.540],
+      gl_pet: [0.620, 0.540],
+      gl_laundry: [0.440, 0.540],
+      gl_market: [0.240, 0.580],
+      gl_parcel: [0.540, 0.600],
+      gl_clinic: [0.280, 0.640],
+      gl_agency: [0.660, 0.660],
+      gl_yunting: [0.700, 0.740]
+    },
+    xizhou: {
+      xz_jiangyan: [0.740, 0.200],
+      xz_refuge: [0.260, 0.260],
+      xz_run: [0.720, 0.320],
+      xz_theatre: [0.400, 0.360],
+      xz_yoga: [0.560, 0.400],
+      xz_jiayuan: [0.220, 0.420],
+      xz_yongchu: [0.420, 0.460],
+      xz_sound_studio: [0.680, 0.460],
+      xz_esports: [0.620, 0.500],
+      xz_zhoumen: [0.500, 0.540],
+      xz_livehouse: [0.380, 0.580],
+      xz_izakaya: [0.460, 0.620],
+      xz_sales: [0.580, 0.680],
+      xz_mech_garage: [0.300, 0.740],
+      xz_warehouse: [0.160, 0.780]
+    },
+    luoxia: {
+      lx_lab: [0.540, 0.300],
+      lx_archive: [0.480, 0.360],
+      lx_dorm_roof: [0.580, 0.400],
+      lx_schoolclinic: [0.460, 0.400],
+      lx_library: [0.420, 0.460],
+      lx_canteen: [0.400, 0.500],
+      lx_gym: [0.640, 0.500],
+      lx_print: [0.440, 0.540],
+      lx_netcafe: [0.520, 0.560],
+      lx_backstreet: [0.360, 0.620],
+      lx_share: [0.500, 0.660],
+      lx_capsule: [0.340, 0.680],
+      lx_bus: [0.300, 0.740]
+    },
+    pujiang: {
+      pj_apt: [0.560, 0.220],
+      pj_village: [0.400, 0.300],
+      ys_rdpark: [0.640, 0.340],
+      pj_morning: [0.360, 0.380],
+      pj_nightshift: [0.480, 0.720],
+      ys_container: [0.580, 0.800]
+    },
+    yushi: {
+      ys_reedbed: [0.800, 0.360],
+      ys_station: [0.500, 0.480],
+      ys_breakwater: [0.840, 0.540],
+      ys_fishmkt: [0.320, 0.560],
+      ys_ferry: [0.720, 0.640],
+      ys_shipyard: [0.280, 0.680],
+      ys_carferry: [0.680, 0.720]
+    },
+    qingping: {
+      qp_observatory: [0.520, 0.160],
+      qp_glass: [0.580, 0.260],
+      qp_temple: [0.440, 0.340],
+      qp_villa: [0.680, 0.360],
+      qp_shade: [0.180, 0.380],
+      qp_teahouse: [0.480, 0.420],
+      qp_camp: [0.620, 0.480],
+      qp_main: [0.220, 0.500],
+      qp_fall: [0.280, 0.540],
+      qp_cycle: [0.740, 0.560],
+      qp_cable: [0.340, 0.620],
+      qp_farm: [0.780, 0.740],
+      qp_visitor: [0.400, 0.840]
+    },
+    dongtang: {
+      dt_nursery: [0.780, 0.200],
+      dt_berry: [0.740, 0.260],
+      dt_onsen: [0.160, 0.280],
+      dt_park: [0.360, 0.320],
+      dt_reservoir: [0.860, 0.340],
+      dt_stay: [0.180, 0.400],
+      dt_airport: [0.500, 0.420],
+      dt_outlet: [0.240, 0.480],
+      dt_fish: [0.820, 0.480],
+      dt_kart: [0.580, 0.580],
+      dt_gas: [0.300, 0.640],
+      dt_drive: [0.640, 0.720],
+      dt_service: [0.440, 0.800],
+      dt_townhouse: [0.400, 0.880]
     }
   };
 
@@ -149,11 +300,13 @@
     { key: 'wuxi', name: '乌溪区', sub: '老城南', at: [0.340, 0.612], c: '#2f9e5c', i: 'house' },
     { key: 'luoxia', name: '落霞区', sub: '大学城', at: [0.830, 0.640], c: '#2f7fd6', i: 'book' },
     { key: 'yushi', name: '雨石区', sub: '城南枢纽', at: [0.610, 0.752], c: '#3f7ea8', i: 'train' },
-    // 原来在 0.785，正好压着左下角的时段条，标签只能往上让——
-    // 一屏九张卡里唯一一个朝上的，看着就是"没规律"。
-    // 挪到再往上一点那片大跨度仓库（网格量的 nx 0.075 / ny 0.640），
-    // 空港物流带也说得通，而且九张卡的标签全都能朝下
-    { key: 'dongtang', name: '东塘区', sub: '空港与温泉', at: [0.075, 0.640], c: '#c2673a', i: 'water' }
+    // 原来在 0.640，那是照片左侧那片仓库——「南郊空港」放在城西，
+    // 加了地铁之后这个错读得很清楚（从乌溪家到空港直线只有 3.3 km）。
+    // 现在挪到照片左下那片农田与出城高速，方位说得通，也进得了 z=1 可见带
+    // （真正的南郊在照片下边界外面，摆过去在总览档就看不见了）。
+    // 注意别再往下：0.785 会压着左下角的时段条，标签只能往上让，
+    // 一屏九张卡里唯一一个朝上的，看着就是"没规律"
+    { key: 'dongtang', name: '东塘区', sub: '空港与温泉', at: [0.110, 0.755], c: '#c2673a', i: 'water' }
   ];
 
   /**
@@ -221,9 +374,6 @@
     exit: 1.15               // 出区方向
   };
 
-  /** 卡片之间的最小间距，随 r 略微放宽——名字不会跟着缩那么多 */
-  const GAP = 8;
-
   // ============ 图标 ============
   /**
    * 分组配色，沿用 city_map 那套。
@@ -236,17 +386,14 @@
     living: '#2f9e5c', culture: '#7c5cd0', leisure: '#c93f8f', civic: '#d9463d', nature: '#189e90'
   };
   const TYPE = {
-    home: ['living', 'house'], street: ['commerce', 'shop'], store: ['commerce', 'shop'],
-    diner: ['food', 'food'], foodstreet: ['food', 'food'], market: ['commerce', 'market'],
-    pawn: ['commerce', 'shop'], heritage: ['culture', 'heritage'], gate: ['culture', 'gate'],
-    bathhouse: ['leisure', 'water'], ruins: ['work', 'crane'], depot: ['work', 'depot'],
-    care: ['civic', 'cross'], cafe: ['food', 'cup'], mall: ['commerce', 'market'],
-    plaza: ['commerce', 'market'], library: ['culture', 'book'], park: ['nature', 'tree'],
-    lake: ['nature', 'water'], station: ['transit', 'train'], metro: ['transit', 'train'],
-    gov: ['civic', 'gate'], hospital: ['civic', 'cross'], office: ['work', 'office'],
-    mcn: ['work', 'office'], studio: ['work', 'office'], gym: ['leisure', 'tree'],
-    stadium: ['leisure', 'tree'], apartment: ['living', 'house'], residence: ['living', 'house'],
-    pier: ['transit', 'water'], scene: ['living', 'shop']
+    nature: ['nature', 'tree'],
+    hotspring: ['leisure', 'water'],
+    medical: ['civic', 'cross'],
+    commercial: ['commerce', 'shop'],
+    adult: ['leisure', 'shop'],
+    academy: ['culture', 'book'],
+    live: ['work', 'office'],
+    living: ['living', 'house']
   };
   const ICON = {
     house: 'M4.5 14.6L16 5l11.5 9.6M7.5 17v10h17V17M13 27v-6.6h6V27',
@@ -270,7 +417,7 @@
     `<symbol id="i-${k}" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" ` +
     `stroke-linecap="round" stroke-linejoin="round"><path d="${ICON[k]}"/></g></symbol>`).join('');
 
-  window.__PM = { D, R, PLATES, PLACE, DISTRICTS, PHASES, PHASE_ORDER, LOD, GAP, GROUP, TYPE };
+  window.__PM = { D, R, PLATES, PLACE, DISTRICTS, PHASES, PHASE_ORDER, LOD, GROUP, TYPE };
 })();
 
 /**
@@ -282,6 +429,7 @@
   'use strict';
   const M = window.__PM;
   const D = M.D, R = M.R, LOD = M.LOD;
+  const OPENING_MODE = new URLSearchParams(location.search).get('mode') === 'opening';
 
   const stage = document.getElementById('stage');
   const platesHost = document.getElementById('plates');
@@ -309,22 +457,31 @@
   const byId = {};
   D.nodes.forEach(n => byId[n.id] = n);
 
-  // ============ 运行时状态（示例注入） ============
+  // ============ Runtime state ============
   /**
-   * 运行时状态。这里的值只是页面单独打开时的示例，
-   * 嵌进宿主页面后由 PLATE_MAP.setState 灌进来。
+   * Start empty. The host injects player, actor, and event state through
+   * PLATE_MAP.setState. Keeping demo actors here makes stale people flash while
+   * an iframe is loading and masks integration failures.
    */
+  const MAP_REV = '20260821-requirements-v3';
   const STATE = {
-    district: 'wuxi',                 // 玩家所在区，总览上高亮它
-    player: { at: 'wx_home' },
-    actors: [
-      { at: 'wx_store', name: '苏芸', img: '../art/girl1.png' },
-      { at: 'wx_mopan', name: '老周', img: '../art/girl3.png' },
-      { at: 'wx_wenmiao', name: '林小满', img: '../art/girl2.png' }
-    ],
-    events: [{ at: 'wx_wafang', n: 2 }, { at: 'wx_zhenhuai', n: 1 }],
-    route: ['wx_home', 'wx_mopan', 'wx_store', 'wx_wenmiao']
+    district: '',
+    player: { at: '' },
+    actors: [],
+    events: []
   };
+
+  /**
+   * ============ 出行 ============
+   * 路线不再由宿主灌进来。宿主只管"玩家在哪"，
+   * "怎么去那儿"是地图自己算的——这才是这张图该负的责。
+   *
+   * all 里四种方式各存一份，因为 tab 上要同时摆出四个时长做对比。
+   * 真实地图 App 就是这么做的，也是让"选哪种"变成一个真决定的唯一办法：
+   * 只显示当前那一种，玩家没有比较对象，选择就退化成随手点。
+   */
+  const TRIP = { to: '', mode: 'transit', all: null, result: null };
+  let onTravel = null;
 
   const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
   /** 线性斜坡，两端夹住。所有淡入淡出都走它 */
@@ -357,6 +514,40 @@
   function inFrame(f, px, py) {
     return { x: f.x + px * f.w, y: f.y + py * f.w };
   }
+
+  // ============ 节点的世界坐标 ============
+  /**
+   * 把 PLACE（区内归一化）摊平成一张 id → [wx, wy] 的世界坐标表。
+   * 这份表是路网、寻路、人物钉子、goto 的共同真源——
+   * 以前 worldOfPerson 和 API.goto 各写了一遍同样的查找，
+   * 现在谁要节点在哪儿都来问这里。
+   *
+   * 注意它依赖 PLATES[].frame。谁哪天挪了某个区的 footprint，
+   * 这张表跟着变，自动生成的支路会重连；手写的地铁线和干道折点
+   * 是绝对世界坐标，不会跟着动，得回 city_net.js 里对一遍。
+   */
+  const NODE_W = {};
+  Object.keys(M.PLACE).forEach(key => {
+    const f = M.PLATES[key] && M.PLATES[key].frame;
+    if (!f) return;
+    Object.keys(M.PLACE[key]).forEach(id => {
+      const p = M.PLACE[key][id];
+      NODE_W[id] = [f.x + p[0] * f.w, f.y + p[1] * f.w];
+    });
+  });
+  const worldOf = id => NODE_W[id] || null;
+  /** 这个节点在哪张底板上。判"节点有没有被别的底板盖住"要用 */
+  const PLATE_OF = {};
+  Object.keys(M.PLACE).forEach(key => {
+    Object.keys(M.PLACE[key]).forEach(id => { PLATE_OF[id] = key; });
+  });
+
+  // ============ 路网 ============
+  const NET = window.CITY_NET;
+  const G = NET ? NET.build({
+    nodeWorld: NODE_W,
+    nameOf: id => (byId[id] && byId[id].name) || id
+  }) : null;
 
   /**
    * 区底板是矩形 footprint，彼此之间留得开——明湖南沿和乌溪北沿中间
@@ -514,8 +705,9 @@
     tintEl.style.opacity = ph.tint === 'none' ? 0 : 1;
     tint2El.style.background = ph.tint2;
     tint2El.style.opacity = ph.tint2 === 'none' ? 0 : 1;
-    [...document.getElementById('phase').children].forEach(b =>
-      b.classList.toggle('on', b.textContent === phase));
+    document.querySelectorAll('#phase button[data-ph]').forEach(b =>
+      b.classList.toggle('on', b.dataset.ph === phase));
+    if (selId && byId[selId]) renderSpot(byId[selId]);
   }
 
   // ============ 节点池 ============
@@ -530,25 +722,6 @@
    * 圆盘钉死在锚点上。标签不随视口换边——换边看起来像卡片在绕着钉子转。
    */
   const pool = new Map();
-
-  /**
-   * 角标向外溢出多少。和 CSS 里 .nj / .nv 的 top/right/left 是一对，
-   * 改一头要同步另一头——量 DOM 更准，但事件红点是运行时才建的，
-   * 量的时机永远赶不上排版，写死反而不容易错。
-   */
-  const JOB_OVER = { major: [18, 7], minor: [22, 9], '': [20, 8] };  // [右, 上]
-  const EV_OVER = [12, 7];                                           // [左, 上]
-
-  /**
-   * 算圆盘的占位框要额外留出多少。
-   * 不把角标算进去的话，标签会正好摆在角标上——第一版就是这个毛病。
-   */
-  function pads(it) {
-    const [jr, jt] = JOB_OVER[it.el.dataset.tier] || JOB_OVER[''];
-    it.padR = it.job ? jr + 3 : 0;
-    it.padL = it.ev ? EV_OVER[0] + 3 : 0;
-    it.padT = Math.max(it.job ? jt : 0, it.ev ? EV_OVER[1] : 0);
-  }
 
   function acquire(key, tier, html) {
     let it = pool.get(key);
@@ -566,55 +739,28 @@
       it.iw = it.ic.offsetWidth;
       it.ih = it.ic.offsetHeight;
       if (lab) { it.lw = lab.offsetWidth; it.lh = lab.offsetHeight; }
-      it.job = !!el.querySelector('.nj');
-      pads(it);
       pool.set(key, it);
     }
     it.seen = true;
     return it;
   }
 
-  /**
-   * 地图控件的矩形也算占用。
-   * 现在只有缩放按钮、时段条和开发条——玩法 HUD 全撤了，
-   * 这张图要嵌进别的页面，壳子归宿主管。
-   */
-  let hudCache = null, hudAt = 0;
-  function hudBoxes() {
-    const now = performance.now();
-    if (hudCache && now - hudAt < 500) return hudCache;
-    hudAt = now;
-    hudCache = ['ctl', 'phase', 'dev']
-      .map(id => document.getElementById(id))
-      .filter(el => el && el.offsetParent !== null)
-      .map(el => {
-        const r = el.getBoundingClientRect();
-        return { x: r.left - 6, y: r.top - 6, w: r.width + 12, h: r.height + 12 };
-      });
-    return hudCache;
-  }
-
-  /**
-   * 让下一帧彻底重排。
-   * hudBoxes 自己有 500ms 的 TTL，但那救不了：renderNodes 被 lastKey 挡着，
-   * 视野不动就永远不重排，于是首帧那份"控件还没建好"的空矩形会一直用下去
-   * ——东塘的标签压在时段条上就是这么来的。控件建完、字体加载完、
-   * 窗口改了，都得从这里捅一下。
-   */
-  function invalidate() { hudCache = null; lastKey = ''; }
+  /** 让下一帧彻底重排。字体加载完、窗口改了、状态换了都得从这里捅一下 */
+  function invalidate() { lastKey = ''; }
 
   /**
    * 摆一个节点：圆盘钉在锚点，名字永远在正下方。
    * 出了画面就把字藏掉、圆盘留着。不换到左右上——视口一动标签就绕圈，读成卡片在转。
+   *
+   * 这里【不做】标签互相避让。上一版把占位框一路收集下来、还按角标溢出算了 padding，
+   * 但从来没做过相交测试——那套东西是有意不要的：
+   * 挤开之后标签就不在它指的地方了，一屏下来全是"名字在飘"，比叠着更难读。
+   * 真正的密度控制手段是 LOD：远了少显几级，不是把字推来推去。
    */
-  function placeNode(it, s, boxes) {
+  function placeNode(it, s) {
     it.el.style.left = s.x + 'px';
     it.el.style.top = s.y + 'px';
-    const icBox = {
-      x: s.x - it.iw / 2 - it.padL, y: s.y - it.ih / 2 - it.padT,
-      w: it.iw + it.padL + it.padR, h: it.ih + it.padT
-    };
-    if (!it.lab) return icBox;
+    if (!it.lab) return;
 
     const g = 6;
     const dx = -it.lw / 2, dy = it.ih / 2 + g;
@@ -622,48 +768,57 @@
     const pad = 10, W = vw(), H = vh();
     if (x < pad || y < pad || x + it.lw > W - pad || y + it.lh > H - pad) {
       it.lab.className = 'nl hide';
-      return icBox;
+      return;
     }
     it.lab.className = 'nl';
     it.lab.style.left = (it.iw / 2 + dx) + 'px';
     it.lab.style.top = (it.ih / 2 + dy) + 'px';
-    it.slot = 0;
-    return {
-      x: Math.min(icBox.x, x), y: Math.min(icBox.y, y),
-      w: Math.max(icBox.x + icBox.w, x + it.lw) - Math.min(icBox.x, x),
-      h: Math.max(icBox.y + icBox.h, y + it.lh) - Math.min(icBox.y, y)
-    };
   }
 
   const cfg = t => {
     const e = M.TYPE[t] || ['living', 'shop'];
     return { color: M.GROUP[e[0]], icon: e[1] };
   };
-  const rankOf = n => (n.rank == null ? 1 : Math.min(2, n.rank));
+  const RANK0 = new Set([
+    'qp_main', 'qp_visitor',
+    'dt_airport', 'dt_onsen',
+    'mh_hospital', 'mh_lake', 'mh_dept',
+    'gl_wutong', 'gl_market',
+    'wx_home', 'wx_mendong',
+    'lx_library', 'lx_gym',
+    'xz_theatre', 'xz_zhoumen', 'xz_jiangyan',
+    'ys_station', 'pj_village'
+  ]);
+  const rankOf = n => {
+    if (RANK0.has(n.id)) return 0;
+    if (n.privacy >= 4 && !n.features?.hasShop && !n.features?.canWork) return 2;
+    return 1;
+  };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-  /** 玩家、在场人物、事件、规划路线上的地点必须出现，不参与竞争 */
+  /** 玩家、在场人物、事件、当前行程两端的地点必须出现，不参与竞争 */
   function forcedIds() {
     const s = new Set();
     if (STATE.player.at) s.add(STATE.player.at);
     STATE.actors.forEach(a => { if (a.at) s.add(a.at); });
     STATE.events.forEach(e => { if (e.at) s.add(e.at); });
-    STATE.route.forEach(id => { if (id) s.add(id); });
+    if (TRIP.to) s.add(TRIP.to);
     return s;
   }
   let FORCED = forcedIds();
-  /** 点节点的回调。地图自己不做任何事，把节点抛给宿主页面 */
+  /** 点节点的回调。详情页由地图自己打开；宿主若还要接，走 onPick */
   let onPick = null;
+  let selId = '';
 
   /**
    * 视野没变就不重排。
    * 每帧唯一必须动的是光带那圈流动虚线，那只是 canvas 一次重画；
-   * 底板变换、节点排版、碰撞检测都跟着跑的话白烧掉一半帧率。
+   * 底板变换和节点排版跟着每帧跑的话白烧掉一半帧率。
    */
   let lastKey = '';
   function render() {
     const key = `${view.cx.toFixed(5)}|${view.cy.toFixed(5)}|${view.z.toFixed(5)}|${vw()}x${vh()}|${phase}`;
-    if (key !== lastKey) { lastKey = key; renderNodes(); }
+    if (key !== lastKey) { lastKey = key; renderNodes(); drawScale(); }
     drawCanvas();
   }
 
@@ -672,15 +827,20 @@
     layoutPlates();
     pool.forEach(it => it.seen = false);
     pins.forEach(it => it.seen = false);
-    const boxes = hudBoxes().slice();
 
     // 区卡：自己那片 footprint 在屏幕上占到一定宽度就淡出，交给地点
     M.DISTRICTS.forEach(d => {
       const has = M.PLATES[d.key];
       const r = has ? ratio(d.key) : 0;
       // 没有底板的区跟着整体缩放退场，不然会一直挂在放大的图上
-      const a = has ? 1 - ramp(r, LOD.chipOut[0], LOD.chipOut[1])
-        : 1 - ramp(view.z, 1.5, 2.3);
+      /* 路网视图里区卡整个撤掉。
+         区卡是「进哪个区」的入口，属于氛围那一档；打开路网是要查线路，
+         两组标签抢同一块地方——探测出来五个换乘站名全在场、opacity 都是 1，
+         但乌溪门东压在乌溪区卡下面、临江南站压在雨石区卡下面，看不见。
+         标签避让那套是你让删的，也不该加回来：挤开之后名字就不在它指的
+         地方了。所以按视图分层——这一档显示轨道，那一档显示区。 */
+      const a = (netView ? 0 : 1) * (has ? 1 - ramp(r, LOD.chipOut[0], LOD.chipOut[1])
+        : 1 - ramp(view.z, 1.5, 2.3));
       const here = d.key === STATE.district;
       const it = acquire('D:' + d.key, 'major',
         `<div class="ni"><svg viewBox="0 0 32 32"><use href="#i-${d.i}"/></svg></div>` +
@@ -725,13 +885,17 @@
       it.el.style.opacity = on ? a : 0;
       it.el.classList.toggle('on', on);
       if (!on) return;
-      boxes.push(placeNode(it, p, boxes));
+      placeNode(it, p);
     });
 
     // 地点：逐级显形
     Object.keys(M.PLATES).forEach(key => {
-      if (M.PLACE[key]) drawDistrict(key, boxes);
+      if (M.PLACE[key]) drawDistrict(key);
     });
+
+    /* 站名排在地点之后：它要判「这个地点的白牌在不在场」来决定是否补站名，
+       排在前面读到的是上一帧的状态，切换缩放时会闪一帧重复标签 */
+    drawStations();
 
     // 没布点的区：底板起来了给个说明，免得看着像 bug
     Object.keys(M.PLATES).forEach(key => {
@@ -748,7 +912,7 @@
       const on = a > 0.02 && p.x > 0 && p.x < W && p.y > 0 && p.y < H;
       it.el.style.opacity = on ? a : 0;
       it.el.classList.toggle('on', on);
-      if (on) boxes.push(placeNode(it, p, boxes));
+      if (on) placeNode(it, p);
     });
 
     drawPeople();
@@ -766,10 +930,10 @@
 
   /**
    * 一个区内部的分级。
-   * rank 0 地标先来，然后常去地点、次级地点，最后子场景；
-   * 先占位的赢，所以地标优先——和原来那张全城图一个路子。
+   * rank 0 地标先来，然后常去地点、次级地点，最后子场景——
+   * 这个顺序现在只决定 DOM 里谁在前，密度靠 LOD 门槛控制，不靠互相挤。
    */
-  function drawDistrict(key, boxes) {
+  function drawDistrict(key) {
     const pl = M.PLATES[key], spots = M.PLACE[key];
     const r = ratio(key);
     if (r < LOD.rank[0] - 0.1) return;      // 还太远，整层不用算
@@ -799,17 +963,30 @@
       const tier = scene ? 'scene' : rk === 0 ? 'major' : rk >= 2 ? 'minor' : '';
       const gate = scene ? LOD.scene : (FORCED.has(n.id) ? LOD.rank[0] : LOD.rank[rk]);
       const a = ramp(r, gate, gate + (scene ? 0.3 : 0.22));
-      const k = cfg(n.type);
+      const k = cfg(n.archetype);
       const wp = inFrame(pl.frame, spots[n.id][0], spots[n.id][1]);
       const p = toScreen(wp.x, wp.y);
 
       const it = acquire('N:' + n.id, tier,
         `<div class="ni"><svg viewBox="0 0 32 32"><use href="#i-${k.icon}"/></svg></div>` +
         `<div class="nl"><b>${esc(n.name)}</b></div>` +
-        (n.job ? '<div class="nj">可打工</div>' : ''));
+        (n.features && n.features.canWork ? '<div class="nj">可打工</div>' : ''));
       it.el.style.setProperty('--nc', k.color);
       it.n = n;
-      if (!it.bound) { it.el.onclick = () => onPick && onPick(it.n); it.bound = true; }
+      if (!it.bound) {
+        it.el.onclick = () => {
+          if (OPENING_MODE) {
+            selId = it.n.id;
+            invalidate();
+            if (onPick) onPick(it.n);
+            return;
+          }
+          openSpot(it.n);
+          if (onPick) onPick(it.n);
+        };
+        it.bound = true;
+      }
+      it.el.dataset.sel = n.id === selId ? '1' : '';
 
       /* 锚点出了视口就整个不显，不能只放宽到 ±120。
          放宽的后果是圆盘在屏外、标签被 padR 推回屏内——
@@ -835,9 +1012,8 @@
         evEl.textContent = ev ? (ev.n > 1 ? ev.n : '!') : '';
         evEl.style.display = ev ? '' : 'none';
       }
-      if (it.ev !== !!ev) { it.ev = !!ev; pads(it); }
 
-      boxes.push(placeNode(it, p, boxes));
+      placeNode(it, p);
     });
   }
 
@@ -863,14 +1039,8 @@
 
   /** 人物落点：有节点坐标就钉节点，否则钉所在区卡。总览也要看得见，不能等进区。 */
   function worldOfPerson(ac) {
-    if (ac.at) {
-      for (const key of Object.keys(M.PLACE)) {
-        const spots = M.PLACE[key];
-        if (!spots[ac.at]) continue;
-        const f = M.PLATES[key].frame;
-        if (f) return inFrame(f, spots[ac.at][0], spots[ac.at][1]);
-      }
-    }
+    const w = ac.at && worldOf(ac.at);
+    if (w) return { x: w[0], y: w[1] };
     const d = M.DISTRICTS.find(x => x.key === ac.district);
     return d ? { x: d.at[0], y: d.at[1] } : null;
   }
@@ -902,6 +1072,12 @@
   }
 
   // ============ canvas 层 ============
+  /**
+   * 画在这一层的东西，从下到上：水系 → 干道 → 地铁 → 站点 → 当前路线。
+   * 这一层是这张图的「中频」：底板是高频的噪，节点牌是高频的锐，
+   * 中间原来什么都没有，所以标记不管怎么调都读作贴在照片上。
+   * 河、路、线是低频、规则、有秩序的，缝的就是这条缝。
+   */
   function drawCanvas() {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const W = vw(), H = vh();
@@ -913,60 +1089,535 @@
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    if (!NET) return;
 
-    // 光带压在卡片下面、底板上面
-    Object.keys(M.PLACE).forEach(key => {
-      const pl = M.PLATES[key], spots = M.PLACE[key];
-      const a = ramp(ratio(key), LOD.detail, LOD.detail + 0.3);
-      if (a < 0.02) return;
-      const pts = STATE.route.filter(id => spots[id]).map(id => {
-        const wp = inFrame(pl.frame, spots[id][0], spots[id][1]);
-        const p = toScreen(wp.x, wp.y);
-        return [p.x, p.y];
-      });
-      drawRoute(pts, a);
-    });
-
-    // 锚点小圆点撤了：圆盘现在就钉在锚点上，
-    // 再画一个点就是同一个位置画两遍
+    domNow = plateDominance();
+    /* 水系仍然只在 ?dev=1 出：它作为寻路障碍是有用的（RNG 靠它剔掉跨江的边），
+       但作为图形，位置取决于底板对位，而对位还没定——湖的轮廓现在落在照片里
+       对岸的山坡上。照片本身已经把江和湖交代清楚了，不缺这一层。 */
+    if (showNet) { drawLocal(); drawWays(); drawMetro(); }
+    drawTrip();
+    if (DEV) { drawWater(); drawFrames(); }
     ctx.globalAlpha = 1;
   }
+  let domNow = 0;
+  const DEV = /[?&]dev=1/.test(location.search);
+  let showNet = true;
 
-  /** 规划路线。底板上不需要沿街走，参考图里那些光带也是浮着的抽象线 */
-  function drawRoute(pts, alpha) {
-    if (pts.length < 2) return;
-    // Catmull-Rom 平滑，直连的折线看着太像连线图
-    const sm = [];
+  const sp = p => { const q = toScreen(p[0], p[1]); return [q.x, q.y]; };
+  const trace = pts => {
+    ctx.beginPath();
+    pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  };
+
+  /**
+   * 向心 Catmull-Rom（alpha = 0.5）过点采样。
+   *
+   * 为什么不是普通的均匀 Catmull-Rom：站间距差很多（市区 1.4 km、郊区 2.6 km），
+   * 均匀参数化在间距不匀又转角大的地方会甩出去——上一版从明湖往落霞那一段
+   * 直接鼓成一个大圆弧，比原来的硬折线还离谱。向心参数化的性质就是
+   * 不产生尖点也不过冲，同时仍然精确过每一个点，所以站台圆点还是落在线上。
+   *
+   * 也不用圆角折线：那个不过点，在明湖广场那种 V 形转角上站点会掉到线外面。
+   */
+  function smooth(pts, seg) {
+    if (pts.length < 3) return pts;
+    const n = seg || 12;
     const e = [pts[0], ...pts, pts[pts.length - 1]];
+    const out = [];
+    const knot = (a, b) => Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])) || 1e-4;
     for (let i = 1; i < e.length - 2; i++) {
-      for (let k = 0; k < 16; k++) {
-        const t = k / 16, t2 = t * t, t3 = t2 * t;
-        const p0 = e[i - 1], p1 = e[i], p2 = e[i + 1], p3 = e[i + 2];
-        sm.push([
-          0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
-          0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
-        ]);
+      const p0 = e[i - 1], p1 = e[i], p2 = e[i + 1], p3 = e[i + 2];
+      const t0 = 0, t1 = t0 + knot(p0, p1), t2 = t1 + knot(p1, p2), t3 = t2 + knot(p2, p3);
+      for (let k = 0; k < n; k++) {
+        const t = t1 + (t2 - t1) * (k / n);
+        const mix = (a, b, ta, tb) => {
+          const d = tb - ta || 1e-4, u = (t - ta) / d;
+          return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+        };
+        const a1 = mix(p0, p1, t0, t1), a2 = mix(p1, p2, t1, t2), a3 = mix(p2, p3, t2, t3);
+        const b1 = mix(a1, a2, t0, t2), b2 = mix(a2, a3, t1, t3);
+        out.push(mix(b1, b2, t1, t2));
       }
     }
-    sm.push(pts[pts.length - 1]);
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
 
-    const trace = () => {
-      ctx.beginPath();
-      sm.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
-    };
+  /**
+   * 底板占了多大份。用来让水系随进区淡出——
+   * 矢量的河压在写实的河上会很假，所以进区之后交回底板像素，
+   * 只在总览到中景这一段用它把九张不同相机的底板缝成一座城。
+   */
+  function plateDominance() {
+    let m = 0;
+    Object.keys(M.PLATES).forEach(k => {
+      if (k === 'overview' || !M.PLATES[k].frame) return;
+      const a = +(layers[k].__o || 0);
+      if (a > m) m = a;
+    });
+    return m;
+  }
+
+  function drawWater() {
+    const a = (1 - domNow * 0.85) * 0.9;
+    if (a < 0.03) return;
+    const s = S();
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = a;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    // 三层：外阔、中亮、内芯
-    [[16, 'rgba(96, 236, 190, .10)'], [7, 'rgba(120, 244, 200, .26)'], [2.6, 'rgba(224, 255, 244, .9)']]
-      .forEach(([w, c]) => { trace(); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.stroke(); });
-    // 流动虚线
+
+    const river = smooth(NET.WATER.river.pts.map(sp), 10);
+    const wpx = NET.WATER.river.width * s;
+    // 水体本身：一条压暗的冷带，不是不透明的蓝
+    trace(river);
+    ctx.strokeStyle = 'rgba(14, 32, 62, .40)';
+    ctx.lineWidth = wpx;
+    ctx.stroke();
+    // 两道岸线亮边。真正让人读出"这是一条连续的河"的是边，不是面
+    ctx.strokeStyle = 'rgba(150, 200, 246, .26)';
+    ctx.lineWidth = Math.max(1, wpx * 0.06);
+    [-1, 1].forEach(side => {
+      trace(river.map((p, i) => {
+        const q = river[Math.min(i + 1, river.length - 1)];
+        const r = river[Math.max(i - 1, 0)];
+        const dx = q[0] - r[0], dy = q[1] - r[1];
+        const L = Math.hypot(dx, dy) || 1;
+        return [p[0] - dy / L * side * wpx / 2, p[1] + dx / L * side * wpx / 2];
+      }));
+      ctx.stroke();
+    });
+    // 江心洲
+    trace(smooth(NET.WATER.isle.map(sp), 8)); ctx.closePath();
+    ctx.fillStyle = 'rgba(26, 48, 40, .45)';
+    ctx.fill();
+
+    NET.WATER.lakes.forEach(l => {
+      // 闭合轮廓：首尾各补一点，不然接缝处会出一个尖角
+      const raw = l.pts.map(sp);
+      const pts = smooth([raw[raw.length - 1], ...raw, raw[0]], 8);
+      trace(pts); ctx.closePath();
+      ctx.fillStyle = 'rgba(14, 32, 62, .42)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150, 200, 246, .24)';
+      ctx.lineWidth = Math.max(1, s * 0.0016);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  /**
+   * ============ 路网的画法 ============
+   * 照 dragon_map 那套航路的语言来：细、虚、淡、按种类分色，没有发光也没有描边。
+   * 那边的数值是 lineWidth 1.1~2.0、dash [2,6]~[7,6]、alpha 0.42~0.55，
+   * 而且线宽和虚线间隔都跟着缩放走。
+   *
+   * 唯一要翻过来的是明暗：那张图是浅底，所以用深色低透明；
+   * 这张是夜景照片，深色描上去等于没画，所以换成浅色低透明，alpha 取值更低
+   * （照片本身是花的，同样的 alpha 在这儿会比在纯色底上更显）。
+   *
+   * 三次返工的教训写在这儿：饱和实色 → 一团电线；纯加法发光 → 亮部消失、
+   * 暗部过曝；暗垫 + 发光 + 亮芯 → 作为「画」合格了，但它在抢戏。
+   * 路网是背景信息，读得出走向就够，不该比地点牌还显眼。
+   */
+  const WAY_STYLE = {
+    express: { c: 'rgba(255, 206, 148, ', a: 0.34, w: 1.5, dash: [11, 7], bow: 0.030 },
+    arterial: { c: 'rgba(198, 216, 248, ', a: 0.18, w: 1.2, dash: [7, 6], bow: 0.055 },
+    bridge: { c: 'rgba(222, 236, 255, ', a: 0.34, w: 1.5, dash: [5, 5], bow: 0.018 },
+    tunnel: { c: 'rgba(172, 194, 234, ', a: 0.22, w: 1.1, dash: [2, 7], bow: 0.020 }
+  };
+
+  /** 虚线和线宽跟着缩放走，不然推近之后虚线密得像实线 */
+  function dashScale() { return clamp(view.z * 0.72, 0.8, 2.4); }
+
+  /**
+   * 折线画成一串微弯的二次贝塞尔。
+   * 控制点沿法向偏 len × curve，和 dragon_map 的 buildEdgePath 是同一个式子；
+   * curve 由「路的 id + 第几段」哈希出来，所以每帧都一样、不会抖，
+   * 而且每段各弯各的，读起来像路在拐，不像谁用尺子画的。
+   *
+   * 逐段独立的二次曲线在折点处只有 C0 连续——对路来说这正好，
+   * 路口本来就是要有个折的。轨道不走这条，走下面平滑的那个。
+   */
+  function traceBowed(pts, amp, seed) {
+    if (pts.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      let h = Math.sin((seed + i * 37.13) * 12.9898) * 43758.5453;
+      h = h - Math.floor(h);                       // 0~1，稳定
+      const c = amp * (h * 2 - 1);
+      ctx.quadraticCurveTo(
+        (a[0] + b[0]) / 2 - dy * c,
+        (a[1] + b[1]) / 2 + dx * c,
+        b[0], b[1]
+      );
+    }
+  }
+  const hashOf = s => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973;
+    return h;
+  };
+
+  /**
+   * 点与点之间的连线——自动生成的那层支路（RNG）。
+   * 这一层一直在图里跑（寻路走的就是它），但之前从来没画出来，
+   * 所以玩家看到的"路网"其实缺了最底下也是最密的一级。
+   *
+   * 它是最细一级，所以门槛也最高：z<1.5 完全不出。
+   * 总览档 250 条线糊满全城，读不出任何东西，而那一档要看的是区和轨道；
+   * 推近之后它才有意义——"从这个点能直接走到哪几个点"。
+   * 参考 dragon_map 里 scene 那一档的处理（SCENE_VISIBLE_SCALE 之下不画）。
+   */
+  let localCache = null;
+  function localEdges() {
+    if (!localCache) {
+      localCache = G.E.filter(e => e.kind === 'local').map(e => {
+        const a = G.V.get(e.a), b = G.V.get(e.b);
+        return [[a.x, a.y], [b.x, b.y], hashOf(e.a + e.b)];
+      });
+    }
+    return localCache;
+  }
+
+  function drawLocal() {
+    /* 这一档的参数返工过两次，两次都太淡，所以把目标写下来：
+       区级要能一眼看出「这个点直接连到哪几个点」，亮度大致和照片自己的
+       街道灯带相当——明确在场、可追踪，但明显退在白色地点牌后面。
+       两处错误：
+         1) 乘了 (1 - domNow * 0.35)。压制方向是反的——支路是区内信息，
+            进区正是该看它的时候，不该跟着底板淡出。干道和轨道压是对的
+            （那两层在区级几何上对不齐），支路连的是同一张底板上的点。
+         2) 套了全量 dashScale。z=3.3 时虚线被拉成 [5.9, 13]，
+            稀疏短划 + 低透明度叠起来等于没画。支路的虚线间隔要收着。 */
+    const fade = ramp(view.z, 1.2, 1.9);
+    if (fade < 0.04) return;
+    const W = vw(), H = vh();
+    ctx.save();
+    ctx.lineCap = 'round';
+    // 比主干道淡一档、虚线更碎——它读的是「能走过去」，不是「有一条路」
+    ctx.strokeStyle = `rgba(198, 216, 246, ${(0.42 * fade * boost()).toFixed(3)})`;
+    ctx.lineWidth = 1 * clamp(view.z * 0.5, 0.7, 1.5);
+    ctx.setLineDash([2.5, 4].map(v => v * clamp(view.z * 0.5, 0.8, 1.6)));
+
+    /* 250 条边共用同一套样式，所以攒成一条 path 一次 stroke。
+       上一版是每条边各 beginPath + stroke，帧率掉了 6 帧（58 → 52）；
+       canvas 的开销主要在 stroke 调用次数上，不在路径长度。 */
+    ctx.beginPath();
+    localEdges().forEach(([wa, wb, h]) => {
+      const a = sp(wa), b = sp(wb);
+      // 两端都在同一侧屏外的直接跳过，一屏之内大半都是
+      if ((a[0] < 0 && b[0] < 0) || (a[0] > W && b[0] > W) ||
+        (a[1] < 0 && b[1] < 0) || (a[1] > H && b[1] > H)) return;
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      let k = Math.sin(h * 12.9898) * 43758.5453;
+      k = (k - Math.floor(k)) * 2 - 1;
+      const c = 0.045 * k;
+      /* 折成两段直线而不是画二次曲线。给曲线做虚线很贵——光栅化要先把曲线
+         展平再沿弧长量每一段划，250 条叠起来掉了 10 帧。
+         二次曲线的顶点就在 (起点+终点)/2 + 法向偏移 的一半处，
+         所以取那个点连两段直线，1px 虚线上看不出差别。 */
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo((a[0] + b[0]) / 2 - dy * c * 0.5, (a[1] + b[1]) / 2 + dx * c * 0.5);
+      ctx.lineTo(b[0], b[1]);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawWays() {
+    const fade = 1 - domNow * 0.55;
+    if (fade < 0.05) return;
+    const ds = dashScale();
+    ctx.save();
+    ctx.lineCap = 'round';
+    NET.WAYS.forEach(w => {
+      const g = G.wayGeom(w);
+      if (g.length < 2) return;
+      const st = WAY_STYLE[w.kind] || WAY_STYLE.arterial;
+      traceBowed(g.map(sp), st.bow, hashOf(w.id));
+      ctx.strokeStyle = st.c + Math.min(0.9, st.a * fade * boost()).toFixed(3) + ')';
+      ctx.lineWidth = st.w * clamp(view.z * 0.62, 0.7, 1.9);
+      ctx.setLineDash(st.dash.map(v => v * ds));
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  /**
+   * 地铁线。画在节点牌下面（canvas 是 z-index 8，#nodes 是 9）。
+   *
+   * 进区之后压到三成。原因不是好看，是几何上站不住：
+   * 区底板是斜俯视的透视图，而这条线是平面的。
+   * 平面线画在透视图上，它会从前排楼的楼顶穿过去——
+   * 在总览那种小而软的画面上读作示意图还行，
+   * 推到区级、楼有几百像素高的时候就是明显的错。
+   * 真要在区级也对得上，底板得是接近正交的俯视图。
+   */
+  /**
+   * 轨道。比干道略强一档（它是骨架），但仍然是细虚淡，不发光。
+   * 走平滑曲线而不是逐段微弯——轨道是大半径缓和曲线，路才是一路拐。
+   * 这一点差别让两层不用靠颜色也分得开。
+   */
+  function drawMetro() {
+    const fade = (0.86 + ramp(view.z, 1, 2.4) * 0.14) * (1 - domNow * 0.6);
+    if (fade < 0.05) return;
+    const ds = dashScale();
+    const lw = 1.6 * clamp(view.z * 0.66, 0.75, 2);
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    NET.METRO.forEach(line => {
+      const pts = stationPts(line);
+      if (pts.length < 2) return;
+      trace(smooth(pts, 12));
+      /* 0.55 而不是 0.42，虚线 16/6 而不是 13/7。
+         上一版和干道一个量级，五条线的身份色在花底子上全糊掉了，
+         最显眼的反而是琥珀色的快速路——层级正好反了。
+         轨道要比路强一档：它是唯一需要「从头描到尾」的那层。
+         虚线也得拉长，短划太密会读成点串而不是一笔。 */
+      ctx.strokeStyle = hexA(line.glow || line.color, Math.min(0.92, 0.55 * fade * boost()));
+      ctx.lineWidth = lw;
+      ctx.setLineDash([16, 6].map(v => v * ds));
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    /* 只标换乘站，一屏五个。普通站的点和站名都撤了——
+       五十个白点加五十个名字就是在抢戏，而"哪儿能换乘"才是看这张图时
+       真正想知道的事。具体到哪一站上车，行程面板里写着。 */
+    /* 换乘点。上一版是 1.8px / 50% 的实心点——那个参数下它等于没画，
+       嘴上说「只标换乘站」，图上其实一个都看不见。
+       现在做成小白环：3px 起、0.85 不透明，中心填暗色把虚线挡掉，
+       不然线会从环里穿过去，读成一段线上的疙瘩而不是一个站。
+       全城只有五个（三牌楼 1/2、门东 1/3、明湖广场 2/4、德泰百货 2/5、
+       临江南站 3/5），视觉成本比一张图例或五十个站名低得多，
+       而「哪儿能换乘」恰恰是看全城图时唯一真会用到的那条信息。 */
+    const r = clamp(3 + (view.z - 1) * 0.34, 3, 5);
+    stationList().forEach(s => {
+      if (s.lines.length < 2) return;
+      const p = sp([s.x, s.y]);
+      if (p[0] < -20 || p[0] > vw() + 20 || p[1] < -20 || p[1] > vh() + 20) return;
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], r, 0, 6.284);
+      ctx.fillStyle = `rgba(10, 16, 32, ${(0.62 * fade).toFixed(3)})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(238, 246, 255, ${Math.min(1, 0.85 * fade * boost()).toFixed(3)})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  /** #rrggbb + alpha → rgba()。线色是十六进制写的，这儿要按透明度用 */
+  function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a.toFixed(3)})`;
+  }
+
+  /**
+   * ?dev=1：把九个 footprint 的矩形和区卡锚点都画出来。
+   *
+   * 这是给「底板对位」用的尺子。PLATES[].frame 当初是照着淡入淡出的
+   * 观感调的，没有照着总览图上那片辖区真正在哪儿量——所以地铁线一画上去
+   * 就露馅了：明湖的节点落在江面上，因为 minghu 的 frame 比照片上的
+   * 市中心整体高了约 0.2（3 km 左右）。
+   * 锚点（实心小圈）是照着照片逐个对过的，矩形不是，两者差多少一眼就看得见。
+   */
+  function drawFrames() {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.font = '600 11px Outfit, sans-serif';
+    M.DISTRICTS.forEach(d => {
+      const f = M.PLATES[d.key] && M.PLATES[d.key].frame;
+      if (!f) return;
+      const a = sp([f.x, f.y]), b = sp([f.x + f.w, f.y + f.w]);
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = d.c;
+      ctx.globalAlpha = 0.9;
+      ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+      ctx.setLineDash([]);
+      // frame 中心
+      const c = sp([f.x + f.w / 2, f.y + f.w / 2]);
+      ctx.strokeStyle = d.c;
+      ctx.beginPath(); ctx.moveTo(c[0] - 6, c[1]); ctx.lineTo(c[0] + 6, c[1]);
+      ctx.moveTo(c[0], c[1] - 6); ctx.lineTo(c[0], c[1] + 6); ctx.stroke();
+      // 区卡锚点（这个是对过照片的）
+      const p = sp(d.at);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 4, 0, 6.284);
+      ctx.fillStyle = d.c; ctx.fill();
+      // 两者连线：这条线有多长就是错了多少
+      ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(p[0], p[1]);
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.stroke();
+      ctx.fillStyle = d.c;
+      ctx.fillText(d.name, a[0] + 4, a[1] + 13);
+    });
+    ctx.restore();
+  }
+
+  /** 一条线的站点屏幕坐标序列 */
+  function stationPts(line) {
+    return line.stations.map(st => {
+      const key = st.node || st.key;
+      const s = G.stations.get(key);
+      return s ? sp([s.x, s.y]) : null;
+    }).filter(Boolean);
+  }
+  let _stList = null;
+  function stationList() {
+    if (!_stList) _stList = [...G.stations.values()];
+    return _stList;
+  }
+
+  // ============ 站点标签 ============
+  /**
+   * 和地点用两套标签语言，这是分层级最省的一招：
+   * 站点是线色文字 + 暗托，没有白牌；白牌只留给地点。
+   * 全城 50 个站的名字一次全上会糊，所以换乘站先出、普通站要推近才出。
+   */
+  const stPool = new Map();
+  /* 站名默认不出。五十个名字压在照片上就是在抢戏，而且地点牌本来就已经
+     占满了标签这一档。"在哪儿上车、哪儿换乘"由行程面板逐段写清楚，
+     图上只留换乘站那几个小圆点。要看名字的话 PLATE_MAP.showStationNames(true)。 */
+  let showStNames = false;
+
+  // ============ 路网视图 ============
+  /**
+   * 一级视图，不是一直开着的图层。
+   * 关：路网退在氛围后面，只剩五个换乘环。
+   * 开：站名 + 图例上场，线提一档到读得清的亮度（NET_BOOST）。
+   *
+   * 分成两档是因为「看得见」和「不抢戏」在同一档里是矛盾的——
+   * 前面三次调参就一直在这两头之间来回。信息按需出现就没这个矛盾了。
+   */
+  let netView = false;
+  const NET_BOOST = { on: 1.45, off: 1 };
+  const boost = () => netView ? NET_BOOST.on : NET_BOOST.off;
+
+  function setNetView(on) {
+    netView = !!on;
+    syncNetView();
+    return netView;
+  }
+  function syncNetView() {
+    showStNames = netView;
+    const lg = document.getElementById('legend');
+    if (lg) lg.hidden = !netView;
+    const b = document.querySelector('#phase button.net');
+    if (b) b.classList.toggle('on', netView);
+    invalidate();
+  }
+
+  /** 图例照着 CITY_NET 的线路表生成，色标就是线在画布上那一份的样子 */
+  function buildLegend() {
+    const lg = document.getElementById('legend');
+    if (!lg || !NET) return;
+    const line = (col, w, dash) =>
+      `<i class="lg-line" style="border-top-color:${col};border-top-width:${w}px;` +
+      `border-top-style:${dash}"></i>`;
+    const rows = NET.METRO.map(l =>
+      `<div class="lg-row">${line(l.glow || l.color, 2.4, 'solid')}<span>${esc(l.name)}</span></div>`
+    ).join('');
+    const ways = [
+      ['express', '快速路 · 高速'], ['arterial', '主干道'],
+      ['bridge', '跨江桥'], ['tunnel', '过江隧道']
+    ].map(([k, label]) => {
+      const st = WAY_STYLE[k];
+      return `<div class="lg-row">${line(st.c + '0.95)', st.w + 0.6, 'dashed')}` +
+        `<span>${label}</span></div>`;
+    }).join('');
+    lg.innerHTML =
+      `<h4>轨道交通</h4>${rows}` +
+      `<hr><h4>道路</h4>${ways}` +
+      `<div class="lg-row">${line('rgba(198,216,246,.9)', 1.6, 'dotted')}<span>步行可达</span></div>` +
+      `<hr><div class="lg-row"><i class="lg-ring"></i><span>换乘站</span></div>`;
+  }
+  function drawStations() {
+    if (!NET || !showNet || !showStNames) {
+      stPool.forEach(it => { it.el.classList.remove('on'); it.el.style.opacity = 0; });
+      return;
+    }
+    const W = vw(), H = vh();
+    stPool.forEach(it => it.seen = false);
+    stationList().forEach(s => {
+      const inter = s.lines.length > 1;
+      /* 挂在地点上的站，只有那个地点自己的白牌【当前没在场】时才补站名。
+         上一版是「挂在地点上就一律不画」——但五个换乘站里有四个是挂节点的
+         （明湖广场 / 德泰百货 / 门东 / 临江南站），而总览档地点牌根本不出，
+         结果它们两头都没有标签，打开路网视图一个站名也看不见。 */
+      const nodeId = s.vid.startsWith('p:') ? s.vid.slice(2) : null;
+      const dup = nodeId && (() => {
+        const it = pool.get('N:' + nodeId);
+        return !!(it && it.el.classList.contains('on'));
+      })();
+      /* 换乘站在这一档一直显示，不挂缩放——全城只有五个，
+         而「哪儿能换乘」正是打开这一档要查的第一件事。
+         普通站等推近一点再出，免得 z=1 挤四十九个名字。 */
+      const a = dup ? 0 : (inter ? 1 : ramp(view.z, 1.55, 1.9));
+      const key = 'S:' + s.key;
+      let it = stPool.get(key);
+      if (!it) {
+        const el = document.createElement('div');
+        el.className = 'st';
+        el.innerHTML = `<b>${esc(s.name)}</b>`;
+        host.appendChild(el);
+        it = { el, b: el.querySelector('b') };
+        stPool.set(key, it);
+      }
+      it.seen = true;
+      it.el.dataset.inter = inter ? '1' : '';
+      const col = NET.lineOf(s.lines[0]);
+      it.el.style.setProperty('--sc', inter ? '#f2f6ff' : (col ? col.color : '#9fb0cc'));
+      const p = sp([s.x, s.y]);
+      const on = a > 0.03 && p[0] > 0 && p[0] < W && p[1] > 0 && p[1] < H;
+      it.el.style.left = p[0] + 'px';
+      it.el.style.top = (p[1] + 9) + 'px';
+      it.el.style.opacity = on ? a : 0;
+      it.el.classList.toggle('on', on);
+    });
+    stPool.forEach(it => {
+      if (!it.seen) { it.el.classList.remove('on'); it.el.style.opacity = 0; }
+    });
+  }
+
+  // ============ 当前路线 ============
+  /**
+   * 路线【不】受 LOD.detail 管。原来的门槛是 r>=0.90，等于必须已经推进
+   * 那个区才看得见；而"从这儿去那儿"这件事恰恰是要在总览档上看的。
+   * 而且原来是按底板逐个 filter 路线上的点，一条横穿两区的路线会被
+   * 拆成两段互不相连的光带，中间那一跳直接丢了。现在整条线走世界坐标。
+   */
+  function drawTrip() {
+    const r = TRIP.result;
+    if (!r || !r.pts || r.pts.length < 2) return;
+    // 图上的路径是一串折点，直连出来全是硬拐，跟地铁线一个毛病
+    const pts = smooth(r.pts.map(sp), 10);
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    [[15, 'rgba(96, 236, 190, .10)'], [7, 'rgba(120, 244, 200, .28)'], [2.8, 'rgba(224, 255, 244, .92)']]
+      .forEach(([w, c]) => { trace(pts); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.stroke(); });
     ctx.setLineDash([10, 22]);
     ctx.lineDashOffset = -(performance.now() / 34) % 32;
-    trace();
+    trace(pts);
     ctx.strokeStyle = 'rgba(255,255,255,.85)';
-    ctx.lineWidth = 2.6;
+    ctx.lineWidth = 2.8;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 终点靶心
+    const e = pts[pts.length - 1];
+    ctx.beginPath();
+    ctx.arc(e[0], e[1], 7, 0, 6.284);
+    ctx.strokeStyle = 'rgba(224, 255, 244, .95)';
+    ctx.lineWidth = 2.2;
     ctx.stroke();
     ctx.restore();
   }
@@ -1029,6 +1680,25 @@
   const pointers = new Map();
   let pinch = null;
 
+  /**
+   * 在图上随手标一个点当终点。
+   * 吸附到最近的地点，不吸附到最近的路——地点才是玩法的单位，
+   * 落在马路中间的一个坐标在这个游戏里没有意义。
+   * 容差按屏幕像素算：按世界距离算的话，推近之后容差会变成好几个街区。
+   */
+  function markAt(sx, sy) {
+    if (!G) return false;
+    const w = toWorld(sx, sy);
+    const hit = NET.nearest(NODE_W, w.x, w.y);
+    if (!hit) return false;
+    const px = (hit.km / NET.KM_PER_UNIT) * S();
+    if (px > 150) return false;
+    return plan(hit.id);
+  }
+
+  let pressT = 0, pressAt = null;
+  const cancelPress = () => { if (pressT) { clearTimeout(pressT); pressT = 0; } };
+
   platesHost.addEventListener('pointerdown', e => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     platesHost.setPointerCapture(e.pointerId);
@@ -1038,13 +1708,19 @@
       pinch = { dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1, z: view.z };
       drag = null;
       anim = null;
+      cancelPress();
       return;
     }
     drag = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
+    // 长按标点。触屏上没有右键，这是唯一的入口
+    pressAt = { x: e.clientX, y: e.clientY };
+    cancelPress();
+    pressT = setTimeout(() => { pressT = 0; markAt(pressAt.x, pressAt.y); }, 520);
   });
   platesHost.addEventListener('pointermove', e => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pressT && pressAt && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 8) cancelPress();
     if (pinch && pointers.size >= 2) {
       const pts = [...pointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
@@ -1063,6 +1739,7 @@
     clampView();
   });
   const endPointer = e => {
+    cancelPress();
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (pointers.size === 1) {
@@ -1075,10 +1752,22 @@
   };
   platesHost.addEventListener('pointerup', endPointer);
   platesHost.addEventListener('pointercancel', endPointer);
-  stage.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+  stage.addEventListener('touchmove', e => {
+    if (e.target.closest('#spot, #trip')) return;
+    e.preventDefault();
+  }, { passive: false });
 
-  /** 滚轮以光标为锚点缩放：光标下那块地方缩放前后停在原处 */
+  /** 右键标点。桌面上比长按顺手 */
+  stage.addEventListener('contextmenu', e => {
+    if (e.target.closest('#spot, #trip, #ctl, #phase, #dev')) return;
+    e.preventDefault();
+    markAt(e.clientX, e.clientY);
+  });
+
+  /** 滚轮以光标为锚点缩放：光标下那块地方缩放前后停在原处。
+   *  面板、行程表这些自带滚动的浮层要先放过，否则在它们上面滚轮会去缩放地图。 */
   stage.addEventListener('wheel', e => {
+    if (e.target.closest('#spot, #trip')) return;
     e.preventDefault();
     anim = null;
     zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.13 : 1 / 1.13);
@@ -1086,7 +1775,7 @@
 
   /** 双击推近一档，也以光标为锚点 */
   stage.addEventListener('dblclick', e => {
-    if (e.target.closest('.card, .exit, .devrow')) return;
+    if (e.target.closest('.card, .exit, .devrow, .spot-sheet')) return;
     anim = null;
     zoomAt(e.clientX, e.clientY, 1.9);
   });
@@ -1132,6 +1821,297 @@
     glide(0.5, 0.5, z, dur);
   }
 
+  // ============ 地点详情 ============
+  const ARCH_LABEL = {
+    nature: '郊野', hotspring: '汤苑', medical: '医疗', commercial: '商圈',
+    adult: '成人', academy: '文教', live: '演播', living: '生活'
+  };
+  const PRIVACY_LABEL = ['公开', '街面', '转角', '僻静', '私密', '独用'];
+  const CARD_KIND = {
+    pureLove: 'love', mischief: 'mischief', sexAction: 'sex'
+  };
+  const TAG_KIND = { 纯爱: 'love', 调教: 'mischief', 日常: 'daily' };
+
+  function featChips(n) {
+    const f = n.features || {};
+    const bits = [];
+    if (f.canDate) bits.push('约会');
+    if (f.canGather) bits.push('采集');
+    if (f.canWork) bits.push('打工');
+    if (f.hasShop) bits.push('店面');
+    return bits;
+  }
+
+  /** 事件级 trigger → 数值要求药丸。
+   *  面板是用来查「这块地能长出什么、各支要什么条件」的，
+   *  所以出条件不出正文：选项文本一摊开，玩法就提前被读完了。 */
+  function trigChips(t) {
+    if (!t) return '';
+    const out = [];
+    const rng = (v, label) => {
+      if (!Array.isArray(v) || v[0] == null) return;
+      const [a, b] = v;
+      // 区间上限就是该字段的天花板时只写下限，写成 450–1000 是噪音
+      out.push(b == null || b >= 100 ? `${label} ≥${a}` : `${label} ${a}–${b}`);
+    };
+    if (Array.isArray(t['时段']) && t['时段'].length) out.push(t['时段'].join(' / '));
+    rng(t['好感度'], '好感');
+    rng(t['顺从度'], '顺从');
+    rng(t['性欲度'], '性欲');
+    rng(t['尿意'], '尿意');
+    if (t['体力上限'] != null) out.push(`对象体力 ≤${t['体力上限']}`);
+    if (t['异常状态含']) out.push(`状态 ${t['异常状态含']}`);
+    if (t['需携带道具']) out.push(`带 ${t['需携带道具']}`);
+    if (!t['需同行']) out.push('可独行');
+    return out.length
+      ? `<div class="spot-req">${out.map(s => `<em>${esc(s)}</em>`).join('')}</div>`
+      : '';
+  }
+
+  function cardRows(card) {
+    if (!card) return '';
+    return ['pureLove', 'mischief', 'sexAction'].map(key => {
+      const c = card[key];
+      if (!c) return '';
+      const label = esc(c.分类 || { pureLove: '纯爱', mischief: '调教', sexAction: '欲望' }[key]);
+      const kind = TAG_KIND[c.分类] || CARD_KIND[key] || 'daily';
+      // 门槛本来就是人话字符串（'性欲度>=75, 顺从度>=550'），按逗号切成药丸就行
+      const gate = c['门槛']
+        ? String(c['门槛']).split(/[,，]/).map(s => s.trim()).filter(Boolean)
+          .map(s => `<em>${esc(s)}</em>`).join('')
+        : `<em class="free">无门槛</em>`;
+      return `<div class="spot-opt"><em class="spot-tag ${kind}">${label}</em>` +
+        `<div class="spot-gate">${gate}</div></div>`;
+    }).join('');
+  }
+
+  function renderSpot(n) {
+    const hours = (n.openHours || []).map(h =>
+      `<em class="${h === phase || (h === '昼' && phase === '朝') ? 'on' : ''}">${esc(h)}</em>`
+    ).join('');
+    const priv = Math.max(0, Math.min(5, n.privacy == null ? 2 : n.privacy));
+    const chips = featChips(n).map(t => `<em class="spot-chip">${esc(t)}</em>`).join('');
+    /* special：一条一句的门道清单，直白功能性。shop 已废除。 */
+    const spec = Array.isArray(n.special) ? n.special.filter(Boolean) : [];
+    const shopHtml = spec.length ? (
+      `<section class="spot-sec"><div class="spot-k"><span>Special</span><b>门道</b></div>` +
+      `<ul class="spot-spec">${spec.map(s => `<li>${esc(s)}</li>`).join('')}</ul></section>`
+    ) : '';
+    const gather = n.gather ? (
+      `<section class="spot-sec"><div class="spot-k"><span>Gather</span><b>采集</b></div>` +
+      `<p class="spot-gather">${esc(n.gather.desc || '')}</p>` +
+      (n.gather.materials && n.gather.materials.length
+        ? `<div class="spot-mats">${n.gather.materials.map(m => `<em class="spot-chip">${esc(m)}</em>`).join('')}</div>`
+        : '') +
+      `</section>`
+    ) : '';
+    const events = (n.events || []).map(ev =>
+      `<article class="spot-evt">` +
+      `<h3>${esc(ev.title)}</h3>` +
+      (ev.场所 ? `<div class="where">${esc(ev.场所)}</div>` : '') +
+      trigChips(ev.trigger) +
+      (ev.opportunity ? `<p>${esc(ev.opportunity)}</p>` : '') +
+      cardRows(ev.card) +
+      `</article>`
+    ).join('');
+    const evHtml = events
+      ? `<section class="spot-sec"><div class="spot-k"><span>Play</span><b>在场事件</b></div>${events}</section>`
+      : '';
+
+    const full = n.fullName && n.fullName !== n.name
+      && n.fullName !== (n.district ? n.district + ' · ' + n.name : '')
+      ? `<p class="spot-full">${esc(n.fullName)}</p>` : '';
+    /* 「到这里去」放在头里，不放在正文底下——它是这张卡最可能被按的东西，
+       埋在商店和事件后面等于藏起来。已经在这儿了就不给按钮，给一行状态。 */
+    const here = n.id === STATE.player.at;
+    const nav = here
+      ? `<span class="spot-nav-here">你在这里</span>`
+      : (G && NODE_W[n.id] ? `<button class="spot-nav" type="button" id="spot-nav">到这里去</button>` : '');
+
+    document.getElementById('spot-head').innerHTML =
+      `<span class="spot-eye">${esc(n.district || '')}${n.archetype ? '  ·  ' + (ARCH_LABEL[n.archetype] || n.archetype) : ''}</span>` +
+      `<h2 id="spot-title">${esc(n.name)}</h2>` +
+      full +
+      `<div class="spot-meta"><div class="spot-hours">${hours}</div>` +
+      `<span class="spot-priv">${esc(PRIVACY_LABEL[priv] || '私密')}` +
+      `<i><b style="width:${(priv / 5) * 100}%"></b></i></span></div>` +
+      (nav ? `<div class="spot-navrow">${nav}</div>` : '');
+
+    const navBtn = document.getElementById('spot-nav');
+    if (navBtn) navBtn.onclick = () => { plan(n.id); closeSpot(); };
+
+    document.getElementById('spot-body').innerHTML =
+      (n.draw ? `<p class="spot-draw">${esc(n.draw)}</p>` : '') +
+      (chips ? `<div class="spot-feats">${chips}</div>` : '') +
+      (n.intro ? `<p class="spot-intro">${esc(n.intro)}</p>` : '') +
+      shopHtml + gather + evHtml;
+  }
+
+  function markSel() {
+    pool.forEach(it => {
+      it.el.dataset.sel = (it.n && it.n.id === selId) ? '1' : '';
+    });
+  }
+
+  function closeSpot() {
+    selId = '';
+    const el = document.getElementById('spot');
+    el.hidden = true;
+    el.classList.remove('on');
+    markSel();
+  }
+
+  function openSpot(n) {
+    if (!n) return;
+    selId = n.id;
+    renderSpot(n);
+    const el = document.getElementById('spot');
+    el.hidden = false;
+    el.classList.add('on');
+    markSel();
+    const body = document.getElementById('spot-body');
+    if (body) body.scrollTop = 0;
+  }
+
+  document.getElementById('spot-close').onclick = closeSpot;
+  document.getElementById('spot-shade').onclick = closeSpot;
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && selId) { e.preventDefault(); closeSpot(); }
+  });
+
+
+  // ============ 行程面板 ============
+  const tripEl = document.getElementById('trip');
+  const fmtKm = k => k < 1 ? Math.round(k * 1000) + ' m' : (Math.round(k * 10) / 10) + ' km';
+  const nameOfId = id => (byId[id] && byId[id].name) || id;
+
+  function plan(toId) {
+    if (!G) return false;
+    if (!toId || toId === STATE.player.at) { clearTrip(); return false; }
+    if (!NODE_W[toId]) return false;
+    TRIP.to = toId;
+    recompute();
+    return !!TRIP.result;
+  }
+
+  function clearTrip() {
+    TRIP.to = ''; TRIP.all = null; TRIP.result = null;
+    FORCED = forcedIds();
+    renderTrip();
+    invalidate();
+  }
+
+  function recompute() {
+    if (!G || !TRIP.to || !STATE.player.at) { TRIP.all = TRIP.result = null; }
+    else {
+      TRIP.all = NET.routeAll(G, STATE.player.at, TRIP.to, phase);
+      // 当前选的方式到不了（比如两点之间只有隧道相连，人走不过去）
+      // 就自动落到第一种走得通的上，而不是让面板空着
+      if (!TRIP.all[TRIP.mode]) {
+        const fallback = NET.MODES.map(m => m.id).find(id => TRIP.all[id]);
+        if (fallback) TRIP.mode = fallback;
+      }
+      TRIP.result = TRIP.all[TRIP.mode] || null;
+    }
+    FORCED = forcedIds();
+    renderTrip();
+    invalidate();
+  }
+
+  function legText(l) {
+    if (l.carrier === 'rail') {
+      const line = NET.lineOf(l.line);
+      return `<em style="--lc:${line ? line.color : '#888'}">${esc(line ? line.name : '轨道')}</em>` +
+        `<span>${esc(l.fromLabel)} → ${esc(l.toLabel)}　${l.stops} 站</span><i>${l.min} 分</i>`;
+    }
+    if (l.carrier === 'bus') {
+      return `<em style="--lc:#4a8fd6">公交</em><span>${fmtKm(l.km)}</span><i>${l.min} 分</i>`;
+    }
+    const tag = { foot: '步行', taxi: '出租车', car: '驾车' }[l.carrier] || l.label;
+    const col = { foot: '#8fa3c0', taxi: '#dd9a2b', car: '#4a63c8' }[l.carrier] || '#8fa3c0';
+    return `<em style="--lc:${col}">${tag}</em><span>${fmtKm(l.km)}</span><i>${l.min} 分</i>`;
+  }
+
+  function renderTrip() {
+    if (!tripEl) return;
+    if (!TRIP.to || !TRIP.all) { tripEl.hidden = true; return; }
+    tripEl.hidden = false;
+
+    document.getElementById('trip-od').innerHTML =
+      `<b>${esc(nameOfId(STATE.player.at))}</b><s>→</s><b>${esc(nameOfId(TRIP.to))}</b>`;
+
+    document.getElementById('trip-modes').innerHTML = NET.MODES.map(m => {
+      const r = TRIP.all[m.id];
+      return `<button data-m="${m.id}" class="${m.id === TRIP.mode ? 'on' : ''}"${r ? '' : ' disabled'}>` +
+        `<b>${m.label}</b><i>${r ? r.min + ' 分' : '不通'}</i></button>`;
+    }).join('');
+
+    const r = TRIP.result;
+    const sum = document.getElementById('trip-sum');
+    const legs = document.getElementById('trip-legs');
+    const go = document.getElementById('trip-go');
+    if (!r) {
+      sum.innerHTML = '<span class="trip-none">这种方式到不了</span>';
+      legs.innerHTML = '';
+      go.disabled = true;
+      return;
+    }
+    go.disabled = false;
+    sum.innerHTML =
+      `<strong>${r.min}<u>分</u></strong>` +
+      `<span>${fmtKm(r.km)}</span>` +
+      `<span>¥ ${r.yuan}</span>` +
+      `<span class="trip-stam">体力 −${r.stamina}</span>`;
+    legs.innerHTML = r.legs.map(l => `<div class="trip-leg">${legText(l)}</div>`).join('');
+  }
+
+  /** 出发。地图只改自己那份位置，扣时间体力金钱是宿主的账 */
+  function depart() {
+    const r = TRIP.result, to = TRIP.to;
+    if (!r || !to) return;
+    STATE.player.at = to;
+    if (PLATE_OF[to]) STATE.district = PLATE_OF[to];
+    if (onTravel) onTravel({ to, mode: r.mode, min: r.min, km: r.km, yuan: r.yuan, stamina: r.stamina, legs: r.legs });
+    clearTrip();
+    const w = worldOf(to);
+    if (w) {
+      const key = PLATE_OF[to];
+      const f = key && M.PLATES[key] && M.PLATES[key].frame;
+      glide(w[0], w[1], f ? clamp(1.35 / f.w, zMin(), Z_MAX) : view.z);
+    }
+  }
+
+  if (tripEl) {
+    document.getElementById('trip-modes').addEventListener('click', e => {
+      const b = e.target.closest('button[data-m]');
+      if (!b || b.disabled) return;
+      TRIP.mode = b.dataset.m;
+      TRIP.result = TRIP.all ? TRIP.all[TRIP.mode] : null;
+      renderTrip();
+      invalidate();
+    });
+    document.getElementById('trip-close').onclick = clearTrip;
+    document.getElementById('trip-go').onclick = depart;
+  }
+
+  // ============ 比例尺 ============
+  /**
+   * 有了 KM_PER_UNIT 这个尺才是诚实的，所以现在才敢画。
+   * 挑一个"好看的整数公里"，再反算它该有多长——
+   * 反过来（固定像素长度、显示零碎公里数）读起来永远像随机数。
+   */
+  const scaleEl = document.getElementById('scale');
+  const NICE = [10, 5, 2, 1, 0.5, 0.2, 0.1];
+  function drawScale() {
+    if (!scaleEl || !NET) return;
+    const pxPerKm = S() / NET.KM_PER_UNIT;
+    let km = NICE.find(v => v * pxPerKm <= 116) || 0.05;
+    const w = Math.round(km * pxPerKm);
+    if (scaleEl.__w === w) return;
+    scaleEl.__w = w;
+    scaleEl.style.width = w + 'px';
+    scaleEl.firstElementChild.textContent = km >= 1 ? km + ' km' : (km * 1000) + ' m';
+  }
 
   // ============ 主循环 ============
   // 光带的流动虚线要动，所以每帧都跑。节点是常驻 DOM，
@@ -1144,15 +2124,10 @@
 
   window.addEventListener('resize', () => { invalidate(); clampView(); });
 
-  // 控件尺寸一变就重排。时段条是 JS 建的，首帧量到的是个空盒子；
-  // 开发条 ?dev=1 打开、按钮换行，高度也会跳
+  // 舞台尺寸一变就重排。控件不再参与排版，所以不用盯它们
   if (window.ResizeObserver) {
     const ro = new ResizeObserver(() => { invalidate(); clampView(); });
     ro.observe(stage);
-    ['ctl', 'phase', 'dev'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) ro.observe(el);
-    });
   }
 
   // 字体晚到会让标签宽度全部作废——量的是旧字体的宽度，
@@ -1201,9 +2176,26 @@
     M.PHASE_ORDER.forEach(k => {
       const b = document.createElement('button');
       b.textContent = k;
+      b.dataset.ph = k;          // applyPhase 只认带 data-ph 的，别把路网那个也点亮
       b.onclick = () => { phase = k; applyPhase(); };
       hb.appendChild(b);
     });
+
+    /* 路网视图挂在同一条控件条上，但用竖线隔开——时段是「现在几点」，
+       路网是「显示什么」，两回事。
+       做成一级视图而不是一直开着：默认那一档要的是氛围，路网退在后面；
+       真要查线路时再打开，站名和图例一起上，线也提一档到读得清的亮度。
+       信息按需出现，就不用在「看得见」和「不抢戏」之间二选一了。 */
+    const nb = document.createElement('div');
+    nb.className = 'ph-sep';
+    hb.appendChild(nb);
+    const netBtn = document.createElement('button');
+    netBtn.className = 'net';
+    netBtn.textContent = '路网';
+    netBtn.onclick = () => setNetView(!netView);
+    hb.appendChild(netBtn);
+    buildLegend();
+    syncNetView();
 
     // 以下是开发用的，默认不出
     if (!/[?&]dev=1/.test(location.search)) return;
@@ -1249,36 +2241,104 @@
    *   PLATE_MAP.setState({ player:{at:'wx_home'}, actors:[...], events:[...], route:[...] })
    *   PLATE_MAP.setPhase('暮')
    *   PLATE_MAP.focus('wuxi')     // 推镜头到某区
-   *   PLATE_MAP.goto('wx_store')  // 推镜头到某个地点
+   *   PLATE_MAP.goto('wx_home')   // 推镜头到某个地点
+   *   PLATE_MAP.open(node)        // 打开地点详情
    *   PLATE_MAP.onPick(fn)        // 点节点的回调，参数是节点数据
    */
   const API = {
-    setState(s) {
-      Object.assign(STATE, s);
+    setState(s = {}) {
+      if (Object.prototype.hasOwnProperty.call(s, 'district')) STATE.district = s.district || '';
+      if (s.player) STATE.player = { ...STATE.player, ...s.player };
+      if (Object.prototype.hasOwnProperty.call(s, 'actors')) STATE.actors = Array.isArray(s.actors) ? s.actors : [];
+      if (Object.prototype.hasOwnProperty.call(s, 'events')) STATE.events = Array.isArray(s.events) ? s.events : [];
       FORCED = forcedIds();
-      lastKey = '';                 // 强制下一帧重排
+      lastKey = '';
+      invalidate();
+      if (TRIP.to === STATE.player.at) clearTrip(); else recompute();
     },
-    setPhase(k) { if (M.PHASES[k]) { phase = k; applyPhase(); } },
+    revision: MAP_REV,
+    // 打车夜间加价挂在时段上，所以换时段也要重算
+    setPhase(k) { if (M.PHASES[k]) { phase = k; applyPhase(); if (TRIP.to) recompute(); } },
     focus,
     fitAll,
     goto(id) {
-      for (const key of Object.keys(M.PLACE)) {
-        const spots = M.PLACE[key];
-        if (!spots[id]) continue;
-        const f = M.PLATES[key].frame;
-        const w = inFrame(f, spots[id][0], spots[id][1]);
-        glide(w.x, w.y, clamp(1.35 / f.w, zMin(), Z_MAX));
-        return true;
-      }
-      return false;
+      const w = worldOf(id);
+      const key = PLATE_OF[id];
+      const f = key && M.PLATES[key] && M.PLATES[key].frame;
+      if (!w || !f) return false;
+      glide(w[0], w[1], clamp(1.35 / f.w, zMin(), Z_MAX));
+      return true;
     },
     onPick(fn) { onPick = fn; },
+    onTravel(fn) { onTravel = fn; },
+
+    /** 干道 + 轨道那一层在不在。默认在（淡的那一档） */
+    showNetwork(on) { showNet = !!on; invalidate(); return showNet; },
+    /** 路网视图：站名 + 图例 + 线提亮。就是控件条上那个「路网」 */
+    netView: setNetView,
+    isNetView: () => netView,
+
+    /**
+     * 规划一条到 id 的路线。返回四种方式各自的账（到不了的那种是 null）。
+     * 宿主想自己做出行 UI 的话，只用这个就够——面板可以整个不显。
+     */
+    plan(id) { return plan(id) ? { ...TRIP.all } : null; },
+    trip: () => TRIP.result ? { ...TRIP.result } : null,
+    setMode(m) {
+      if (!TRIP.all || !TRIP.all[m]) return false;
+      TRIP.mode = m; TRIP.result = TRIP.all[m];
+      renderTrip(); invalidate();
+      return true;
+    },
+    depart,
+    clearTrip,
+    /** 两点之间的账，不落到面板上。给"这趟值不值得跑"这类判断用 */
+    quote(fromId, toId, mode) {
+      if (!G) return null;
+      return mode ? NET.route(G, fromId, toId, mode, phase)
+        : NET.routeAll(G, fromId, toId, phase);
+    },
+    /** 直线距离（km）。事件门槛写"附近"的时候用得上 */
+    distance(a, b) {
+      const wa = worldOf(a), wb = worldOf(b);
+      return wa && wb ? Math.round(NET.kmOf(wa, wb) * 100) / 100 : null;
+    },
+    open: openSpot,
+    close: closeSpot,
     petals(on) { petalEls.forEach(el => el.style.display = on ? '' : 'none'); },
     view: () => ({ ...view }),
     // 调阈值用的读数
     debug: () => ({ ...view, phase, zMin: +zMin().toFixed(4), ratios: Object.keys(M.PLATES).reduce((o, k) => (o[k] = +ratio(k).toFixed(3), o), {}) })
   };
   window.PLATE_MAP = API;
+
+  /* 独立开局页通过网络 iframe 引用地图，跨域时用 postMessage 回传选点。
+     普通地图模式仍沿用 PLATE_MAP.onPick，不受这一层影响。 */
+  if (OPENING_MODE) {
+    API.petals(false);
+    API.setState({ district: '', player: { at: '' }, actors: [], events: [], route: [] });
+    API.fitAll(0);
+    API.onPick(node => {
+      try {
+        window.parent.postMessage({
+          channel: 'linjiang-map',
+          type: 'pick',
+          payload: {
+            id: node.id,
+            name: node.name,
+            fullName: node.fullName,
+            district: node.district,
+            archetype: node.archetype,
+            draw: node.draw || '',
+            features: node.features || {}
+          }
+        }, '*');
+      } catch (_) {}
+    });
+    setTimeout(() => {
+      try { window.parent.postMessage({ channel: 'linjiang-map', type: 'ready' }, '*'); } catch (_) {}
+    }, 0);
+  }
 
   // 截图和探测脚本沿用的短名
   window.__setPhase = API.setPhase;

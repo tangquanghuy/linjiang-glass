@@ -15,6 +15,8 @@
 
 import { characterDetails, girls, onLive, world } from './data.js';
 
+const MAP_REV = '20260821-requirements-v3';
+
 const DISTRICT_KEY = {
   乌溪区: 'wuxi',
   明湖区: 'minghu',
@@ -33,7 +35,7 @@ const DISTRICT_KEY = {
 const PHASE_ALIAS = { 昼: '朝' };
 
 export function mapSrc() {
-  return new URL(`${import.meta.env.BASE_URL}city/plate_map.html`, document.baseURI).href;
+  return new URL(`${import.meta.env.BASE_URL}city/plate_map.html?v=${MAP_REV}`, document.baseURI).href;
 }
 
 export function isMapOpen() {

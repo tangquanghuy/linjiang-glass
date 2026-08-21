@@ -23,9 +23,11 @@ city/*
 !city/plate_map.html
 !city/plate_map.js
 !city/city_mapdata.js
+!city/city_net.js
 !city/plate/
 city/plate/*
 !city/plate/*.webp
+!city/plate/node_art.json
 
 # 编辑器与系统垃圾
 .DS_Store

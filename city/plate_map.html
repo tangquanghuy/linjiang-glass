@@ -5,14 +5,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>临江市 · 地图（底板 + 节点层）</title>
-  <script src="./city_mapdata.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Noto+Sans+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="./city_mapdata.js?v=20260821-requirements-v3"></script>
+  <script src="./city_net.js?v=20260821-requirements-v3"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       background: #070a14;
-      font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       -webkit-font-smoothing: antialiased;
       touch-action: none;
     }
@@ -108,7 +112,7 @@
        颜色由分组给，不是所有节点一个灰蓝壳——那样一屏下来全是同一个调子，
        什么都不突出，等于没有层级。 */
     .np {
-      position: absolute;
+      position: absolute; z-index: 2;
       pointer-events: auto; cursor: pointer;
       /* 进场带一点缩放。纯靠 opacity 淡入的话，标记是"原地浮现"，
          在连续缩放的画面里读起来像突然弹出来的贴片；
@@ -239,6 +243,33 @@
 
     .nl.hide { display: none; }
 
+    /* ============ 站名 ============
+       和地点是两套标签语言，这是最省的一次分层：
+       地点是白底小牌，站名是线色文字压在暗托上，没有牌。
+       全城一百多个名字如果长一个样，等于没有层级——
+       两种写法一分开，视觉密度立刻掉一半，而且一眼就知道哪个是能上车的。 */
+    .st {
+      position: absolute; z-index: 1;
+      transform: translate(-50%, 0);
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; visibility: hidden;
+      transition: opacity .24s linear, visibility .24s;
+    }
+    .st.on { visibility: visible; }
+    .st b {
+      display: block;
+      font-size: 10.5px; font-weight: 600; letter-spacing: .3px;
+      color: var(--sc, #9fb0cc);
+      /* 描边而不是加底牌。牌子一多画面就成了贴纸墙 */
+      text-shadow:
+        0 0 3px rgba(6, 10, 24, .95), 0 0 6px rgba(6, 10, 24, .8),
+        0 1px 2px rgba(6, 10, 24, .9);
+    }
+    .st[data-inter="1"] b {
+      font-size: 11.5px; font-weight: 700;
+      letter-spacing: .5px;
+    }
+
     /* 可打工角标。
        原来是 top:-5 right:-13——那套偏移抄的是 city_map，但它的圆盘有 42~62px，
        这里最小的只有 24px，角标反而比节点还宽，直接把圆盘盖掉大半，
@@ -355,6 +386,260 @@
       color: rgba(206, 218, 250, .62); background: transparent; cursor: pointer;
     }
     #phase button.on { color: #10182e; background: rgba(228, 236, 255, .9); }
+    /* 时段是「现在几点」，路网是「显示什么」——两回事，用一道竖线分开，
+       不然读起来像第五个时段 */
+    #phase .ph-sep {
+      width: 1px; margin: 4px 3px;
+      background: rgba(206, 218, 250, .22);
+    }
+    #phase button.net.on {
+      color: #0d1628;
+      background: linear-gradient(180deg, #cfe4ff, #9fc2f2);
+    }
+
+    /* ============ 图例 ============
+       只跟着「路网」这一级视图出。颜色分种类这件事，没有图例就是不可证的：
+       玩家看到几种颜色，但不知道哪种是什么，等于只看到纹理。
+       左上角是整屏唯一没被占用的角。 */
+    #legend[hidden] { display: none; }
+    #legend {
+      /* 不能放左上：总览档浦江区的卡就在那儿，图例会整个盖住它。
+         右下这块在任何缩放档都是空的（缩放按钮和比例尺在更下面，
+         青屏山和落霞的卡都够不到），只有地点详情抽屉展开时会被压住，
+         那时候本来也不在看图例。 */
+      position: absolute; right: 16px; bottom: 150px; z-index: 21;
+      padding: 10px 13px 11px;
+      border-radius: 14px;
+      border: 1px solid rgba(190, 210, 255, .16);
+      background: linear-gradient(168deg, rgba(40, 52, 96, .62), rgba(20, 28, 60, .72));
+      box-shadow: 0 10px 26px -10px rgba(2, 5, 16, .85);
+      backdrop-filter: blur(16px) saturate(1.15);
+      -webkit-backdrop-filter: blur(16px) saturate(1.15);
+      pointer-events: none;
+      animation: lg-in .22s cubic-bezier(.2, .82, .25, 1) both;
+    }
+    @keyframes lg-in {
+      from { transform: translateY(8px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+    /* 窄屏上十一行会吃掉半个屏，收成两列 */
+    @media (max-width: 720px) {
+      #legend {
+        right: 10px; bottom: 104px;
+        padding: 8px 10px 9px;
+      }
+      #legend h4 { margin-bottom: 5px; }
+      .lg-row { height: 15px; font-size: 10.5px; gap: 6px; }
+      .lg-line { width: 20px; }
+      #legend hr { margin: 5px 0 4px; }
+    }
+    #legend h4 {
+      margin: 0 0 7px;
+      font-size: 10px; font-weight: 800; letter-spacing: .18em;
+      color: rgba(200, 214, 248, .62);
+    }
+    .lg-row {
+      display: flex; align-items: center; gap: 8px;
+      height: 17px;
+      font-size: 11.5px; color: rgba(226, 234, 255, .88);
+    }
+    /* 色标就是线本身的样子：粗细、虚实、颜色都照画布上那一份，
+       不然图例说的是另一件事 */
+    .lg-line {
+      flex: 0 0 auto; width: 26px; height: 0;
+      border-top-width: 2px; border-top-style: dashed;
+    }
+    .lg-ring {
+      flex: 0 0 auto;
+      width: 9px; height: 9px; margin: 0 8.5px;
+      border-radius: 50%;
+      border: 1.4px solid rgba(238, 246, 255, .9);
+      background: rgba(10, 16, 32, .7);
+    }
+    #legend hr {
+      height: 1px; margin: 7px 0 6px;
+      border: 0; background: rgba(206, 218, 250, .14);
+    }
+
+    /* ============ 比例尺 ============
+       全套坐标本来是纯归一化的，没有标尺，所以以前画这个是在撒谎。
+       现在 KM_PER_UNIT 定了，它是诚实的了。
+       长度取"整公里对应多少像素"，不是"固定像素对应多少公里"——
+       反过来做的话数字永远是 1.37 km 这种，读起来像随机数。 */
+    #scale {
+      position: absolute; right: 60px; bottom: 19px; z-index: 20;
+      height: 16px; pointer-events: none;
+      border-left: 1px solid rgba(226, 236, 255, .6);
+      border-right: 1px solid rgba(226, 236, 255, .6);
+      border-bottom: 1px solid rgba(226, 236, 255, .6);
+      transition: width .18s;
+    }
+    #scale span {
+      position: absolute; left: 0; right: 0; top: -2px;
+      text-align: center;
+      font: 600 10px/1 Outfit, 'Noto Sans SC', sans-serif;
+      letter-spacing: .06em;
+      color: rgba(226, 236, 255, .82);
+      text-shadow: 0 1px 3px rgba(4, 8, 20, .9);
+    }
+
+    /* ============ 行程 ============
+       四种方式的时长同时摆在 tab 上。只显示当前那一种的话，
+       玩家没有比较对象，"选哪种"就退化成随手点——
+       地铁便宜一个数量级、打车快十分钟，这个账要看得见才成立。 */
+    #trip[hidden] { display: none; }
+    #trip {
+      position: absolute; left: 16px; bottom: 62px; z-index: 22;
+      width: min(322px, calc(100vw - 32px));
+      display: flex; flex-direction: column;
+      border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(190, 210, 255, .18);
+      background: linear-gradient(168deg, rgba(40, 52, 96, .70), rgba(20, 28, 60, .78));
+      box-shadow: 0 18px 40px -14px rgba(2, 5, 16, .9), inset 0 1px 0 rgba(255, 255, 255, .12);
+      backdrop-filter: blur(18px) saturate(1.2);
+      -webkit-backdrop-filter: blur(18px) saturate(1.2);
+      animation: trip-in .24s cubic-bezier(.2, .82, .25, 1) both;
+    }
+    @keyframes trip-in {
+      from { transform: translateY(14px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+
+    .trip-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 12px 9px 14px;
+      border-bottom: 1px solid rgba(226, 231, 255, .10);
+    }
+    #trip-od {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12.5px; line-height: 1.35;
+      color: rgba(240, 244, 255, .94);
+    }
+    #trip-od b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #trip-od s { text-decoration: none; color: rgba(200, 212, 245, .5); flex: 0 0 auto; }
+    .trip-x {
+      flex: 0 0 auto;
+      width: 24px; height: 24px; display: grid; place-items: center;
+      border: none; border-radius: 50%;
+      background: rgba(255, 255, 255, .08);
+      color: rgba(230, 236, 255, .8);
+      font: 300 18px/1 Outfit, sans-serif; cursor: pointer;
+    }
+    @media (hover: hover) { .trip-x:hover { background: rgba(255, 255, 255, .18); color: #fff; } }
+
+    #trip-modes {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 4px; padding: 8px;
+    }
+    #trip-modes button {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 7px 2px 6px;
+      border: 1px solid transparent; border-radius: 11px;
+      background: rgba(255, 255, 255, .05);
+      font-family: inherit; cursor: pointer;
+      transition: background .16s, border-color .16s;
+    }
+    #trip-modes button b {
+      font-size: 11px; font-weight: 600; letter-spacing: .2px;
+      color: rgba(226, 234, 255, .74);
+    }
+    #trip-modes button i {
+      font-style: normal; font-size: 11.5px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: rgba(238, 244, 255, .92);
+    }
+    #trip-modes button.on {
+      background: rgba(226, 236, 255, .92);
+      border-color: rgba(255, 255, 255, .5);
+    }
+    #trip-modes button.on b { color: rgba(20, 28, 52, .66); }
+    #trip-modes button.on i { color: #10182e; }
+    #trip-modes button[disabled] { opacity: .34; cursor: default; }
+    @media (hover: hover) {
+      #trip-modes button:not(.on):not([disabled]):hover { background: rgba(255, 255, 255, .12); }
+    }
+
+    #trip-sum {
+      display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+      padding: 2px 14px 10px;
+      font-size: 11.5px; color: rgba(214, 224, 250, .72);
+      font-variant-numeric: tabular-nums;
+    }
+    #trip-sum strong {
+      font-size: 22px; font-weight: 700; letter-spacing: -.01em;
+      color: #fff;
+    }
+    #trip-sum strong u {
+      text-decoration: none; margin-left: 2px;
+      font-size: 11.5px; font-weight: 500;
+      color: rgba(214, 224, 250, .66);
+    }
+    #trip-sum .trip-stam { color: rgba(255, 186, 148, .82); }
+    #trip-sum .trip-none { color: rgba(255, 168, 152, .82); }
+
+    #trip-legs {
+      max-height: 168px; overflow: auto;
+      padding: 0 8px 6px;
+    }
+    #trip-legs::-webkit-scrollbar { width: 5px; }
+    #trip-legs::-webkit-scrollbar-thumb { background: rgba(218, 220, 248, .26); border-radius: 4px; }
+    .trip-leg {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px;
+      font-size: 11.5px;
+      color: rgba(224, 231, 252, .8);
+    }
+    .trip-leg + .trip-leg { border-top: 1px solid rgba(226, 231, 255, .07); }
+    .trip-leg em {
+      flex: 0 0 auto; font-style: normal;
+      padding: 2px 7px; border-radius: 6px;
+      font-size: 10.5px; font-weight: 700;
+      color: #fff;
+      background: var(--lc, #6b7d94);
+    }
+    .trip-leg span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .trip-leg i {
+      flex: 0 0 auto; font-style: normal;
+      font-variant-numeric: tabular-nums;
+      color: rgba(238, 244, 255, .9); font-weight: 600;
+    }
+
+    #trip-go {
+      margin: 2px 10px 10px; padding: 10px;
+      border: 1px solid rgba(255, 255, 255, .22); border-radius: 12px;
+      font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: .1em;
+      color: #0d1628;
+      background: linear-gradient(180deg, #9ff0d4, #63d9b4);
+      cursor: pointer;
+      box-shadow: 0 6px 16px -6px rgba(40, 200, 160, .7);
+    }
+    #trip-go[disabled] {
+      background: rgba(255, 255, 255, .1); color: rgba(226, 234, 255, .4);
+      box-shadow: none; cursor: default;
+    }
+
+    @media (max-width: 720px) {
+      #trip { left: 10px; right: 10px; width: auto; bottom: 58px; }
+      #trip-legs { max-height: 122px; }
+    }
+
+    /* 「到这里去」：这张卡最可能被按的东西，所以放在头里，不埋在商店和事件下面 */
+    .spot-navrow { margin-top: 14px; }
+    .spot-nav {
+      width: 100%; padding: 9px;
+      border: 1px solid rgba(255, 255, 255, .26); border-radius: 12px;
+      font-family: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: .1em;
+      color: #0d1628;
+      background: linear-gradient(180deg, #cfe4ff, #9fc2f2);
+      cursor: pointer;
+    }
+    @media (hover: hover) { .spot-nav:hover { background: linear-gradient(180deg, #e2eeff, #b4d1f8); } }
+    .spot-nav-here {
+      display: block; padding: 8px 0;
+      font-size: 12px; font-weight: 600; letter-spacing: .08em;
+      color: rgba(96, 236, 190, .9);
+    }
 
     /* ============ 开发用切换条 ============ */
     #dev[hidden] { display: none; }
@@ -381,6 +666,310 @@
       font-size: 11px; font-variant-numeric: tabular-nums;
       color: rgba(206, 218, 250, .8); background: rgba(120, 148, 230, .16);
     }
+
+    /* 选中：圆盘外一圈冷光，和「你在这」的绿环错开 */
+    .np[data-sel="1"] .ni {
+      box-shadow: 0 4px 14px -3px rgba(2, 6, 18, .62), 0 0 0 4px rgba(190, 210, 255, .28);
+    }
+    .np[data-sel="1"] .ni::after {
+      content: ''; position: absolute; inset: -6px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(226, 236, 255, .72);
+      opacity: .9;
+    }
+
+    /* ============ 地点详情 ============
+       和 HUD 页同一套玻璃：半透明蓝、霜面、加边光。
+       地图控件是实像素，这块也按实像素画，不走画布单位。 */
+    #spot[hidden] { display: none; }
+    #spot {
+      position: absolute; inset: 0; z-index: 40;
+      pointer-events: none;
+    }
+    #spot.on { pointer-events: none; }
+    #spot-shade {
+      display: none;
+      position: absolute; inset: 0;
+      pointer-events: auto;
+      background: rgba(7, 8, 22, .28);
+      backdrop-filter: blur(2px) saturate(.94);
+      -webkit-backdrop-filter: blur(2px) saturate(.94);
+    }
+    .spot-sheet {
+      --page-rim: rgba(232, 236, 255, .56);
+      position: absolute;
+      top: 16px; right: 16px; bottom: 16px;
+      width: min(420px, calc(100vw - 32px));
+      pointer-events: auto;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--page-rim);
+      border-radius: 28px;
+      background: rgba(36, 50, 96, .48);
+      backdrop-filter: blur(26px) saturate(1.34);
+      -webkit-backdrop-filter: blur(26px) saturate(1.34);
+      box-shadow:
+        0 24px 62px rgba(7, 8, 27, .34),
+        0 0 26px rgba(190, 185, 255, .16),
+        inset 0 1px 0 rgba(255, 255, 255, .40),
+        inset 1px 0 0 rgba(255, 255, 255, .14),
+        inset 0 -1px 0 rgba(255, 215, 232, .16);
+      animation: spot-in .28s cubic-bezier(.2, .82, .25, 1) both;
+    }
+    .spot-sheet::after {
+      content: '';
+      position: absolute; left: 28px; right: 28px; top: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.8) 18%, rgba(255,255,255,.3) 75%, transparent);
+      pointer-events: none;
+    }
+    .spot-frost {
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      opacity: .50; mix-blend-mode: soft-light;
+      background: url('../assets/frost.png') repeat;
+      background-size: 128px 128px;
+    }
+    .spot-edge {
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      mix-blend-mode: plus-lighter;
+      background:
+        radial-gradient(ellipse 62% 56% at 8% -12%, rgba(226, 232, 255, .15), transparent 64%),
+        linear-gradient(90deg, rgba(250, 178, 176, .11), rgba(248, 130, 96, .05) 22px, rgba(255, 90, 40, 0) 68px),
+        linear-gradient(270deg, rgba(255, 186, 148, .12), rgba(252, 152, 108, .055) 20px, rgba(255, 120, 70, 0) 66px),
+        linear-gradient(0deg, rgba(255, 176, 196, .14), rgba(255, 168, 190, .055) 28px, rgba(255, 150, 180, 0) 78px);
+    }
+    @keyframes spot-in {
+      from { transform: translateX(28px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+
+    .spot-close {
+      position: absolute; right: 16px; top: 16px; z-index: 5;
+      width: 36px; height: 36px;
+      display: grid; place-items: center;
+      border: 1px solid rgba(235, 237, 255, .34);
+      border-radius: 50%;
+      background: rgba(30, 35, 72, .58);
+      color: rgba(255,255,255,.86);
+      font: 300 25px/1 Outfit, sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    @media (hover: hover) {
+      .spot-close:hover { background: rgba(118, 126, 185, .55); border-color: rgba(255,255,255,.64); }
+    }
+
+    .spot-head, .spot-body { position: relative; z-index: 1; }
+    .spot-head {
+      flex: 0 0 auto;
+      padding: 22px 56px 16px 26px;
+      border-bottom: 1px solid rgba(226, 231, 255, .14);
+      background: linear-gradient(180deg, rgba(255,255,255,.065), transparent);
+    }
+    .spot-eye {
+      display: block; margin-bottom: 8px;
+      font: 400 12px/1 Outfit, sans-serif;
+      color: rgba(225, 228, 250, .56);
+      letter-spacing: .18em; text-transform: uppercase;
+    }
+    .spot-head h2 {
+      font: 700 26px/1.15 'Noto Sans SC', sans-serif;
+      color: #fff; letter-spacing: .04em;
+      text-shadow: 0 2px 9px rgba(7, 8, 24, .36);
+    }
+    .spot-full {
+      margin-top: 7px;
+      font: 400 12.5px/1.4 'Noto Sans SC', sans-serif;
+      color: rgba(232, 230, 248, .62);
+    }
+    .spot-meta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-top: 14px;
+    }
+    .spot-hours {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      font: 500 11px/1 'Noto Sans SC', sans-serif;
+      color: rgba(226, 232, 255, .42);
+      letter-spacing: .12em;
+    }
+    .spot-hours em {
+      font-style: normal;
+    }
+    .spot-hours em.on { color: rgba(250, 247, 255, .92); }
+    .spot-chip {
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid rgba(210, 220, 255, .22);
+      background: rgba(16, 22, 48, .36);
+      font: 500 11px/1.3 'Noto Sans SC', sans-serif;
+      font-style: normal;
+      color: rgba(226, 232, 255, .82);
+      letter-spacing: .04em;
+    }
+    .spot-priv {
+      display: flex; align-items: center; gap: 8px;
+      margin-left: auto;
+      font: 500 11px/1 'Noto Sans SC', sans-serif;
+      color: rgba(226, 232, 255, .7);
+    }
+    .spot-priv i {
+      display: block; width: 72px; height: 6px;
+      overflow: hidden; border-radius: 99px;
+      background: rgba(10, 13, 34, .48);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.42);
+    }
+    .spot-priv i b {
+      display: block; height: 100%; border-radius: inherit;
+      background: linear-gradient(90deg, #78c9ff, #929dff);
+    }
+
+    .spot-body {
+      flex: 1; min-height: 0;
+      padding: 18px 26px 28px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      /* #stage 和 body 都是 touch-action:none（地图要吃掉所有手势），
+         那个 none 会连带掐死面板内的原生滚动。这里必须显式放开纵向平移。 */
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+    }
+    .spot-body::-webkit-scrollbar { width: 6px; }
+    .spot-body::-webkit-scrollbar-thumb { background: rgba(218, 220, 248, .28); border-radius: 4px; }
+
+    .spot-draw {
+      margin: 0 0 14px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(226, 231, 255, .12);
+      background: linear-gradient(135deg, rgba(222, 173, 216, .16), rgba(122, 137, 207, .14));
+      font: 500 13.5px/1.55 'Noto Sans SC', sans-serif;
+      color: rgba(250, 247, 255, .92);
+    }
+    .spot-intro {
+      margin: 0 0 18px;
+      font: 400 13.5px/1.7 'Noto Sans SC', sans-serif;
+      color: rgba(236, 236, 252, .88);
+    }
+    .spot-feats {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: -4px 0 16px;
+    }
+
+    .spot-sec { margin-top: 4px; }
+    .spot-sec + .spot-sec { margin-top: 18px; }
+    .spot-k {
+      display: flex; align-items: baseline; gap: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(226, 231, 255, .10);
+    }
+    .spot-k span {
+      font: 400 18px/1 'Pinyon Script', cursive;
+      color: rgba(247, 230, 243, .74);
+    }
+    .spot-k b {
+      font: 500 12px/1 'Noto Sans SC', sans-serif;
+      color: rgba(250, 247, 255, .88);
+      letter-spacing: .12em;
+    }
+
+    .spot-gather {
+      font: 400 13px/1.6 'Noto Sans SC', sans-serif;
+      color: rgba(228, 228, 250, .78);
+    }
+    /* special：一条一句的门道清单，直白功能性，不是价目表也不是散文 */
+    .spot-spec {
+      margin: 0;
+      padding-left: 18px;
+      font: 400 13px/1.7 'Noto Sans SC', sans-serif;
+      color: rgba(228, 228, 250, .78);
+    }
+    .spot-spec li { margin-top: 2px; }
+    .spot-spec li::marker { color: rgba(228, 228, 250, .38); }
+    .spot-mats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .spot-evt {
+      padding: 12px 14px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(210, 220, 255, .14);
+      background: rgba(16, 22, 48, .28);
+    }
+    .spot-evt + .spot-evt { margin-top: 10px; }
+    .spot-evt h3 {
+      font: 600 13.5px/1.35 'Noto Sans SC', sans-serif;
+      color: rgba(250, 247, 255, .94);
+    }
+    .spot-evt .where {
+      margin-top: 4px;
+      font: 400 11px/1.3 'Noto Sans SC', sans-serif;
+      color: rgba(224, 226, 248, .5);
+      letter-spacing: .06em;
+    }
+    .spot-evt p {
+      margin: 8px 0 10px;
+      font: 400 12.5px/1.6 'Noto Sans SC', sans-serif;
+      color: rgba(228, 228, 250, .78);
+    }
+    .spot-opt {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 8px 0;
+      border-top: 1px solid rgba(226, 231, 255, .08);
+    }
+    .spot-opt:first-of-type { border-top: 0; }
+    .spot-tag {
+      flex: 0 0 auto;
+      margin-top: 1px;
+      padding: 2px 8px; border-radius: 999px;
+      font: 600 10px/1.4 'Noto Sans SC', sans-serif;
+      font-style: normal;
+      letter-spacing: .04em;
+    }
+    .spot-tag.love { color: #ffd4e6; background: rgba(255, 114, 169, .22); }
+    .spot-tag.mischief { color: #e4d7ff; background: rgba(168, 151, 255, .22); }
+    .spot-tag.sex { color: #ffe1c4; background: rgba(255, 173, 125, .22); }
+    .spot-tag.daily { color: #d4e8ff; background: rgba(120, 180, 255, .18); }
+    /* 数值要求。事件级 trigger 和分支级门槛都用小药丸出，
+       选项正文不进面板——这里是查条件的地方，不是读剧本的地方。 */
+    .spot-req {
+      display: flex; flex-wrap: wrap; gap: 5px;
+      margin-top: 7px;
+    }
+    .spot-req em {
+      padding: 2px 7px; border-radius: 6px;
+      border: 1px solid rgba(226, 231, 255, .16);
+      background: rgba(16, 22, 48, .34);
+      font: 500 10.5px/1.55 Outfit, 'Noto Sans SC', sans-serif;
+      font-style: normal; letter-spacing: .03em;
+      color: rgba(214, 222, 255, .84);
+    }
+    .spot-gate {
+      display: flex; flex-wrap: wrap; gap: 5px;
+      flex: 1; min-width: 0;
+    }
+    .spot-gate em {
+      padding: 2px 7px; border-radius: 6px;
+      background: rgba(255, 255, 255, .07);
+      font: 500 10.5px/1.55 Outfit, 'Noto Sans SC', sans-serif;
+      font-style: normal;
+      color: rgba(228, 232, 254, .8);
+    }
+    .spot-gate em.free {
+      padding-left: 0; background: none;
+      color: rgba(228, 232, 254, .38);
+    }
+
+    @media (max-width: 720px) {
+      #spot.on { pointer-events: auto; }
+      #spot-shade { display: block; }
+      .spot-sheet {
+        top: auto; right: 10px; left: 10px; bottom: 10px;
+        width: auto; height: min(78vh, 640px);
+        border-radius: 24px;
+        animation-name: spot-up;
+      }
+      @keyframes spot-up {
+        from { transform: translateY(36px); opacity: 0; }
+        to { transform: none; opacity: 1; }
+      }
+    }
   </style>
 </head>
 
@@ -396,6 +985,23 @@
 
     <div id="phase"></div>
 
+    <!-- 图例，内容由 JS 按 CITY_NET 的线路表生成 -->
+    <div id="legend" hidden></div>
+
+    <div id="scale"><span></span></div>
+
+    <!-- 行程。右键或长按图上任意处标终点，也可以从地点详情按「到这里去」 -->
+    <div id="trip" hidden>
+      <div class="trip-head">
+        <div id="trip-od"></div>
+        <button class="trip-x" type="button" id="trip-close" aria-label="取消行程">×</button>
+      </div>
+      <div id="trip-modes"></div>
+      <div id="trip-sum"></div>
+      <div id="trip-legs"></div>
+      <button id="trip-go" type="button">出发</button>
+    </div>
+
     <div id="ctl">
       <button id="c-in" title="放大">+</button>
       <button id="c-out" title="缩小">−</button>
@@ -407,10 +1013,21 @@
       <div class="devrow glass" id="dev-plate"></div>
       <div class="devrow glass" id="dev-zoom"></div>
     </div>
+
+    <div id="spot" hidden>
+      <div id="spot-shade"></div>
+      <section class="spot-sheet" role="dialog" aria-modal="true" aria-labelledby="spot-title">
+        <div class="spot-frost"></div>
+        <div class="spot-edge"></div>
+        <button class="spot-close" type="button" id="spot-close" aria-label="关闭">×</button>
+        <header class="spot-head" id="spot-head"></header>
+        <div class="spot-body" id="spot-body"></div>
+      </section>
+    </div>
   </div>
 
   <svg style="display:none" xmlns="http://www.w3.org/2000/svg"><defs id="icons"></defs></svg>
-  <script src="./plate_map.js"></script>
+  <script src="./plate_map.js?v=20260821-requirements-v3"></script>
 </body>
 
 </html>
