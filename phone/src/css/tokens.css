@@ -1,0 +1,65 @@
+/* ==================== 设计变量（iOS 风格基底） ====================
+   改配色/圆角/动效曲线优先改这里，别在各个分片里散着写死值。
+   命名跟着 Apple HIG 的语义走：label / secondary-label / separator / fill …
+   注意：确认弹窗会被 append 到父窗口 body，拿不到这份变量，
+   所以它那边仍然是内联样式，见 34-confirm-dialog.js。 */
+
+#mobile-phone-overlay,
+#wallpaper-fullscreen-viewer {
+    /* 字体：优先 Apple 系统字体，中文交给苹方/鸿蒙/雅黑 */
+    --ph-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
+        'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+    /* 数字等宽，时间跳秒时不抖 */
+    --ph-num: 'SF Pro Display', -apple-system, 'Helvetica Neue', system-ui, sans-serif;
+
+    /* 系统色 */
+    --ph-blue: #007AFF;
+    --ph-blue-press: #0062cc;
+    --ph-green: #34C759;
+    --ph-red: #FF3B30;
+    --ph-orange: #FF9500;
+    --ph-pink: #FF2D55;
+    --ph-purple: #AF52DE;
+    --ph-indigo: #5856D6;
+    --ph-gray: #8E8E93;
+
+    /* 文字层级 */
+    --ph-label: #1C1C1E;
+    --ph-label-2: rgba(60, 60, 67, 0.62);
+    --ph-label-3: rgba(60, 60, 67, 0.36);
+    --ph-label-on-dark: rgba(255, 255, 255, 0.96);
+
+    /* 背景层级 */
+    --ph-bg-grouped: #F2F2F7;
+    --ph-bg-card: #FFFFFF;
+    --ph-fill: rgba(120, 120, 128, 0.12);
+    --ph-fill-strong: rgba(120, 120, 128, 0.2);
+
+    /* 分割线：iOS 是 0.5px 发丝线 */
+    --ph-separator: rgba(60, 60, 67, 0.29);
+    --ph-hairline: 0.5px;
+
+    /* 毛玻璃 */
+    --ph-glass-light: rgba(249, 249, 249, 0.82);
+    --ph-glass-dark: rgba(22, 24, 30, 0.5);
+    --ph-glass-blur: saturate(180%) blur(20px);
+
+    /* 圆角：小控件 10，卡片 14，大面板 18，机身 46/54 */
+    --ph-r-sm: 10px;
+    --ph-r-md: 14px;
+    --ph-r-lg: 18px;
+    --ph-r-screen: 46px;
+    --ph-r-frame: 54px;
+
+    /* 阴影：iOS 的阴影很淡，靠层级而不是靠重投影 */
+    --ph-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --ph-shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.1);
+    --ph-shadow-icon: 0 4px 12px rgba(0, 0, 0, 0.24);
+    --ph-shadow-frame: 0 30px 60px -12px rgba(0, 0, 0, 0.55), 0 12px 24px -8px rgba(0, 0, 0, 0.35);
+
+    /* 动效：iOS 的默认曲线偏「先快后稳」，不是 ease */
+    --ph-spring: cubic-bezier(0.32, 0.72, 0, 1);
+    --ph-ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ph-dur: 0.36s;
+    --ph-dur-fast: 0.2s;
+}

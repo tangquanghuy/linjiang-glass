@@ -64,6 +64,29 @@ export const icons = {
              <path d="M9.4 4.4V3.2h5.2v1.2"/>
              <path d="M8.8 10h6.4M8.8 13.2h6.4M8.8 16.4h4" stroke-width="1.5"/>`),
 
+  /* 更多 -- the pod's fourth ring, and the only door the rest of the interface gets.
+     A 2x2 of rounded squares rather than three stacked bars: a hamburger reads as
+     "settings for this screen", and this one opens a directory of destinations, which
+     is what a grid of tiles reads as.  It is also the shape the page it opens uses. */
+  grid: svg(`<rect x="3.8" y="3.8" width="7.1" height="7.1" rx="2.1"/>
+             <rect x="13.1" y="3.8" width="7.1" height="7.1" rx="2.1"/>
+             <rect x="3.8" y="13.1" width="7.1" height="7.1" rx="2.1"/>
+             <rect x="13.1" y="13.1" width="7.1" height="7.1" rx="2.1"/>`),
+
+  /* CG 鉴赏.  A frame with a horizon and a sun, not a stack of photos: the page behind
+     it is one scene at a time at full size, and a stack would promise a contact sheet. */
+  gallery: svg(`<rect x="3" y="5" width="18" height="14" rx="2.6"/>
+                <circle cx="8.6" cy="10.2" r="1.9"/>
+                <path d="M3.4 16.6l4.3-3.9a1.8 1.8 0 0 1 2.4 0l3 2.7"/>
+                <path d="M13.4 15.4l2.6-2.4a1.8 1.8 0 0 1 2.4 0l2.2 2"/>`),
+
+  /* 随身手机.  Drawn at the same weight as 背包 and 邮件 so it does not pull forward of
+     them in the pod; the notch reads as a phone at 22px where a bare rectangle does not. */
+  phone: svg(`<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.8"/>
+              <path d="M10.2 2.6h3.6a1 1 0 0 1 1 1v.3a1 1 0 0 1-1 1h-3.6a1 1 0 0 1-1-1v-.3a1 1 0 0 1 1-1Z"
+                fill="currentColor" stroke="none"/>
+              <path d="M10.6 18.4h2.8" stroke-width="1.5"/>`),
+
   gear: svg(`<circle cx="12" cy="12" r="3.2"/>
              <path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4
                       M6.7 6.7 5 5M19 19l-1.7-1.7M6.7 17.3 5 19M19 5l-1.7 1.7"/>

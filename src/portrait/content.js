@@ -34,11 +34,12 @@ import { isPinned, orderedGirls, placeCardArts, togglePin } from '../content.js'
 import { CARD, TOOL } from './geometry.js';
 import { PORTRAIT_PAGES } from './pages.js';
 import { head, ic, meter, pct } from './parts.js';
-import { onLive } from '../data.js';
-import { requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
+import { menuBadge, onLive } from '../data.js';
+import { openPhone, requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
 import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
+import { moreTrayMarkup, wireMoreTray } from '../more-tray.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -116,11 +117,19 @@ function statusPanel() {
   return `
 <section class="ppanel" data-panel="status" data-pod>
   ${head('Status', '主角状态')}
+  <!-- The fourth ring opens a compact tray in place instead of replacing the column. -->
   <div class="ptools">
-    ${tools.map((t) => `
-    <button class="ptool" type="button" data-page="${t.page}" aria-label="${t.label}">
-      ${ic(t.icon)}${t.badge ? '<span class="pdot"></span>' : ''}
-    </button>`).join('')}
+    ${tools.map((t) => {
+    const dot = t.badge || (t.page === 'menu' && menuBadge());
+    const route = t.page === 'menu'
+      ? ' data-more-trigger aria-expanded="false"'
+      : ` data-page="${t.page}"`;
+    return `
+    <button class="ptool" type="button"${route} aria-label="${t.label}">
+      ${ic(t.icon)}${dot ? '<span class="pdot"></span>' : ''}
+    </button>`;
+  }).join('')}
+    ${moreTrayMarkup()}
   </div>
 
   <div class="pworld">
@@ -321,6 +330,10 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   let workspaceArg = null;
   let unmountMap = null;
   let unmountArcade = null;
+  /* Whether the map/arcade overlay was launched over a page rather than over the base
+     column -- 更多工具条 lists 街机, so this is now reachable.  It decides whether closing
+     the overlay has anything to repaint; see closePage. */
+  let overlayOverPage = false;
   /* Where the reader was in the document before the page took over, so closing puts
      them back rather than at the top of a column they had already scrolled past. */
   let baseScrollY = 0;
@@ -367,6 +380,11 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   };
 
   const openOverlay = (name, mount) => {
+    /* An overlay can now be launched from a page -- 更多工具条 lists 街机 -- and the column
+       under it still holds that page's DOM.  `workspace` is about to be overwritten, so
+       record that fact for closePage, which otherwise returns early on the way out of an
+       overlay and would leave the page standing with the state saying otherwise. */
+    overlayOverPage = !!workspace && workspace !== 'map' && workspace !== 'arcade';
     if (!workspace) {
       railScroll = rail()?.scrollLeft ?? railScroll;
       baseScrollY = scrollY;
@@ -385,6 +403,11 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   };
 
   const openPage = (page, arg) => {
+    if (page === 'phone') {
+      closePage();
+      openPhone().catch((err) => console.warn('[phone]', err));
+      return;
+    }
     if (page === 'map') { openOverlay('map', mountMapOverlay); return; }
     if (page === 'arcade') { openOverlay('arcade', mountArcadeOverlay); return; }
     const build = PORTRAIT_PAGES[page];
@@ -421,11 +444,16 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     unmountArcade?.();
     unmountArcade = null;
     const wasOverlay = workspace === 'map' || workspace === 'arcade';
+    const overPage = overlayOverPage;
+    overlayOverPage = false;
     workspace = null;
     workspaceArg = null;
     document.documentElement.classList.remove('is-page-open');
     reportPortraitPage(false);
-    if (wasOverlay) return;
+    /* An overlay opened over the base column left that column intact, so there is
+       nothing to repaint.  One opened over a page did not: the page has to be swept and
+       the base column put back, which is where the landscape layer also lands. */
+    if (wasOverlay && !overPage) return;
     paintBase();
     /* After the layout settles, or the restore lands against the page's height rather
        than the column's. */
@@ -540,6 +568,11 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   };
 
   paintBase({ restoreScroll: false });
+
+  wireMoreTray(content, {
+    hostSelector: '[data-pod]',
+    onSelect: (page) => openPage(page),
+  });
 
   content.addEventListener('click', (event) => {
     if (event.target.closest('[data-page-close]')) { closePage(); return; }

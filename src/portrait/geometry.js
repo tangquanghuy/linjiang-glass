@@ -69,7 +69,15 @@ export const POD = { width: 356, r: 46 };
    356-unit pod the way three 96-unit rings used to, leaving the same ~16 units of
    side slack so the outer two sit inside the pod's corner radius.  76 units is
    31.5 real px at a 390px-wide container; the hit area is still widened to 44 by
-   a pseudo-element rather than by growing the ring. */
+   a pseudo-element rather than by growing the ring.
+
+   `count` is a ceiling and not a knob.  Five rings need 428 units, and the pod has
+   only 57 units of flat top edge to grow into before its fillet meets the title
+   ear's -- so the fifth does not fit even after spending all of it.  Shrinking the
+   ring to make five fit is worse than tight: the 44px hit areas already overlap at
+   this pitch (3.8 real px at a 430-wide container, 12.2 at 320), and a 58-unit ring
+   would put that overlap past half the button.  So the fourth ring is 更多, and new
+   destinations are entries in `menuGroups` (src/data.js) rather than new rings. */
 export const TOOL = { d: 76, gap: 12, count: 4 };
 
 /** One seam width, used for every gap between stacked panels. */

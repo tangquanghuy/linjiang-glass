@@ -1,0 +1,59 @@
+/* ==================== 全屏壁纸查看器 ==================== */
+.wallpaper-fullscreen-viewer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(20px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: fadeIn 0.3s;
+}
+
+.wallpaper-fullscreen-viewer.active {
+    display: flex;
+}
+
+.wallpaper-fullscreen-viewer img {
+    max-width: 100%;
+    max-height: calc(100% - 100px);
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.wallpaper-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 201;
+}
+
+.wallpaper-close-btn i {
+    font-size: 20px;
+    color: #ffffff;
+}
+
+.wallpaper-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.wallpaper-close-btn:active {
+    transform: rotate(90deg) scale(0.9);
+}

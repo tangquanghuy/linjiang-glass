@@ -1,0 +1,126 @@
+/* ==================== 状态栏 ====================
+   状态栏永远压在壁纸之上（打开 App 时也是）。
+   这里刻意不做成深色毛玻璃条 —— 那样等于在立绘顶上焊一条黑带，很重。
+   改成完全透明，只留一层极淡的顶部渐变兜住文字，靠文字投影保证任何壁纸都读得清。 */
+.mobile-status-bar {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 18px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0) 100%);
+    color: var(--ph-label-on-dark);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 200;
+}
+
+.status-left,
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ph-label-on-dark);
+    /* 状态栏图标/文字统一压到 iOS 的 13px 级别 */
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* 时间：iOS 放在左上角，等宽数字避免跳动 */
+.status-left .time {
+    font-family: var(--ph-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    color: #fff;
+}
+
+.status-weather {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.pin-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--ph-dur-fast) var(--ph-ease-out),
+        color var(--ph-dur-fast) var(--ph-ease-out),
+        transform var(--ph-dur-fast) var(--ph-spring);
+    border-radius: 999px;
+}
+
+.pin-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.pin-btn.pinned {
+    color: #fff;
+    background: var(--ph-blue);
+    transform: rotate(45deg);
+}
+
+.pin-btn.pinned:hover {
+    background: var(--ph-blue-press);
+}
+
+/* 中间是拖动把手：不画黑色灵动岛（那是块实心黑，压在立绘上很重），
+   只留一条极淡的短横线暗示「这里能拖」，hover 时才明显一点。 */
+.status-center {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 96px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+}
+
+.status-center::before {
+    content: '';
+    width: 34px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: background var(--ph-dur-fast) var(--ph-ease-out),
+        width var(--ph-dur-fast) var(--ph-ease-out);
+}
+
+.status-center:hover::before {
+    background: rgba(255, 255, 255, 0.6);
+    width: 44px;
+}
+
+@keyframes statusDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+.battery {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--ph-label-on-dark);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}

@@ -216,6 +216,17 @@ export const player = {
   },
 };
 
+export const arcadeProfile = {
+  版本: 1,
+  统计: {
+    刮刮乐: { 结算次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
+    幸运机: { 旋转次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
+    捕鱼: { 结算次数: 0, 捕获次数: 0, 最高倍率: 0, 累计返奖: 0, 清屏次数: 0 },
+  },
+  已解锁: {},
+  已达成: {},
+};
+
 /* 类别 -> icon slug and hue.
    ------------------------------------------------------------------
    Bucket identity is carried by the slot's silhouette (round for 素材, soft square
@@ -916,23 +927,97 @@ export function streamSchedule() {
   };
 }
 
-export function scheduleHint(model = streamSchedule()) {
-  const scheduled = model.rows.filter((row) => row.days.some((day) => day.planned)).length;
-  const off = model.rows.filter((row) => row.currentState === 'off').length;
-  return [
-    `${scheduled} 人排班`,
-    model.liveNow.length ? `在播 ${model.liveNow.length}` : '当前无人开播',
-    `${model.today.length} 人今日有档`,
-    off ? `休播 ${off}` : '',
-  ].filter(Boolean).join(' · ');
-}
+/* scheduleHint used to live here: "7 人排班 · 在播 2 · 6 人今日有档 · 休播 2", four counts
+   joined with 中点.  It is gone, and nothing replaced it.  Not one of the four answered a
+   question a player has -- how many people are rostered this week is not a decision, and
+   the two facts that are (who is live, who has a slot today) are already on the page as
+   本人 with 名字: the 今日顺序 chips and the per-row 状态.  Counting them into a header line
+   turned a roster into a dashboard, which this interface is not.  If a count is ever
+   wanted again, it belongs next to the thing it counts, not in a summary strip. */
 
+/* The tool pod holds four rings, and four is a hard ceiling rather than a preference.
+   ------------------------------------------------------------------
+   Geometry says the fifth does not fit: the landscape pod is 218 units wide with 22 of
+   padding, so 40-unit rings at an 8 gap spend 184 of the 196 available and a fifth needs
+   232.  The portrait pod is 356 and spends 340 of it, a fifth needs 428, and the flat run
+   of top edge between the title ear and the pod fillet is only 57 units -- so the pod
+   cannot be widened into it either.
+
+   Touch says four is already the ceiling.  Measured as rendered pixels: the 44px hit
+   areas the `::after` trick draws around each ring are wider than the ring pitch, so
+   neighbours already overlap -- 3.8px at a 430px-wide portrait container, 12.2px at 320,
+   and 17.8px on a phone held sideways where the rings draw at 20px.  Shrinking the rings
+   to make room makes that worse, not better.
+
+   So the fourth slot is a compact launcher rather than a destination: `menuGroups` below
+   supplies its satellite buttons. Promoting one to the pod means moving an entry, not
+   adding a ring. */
 export const tools = [
   { icon: 'mail', label: '当日事件', page: 'events', badge: true },
   { icon: 'memo', label: '背包', page: 'inventory' },
   { icon: 'mapPin', label: '地图', page: 'map' },
-  { icon: 'arcade', label: '街机', page: 'arcade' },
+  { icon: 'grid', label: '更多', page: 'menu' },
 ];
+
+/* 更多功能 -- everything the pod cannot hold, and the registry a new feature is added to.
+   ------------------------------------------------------------------
+   Grouped rather than one flat grid, because the entries are not peers: three are
+   records the player reads, two are things to do, one is a device.  `en` feeds the small
+   latin line the rest of this interface pairs its CJK with; `note` is what the tile says
+   instead of making the icon carry the whole meaning, which is the thing four unlabelled
+   rings cannot do.
+   `soon` keeps unfinished destinations disabled. The phone entry is live and delegates
+   to the external phone panel through the HUD bridge; CG remains staged. */
+export const menuGroups = [
+  {
+    heading: '记录', note: '主角与她们',
+    items: [
+      {
+        icon: 'person', label: '主角档案', en: 'Profile', page: 'profile',
+        note: '资金、工作、住所、粉丝身份',
+      },
+      {
+        icon: 'calendar', label: '开播日程表', en: 'Schedule', page: 'schedule',
+        note: '本周谁在哪个时段开播',
+      },
+      {
+        icon: 'heartOutline', label: '羁绊总览', en: 'Bonds', page: 'relations',
+        note: '好感、心情与异常状态',
+      },
+    ],
+  },
+  {
+    heading: '消磨', note: '不推进剧情的去处',
+    items: [
+      {
+        icon: 'arcade', label: '幸运街机', en: 'Arcade', page: 'arcade',
+        note: '刮刮乐、老虎机、钓鱼、祈愿',
+      },
+      {
+        icon: 'gallery', label: 'CG 鉴赏', en: 'Gallery', page: 'cg', soon: true,
+        note: '已解锁的场景回看',
+      },
+    ],
+  },
+  {
+    heading: '随身', note: '不在这个界面里的东西',
+    items: [
+      {
+        icon: 'phone', label: '随身手机', en: 'Phone', page: 'phone',
+        note: '消息、通话与应用',
+      },
+    ],
+  },
+];
+
+/* One dot on 更多 when anything behind it wants attention -- otherwise moving a badge
+   into the directory would silently retire it. */
+export const menuBadge = () =>
+  menuGroups.some((g) => g.items.some((it) => it.badge && !it.soon));
+
+/* Notes are plain strings.  There was a `menuNote` resolver here for a moment, to let one
+   entry carry a live line; that line was a statistic and is gone, so the flexibility went
+   with it rather than sitting around waiting for a second use. */
 
 /* ------------------------------------------------------------------- 送礼 */
 /* Two scenes, and they are not one screen with two skins.
@@ -1205,6 +1290,20 @@ export function onLive(fn) {
 }
 
 /* Arcade / clock-in write 金钱 without waiting for the next full snapshot. */
+export function applyArcadeProfile(raw, { notify = true } = {}) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  arcadeProfile.版本 = Math.max(1, Math.floor(asNum(src.版本, 1)));
+  const stats = src.统计 && typeof src.统计 === 'object' ? src.统计 : {};
+  for (const [game, defaults] of Object.entries(arcadeProfile.统计)) {
+    const row = stats[game] && typeof stats[game] === 'object' ? stats[game] : {};
+    for (const key of Object.keys(defaults)) defaults[key] = Math.max(0, asNum(row[key], 0));
+  }
+  arcadeProfile.已解锁 = src.已解锁 && typeof src.已解锁 === 'object' ? { ...src.已解锁 } : {};
+  arcadeProfile.已达成 = src.已达成 && typeof src.已达成 === 'object' ? { ...src.已达成 } : {};
+  if (notify) emitLive();
+  return arcadeProfile;
+}
+
 export function applyMoney(value) {
   const n = Math.max(0, Math.round(asNum(value)));
   if (n === Math.round(asNum(player.money))) return false;
@@ -1351,6 +1450,8 @@ export function applyStatData(stat) {
   world.location.area = asStr(loc.区域, world.location.area);
   world.location.place = asStr(loc.场所, world.location.place);
   world.location.privacy = asNum(loc.私密度, world.location.privacy);
+
+  applyArcadeProfile(stat.系统配置?.街机, { notify: false });
 
   const me = stat.玩家信息 || {};
   const work = me.工作 || {};

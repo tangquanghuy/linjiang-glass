@@ -352,7 +352,7 @@ const fitParentFrame = () => {
 const handleRequest = (action) => {
   if (action === 'handshake') return { ok: true, label: '嵌入夹具', hasMvu: false };
   if (action === 'getSnapshot') return { stat_data: {} };
-  if (action === 'sendMessage' || action === 'clockIn' || action === 'patch') return true;
+  if (action === 'sendMessage' || action === 'clockIn' || action === 'patch' || action === 'openPhone' || action === 'arcadeEvent') return true;
   throw new Error('未知桥接动作: ' + action);
 };
 

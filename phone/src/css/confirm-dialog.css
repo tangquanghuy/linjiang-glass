@@ -1,0 +1,163 @@
+/* ==================== 自定义确认弹窗 ==================== */
+/* 原本整块误写在 @media (max-width: 768px) 内，宽屏下不生效；已提到顶层。
+   动画名也从 fadeIn / slideUp / iconPulse 改成带前缀的名字，
+   避免覆盖 phone-container.css 与 phone-frame.css 里同名的开机动画。 */
+
+.custom-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    opacity: 0;
+    animation: confirmFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes confirmFadeIn {
+    to { opacity: 1; }
+}
+
+.custom-confirm-modal {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 2px;
+    min-width: 340px;
+    max-width: 480px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    animation: confirmSlideUp 0.3s ease-out;
+}
+
+@keyframes confirmSlideUp {
+    from {
+        transform: translateY(30px) scale(0.95);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.custom-confirm-content {
+    background: #1f2937;
+    border-radius: 18px;
+    padding: 28px 24px 20px;
+}
+
+.confirm-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    animation: confirmIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes confirmIconPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+}
+
+.confirm-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #f3f4f6;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.confirm-message {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #d1d5db;
+    margin-bottom: 24px;
+    text-align: center;
+    white-space: pre-line;
+}
+
+.confirm-item-info {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.confirm-item-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #a5b4fc;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confirm-item-desc {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.confirm-item-price {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.confirm-btn {
+    flex: 1;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.confirm-btn-cancel {
+    background: #374151;
+    color: #d1d5db;
+}
+
+.confirm-btn-cancel:hover {
+    background: #4b5563;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.confirm-btn-confirm {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.confirm-btn-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.confirm-btn:active {
+    transform: translateY(0) scale(0.98);
+}

@@ -70,6 +70,20 @@ export async function sendChat(text) {
   return true;
 }
 
+export async function openPhone() {
+  if (!isEmbedded()) {
+    dispatchEvent(new CustomEvent('linjiang:open-phone'));
+    return false;
+  }
+  await rpc('openPhone');
+  return true;
+}
+
+export async function recordArcadeEvent(event) {
+  if (!isEmbedded()) return { profile: null, unlocked: [] };
+  return rpc('arcadeEvent', { event });
+}
+
 export async function requestClockIn() {
   if (!isEmbedded()) {
     console.info('[hud] clockIn (standalone)');

@@ -1,0 +1,19 @@
+/* ==================== 主内容区域 ==================== */
+.mobile-content {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#mobile-phone-overlay .home-screen {
+    flex: 1 !important;
+    padding: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+    overflow-y: auto !important;
+    background: transparent !important;
+}
+

@@ -1,0 +1,256 @@
+/* ==================== 应用图标网格 ==================== */
+#mobile-phone-overlay .app-pages-container {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    touch-action: pan-x !important;
+}
+
+/* 页面滑动容器 */
+#mobile-phone-overlay .app-pages-wrapper {
+    flex: 1 !important;
+    display: flex !important;
+    transition: transform var(--ph-dur) var(--ph-spring) !important;
+    touch-action: pan-x !important;
+    overflow: visible !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
+
+#mobile-phone-overlay .app-pages-wrapper.no-transition {
+    transition: none !important;
+}
+
+#mobile-phone-overlay .app-page {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+}
+
+/* 图标从顶部往下排（真机主屏就是这样），不再垂直居中 */
+#mobile-phone-overlay .app-grid {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 24px !important;
+    padding: 36px 24px 0 !important;
+}
+
+/* 页面指示器 */
+#mobile-phone-overlay .page-indicators {
+    display: none !important; /* 只有一页时隐藏指示器 */
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 12px 0 20px !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+#mobile-phone-overlay .indicator {
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    transition: all var(--ph-dur-fast) var(--ph-ease-out) !important;
+    cursor: pointer !important;
+}
+
+#mobile-phone-overlay .indicator.active {
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 一行 3 个。用 center + 固定槽宽而不是 space-between：
+   三列在 375 宽的屏上 space-between 会把图标推到左右贴边，中间空一大块。 */
+#mobile-phone-overlay .app-row {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    gap: 24px !important;
+}
+
+#mobile-phone-overlay .app-icon {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: transform 0.2s ease !important;
+    flex: 0 0 auto !important;
+    width: 74px !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
+
+#mobile-phone-overlay .app-icon:hover {
+    transform: scale(1.1) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg {
+    width: 56px !important;
+    height: 56px !important;
+    flex-shrink: 0 !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 26px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+/* 清除所有可能的伪元素覆盖 */
+#mobile-phone-overlay .app-icon-bg::before,
+#mobile-phone-overlay .app-icon-bg::after {
+    content: none !important;
+    display: none !important;
+}
+
+#mobile-phone-overlay .app-icon::before,
+#mobile-phone-overlay .app-icon::after {
+    content: none !important;
+    display: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg i {
+    z-index: 1 !important;
+    font-size: 26px !important;
+    position: relative !important;
+}
+
+/* Material Design 纯色渐变，和 D:\Code\dnf\code 小手机脚本同一套 */
+#mobile-phone-overlay .app-icon-bg.md-blue {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-blue i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-orange {
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-orange i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-green {
+    background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-green i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-purple {
+    background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-purple i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-pink {
+    background: linear-gradient(135deg, #E91E63 0%, #C2185B 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-pink i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-red {
+    background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-red i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-yellow {
+    background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-yellow i {
+    color: rgba(0, 0, 0, 0.75) !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-cyan {
+    background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-cyan i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-teal {
+    background: linear-gradient(135deg, #009688 0%, #00796B 100%) !important;
+    border: none !important;
+}
+
+#mobile-phone-overlay .app-icon-bg.md-teal i {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 标签：细字 + 一层柔和投影。
+   不用原来那个半透明白胶囊底（六个小白块很碎），也不用三层浓投影（发脏）。 */
+#mobile-phone-overlay .app-label {
+    font-size: 11.5px !important;
+    color: rgba(255, 255, 255, 0.96) !important;
+    font-weight: 400 !important;
+    text-align: center !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0.1px !important;
+    /* 三层：贴边的紧描边保证压在亮天空上也读得出，中层落地，外层一点氛围。
+       关键是紧那一层 blur 要小（2px），拉大就会糊成一团脏影子。 */
+    text-shadow:
+        0 0 2px rgba(0, 0, 0, 0.6),
+        0 1px 3px rgba(0, 0, 0, 0.82),
+        0 0 14px rgba(0, 0, 0, 0.5) !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+#mobile-phone-overlay .app-icon:hover .app-icon-bg {
+    transform: scale(1.08) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35) !important;
+}
+
+#mobile-phone-overlay .app-icon:active .app-icon-bg {
+    transform: scale(0.92) !important;
+}

@@ -26,7 +26,7 @@ import devMatrix from '../dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, GUARD_DAYS, NO_STATUS, NOTICE, PRIVACY, THRESHOLDS,
   characterDetails, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
-  homeState, inventoryRail, itemIconTag, partArt, player, potencyNotches, scheduleHint, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
+  homeState, inventoryRail, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
 import { head, ic, meter, pct, section } from './parts.js';
 
@@ -468,7 +468,6 @@ function portraitScheduleState(row) {
 
 export function schedulePage() {
   const model = streamSchedule();
-  const hint = scheduleHint(model);
   const today = model.today.map((row) => `<span class="pschedule-today-chip t-${row.theme}${row.live ? ' is-live' : ''}"><i></i><b>${row.start}</b>${row.name}</span>`).join('');
   const rows = model.rows.map((row) => `
     <article class="pschedule-line t-${row.theme}${row.watching ? ' is-watching' : ''}">
@@ -485,7 +484,10 @@ export function schedulePage() {
 <section class="ppanel is-page pschedule-page" data-panel="page" role="dialog" aria-label="开播日程表">
   ${head('Schedule', '开播日程表')}
   <button class="pclose" type="button" data-page-close aria-label="返回">&times;</button>
-  <div class="pschedule-summary"><b>${hint}</b><span>${model.weekday} · ${model.clock}</span></div>
+  <!-- Dateline only; see the landscape schedulePage for what was removed.  It matters a
+       little more here: a portrait page replaces the whole column, so the clock on the
+       Status panel is off screen while this page is open. -->
+  <div class="pschedule-summary"><b>${model.weekday} · ${model.clock}</b></div>
   <div class="pschedule-today"><b>今日顺序</b>${today}</div>
   <div class="pschedule-lines">${rows}</div>
 </section>`;
@@ -597,12 +599,14 @@ export function profilePage() {
     </summary>
     <div class="pfans">${fans}</div>
   </details>
+  <!-- 查看开播日程 was the second button in this row; 更多工具条 reaches 开播日程表 directly
+       now, so the page no longer offers its own route to it.  See the note in the
+       landscape profilePage for why, and menuGroups for where its live hint went.
+       羁绊总览 stays: it is reached from a character's 档案 as well, and this row is the
+       only route out of 主角档案 that does not go back through the pod. -->
   <div class="pprofile-routes">
     <button class="pprofile-schedule" type="button" data-page="relations">
       <b>查看羁绊总览</b>${ic('arrowRight')}
-    </button>
-    <button class="pprofile-schedule" type="button" data-page="schedule">
-      <b>查看开播日程</b>${ic('arrowRight')}
     </button>
   </div>
 </section>`;

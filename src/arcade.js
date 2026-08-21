@@ -6,13 +6,12 @@
    coordinates the same way it does for the city map.
 
    So the arcade is an iframe covering the unscaled viewport, matching the
-   map overlay.  Scratch and fishing force a landscape stage on portrait
-   phones inside that iframe (see arcade/index.html); this module only
-   mounts, closes, seeds the shared purse from 玩家信息.金钱, and writes
+   map overlay.  Games keep their own portrait / landscape CSS; this module
+   only mounts, closes, seeds the shared purse from 玩家信息.金钱, and writes
    wins/losses back through the tavern shell. */
 
-import { player, onLive } from './data.js';
-import { setMoney, flushMoney } from './bridge.js';
+import { arcadeProfile, applyArcadeProfile, player, onLive } from './data.js';
+import { flushMoney, recordArcadeEvent, setMoney } from './bridge.js';
 
 export function arcadeSrc() {
   return new URL(`${import.meta.env.BASE_URL}arcade/index.html`, document.baseURI).href;
@@ -47,13 +46,29 @@ export function mountArcadeOverlay(host, { onClose } = {}) {
   const push = () => {
     const n = cash();
     lastPushed = n;
-    try { iframe.contentWindow?.postMessage({ type: 'airp-arcade:set-balance', balance: n }, '*'); }
-    catch (_) {}
+    try {
+      iframe.contentWindow?.postMessage({ type: 'airp-arcade:set-balance', balance: n }, '*');
+      iframe.contentWindow?.postMessage({ type: 'airp-arcade:set-profile', profile: arcadeProfile }, '*');
+    } catch (_) {}
+  };
+  let arcadeChain = Promise.resolve();
+  const record = (event) => {
+    arcadeChain = arcadeChain.then(() => recordArcadeEvent(event)).then((result) => {
+      if (result?.profile) applyArcadeProfile(result.profile);
+      try {
+        iframe.contentWindow?.postMessage({
+          type: 'airp-arcade:set-profile',
+          profile: result?.profile || arcadeProfile,
+          unlocked: Array.isArray(result?.unlocked) ? result.unlocked : [],
+        }, '*');
+      } catch (_) {}
+    }).catch((err) => console.warn('[arcade] milestone', err));
   };
   const onFrameMsg = (event) => {
     if (event.source !== iframe.contentWindow) return;
     const data = event.data || {};
     if (data.type === 'airp-arcade:hello') { push(); return; }
+    if (data.type === 'airp-arcade:event') { record(data.event || {}); return; }
     if (data.type !== 'airp-arcade:balance') return;
     const n = Math.max(0, Math.round(Number(data.balance) || 0));
     if (!Number.isFinite(n) || n === lastPushed) return;

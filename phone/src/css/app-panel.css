@@ -1,0 +1,80 @@
+/* ==================== 应用详情面板 ==================== */
+.app-detail-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* iOS 的分组列表底色，不是纯白：白卡片压在浅灰底上才有层次 */
+    background: var(--ph-bg-grouped) !important;
+    z-index: 100 !important;
+    display: none;
+    flex-direction: column;
+    animation: slideIn var(--ph-dur) var(--ph-spring);
+}
+
+.app-detail-panel.active {
+    display: flex;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+/* 导航栏：半透明毛玻璃 + 0.5px 发丝分割线 */
+.app-header {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px 0 6px;
+    background: var(--ph-glass-light);
+    backdrop-filter: var(--ph-glass-blur);
+    -webkit-backdrop-filter: var(--ph-glass-blur);
+    border-bottom: var(--ph-hairline) solid var(--ph-separator);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
+/* 返回：iOS 的返回是蓝色 chevron，没有圆形底 */
+.back-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: var(--ph-r-sm);
+    transition: opacity var(--ph-dur-fast) var(--ph-ease-out);
+    font-size: 19px;
+    line-height: 1;
+    color: var(--ph-blue);
+}
+
+.back-button:hover {
+    background: none;
+    opacity: 0.6;
+}
+
+.back-button:active {
+    opacity: 0.35;
+}
+
+.app-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ph-label);
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 28px;
+    background: var(--ph-bg-grouped);
+    transition: opacity var(--ph-dur-fast) var(--ph-ease-out);
+    -webkit-overflow-scrolling: touch;
+}

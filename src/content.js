@@ -3,7 +3,7 @@ import spritesRaw from './sprites.json';
 import { rebaseRecord } from './asset.js';
 import { pinImg } from './pin-art.js';
 import {
-  characterDetails, girls, homeState, onLive, player, protagonist, tools, workBadge, workState, world,
+  characterDetails, girls, homeState, menuBadge, onLive, player, protagonist, tools, workBadge, workState, world,
 } from './data.js';
 import { mountPages } from './pages.js';
 import { mountDrawer } from './drawer.js';
@@ -11,6 +11,7 @@ import { mountGifts } from './gifts.js';
 import { onPref, pref } from './prefs.js';
 import { icons } from './icons.js';
 import { sendChat } from './bridge.js';
+import { moreTrayMarkup, wireMoreTray } from './more-tray.js';
 
 const sprites = rebaseRecord(spritesRaw);
 
@@ -331,10 +332,17 @@ function girlsPane() {
 
 /* --------------------------------------------------------------- tool pod */
 function toolPod() {
-  return region('pod', 'pane-pod', tools.map((t) => `
-  <button class="tool-btn" aria-label="${t.label}" data-page="${t.page || ''}">
-    ${ic(t.icon)}${t.badge ? '<span class="dot"></span>' : ''}
-  </button>`).join(''));
+  const buttons = tools.map((t) => {
+    const dot = t.badge || (t.page === 'menu' && menuBadge());
+    const route = t.page === 'menu'
+      ? ' data-more-trigger aria-expanded="false"'
+      : ` data-page="${t.page || ''}"`;
+    return `
+  <button class="tool-btn" type="button" aria-label="${t.label}"${route}>
+    ${ic(t.icon)}${dot ? '<span class="dot"></span>' : ''}
+  </button>`;
+  }).join('');
+  return region('pod', 'pane-pod', buttons + moreTrayMarkup());
 }
 
 function placeRailNext(stage, onNext) {
@@ -371,6 +379,9 @@ export function renderContent(root) {
   const pages = mountPages(root.parentElement, {
     onGift: (name) => { drawer.close(); gifts.open(name); },
     onDock: (name) => { if (gifts.isOpen() && gifts.target() !== name) gifts.close(); },
+    /* 地图 and 街机 cover the viewport, so the bottom band has to be cleared first --
+       and it has to be cleared whether the request came from the pod or from 更多工具条. */
+    onOverlay: () => { gifts.close(); drawer.close(); },
   });
   const gifts = mountGifts(root.parentElement, {
     onSend: ({ message, payload }) => {
@@ -389,6 +400,15 @@ export function renderContent(root) {
      straight to the full page and the drawer never appears. */
   const drawer = mountDrawer(root.parentElement, {
     onItem: () => pages.open('inventory'),
+  });
+  wireMoreTray(root, {
+    hostSelector: '.pane-pod',
+    onOpen: () => { gifts.close(); drawer.close(); },
+    onSelect: (page) => {
+      gifts.close();
+      drawer.close();
+      pages.open(page);
+    },
   });
   /* Switching to 'page' while the drawer is standing would leave it open with nothing
      that can reach it: the button that toggles it now does something else. */
@@ -415,18 +435,14 @@ export function renderContent(root) {
     root.querySelector('.btn-ghost')?.addEventListener('click', () => pages.open('profile'));
   };
   wireProfile();
+  /* Three buttons route directly. The fourth is owned by the compact tray above,
+     so it deliberately has no data-page attribute and never opens a full sheet. */
   root.querySelectorAll('.pane-pod .tool-btn[data-page]').forEach((button) => {
     button.addEventListener('click', () => {
       const toDrawer = button.dataset.page === 'inventory' && pref('inventoryOpen') === 'drawer';
       /* Both panels want the same band, so whichever is asked for evicts the other. */
       if (toDrawer) { gifts.close(); drawer.toggle(); }
-      else {
-        if (button.dataset.page === 'map' || button.dataset.page === 'arcade') {
-          gifts.close();
-          drawer.close();
-        }
-        pages.open(button.dataset.page);
-      }
+      else pages.open(button.dataset.page);
     });
   });
   if (rail) placeCardArts(rail);

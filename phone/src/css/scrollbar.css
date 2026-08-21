@@ -1,0 +1,22 @@
+/* ==================== 滚动条 ==================== */
+.home-screen::-webkit-scrollbar,
+.app-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.home-screen::-webkit-scrollbar-track,
+.app-body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.home-screen::-webkit-scrollbar-thumb,
+.app-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+}
+
+.home-screen::-webkit-scrollbar-thumb:hover,
+.app-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+

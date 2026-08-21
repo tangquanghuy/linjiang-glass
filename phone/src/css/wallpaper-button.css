@@ -1,0 +1,37 @@
+/* ==================== 全屏壁纸按钮 ====================
+   压在壁纸上的小圆钮，做成深色毛玻璃：不管壁纸亮暗都看得见，
+   也不会像原来的纯白圆饼那样把主屏切出一个洞。
+   位置往上抬一点，给 Home 指示条留出空间。 */
+.wallpaper-fullscreen-btn {
+    position: absolute;
+    bottom: 26px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(28, 28, 30, 0.42);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: none;
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.28), 0 4px 14px rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--ph-dur-fast) var(--ph-spring),
+        background var(--ph-dur-fast) var(--ph-ease-out);
+    z-index: 50;
+}
+
+.wallpaper-fullscreen-btn i {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.wallpaper-fullscreen-btn:hover {
+    background: rgba(28, 28, 30, 0.58);
+}
+
+.wallpaper-fullscreen-btn:active {
+    transform: scale(0.92);
+}

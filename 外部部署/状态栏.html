@@ -1,0 +1,1615 @@
+﻿```text
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>临江 · 玻璃状态栏</title>
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: #05040a;
+    overflow: hidden;
+  }
+  #hud {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #05040a;
+  }
+  #hint {
+    display: none;
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 2;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(8, 10, 18, 0.82);
+    color: #e2e8f0;
+    font: 12px/1.4 system-ui, sans-serif;
+    pointer-events: none;
+  }
+  #hint.show { display: block; }
+</style>
+</head>
+<body>
+<iframe id="hud" title="玻璃状态栏" src="" loading="eager" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write"></iframe>
+<div id="hint"></div>
+<script>
+(function () {
+  /* 粘进角色卡「状态栏」。本页与酒馆同源，所以能摸到 parent.Mvu。
+     玻璃 HUD 本身在跨域 iframe 里，只通过 postMessage 和这里说话。 */
+  const HUD_URL = 'https://tangquanghuy.github.io/linjiang-glass/';
+  // const HUD_URL = 'http://127.0.0.1:5173/';
+  const CHANNEL = 'linjiang-hud';
+  const POLL_MS = 3000;
+
+  const hudFrame = document.getElementById('hud');
+  const hint = document.getElementById('hint');
+  const hudOrigin = (() => {
+    try { return new URL(HUD_URL, location.href).origin; }
+    catch (e) { return '*'; }
+  })();
+
+  const showHint = (text) => {
+    hint.textContent = text || '';
+    hint.classList.toggle('show', !!text);
+  };
+
+  const getCoreWindow = () => {
+    const wins = [];
+    try { if (window.parent) wins.push(window.parent); } catch (e) {}
+    try { if (window.top && window.top !== window.parent) wins.push(window.top); } catch (e) {}
+    wins.push(window);
+    for (const win of wins) {
+      try {
+        if (win && win.Mvu && typeof win.Mvu.getMvuData === 'function') return win;
+      } catch (e) {}
+    }
+    return window.parent || window;
+  };
+
+  const mvuState = {
+    ready: false,
+    mvu: null,
+    check() {
+      const win = getCoreWindow();
+      if (!win || typeof win.Mvu === 'undefined'
+          || typeof win.Mvu.getMvuData !== 'function'
+          || typeof win.Mvu.replaceMvuData !== 'function') {
+        this.ready = false;
+        this.mvu = null;
+        return false;
+      }
+      this.ready = true;
+      this.mvu = win.Mvu;
+      return true;
+    },
+  };
+
+  const fetchLatestMvuData = () => {
+    let finalData = {};
+    try {
+      if (mvuState.ready || mvuState.check()) {
+        const messageData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+        const chatData = mvuState.mvu.getMvuData({ type: 'chat' });
+        const messageStat = messageData?.stat_data || {};
+        const chatStat = chatData?.stat_data || {};
+        if (Object.keys(messageStat).length > 0) finalData = messageStat;
+        else finalData = chatStat;
+      }
+    } catch (e) {
+      console.warn('[临江状态栏] MVU 读取失败', e);
+    }
+    return finalData;
+  };
+
+  const applyMvuPatches = (patches) => {
+    try {
+      if (!mvuState.ready && !mvuState.check()) return false;
+      const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+      if (!mvuData?.stat_data) return false;
+      (patches || []).forEach((patch) => {
+        const parts = String(patch.path || '').split('/').filter(Boolean);
+        if (!parts.length) return;
+        if (patch.op === 'replace' || patch.op === 'add') {
+          let obj = mvuData.stat_data;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!obj[parts[i]]) obj[parts[i]] = {};
+            obj = obj[parts[i]];
+          }
+          obj[parts[parts.length - 1]] = patch.value;
+        } else if (patch.op === 'remove') {
+          let obj = mvuData.stat_data;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!obj[parts[i]]) return;
+            obj = obj[parts[i]];
+          }
+          delete obj[parts[parts.length - 1]];
+        }
+      });
+      mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+      return true;
+    } catch (e) {
+      console.warn('[临江状态栏] MVU 写入失败', e);
+      return false;
+    }
+  };
+
+  const sendMessage = (text) => {
+    const next = String(text || '').trim();
+    if (!next) throw new Error('消息内容为空');
+    const win = getCoreWindow();
+    const doc = (win && win.document) ? win.document : document;
+    const textarea = doc.getElementById('send_textarea');
+    if (!textarea) throw new Error('未找到聊天输入框');
+    const current = String(textarea.value || '').trim();
+    if (current !== next && current.indexOf(next) === -1) {
+      textarea.value = current ? (current + '\n' + next) : next;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    try { textarea.focus(); } catch (e) {}
+    return true;
+  };
+
+  const clockIn = () => {
+    const data = fetchLatestMvuData() || {};
+    const work = data.玩家信息?.工作 || {};
+    const job = work.职业;
+    const place = work.地点;
+    const daily = Number(work.日收入) || 0;
+    const done = !!work.今日已上班;
+    const here = data.世界信息?.位置?.区域;
+    if (!job) throw new Error('无业');
+    if (done) throw new Error('今日已上班');
+    if (here !== place) throw new Error('未到岗');
+    if (daily <= 0) throw new Error('日收入为 0');
+    const money = Number(data.玩家信息?.金钱) || 0;
+    const ok = applyMvuPatches([
+      { op: 'replace', path: '/玩家信息/金钱', value: money + daily },
+      { op: 'replace', path: '/玩家信息/工作/今日已上班', value: true },
+    ]);
+    if (!ok) throw new Error('MVU 写入失败');
+    return { money: money + daily, daily };
+  };
+
+  const ARCADE_MILESTONES = [
+    { id: 'slot-golden-grape', unlock: 'slot_golden_grape', label: '黄金葡萄', game: 'slots', field: '旋转次数', target: 10 },
+    { id: 'fish-golden-clown', unlock: 'fish_golden_clown', label: '黄金小丑鱼', game: 'fishing', field: '捕获次数', target: 10 },
+    { id: 'fish-starlight-jelly', unlock: 'fish_starlight_jelly', label: '星光水母', game: 'fishing', field: '捕获次数', target: 25 },
+    { id: 'slot-mystery-cloud', unlock: 'slot_mystery_cloud', label: '云雾问号', game: 'slots', field: '旋转次数', target: 30 },
+    { id: 'fish-deep-bomb', unlock: 'fish_deep_bomb', label: '深海炸弹', game: 'fishing', field: '捕获次数', target: 50 },
+  ];
+
+  const freshArcadeProfile = () => ({
+    版本: 1,
+    统计: {
+      刮刮乐: { 结算次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
+      幸运机: { 旋转次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
+      捕鱼: { 结算次数: 0, 捕获次数: 0, 最高倍率: 0, 累计返奖: 0, 清屏次数: 0 },
+    },
+    已解锁: {},
+    已达成: {},
+  });
+
+  const num = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const normalizeArcadeProfile = (raw) => {
+    const base = freshArcadeProfile();
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const stats = src.统计 && typeof src.统计 === 'object' ? src.统计 : {};
+    for (const [game, defaults] of Object.entries(base.统计)) {
+      const row = stats[game] && typeof stats[game] === 'object' ? stats[game] : {};
+      for (const key of Object.keys(defaults)) defaults[key] = Math.max(0, num(row[key]));
+    }
+    base.已解锁 = src.已解锁 && typeof src.已解锁 === 'object' ? { ...src.已解锁 } : {};
+    base.已达成 = src.已达成 && typeof src.已达成 === 'object' ? { ...src.已达成 } : {};
+    return base;
+  };
+
+  const recordArcadeEvent = (event) => {
+    if (!mvuState.ready && !mvuState.check()) throw new Error('MVU 未就绪');
+    const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+    if (!mvuData?.stat_data) throw new Error('MVU 数据为空');
+    const stat = mvuData.stat_data;
+    const profile = normalizeArcadeProfile(stat.系统配置?.街机);
+    const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
+    if (event?.game === 'scratch' && /:settled$/.test(String(event?.type))) {
+      const row = profile.统计.刮刮乐;
+      row.结算次数 += 1;
+      if (num(detail.payout) > 0) row.中奖次数 += 1;
+      row.最高倍率 = Math.max(row.最高倍率, num(detail.multiplier));
+      row.累计返奖 += Math.max(0, num(detail.payout));
+    } else if (event?.game === 'slots' && /:settled$/.test(String(event?.type))) {
+      const row = profile.统计.幸运机;
+      row.旋转次数 += 1;
+      if (num(detail.payout) > 0) row.中奖次数 += 1;
+      row.最高倍率 = Math.max(row.最高倍率, num(detail.multiplier));
+      row.累计返奖 += Math.max(0, num(detail.payout));
+    } else if (event?.game === 'fishing' && /:settled$/.test(String(event?.type))) {
+      const row = profile.统计.捕鱼;
+      row.结算次数 += 1;
+      if (detail.captured) row.捕获次数 += 1;
+      if (detail.special === 'clear' && detail.captured) row.清屏次数 += 1;
+      row.最高倍率 = Math.max(row.最高倍率, num(detail.multiplier));
+      row.累计返奖 += Math.max(0, num(detail.payout));
+    } else {
+      return { profile, unlocked: [], ignored: true };
+    }
+
+    const rows = { scratch: profile.统计.刮刮乐, slots: profile.统计.幸运机, fishing: profile.统计.捕鱼 };
+    const unlocked = [];
+    for (const milestone of ARCADE_MILESTONES) {
+      if (profile.已达成[milestone.id]) continue;
+      if (num(rows[milestone.game]?.[milestone.field]) < milestone.target) continue;
+      profile.已达成[milestone.id] = true;
+      profile.已解锁[milestone.unlock] = true;
+      unlocked.push({ id: milestone.unlock, label: milestone.label, milestone: milestone.id });
+    }
+
+    if (!stat.系统配置 || typeof stat.系统配置 !== 'object') stat.系统配置 = {};
+    stat.系统配置.街机 = profile;
+    mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+    return { profile, unlocked };
+  };
+
+  const hudWindow = () => hudFrame.contentWindow;
+  const postToHud = (payload) => {
+    const target = hudWindow();
+    if (!target) return;
+    try { target.postMessage(payload, hudOrigin === '*' ? '*' : hudOrigin); }
+    catch (e) {}
+  };
+
+  let lastSnap = '';
+  const pushSnapshot = (force) => {
+    const stat = fetchLatestMvuData();
+    const hasWorld = !!(stat && stat.世界信息);
+    showHint(hasWorld ? '' : '等待 MVU 数据…');
+    if (!hasWorld) return;
+    const json = JSON.stringify(stat);
+    if (!force && json === lastSnap) return;
+    lastSnap = json;
+    postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', payload: { stat_data: stat } });
+  };
+
+  const openPhonePanel = () => {
+    const candidates = [];
+    const add = (win) => { if (win && candidates.indexOf(win) === -1) candidates.push(win); };
+    try { add(tavernWin()); } catch (e) {}
+    try { add(window.top); } catch (e) {}
+    try { add(window.parent); } catch (e) {}
+    add(window);
+
+    for (const win of candidates) {
+      try {
+        const launch = win.__linjiangOpenMobilePhone || win.openMobilePhone;
+        if (typeof launch === 'function') {
+          launch();
+          return true;
+        }
+      } catch (e) {}
+    }
+    throw new Error('Phone panel is not initialized');
+  };
+
+  const handleRequest = (action, payload) => {
+    switch (action) {
+      case 'handshake':
+        return {
+          ok: true,
+          label: '临江玻璃状态栏',
+          hasMvu: !!(mvuState.ready || mvuState.check()),
+        };
+      case 'getSnapshot':
+        return { stat_data: fetchLatestMvuData() };
+      case 'patch':
+        if (!applyMvuPatches(payload?.patches || [])) throw new Error('MVU 写入失败');
+        return true;
+      case 'clockIn':
+        return clockIn();
+      case 'arcadeEvent':
+        return recordArcadeEvent(payload?.event || {});
+      case 'sendMessage':
+        return sendMessage(payload?.text);
+      case 'openPhone':
+        return openPhonePanel();
+      default:
+        throw new Error('未知桥接动作: ' + action);
+    }
+  };
+
+  const onHudRequest = async (event) => {
+    const data = event.data;
+    if (!data || data.channel !== CHANNEL || data.kind !== 'request') return;
+    if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    const reply = {
+      channel: CHANNEL,
+      kind: 'response',
+      id: data.id,
+    };
+    try {
+      const payload = await handleRequest(data.action, data.payload || {});
+      event.source?.postMessage({ ...reply, ok: true, payload }, event.origin);
+      if (data.action === 'handshake' || data.action === 'patch' || data.action === 'clockIn' || data.action === 'arcadeEvent') {
+        pushSnapshot(true);
+      }
+    } catch (error) {
+      event.source?.postMessage({
+        ...reply,
+        ok: false,
+        error: error?.message || String(error),
+      }, event.origin);
+    }
+  };
+
+  /* 主体量自 geometry：dock 顶（花/耳 y≈54）到抽屉底（y=823），左右 23–1648。
+     框按这块 1640×787 加宽并放大，不带整张 941 画布的上下空板。 */
+  const BODY_W = 1640;
+  const BODY_H = 787;
+  const DESKTOP_MIN = 880;
+  const HUD_WIDTH_VW = 90;
+  /* Portrait breaks out of the reading column, but not to desktop 90vw.
+     480 is a little past the portrait k ceiling (941 × 17/36 ≈ 444): the
+     column stops growing and the extra is plate. 12px gutters keep a
+     finger-width of tavern chrome on each side. */
+  const PORTRAIT_WIDTH_MAX = 480;
+  const PORTRAIT_GUTTER = 12;
+  const MAX_VH = 0.78;
+  const HUD_LIVE_ID = 'linjiang-hud-live';
+  const HUD_FS_ID = 'linjiang-hud-fs';
+  const HUD_SHRINK_ID = 'linjiang-hud-shrink';
+  const HUD_FS_STYLE_ID = 'linjiang-hud-fs-style';
+  const HUD_AUTOSCROLL_ID = 'linjiang-hud-autoscroll';
+  let expanded = false;
+  /* Session-only: park the HUD back in the status iframe instead of the
+     90vw overlay.  Cleared on reload; not written to storage. */
+  let compacted = false;
+  let uninstalled = false;
+  let portraitPageOpen = false;
+  let slotObserver = null;
+
+  const tavernWin = () => {
+    try { if (window.top && window.top !== window) return window.top; } catch (e) {}
+    try { if (window.parent && window.parent !== window) return window.parent; } catch (e) {}
+    return window;
+  };
+
+  const tavernSize = () => {
+    try {
+      return {
+        w: tavernWin().innerWidth || innerWidth,
+        h: tavernWin().innerHeight || innerHeight,
+      };
+    } catch (e) {
+      return { w: innerWidth, h: innerHeight };
+    }
+  };
+
+  const isDesktop = () => tavernSize().w >= DESKTOP_MIN;
+
+  /* Phone / tablet held upright: narrow and taller than wide.  A phone on its
+     side stays on the landscape HUD. */
+  const portraitHud = () => {
+    const { w, h } = tavernSize();
+    return w < DESKTOP_MIN && w < h;
+  };
+
+  const isSafeOuterFrame = (frame) => {
+    if (!frame) return false;
+    try {
+      const inner = frame.contentDocument;
+      if (inner && inner.querySelector('.reading-content, #sheld, #chat')) return false;
+    } catch (e) {}
+    /* Phone chat is ~100vw and the portrait HUD is often >85vh, so the old
+       size heuristic treated the status slot as the tavern shell and parked
+       the HUD back inside a tall in-flow iframe.  That iframe then bled into
+       the latest messages at the bottom of #chat. */
+    try {
+      if (frame.closest && frame.closest('#chat, .mes, .TH-render, .mes_block')) return true;
+    } catch (e) {}
+    const vw = tavernWin().innerWidth || 0;
+    const vh = tavernWin().innerHeight || 0;
+    if (vw && vh && frame.offsetWidth >= vw * 0.92 && frame.offsetHeight >= vh * 0.85) {
+      return false;
+    }
+    return true;
+  };
+
+  const viewportPoint = (el) => {
+    const tavern = tavernWin();
+    const r = el.getBoundingClientRect();
+    let x = r.left;
+    let y = r.top;
+    let win = el.ownerDocument.defaultView;
+    while (win && win !== tavern) {
+      const fe = win.frameElement;
+      if (!fe) break;
+      const fr = fe.getBoundingClientRect();
+      x += fr.left;
+      y += fr.top;
+      win = win.parent;
+    }
+    return {
+      left: x,
+      top: y,
+      width: r.width,
+      height: r.height,
+      vw: tavern.innerWidth,
+      vh: tavern.innerHeight,
+      win: tavern,
+      doc: tavern.document,
+    };
+  };
+
+  const parkHudInside = () => {
+    if (hudFrame.parentNode !== document.body) {
+      document.body.insertBefore(hudFrame, hint);
+    }
+    hudFrame.id = 'hud';
+    hudFrame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#05040a;';
+  };
+
+  const cleanupLeftovers = () => {
+    const tavern = tavernWin();
+    const doc = tavern.document;
+    const live = doc.getElementById(HUD_LIVE_ID);
+    if (live && live !== hudFrame) live.remove();
+    const slot = doc.getElementById('linjiang-hud-slot');
+    if (slot && slot.parentNode) slot.parentNode.removeChild(slot);
+    const overflowStyle = doc.getElementById('linjiang-hud-overflow');
+    if (overflowStyle && overflowStyle.parentNode) overflowStyle.parentNode.removeChild(overflowStyle);
+    /* 全屏钮在 layout 里复用，不在每次重排时拆掉。 */
+    const frame = window.frameElement;
+    if (frame && (frame.parentNode === doc.body || frame.parentNode === doc.documentElement)) {
+      const chat = doc.getElementById('chat');
+      if (chat) chat.appendChild(frame);
+    }
+  };
+
+  const setSpacer = (frame, height) => {
+    if (!isSafeOuterFrame(frame)) return;
+    frame.setAttribute('scrolling', 'no');
+    const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
+    apply('position', 'relative');
+    apply('transform', 'none');
+    apply('width', '100%');
+    apply('height', `${Math.round(height)}px`);
+    apply('max-width', 'none');
+    apply('margin', '0');
+    apply('border', '0');
+    apply('display', 'block');
+    apply('visibility', 'visible');
+    apply('opacity', '0');
+    apply('pointer-events', 'none');
+    apply('overflow', 'hidden');
+    apply('left', 'auto');
+    apply('top', 'auto');
+    apply('z-index', 'auto');
+    apply('background', 'transparent');
+  };
+
+  const FS_SIZE = 36;
+  const FS_GAP = 8;
+  /* Directly above dock close (1602,96,d=30). 12px gap; 36px circle sits on the
+     body crop's top edge (y 48) so it is not clipped. */
+  const FS_CANVAS_X = 1617;
+  const FS_CANVAS_Y = 66;
+  const FS_ICON_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H4v4M16 3h4v4M8 21H4v-4M16 21h4v-4"/></svg>';
+  const FS_ICON_RESTORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v4H4M16 3v4h4M8 21v-4H4M16 21v-4h4"/></svg>';
+  const SHRINK_ICON_IN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  const SHRINK_ICON_OUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  const FS_CSS = [
+    '#' + HUD_FS_ID + ',#' + HUD_SHRINK_ID + '{',
+    'position:fixed;left:0;top:0;width:' + FS_SIZE + 'px;height:' + FS_SIZE + 'px;padding:0;',
+    'display:grid;place-items:center;',
+    'border:1px solid rgba(232,236,255,.55);border-radius:50%;',
+    'background:rgba(24,30,62,.82);',
+    'color:rgba(255,255,255,.94);cursor:pointer;pointer-events:auto;user-select:none;',
+    'backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);',
+    'box-shadow:0 6px 16px rgba(7,8,27,.38),inset 0 1px 0 rgba(255,255,255,.28);',
+    'will-change:transform;',
+    '}',
+    '#' + HUD_FS_ID + ' svg,#' + HUD_SHRINK_ID + ' svg{display:block;width:18px;height:18px;margin:0;}',
+    '#' + HUD_FS_ID + ':hover,#' + HUD_SHRINK_ID + ':hover{border-color:rgba(255,255,255,.82);background:rgba(48,58,110,.9);',
+    'color:#fff;filter:drop-shadow(0 0 8px rgba(255,210,240,.4));}',
+  ].join('');
+
+  const syncFsButton = (btn) => {
+    if (!btn) return;
+    btn.innerHTML = expanded ? FS_ICON_RESTORE : FS_ICON_EXPAND;
+    btn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+    btn.setAttribute('aria-label', expanded ? '还原' : '全屏');
+    btn.title = expanded ? '还原' : '全屏';
+  };
+
+  const syncShrinkButton = (btn) => {
+    if (!btn) return;
+    btn.innerHTML = compacted ? SHRINK_ICON_OUT : SHRINK_ICON_IN;
+    btn.setAttribute('aria-pressed', compacted ? 'true' : 'false');
+    btn.setAttribute('aria-label', compacted ? '展开到页面' : '收回嵌入框');
+    btn.title = compacted ? '展开到页面' : '收回嵌入框';
+  };
+
+  const chromeBtn = (id) => {
+    try { return tavernWin().document.getElementById(id); } catch (e) { return null; }
+  };
+
+  const hideChromeButtons = () => {
+    [HUD_FS_ID, HUD_SHRINK_ID].forEach((id) => {
+      const btn = chromeBtn(id);
+      if (btn) btn.style.visibility = 'hidden';
+    });
+  };
+
+  const hudScreenRect = () => {
+    const tavern = tavernWin();
+    const r = hudFrame.getBoundingClientRect();
+    let left = r.left;
+    let top = r.top;
+    let win = hudFrame.ownerDocument.defaultView;
+    while (win && win !== tavern) {
+      const fe = win.frameElement;
+      if (!fe) break;
+      const fr = fe.getBoundingClientRect();
+      left += fr.left;
+      top += fr.top;
+      win = win.parent;
+    }
+    return { left, top, width: r.width, height: r.height };
+  };
+
+  const placeFsButton = () => {
+    const tavern = tavernWin();
+    const btn = tavern.document.getElementById(HUD_FS_ID);
+    if (!btn || !hudFrame || !hudFrame.parentNode) return;
+    const box = hudScreenRect();
+    if (!box.width || !box.height) return;
+    const k = Math.min(box.width / BODY_W, box.height / BODY_H);
+    const drawW = BODY_W * k;
+    const drawH = BODY_H * k;
+    const ox = box.left + (box.width - drawW) / 2;
+    const oy = box.top + (box.height - drawH) / 2;
+    const x = ox + (FS_CANVAS_X - 16) * k - FS_SIZE / 2;
+    const y = oy + (FS_CANVAS_Y - 48) * k - FS_SIZE / 2;
+    const z = expanded ? '2147483646' : '50';
+    btn.style.zIndex = z;
+    btn.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+    btn.style.visibility = 'visible';
+    const shrink = tavern.document.getElementById(HUD_SHRINK_ID);
+    if (shrink) {
+      shrink.style.zIndex = z;
+      shrink.style.transform = 'translate3d(' + (x - FS_SIZE - FS_GAP) + 'px,' + y + 'px,0)';
+      shrink.style.visibility = 'visible';
+    }
+  };
+
+  const onFsClick = (event) => {
+    try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+    if (uninstalled) return;
+    expanded = !expanded;
+    if (expanded) compacted = false;
+    const tavern = tavernWin();
+    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
+    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
+    fitParentFrame();
+  };
+
+  const onShrinkClick = (event) => {
+    try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+    if (uninstalled) return;
+    compacted = !compacted;
+    if (compacted) expanded = false;
+    const tavern = tavernWin();
+    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
+    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
+    fitParentFrame();
+  };
+
+  const mountChromeButton = (id, onClick) => {
+    const doc = tavernWin().document;
+    let btn = doc.getElementById(id);
+    if (btn && !btn.querySelector('svg')) {
+      btn.remove();
+      btn = null;
+    }
+    if (!btn) {
+      btn = doc.createElement('button');
+      btn.id = id;
+      btn.type = 'button';
+      btn.style.visibility = 'hidden';
+      doc.body.appendChild(btn);
+      listen(btn, 'click', onClick);
+    }
+    return btn;
+  };
+
+  const ensureFsChrome = () => {
+    const doc = tavernWin().document;
+    if (!doc || !doc.body) return;
+    let style = doc.getElementById(HUD_FS_STYLE_ID);
+    if (!style) {
+      style = doc.createElement('style');
+      style.id = HUD_FS_STYLE_ID;
+      (doc.head || doc.documentElement).appendChild(style);
+    }
+    style.textContent = FS_CSS;
+    syncFsButton(mountChromeButton(HUD_FS_ID, onFsClick));
+    syncShrinkButton(mountChromeButton(HUD_SHRINK_ID, onShrinkClick));
+  };
+
+  const paintHudFill = (vw, vh) => {
+    hudFrame.id = HUD_LIVE_ID;
+    hudFrame.style.cssText = [
+      'position:fixed',
+      'left:0',
+      'top:0',
+      'transform:none',
+      `width:${vw}px`,
+      `height:${vh}px`,
+      'max-width:none',
+      'margin:0',
+      'border:0',
+      'display:block',
+      'z-index:2147483000',
+      'background:#05040a',
+      'pointer-events:auto',
+      'overflow:auto',
+      'will-change:auto',
+    ].join(';');
+    hudFrame.setAttribute('scrolling', 'yes');
+    hudFrame._linjiangBox = { width: vw, height: vh };
+  };
+
+  const layoutExpanded = () => {
+    const tavern = tavernWin();
+    const doc = tavern.document;
+    const vw = tavern.innerWidth || innerWidth;
+    const vh = tavern.innerHeight || innerHeight;
+    cleanupLeftovers();
+    const frame = window.frameElement;
+    if (isSafeOuterFrame(frame)) {
+      const box = hudBox(vw, vh);
+      if (frame.dataset.linjiangH !== String(box.height)) {
+        setSpacer(frame, box.height);
+        frame.dataset.linjiangH = String(box.height);
+      }
+    }
+    if (hudFrame.parentNode !== doc.body) doc.body.appendChild(hudFrame);
+    paintHudFill(vw, vh);
+    placeFsButton();
+  };
+
+  const layoutCompact = () => {
+    const frame = window.frameElement;
+    cleanupLeftovers();
+    parkHudInside();
+    hudFrame._linjiangAlign = 'iframe';
+    hudFrame._linjiangBox = null;
+    if (isSafeOuterFrame(frame)) {
+      const view = viewportPoint(frame);
+      const colW = Math.max(120, Math.round(frame.getBoundingClientRect().width || view.width || 0));
+      let height = Math.round(colW * BODY_H / BODY_W);
+      const maxH = Math.round((view.vh || tavernSize().h) * MAX_VH);
+      if (height > maxH) height = maxH;
+      frame.setAttribute('scrolling', 'no');
+      const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
+      apply('position', 'relative');
+      apply('transform', 'none');
+      apply('width', '100%');
+      apply('height', `${height}px`);
+      apply('max-width', 'none');
+      apply('margin', '0');
+      apply('border', '0');
+      apply('display', 'block');
+      apply('visibility', 'visible');
+      apply('opacity', '1');
+      apply('pointer-events', 'auto');
+      apply('overflow', 'hidden');
+      apply('left', 'auto');
+      apply('top', 'auto');
+      apply('z-index', 'auto');
+      apply('background', '#05040a');
+      frame.dataset.linjiangH = String(height);
+    }
+    placeFsButton();
+    requestAnimationFrame(placeFsButton);
+  };
+
+  const hudBox = (vw, vh) => {
+    let width = Math.min(Math.round(vw * HUD_WIDTH_VW / 100), vw - 40);
+    let height = Math.round(width * BODY_H / BODY_W);
+    const maxH = Math.round(vh * MAX_VH);
+    if (height > maxH) {
+      height = maxH;
+      width = Math.round(height * BODY_W / BODY_H);
+    }
+    return { width, height };
+  };
+
+  /* Wider than the reading slot when the slot is a phone-narrow column;
+     if the slot is already past PORTRAIT_WIDTH_MAX, only bleed 24px.
+     Height is the column's own content, reported by the HUD — never a
+     viewport fraction, or the iframe grows a nested scrollbar. */
+  const portraitHudBox = (vw, vh, readingW) => {
+    const maxW = Math.max(280, vw - PORTRAIT_GUTTER * 2);
+    const width = readingW >= PORTRAIT_WIDTH_MAX
+      ? Math.min(maxW, readingW + 24)
+      : Math.min(maxW, PORTRAIT_WIDTH_MAX);
+    const reported = Math.round(hudFrame._portraitRestH || 0);
+    const height = reported > 1
+      ? reported
+      : Math.max(360, Math.round(width * 0.9));
+    return { width: Math.round(width), height };
+  };
+
+  const readingPane = () => {
+    try {
+      const doc = tavernWin().document;
+      return doc.getElementById('chat') || doc.getElementById('sheld') || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  /* The lifted HUD is position:fixed, so a spacer that starts above the
+     reading pane still paints its lower half over the latest messages.
+     Show it only when the slot's top edge has entered #chat, and clip the
+     rest so it cannot cover the top bar or send form. */
+  const applySlotVisibility = (view, box) => {
+    if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'page') {
+      hudFrame.style.removeProperty('clip-path');
+      hudFrame.style.visibility = 'visible';
+      hudFrame.style.pointerEvents = 'auto';
+      return;
+    }
+    const pane = readingPane();
+    const rr = pane ? pane.getBoundingClientRect() : {
+      left: 0, top: 0, right: view.vw, bottom: view.vh,
+    };
+    const topInView = view.top < rr.bottom - 4 && (view.top + 32) > rr.top;
+    if (!topInView) {
+      hudFrame.style.visibility = 'hidden';
+      hudFrame.style.pointerEvents = 'none';
+      hudFrame.style.removeProperty('clip-path');
+      try { hideChromeButtons(); } catch (e) {}
+      return;
+    }
+    const insetTop = Math.max(0, rr.top - view.top);
+    const insetBottom = Math.max(0, (view.top + box.height) - rr.bottom);
+    hudFrame.style.visibility = 'visible';
+    hudFrame.style.pointerEvents = 'auto';
+    if (insetTop > 0.5 || insetBottom > 0.5) {
+      hudFrame.style.clipPath = `inset(${insetTop}px 0 ${insetBottom}px 0)`;
+    } else {
+      hudFrame.style.removeProperty('clip-path');
+    }
+  };
+
+  const moveHud = (view, box) => {
+    const align = hudFrame._linjiangAlign || 'window';
+    let x = (view.vw - box.width) / 2;
+    if (align === 'slot') {
+      const slotW = view.width || 0;
+      x = view.left + (slotW - box.width) / 2;
+      const minX = PORTRAIT_GUTTER;
+      const maxX = view.vw - box.width - PORTRAIT_GUTTER;
+      if (maxX >= minX) x = Math.max(minX, Math.min(x, maxX));
+    }
+    hudFrame.style.transform = `translate3d(${x}px, ${view.top}px, 0)`;
+    applySlotVisibility(view, box);
+    if (align === 'slot') {
+      try { hideChromeButtons(); } catch (e) {}
+    } else if (hudFrame.style.visibility !== 'hidden') {
+      placeFsButton();
+    }
+  };
+
+  const paintHud = (box, promote) => {
+    hudFrame.id = HUD_LIVE_ID;
+    hudFrame.style.cssText = [
+      'position:fixed',
+      'left:0',
+      'top:0',
+      `width:${box.width}px`,
+      `height:${box.height}px`,
+      'max-width:none',
+      'margin:0',
+      'border:0',
+      'display:block',
+      'z-index:40',
+      'background:#05040a',
+      'pointer-events:auto',
+      'overflow:hidden',
+      /* Desktop follows scroll every frame; promoting that layer is cheaper than
+         recasting.  Portrait is a tall glass stack — will-change:transform would
+         keep a 480×78vh backdrop-filter texture around for the whole visit. */
+      promote ? 'will-change:transform' : 'will-change:auto',
+    ].join(';');
+    hudFrame.setAttribute('scrolling', 'no');
+  };
+
+  const layoutDesktop = () => {
+    const frame = window.frameElement;
+    if (!frame) return;
+    cleanupLeftovers();
+    const view = viewportPoint(frame);
+    const box = hudBox(view.vw, view.vh);
+    if (frame.dataset.linjiangH !== String(box.height)) {
+      setSpacer(frame, box.height);
+      frame.dataset.linjiangH = String(box.height);
+    }
+    const after = viewportPoint(frame);
+    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
+    paintHud(box, true);
+    hudFrame._linjiangAlign = 'window';
+    moveHud(after, box);
+    hudFrame._linjiangBox = box;
+    placeFsButton();
+  };
+
+  const followHud = () => {
+    if (expanded || portraitPageOpen) return;
+    if (compacted) {
+      const box = hudScreenRect();
+      const vh = tavernWin().innerHeight || 0;
+      if (!box.height || box.top + box.height < 8 || box.top > vh - 8) hideChromeButtons();
+      else placeFsButton();
+      return;
+    }
+    const frame = window.frameElement;
+    const box = hudFrame._linjiangBox;
+    if (!frame || !box || hudFrame.parentNode !== tavernWin().document.body) return;
+    if (hudFrame._linjiangAlign === 'page') return;
+    moveHud(viewportPoint(frame), box);
+  };
+
+  const layoutPortrait = () => {
+    const frame = window.frameElement;
+    if (!frame || !isSafeOuterFrame(frame)) {
+      layoutMobile();
+      return;
+    }
+    cleanupLeftovers();
+    const view = viewportPoint(frame);
+    const box = portraitHudBox(view.vw, view.vh, view.width);
+    if (frame.dataset.linjiangH !== String(box.height)) {
+      setSpacer(frame, box.height);
+      frame.dataset.linjiangH = String(box.height);
+    }
+    const after = viewportPoint(frame);
+    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
+    paintHud(box, false);
+    hudFrame._linjiangAlign = 'slot';
+    moveHud(after, box);
+    hudFrame._linjiangBox = box;
+    try { hideChromeButtons(); } catch (e) {}
+  };
+
+  const lockTavernScroll = () => {
+    try {
+      const el = tavernWin().document.documentElement;
+      if (el.dataset.linjiangLock != null) return;
+      el.dataset.linjiangLock = el.style.overflow || '';
+      el.style.overflow = 'hidden';
+    } catch (e) {}
+  };
+
+  const unlockTavernScroll = () => {
+    try {
+      const el = tavernWin().document.documentElement;
+      if (el.dataset.linjiangLock == null) return;
+      el.style.overflow = el.dataset.linjiangLock;
+      delete el.dataset.linjiangLock;
+    } catch (e) {}
+  };
+
+  /* Same idea as 外置状态栏.js fusion-popup-overlay: pin to the visual
+     viewport (100dvh), not to the reading column. */
+  const layoutPortraitPage = () => {
+    const frame = window.frameElement;
+    if (!frame || !isSafeOuterFrame(frame)) {
+      layoutMobile();
+      return;
+    }
+    const tavern = tavernWin();
+    const vv = tavern.visualViewport;
+    const vw = Math.round((vv && vv.width) || tavern.innerWidth || innerWidth);
+    const vh = Math.round((vv && vv.height) || tavern.innerHeight || innerHeight);
+    cleanupLeftovers();
+    const rest = Math.max(1, Math.round(hudFrame._portraitRestH || 0));
+    if (rest && frame.dataset.linjiangH !== String(rest)) {
+      setSpacer(frame, rest);
+      frame.dataset.linjiangH = String(rest);
+    }
+    if (hudFrame.parentNode !== tavern.document.body) tavern.document.body.appendChild(hudFrame);
+    paintHudFill(vw, vh);
+    hudFrame._linjiangAlign = 'page';
+    lockTavernScroll();
+    try { hideChromeButtons(); } catch (e) {}
+  };
+
+  const applyPortraitHeight = (h) => {
+    if (portraitPageOpen || expanded || compacted || !portraitHud()) return;
+    const next = Math.max(1, Math.round(h));
+    const box = hudFrame._linjiangBox;
+    if (box && hudFrame._linjiangAlign === 'slot' && hudFrame.parentNode === tavernWin().document.body) {
+      if (box.height === next) return;
+      box.height = next;
+      hudFrame.style.height = `${next}px`;
+      hudFrame._linjiangBox = box;
+      const frame = window.frameElement;
+      if (isSafeOuterFrame(frame) && frame.dataset.linjiangH !== String(next)) {
+        setSpacer(frame, next);
+        frame.dataset.linjiangH = String(next);
+      }
+      followHud();
+      return;
+    }
+    layoutPortrait();
+  };
+
+  const layoutMobile = () => {
+    parkHudInside();
+    hudFrame._linjiangAlign = '';
+    const frame = window.frameElement;
+    const vh = tavernSize().h;
+    if (isSafeOuterFrame(frame)) {
+      frame.setAttribute('scrolling', 'yes');
+      frame.style.cssText = 'position:relative;width:100%;border:0;display:block;visibility:visible;opacity:1;pointer-events:auto;';
+      frame.style.setProperty('height', `${Math.max(560, Math.round(vh * MAX_VH))}px`, 'important');
+    }
+    try {
+      if (portraitHud()) hideChromeButtons();
+      else placeFsButton();
+    } catch (e) { placeFsButton(); }
+  };
+
+  let hudMode = '';
+
+  const hudSrc = () => {
+    try {
+      const url = new URL(HUD_URL, location.href);
+      const portrait = portraitHud();
+      url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
+      if (portrait) url.searchParams.delete('fit');
+      else url.searchParams.set('fit', 'body');
+      url.searchParams.set('v', 'body21');
+      return url.toString();
+    } catch (e) {
+      return HUD_URL;
+    }
+  };
+
+  const syncHudSrc = () => {
+    const mode = portraitHud() ? 'portrait' : 'landscape';
+    if (hudMode === mode && hudFrame.getAttribute('src')) return;
+    hudMode = mode;
+    hudFrame.src = hudSrc();
+  };
+
+  const fitParentFrame = () => {
+    try {
+      ensureFsChrome();
+      if (expanded) layoutExpanded();
+      else if (compacted && isDesktop() && window.frameElement) layoutCompact();
+      else if (isDesktop() && window.frameElement) layoutDesktop();
+      else if (portraitHud() && window.frameElement) {
+        if (portraitPageOpen) layoutPortraitPage();
+        else {
+          unlockTavernScroll();
+          layoutPortrait();
+        }
+      }
+      else layoutMobile();
+      syncHudSrc();
+    } catch (e) {}
+  };
+
+  let followTick = 0;
+  const requestFollow = () => {
+    if (followTick) return;
+    followTick = requestAnimationFrame(() => {
+      followTick = 0;
+      try { followHud(); } catch (e) {}
+    });
+  };
+
+  const wheelPixels = (payload, win) => {
+    const dy = Number(payload?.deltaY) || 0;
+    const mode = Number(payload?.deltaMode) || 0;
+    if (mode === 1) return dy * 40;
+    if (mode === 2) return dy * ((win && win.innerHeight) || 800);
+    return dy;
+  };
+
+  const isRootScroller = (el, doc) => (
+    el === doc.scrollingElement || el === doc.documentElement || el === doc.body
+  );
+
+  const isWheelScrollable = (el, doc) => {
+    if (!el || !doc) return false;
+    const room = (el.scrollHeight || 0) - (el.clientHeight || 0);
+    if (room <= 1) return false;
+    if (isRootScroller(el, doc)) return true;
+    try {
+      const overflowY = doc.defaultView.getComputedStyle(el).overflowY;
+      return overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+    } catch (e) {
+      return false;
+    }
+  };
+
+  /* Return the unconsumed part of a wheel delta.  Keeping the remainder is
+     important near a nested scroller's edge: native wheel scrolling chains the
+     rest into its parent instead of dropping the whole gesture. */
+  const applyScroll = (el, dy, doc) => {
+    if (!dy || !isWheelScrollable(el, doc)) return dy;
+    const max = Math.max(0, (el.scrollHeight || 0) - (el.clientHeight || 0));
+    const before = Number(el.scrollTop) || 0;
+    const target = Math.max(0, Math.min(max, before + dy));
+    if (Math.abs(target - before) < 0.01) return dy;
+    el.scrollTop = target;
+    const consumed = (Number(el.scrollTop) || 0) - before;
+    return dy - consumed;
+  };
+
+  const scrollChain = (start, dy, doc) => {
+    let remaining = dy;
+    let node = start && start.nodeType === 1 ? start : start?.parentElement;
+    const seen = new Set();
+    while (node && node !== doc && Math.abs(remaining) > 0.01) {
+      if (!seen.has(node)) {
+        seen.add(node);
+        remaining = applyScroll(node, remaining, doc);
+      }
+      if (node === doc.documentElement || node === doc.body) break;
+      node = node.parentElement;
+    }
+    const root = doc.scrollingElement || doc.documentElement;
+    if (root && !seen.has(root) && Math.abs(remaining) > 0.01) {
+      remaining = applyScroll(root, remaining, doc);
+    }
+    return remaining;
+  };
+
+  const pointInFrame = (iframe, x, y) => {
+    const r = iframe.getBoundingClientRect();
+    return { x: x - r.left, y: y - r.top, win: iframe.contentWindow };
+  };
+
+  const scrollAtPoint = (win, x, y, dy) => {
+    if (!win || !dy) return dy;
+    try {
+      const doc = win.document;
+      let target = null;
+      try { target = doc.elementFromPoint(x, y); } catch (e) {}
+      if (!target) target = doc.scrollingElement || doc.documentElement;
+
+      let remaining = dy;
+      if (target && target.tagName === 'IFRAME') {
+        try {
+          const p = pointInFrame(target, x, y);
+          remaining = scrollAtPoint(p.win, p.x, p.y, remaining);
+        } catch (e) {}
+        target = target.parentElement;
+      }
+      return scrollChain(target, remaining, doc);
+    } catch (e) {
+      return dy;
+    }
+  };
+
+  const hudPointerPoint = (payload) => {
+    const box = hudScreenRect();
+    const px = Number(payload?.clientX);
+    const py = Number(payload?.clientY);
+    const x = Number.isFinite(px) ? Math.max(0, Math.min(box.width - 1, px)) : box.width / 2;
+    const y = Number.isFinite(py) ? Math.max(0, Math.min(box.height - 1, py)) : Math.min(80, box.height / 4);
+    return { x: box.left + x, y: box.top + y };
+  };
+
+  const nearestWheelScroller = (start, doc) => {
+    let node = start && start.nodeType === 1 ? start : start?.parentElement;
+    while (node && node !== doc) {
+      if (isWheelScrollable(node, doc)) return node;
+      if (node === doc.documentElement || node === doc.body) break;
+      node = node.parentElement;
+    }
+    const root = doc.scrollingElement || doc.documentElement;
+    return isWheelScrollable(root, doc) ? root : null;
+  };
+
+  const scrollTargetAtPoint = (win, x, y) => {
+    if (!win) return null;
+    try {
+      const doc = win.document;
+      let target = doc.elementFromPoint(x, y);
+      if (target && target.tagName === 'IFRAME') {
+        try {
+          const p = pointInFrame(target, x, y);
+          const nested = scrollTargetAtPoint(p.win, p.x, p.y);
+          if (nested) return nested;
+        } catch (e) {}
+        target = target.parentElement;
+      }
+      const el = nearestWheelScroller(target, doc);
+      return el ? { el, doc } : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const readingTargetAtPoint = (payload) => {
+    const tavern = tavernWin();
+    try {
+      const point = hudPointerPoint(payload);
+      const stack = tavern.document.elementsFromPoint(point.x, point.y) || [];
+      for (let i = 0; i < stack.length; i++) {
+        let el = stack[i];
+        if (!el || el === hudFrame || el.id === HUD_LIVE_ID
+            || el.id === HUD_FS_ID || el.id === HUD_AUTOSCROLL_ID) continue;
+        if (el.tagName === 'IFRAME') {
+          try {
+            const p = pointInFrame(el, point.x, point.y);
+            const nested = scrollTargetAtPoint(p.win, p.x, p.y);
+            if (nested) return { ...nested, point };
+          } catch (e) {}
+          el = el.parentElement;
+        }
+        const target = nearestWheelScroller(el, tavern.document);
+        if (target) return { el: target, doc: tavern.document, point };
+        break;
+      }
+
+      const wins = [window.parent, tavern];
+      const visited = new Set();
+      for (let i = 0; i < wins.length; i++) {
+        const win = wins[i];
+        if (!win || visited.has(win)) continue;
+        visited.add(win);
+        try {
+          const doc = win.document;
+          const target = nearestWheelScroller(
+            doc.getElementById('chat') || doc.scrollingElement || doc.documentElement,
+            doc,
+          );
+          if (target) return { el: target, doc, point };
+        } catch (e) {}
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const toTavernPoint = (win, x, y) => {
+    const tavern = tavernWin();
+    let current = win;
+    let px = x;
+    let py = y;
+    try {
+      while (current && current !== tavern) {
+        const frame = current.frameElement;
+        if (!frame) break;
+        const rect = frame.getBoundingClientRect();
+        px += rect.left;
+        py += rect.top;
+        current = current.parent;
+      }
+    } catch (e) {}
+    return { x: px, y: py };
+  };
+
+  const autoscroll = {
+    active: false,
+    target: null,
+    doc: null,
+    anchorX: 0,
+    anchorY: 0,
+    pointerX: 0,
+    pointerY: 0,
+    raf: 0,
+    lastTime: 0,
+  };
+
+  const notifyAutoscrollState = (active) => {
+    try {
+      hudFrame.contentWindow?.postMessage({
+        channel: CHANNEL,
+        kind: 'event',
+        type: 'autoscrollState',
+        payload: { active },
+      }, hudOrigin === '*' ? '*' : hudOrigin);
+    } catch (e) {}
+  };
+
+  const removeAutoscrollMarker = () => {
+    try { tavernWin().document.getElementById(HUD_AUTOSCROLL_ID)?.remove(); } catch (e) {}
+  };
+
+  const syncAutoscrollCursor = (overlay) => {
+    if (!overlay) return;
+    const dy = autoscroll.pointerY - autoscroll.anchorY;
+    overlay.style.cursor = Math.abs(dy) < 12 ? 'all-scroll' : (dy < 0 ? 'n-resize' : 's-resize');
+  };
+
+  const stopAutoscroll = () => {
+    if (!autoscroll.active && !autoscroll.raf) {
+      removeAutoscrollMarker();
+      return;
+    }
+    if (autoscroll.raf) {
+      try { tavernWin().cancelAnimationFrame(autoscroll.raf); } catch (e) {}
+    }
+    autoscroll.active = false;
+    autoscroll.target = null;
+    autoscroll.doc = null;
+    autoscroll.raf = 0;
+    autoscroll.lastTime = 0;
+    removeAutoscrollMarker();
+    notifyAutoscrollState(false);
+  };
+
+  const autoscrollSpeed = (offset) => {
+    const DEAD_ZONE = 12;
+    const distance = Math.abs(offset) - DEAD_ZONE;
+    if (distance <= 0) return 0;
+    const pxPerSecond = Math.min(2400, distance * 5 + distance * distance * 0.025);
+    return Math.sign(offset) * pxPerSecond;
+  };
+
+  const autoscrollFrame = (time) => {
+    if (!autoscroll.active || !autoscroll.target || !autoscroll.doc) return;
+    const last = autoscroll.lastTime || time;
+    const elapsed = Math.min(50, Math.max(0, time - last));
+    autoscroll.lastTime = time;
+    const speed = autoscrollSpeed(autoscroll.pointerY - autoscroll.anchorY);
+    if (speed && elapsed) {
+      const dy = speed * elapsed / 1000;
+      const remaining = applyScroll(autoscroll.target, dy, autoscroll.doc);
+      if (Math.abs(remaining - dy) > 0.01) {
+        try { followHud(); } catch (e) {}
+      }
+    }
+    autoscroll.raf = tavernWin().requestAnimationFrame(autoscrollFrame);
+  };
+
+  const startAutoscroll = (payload) => {
+    const found = readingTargetAtPoint(payload);
+    if (!found) {
+      notifyAutoscrollState(false);
+      return;
+    }
+    stopAutoscroll();
+    autoscroll.active = true;
+    autoscroll.target = found.el;
+    autoscroll.doc = found.doc;
+    autoscroll.anchorX = found.point.x;
+    autoscroll.anchorY = found.point.y;
+    autoscroll.pointerX = found.point.x;
+    autoscroll.pointerY = found.point.y;
+
+    try {
+      const doc = tavernWin().document;
+      const overlay = doc.createElement('div');
+      overlay.id = HUD_AUTOSCROLL_ID;
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.style.cssText = [
+        'position:fixed',
+        'inset:0',
+        'z-index:2147483647',
+        'cursor:all-scroll',
+        'background:transparent',
+      ].join(';');
+      overlay.innerHTML = [
+        '<div data-origin="1">',
+        '<svg viewBox="0 0 32 32" width="36" height="36">',
+        '<circle cx="16" cy="16" r="14.5" fill="rgba(18,20,28,.78)" stroke="rgba(255,255,255,.72)" stroke-width="1.2"/>',
+        '<path d="M16 5.5l5.2 7.2H10.8z" fill="rgba(255,255,255,.92)"/>',
+        '<path d="M16 26.5l-5.2-7.2h10.4z" fill="rgba(255,255,255,.92)"/>',
+        '<circle cx="16" cy="16" r="2.1" fill="rgba(255,255,255,.92)"/>',
+        '</svg></div>',
+      ].join('');
+      const origin = overlay.querySelector('[data-origin]');
+      origin.style.cssText = [
+        'position:absolute',
+        `left:${found.point.x}px`,
+        `top:${found.point.y}px`,
+        'width:36px',
+        'height:36px',
+        'margin:-18px 0 0 -18px',
+        'pointer-events:none',
+        'filter:drop-shadow(0 2px 8px rgba(0,0,0,.45))',
+      ].join(';');
+      const onMove = (event) => {
+        autoscroll.pointerX = event.clientX;
+        autoscroll.pointerY = event.clientY;
+        syncAutoscrollCursor(overlay);
+      };
+      const onCancel = (event) => {
+        try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+        stopAutoscroll();
+      };
+      overlay.addEventListener('mousemove', onMove, { passive: true });
+      overlay.addEventListener('mousedown', onCancel, true);
+      overlay.addEventListener('wheel', onCancel, { capture: true, passive: false });
+      overlay.addEventListener('contextmenu', onCancel, true);
+      overlay.addEventListener('auxclick', (event) => {
+        try { event.preventDefault(); } catch (e) {}
+      }, true);
+      doc.body.appendChild(overlay);
+    } catch (e) {}
+
+    notifyAutoscrollState(true);
+    autoscroll.raf = tavernWin().requestAnimationFrame(autoscrollFrame);
+  };
+
+  const toggleAutoscroll = (payload) => {
+    if (autoscroll.active) stopAutoscroll();
+    else startAutoscroll(payload);
+  };
+
+  const moveAutoscrollFromHud = (payload) => {
+    if (!autoscroll.active) return;
+    try {
+      const point = hudPointerPoint(payload);
+      autoscroll.pointerX = point.x;
+      autoscroll.pointerY = point.y;
+    } catch (e) {}
+  };
+
+  const onHudAutoscroll = (event) => {
+    const data = event.data;
+    if (!data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (data.type !== 'autoscrollToggle' && data.type !== 'autoscrollMove') return;
+    if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    if (data.type === 'autoscrollToggle') toggleAutoscroll(data.payload || {});
+    else moveAutoscrollFromHud(data.payload || {});
+  };
+
+  const onHostMouseMove = (event) => {
+    if (!autoscroll.active) return;
+    const point = toTavernPoint(event.view || event.currentTarget?.defaultView, event.clientX, event.clientY);
+    autoscroll.pointerX = point.x;
+    autoscroll.pointerY = point.y;
+  };
+
+  const onHostMouseDown = (event) => {
+    if (!autoscroll.active) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stopAutoscroll();
+  };
+
+  const onHostKeyDown = (event) => {
+    if (autoscroll.active && event.key === 'Escape') stopAutoscroll();
+  };
+
+  const scrollReading = (payload) => {
+    const tavern = tavernWin();
+    const dy = wheelPixels(payload, tavern);
+    if (!dy) return;
+
+    let remaining = dy;
+    try {
+      const point = hudPointerPoint(payload);
+      const stack = tavern.document.elementsFromPoint(point.x, point.y) || [];
+      for (let i = 0; i < stack.length && Math.abs(remaining) > 0.01; i++) {
+        let el = stack[i];
+        if (!el || el === hudFrame || el.id === HUD_LIVE_ID || el.id === HUD_FS_ID) continue;
+        if (el.tagName === 'IFRAME') {
+          try {
+            const p = pointInFrame(el, point.x, point.y);
+            remaining = scrollAtPoint(p.win, p.x, p.y, remaining);
+          } catch (e) {}
+          el = el.parentElement;
+        }
+        remaining = scrollChain(el, remaining, tavern.document);
+        /* elementsFromPoint contains the same ancestor chain repeatedly.  Once
+           the hit target has been handled, the chain above already reached the
+           document scroller, so continuing would apply the delta twice. */
+        break;
+      }
+    } catch (e) {}
+
+    if (Math.abs(remaining) > 0.01) {
+      const fallback = [window.parent, tavern];
+      const visited = new Set();
+      for (let i = 0; i < fallback.length && Math.abs(remaining) > 0.01; i++) {
+        try {
+          const win = fallback[i];
+          if (!win || visited.has(win)) continue;
+          visited.add(win);
+          const doc = win.document;
+          const chat = doc.getElementById('chat');
+          remaining = scrollChain(chat || doc.scrollingElement || doc.documentElement, remaining, doc);
+        } catch (e) {}
+      }
+    }
+
+    /* Programmatic scrolling happens in this message task.  Reposition the
+       detached fixed HUD in the same task instead of waiting one more animation
+       frame for a scroll event; that extra frame was the visible jump/jitter. */
+    if (Math.abs(remaining - dy) > 0.01) {
+      try { followHud(); } catch (e) {}
+    }
+  };
+
+  const onHudLayout = (event) => {
+    const data = event.data;
+    if (!data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (data.type !== 'portraitSize' && data.type !== 'portraitPage') return;
+    if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    if (data.type === 'portraitSize') {
+      const h = Math.round(Number(data.payload?.height) || 0);
+      if (h <= 1 || portraitPageOpen) return;
+      hudFrame._portraitRestH = h;
+      try { applyPortraitHeight(h); } catch (e) {}
+      return;
+    }
+    portraitPageOpen = !!data.payload?.open;
+    try { fitParentFrame(); } catch (e) {}
+  };
+
+  const onHudWheel = (event) => {
+    const data = event.data;
+    if (!data || data.channel !== CHANNEL || data.kind !== 'event' || data.type !== 'wheel') return;
+    if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    if (autoscroll.active) stopAutoscroll();
+    scrollReading(data.payload || {});
+  };
+
+  let pollTimer = 0;
+  const hostWins = [];
+  const hostListens = [];
+  const listen = (target, type, fn, opts) => {
+    if (!target || !target.addEventListener) return;
+    target.addEventListener(type, fn, opts);
+    hostListens.push({ target, type, fn, opts });
+  };
+
+  const bindHostMessages = (win) => {
+    if (!win || hostWins.indexOf(win) !== -1) return;
+    hostWins.push(win);
+    listen(win, 'message', onHudRequest);
+    listen(win, 'message', onHudWheel);
+    listen(win, 'message', onHudAutoscroll);
+    listen(win, 'message', onHudLayout);
+  };
+
+  const uninstall = () => {
+    if (uninstalled) return;
+    uninstalled = true;
+    portraitPageOpen = false;
+    unlockTavernScroll();
+    stopAutoscroll();
+    try { if (slotObserver) slotObserver.disconnect(); } catch (e) {}
+    slotObserver = null;
+    try { clearInterval(pollTimer); } catch (e) {}
+    try {
+      const tavern = tavernWin();
+      const doc = tavern.document;
+      const live = doc.getElementById(HUD_LIVE_ID);
+      if (live) live.remove();
+      const slot = doc.getElementById('linjiang-hud-slot');
+      if (slot) slot.remove();
+      const overflowStyle = doc.getElementById('linjiang-hud-overflow');
+      if (overflowStyle) overflowStyle.remove();
+      const fsBtn = doc.getElementById(HUD_FS_ID);
+      if (fsBtn) fsBtn.remove();
+      const shrinkBtn = doc.getElementById(HUD_SHRINK_ID);
+      if (shrinkBtn) shrinkBtn.remove();
+      const fsStyle = doc.getElementById(HUD_FS_STYLE_ID);
+      if (fsStyle) fsStyle.remove();
+    } catch (e) {}
+    try {
+      if (hudFrame && hudFrame.parentNode && hudFrame.parentNode !== document.body) {
+        hudFrame.remove();
+      }
+    } catch (e) {}
+    try {
+      const frame = window.frameElement;
+      if (frame) {
+        frame.removeAttribute('style');
+        try { delete frame.dataset.linjiangH; } catch (e2) {}
+      }
+    } catch (e) {}
+    while (hostListens.length) {
+      const item = hostListens.pop();
+      try { item.target.removeEventListener(item.type, item.fn, item.opts); } catch (e) {}
+    }
+    hostWins.length = 0;
+  };
+
+  addEventListener('pagehide', uninstall);
+  addEventListener('unload', uninstall);
+  try {
+    const fe = window.frameElement;
+    if (fe && fe.parentNode && typeof MutationObserver === 'function') {
+      const mo = new MutationObserver(() => {
+        if (!fe.isConnected) uninstall();
+      });
+      mo.observe(fe.parentNode, { childList: true });
+    }
+  } catch (e) {}
+
+  bindHostMessages(window);
+  try { bindHostMessages(tavernWin()); } catch (e) {}
+
+  fitParentFrame();
+  listen(window, 'resize', fitParentFrame);
+  try {
+    const tavern = tavernWin();
+    const opts = { passive: true, capture: true };
+    const pointerDocs = [tavern.document];
+    try {
+      if (window.parent?.document && window.parent.document !== tavern.document) {
+        pointerDocs.push(window.parent.document);
+      }
+    } catch (e) {}
+    pointerDocs.forEach((doc) => {
+      listen(doc, 'mousemove', onHostMouseMove, opts);
+      listen(doc, 'mousedown', onHostMouseDown, { capture: true, passive: false });
+      listen(doc, 'keydown', onHostKeyDown, true);
+      listen(doc, 'wheel', () => { if (autoscroll.active) stopAutoscroll(); }, opts);
+    });
+    listen(tavern, 'mousedown', onHostMouseDown, { capture: true, passive: false });
+    listen(tavern, 'keydown', onHostKeyDown, true);
+    listen(tavern, 'blur', () => { if (autoscroll.active) stopAutoscroll(); });
+    listen(tavern, 'resize', fitParentFrame);
+    listen(tavern, 'orientationchange', fitParentFrame);
+    try {
+      if (tavern.visualViewport) listen(tavern.visualViewport, 'resize', fitParentFrame, { passive: true });
+    } catch (e) {}
+    listen(tavern, 'scroll', requestFollow, opts);
+    listen(tavern.document, 'scroll', requestFollow, opts);
+    const chat = tavern.document.getElementById('chat');
+    if (chat) listen(chat, 'scroll', requestFollow, opts);
+    if (window.parent && window.parent !== window && window.parent !== tavern) {
+      listen(window.parent, 'scroll', requestFollow, opts);
+      listen(window.parent.document, 'scroll', requestFollow, opts);
+      listen(window.parent, 'resize', fitParentFrame);
+    }
+    try {
+      const frame = window.frameElement;
+      const pane = readingPane();
+      if (frame && typeof IntersectionObserver === 'function') {
+        slotObserver = new IntersectionObserver(() => requestFollow(), {
+          root: pane && pane.contains(frame) ? pane : null,
+          threshold: [0, 0.01, 0.08, 0.2, 0.5, 1],
+        });
+        slotObserver.observe(frame);
+      }
+    } catch (e) {}
+    [50, 150, 400, 900].forEach((ms) => {
+      setTimeout(() => { if (!uninstalled) try { requestFollow(); } catch (e2) {} }, ms);
+    });
+  } catch (e) {}
+  showHint('等待 HUD / MVU…');
+
+  try {
+    const win = getCoreWindow();
+    if (win.eventSource?.on) {
+      win.eventSource.on('mvu_data_updated', () => pushSnapshot(false));
+      win.eventSource.on('chatLoaded', () => requestFollow());
+      win.eventSource.on('chatUpdated', () => requestFollow());
+    }
+    if (typeof win.eventOn === 'function' && win.Mvu?.events?.VARIABLE_UPDATE_ENDED) {
+      win.eventOn(win.Mvu.events.VARIABLE_UPDATE_ENDED, () => pushSnapshot(false));
+    }
+  } catch (e) {}
+
+  pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
+  pushSnapshot(true);
+})();
+</script>
+</body>
+</html>
+```

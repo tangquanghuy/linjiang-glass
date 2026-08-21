@@ -1,0 +1,80 @@
+/* ==================== 列表项样式 ====================
+   iOS 的 inset grouped 列表：白卡 + 大圆角 + 发丝描边，阴影几乎看不见。
+   原来每行 15px 内边距 + 12px 间距 + 明显投影，显得又胖又脏。 */
+.list-item {
+    background: var(--ph-bg-card);
+    border-radius: var(--ph-r-md);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    box-shadow: var(--ph-shadow-card);
+    border: var(--ph-hairline) solid rgba(0, 0, 0, 0.045);
+    min-height: 44px; /* Apple HIG 的最小触控高度 */
+    box-sizing: border-box;
+    transition: background var(--ph-dur-fast) var(--ph-ease-out),
+        transform var(--ph-dur-fast) var(--ph-spring);
+}
+
+.list-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+/* 有描述行时才需要标题和描述之间的间距 */
+.list-item-header:not(:last-child) {
+    margin-bottom: 4px;
+}
+
+.list-item-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ph-label);
+    letter-spacing: -0.3px;
+}
+
+.list-item-value {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--ph-label-2);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.list-item-desc {
+    font-size: 13px;
+    color: var(--ph-label-2);
+    line-height: 1.4;
+}
+
+/* 点按反馈：iOS 是整行压深，而不是抬起 */
+.list-item:active {
+    background: #E5E5EA;
+    transform: scale(0.99);
+}
+
+.friend-item:hover,
+.contact-item:hover {
+    background: #FAFAFC !important;
+}
+
+.forum-post-item:hover {
+    background: #FAFAFC !important;
+}
+
+.friend-item:active,
+.contact-item:active,
+.forum-post-item:active {
+    background: #E5E5EA !important;
+    transform: scale(0.99) !important;
+    box-shadow: var(--ph-shadow-card) !important;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--ph-label-3);
+    font-size: 15px;
+    letter-spacing: -0.2px;
+}

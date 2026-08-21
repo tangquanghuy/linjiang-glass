@@ -1,0 +1,421 @@
+/* 大屏手机适配 (≤480px) */
+@media (max-width: 480px) {
+    /* 框架适配 */
+    .mobile-phone-frame,
+    #mobile-phone-overlay .mobile-phone-frame {
+        width: 90% !important;
+        max-width: 100% !important;
+        border-radius: 30px !important;
+        padding: 6px !important;
+    }
+    
+    #mobile-phone-overlay .mobile-phone-screen {
+        border-radius: 24px !important;
+    }
+    
+    /* 状态栏 */
+    .mobile-status-bar {
+        height: 36px;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+    
+    .status-left .time {
+        font-size: 13px;
+    }
+    
+    /* 应用 Header */
+    .app-header {
+        height: 44px;
+        padding: 0 12px;
+    }
+    
+    .app-title {
+        font-size: 16px;
+    }
+    
+    .back-button,
+    .pin-btn {
+        font-size: 18px;
+        padding: 4px;
+    }
+    
+    /* 主屏幕 */
+    .home-screen {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    /* 天气卡片 */
+    .weather-card {
+        padding: 12px;
+        gap: 10px;
+        border-radius: 15px;
+    }
+    
+    .weather-time {
+        font-size: 22px;
+    }
+    
+    .weather-date {
+        font-size: 12px;
+    }
+    
+    .weather-location {
+        font-size: 11px;
+    }
+    
+    /* 应用图标 */
+    .app-icon {
+        gap: 5px;
+    }
+    
+    .app-icon-bg {
+        width: 46px;
+        height: 46px;
+        font-size: 23px;
+        border-radius: 12px;
+    }
+    
+    .app-label {
+        font-size: 10px;
+    }
+    
+    /* 应用网格 */
+    .app-grid {
+        gap: 12px;
+    }
+    
+    .app-row {
+        gap: 15px;
+    }
+    
+    /* 应用内容 */
+    .app-body {
+        padding: 12px;
+    }
+    
+    /* 列表项 */
+    .list-item {
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .list-item-name {
+        font-size: 13px;
+    }
+    
+    .list-item-value {
+        font-size: 14px;
+    }
+    
+    .list-item-desc {
+        font-size: 11px;
+    }
+    
+    /* 消息列表 */
+    .message-item {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .message-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+    }
+    
+    .message-name {
+        font-size: 13px;
+    }
+    
+    .message-preview {
+        font-size: 11px;
+    }
+    
+    .message-time {
+        font-size: 10px;
+    }
+    
+    /* 聊天界面 */
+    .chat-messages {
+        gap: 12px;
+        padding: 10px;
+    }
+    
+    .chat-bubble {
+        font-size: 13px;
+        padding: 9px 13px;
+        border-radius: 16px;
+    }
+    
+    .chat-time {
+        font-size: 10px;
+    }
+    
+    .chat-input-container {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    
+    .chat-input {
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: 20px;
+    }
+    
+    .send-button {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+    }
+    
+    /* 商品卡片 */
+    .shop-grid {
+        gap: 10px;
+    }
+    
+    .shop-item {
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .shop-item-name {
+        font-size: 13px;
+    }
+    
+    .shop-item-desc {
+        font-size: 11px;
+    }
+    
+    .shop-item-price {
+        font-size: 14px;
+    }
+    
+    .shop-buy-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    /* 好友卡片 */
+    .friends-grid {
+        gap: 10px;
+    }
+    
+    .friend-card {
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .friend-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .friend-name {
+        font-size: 14px;
+    }
+    
+    .friend-identity {
+        font-size: 11px;
+    }
+    
+    .friend-stats {
+        font-size: 10px;
+    }
+    
+    .friend-stat-value {
+        font-size: 13px;
+    }
+    
+    /* 已移除资产相关样式 */
+    
+    .asset-item {
+        padding: 10px;
+    }
+    
+    .asset-label {
+        font-size: 12px;
+    }
+    
+    .asset-value {
+        font-size: 14px;
+    }
+    
+    /* 空状态 */
+    .empty-state {
+        padding: 40px 20px;
+    }
+    
+    .empty-icon {
+        font-size: 40px;
+    }
+    
+    .empty-text {
+        font-size: 13px;
+    }
+}
+
+/* 小屏手机适配 (≤360px) */
+@media (max-width: 360px) {
+    /* 框架适配 */
+    .mobile-phone-frame,
+    #mobile-phone-overlay .mobile-phone-frame {
+        width: 95% !important;
+        border-radius: 25px !important;
+        padding: 5px !important;
+    }
+    
+    #mobile-phone-overlay .mobile-phone-screen {
+        border-radius: 20px !important;
+    }
+    
+    /* 状态栏 */
+    .mobile-status-bar {
+        height: 34px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+    
+    /* 应用 Header */
+    .app-header {
+        height: 40px;
+        padding: 0 10px;
+    }
+    
+    .app-title {
+        font-size: 15px;
+    }
+    
+    .back-button,
+    .pin-btn {
+        font-size: 16px;
+        padding: 3px;
+    }
+    
+    /* 主屏幕 */
+    .home-screen {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    /* 天气卡片 */
+    .weather-card {
+        padding: 10px;
+    }
+    
+    .weather-time {
+        font-size: 20px;
+    }
+    
+    .weather-date {
+        font-size: 11px;
+    }
+    
+    /* 应用图标 */
+    .app-icon-bg {
+        width: 42px;
+        height: 42px;
+        font-size: 21px;
+        border-radius: 10px;
+    }
+    
+    .app-label {
+        font-size: 9px;
+    }
+    
+    .app-grid {
+        gap: 10px;
+    }
+    
+    .app-row {
+        gap: 12px;
+    }
+    
+    /* 应用内容 */
+    .app-body {
+        padding: 10px;
+    }
+    
+    /* 列表项 */
+    .list-item-name {
+        font-size: 12px;
+    }
+    
+    .list-item-value {
+        font-size: 13px;
+    }
+    
+    /* 聊天 */
+    .chat-bubble {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    .chat-input {
+        font-size: 12px;
+        padding: 7px 10px;
+    }
+    
+    .send-button {
+        width: 34px;
+        height: 34px;
+    }
+    
+    /* 好友头像 */
+    .friend-avatar,
+    .message-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+}
+
+/* 触控优化 - 所有触摸设备 */
+@media (hover: none) and (pointer: coarse) {
+    /* 确保最小触控区域 44px (Apple HIG 标准) */
+    .app-icon,
+    .back-button,
+    .send-button,
+    .shop-buy-btn,
+    button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    /* 增加间距防止误触 */
+    .app-row {
+        gap: 20px;
+    }
+    
+    /* 增强触控反馈 */
+    .app-icon:active {
+        transform: scale(0.85);
+    }
+    
+    .list-item:active,
+    .message-item:active,
+    .friend-card:active {
+        transform: scale(0.98);
+    }
+}
+
+/* 横屏优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mobile-phone-frame,
+    #mobile-phone-overlay .mobile-phone-frame {
+        width: 50% !important;
+        max-width: 500px !important;
+    }
+    
+    .home-screen,
+    .app-body {
+        padding: 10px;
+    }
+    
+    .app-grid {
+        gap: 10px;
+    }
+}
+

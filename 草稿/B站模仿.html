@@ -1,0 +1,522 @@
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bilibili 直播间纯净版</title>
+  <style>
+    :root {
+      --bili-blue: #00aeec;
+      --bili-blue-hover: #23ade5;
+      --bili-pink: #ff6699;
+      --bili-pink-hover: #fb7299;
+      --bili-gold: #ffb027;
+      --bili-captain: #5798f8;
+
+      --bg-page: #141517;
+      --bg-card: #1c1e22;
+      --bg-sub: #252830;
+      --border-color: #2e323b;
+
+      --text-main: #ffffff;
+      --text-sub: #9499a0;
+      --text-dim: #61666d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    /* 独立直播间主视口 (固定高宽比，杜绝挤压变形) */
+    .live-room-wrapper {
+      width: 100%;
+      max-width: 1280px;
+      height: 720px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      display: grid;
+      grid-template-columns: 1fr 320px; /* 左侧自适应，右侧固定 320px */
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    /* =================== 左侧：主播信息 + 播放器 + 礼物 =================== */
+    .player-section {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-right: 1px solid var(--border-color);
+      min-width: 0; /* 允许内部文本省略截断 */
+    }
+
+    /* 1. 顶部主播信息栏 (固定高度 64px) */
+    .room-header {
+      height: 64px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-card);
+      flex-shrink: 0;
+    }
+
+    .anchor-meta-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .anchor-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80') center/cover;
+      border: 1.5px solid var(--bili-pink);
+      flex-shrink: 0;
+    }
+
+    .anchor-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .room-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .room-sub-tags {
+      font-size: 12px;
+      color: var(--text-sub);
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-follow {
+      background: var(--bili-pink);
+      color: #fff;
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-follow:hover { background: var(--bili-pink-hover); }
+
+    /* 2. 核心视频播放区域 (自适应填充) */
+    .video-viewport {
+      flex: 1;
+      position: relative;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .video-placeholder {
+      color: var(--text-dim);
+      font-size: 14px;
+      letter-spacing: 1px;
+      user-select: none;
+    }
+
+    /* 浮动弹幕图层 */
+    .screen-bullet-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 75%;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .screen-bullet {
+      position: absolute;
+      white-space: nowrap;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+      transform: translateX(100%);
+      animation: bulletMove 6.5s linear forwards;
+    }
+
+    @keyframes bulletMove {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-150%); }
+    }
+
+    /* 3. 播放器控制栏 (固定高度 38px) */
+    .player-control-bar {
+      height: 38px;
+      background: rgba(15, 16, 18, 0.95);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 12px;
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .ctrl-item { cursor: pointer; }
+    .ctrl-item:hover { color: var(--bili-blue); }
+
+    /* 4. 底部礼物托盘 (固定高度 56px) */
+    .gift-tray {
+      height: 56px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      flex-shrink: 0;
+    }
+
+    .gift-grid {
+      display: flex;
+      gap: 8px;
+    }
+
+    .gift-pill {
+      background: var(--bg-sub);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .gift-pill:hover {
+      border-color: var(--bili-blue);
+      transform: translateY(-1px);
+    }
+
+    /* =================== 右侧：弹幕流 + SuperChat + 输入框 =================== */
+    .chat-section {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg-card);
+    }
+
+    /* 选项卡 (固定高度 44px) */
+    .chat-tabs {
+      height: 44px;
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+    .tab.active {
+      color: var(--bili-blue);
+      border-bottom: 2px solid var(--bili-blue);
+    }
+
+    /* SuperChat 醒目留言固定贴片 */
+    .sc-box {
+      background: linear-gradient(135deg, rgba(255, 93, 56, 0.15), rgba(255, 176, 39, 0.15));
+      border-bottom: 1px solid rgba(255, 93, 56, 0.3);
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .sc-title-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .sc-tag { background: #ff5d38; color: #fff; padding: 1px 4px; border-radius: 2px; }
+    .sc-price { color: var(--bili-gold); }
+    .sc-text { font-size: 12px; color: #ffe3c2; line-height: 1.4; }
+
+    /* 弹幕滚动池 (绝对自适应) */
+    .chat-list {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0; /* 关键：防止Flex内容撑爆父级 */
+    }
+
+    .chat-list::-webkit-scrollbar { width: 4px; }
+    .chat-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+    .chat-row {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #ccd0d7;
+      word-break: break-all;
+    }
+
+    .badge-fans {
+      background: #3874cb;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-right: 4px;
+    }
+
+    .badge-captain {
+      background: var(--bili-captain);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-right: 4px;
+    }
+
+    .user-name {
+      color: var(--text-sub);
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .user-name.vip { color: #8bbaff; }
+
+    /* 底部发送区 (固定高度) */
+    .chat-sender {
+      padding: 10px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .input-box {
+      flex: 1;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 8px;
+      color: #fff;
+      font-size: 12px;
+      outline: none;
+    }
+    .input-box:focus { border-color: var(--bili-blue); }
+
+    .btn-send {
+      background: var(--bili-blue);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-send:hover { background: var(--bili-blue-hover); }
+  </style>
+</head>
+<body>
+
+  <!-- 独立完整的直播间核心视口 -->
+  <div class="live-room-wrapper">
+
+    <!-- 左侧：主播 + 播放器 + 控制 + 礼物 -->
+    <div class="player-section">
+      <!-- 1. 顶部主播信息 -->
+      <div class="room-header">
+        <div class="anchor-meta-box">
+          <div class="anchor-avatar"></div>
+          <div class="anchor-info">
+            <div class="room-title">【深夜电台】今天唱点温柔好听的歌 🎵 欢迎点歌互动</div>
+            <div class="room-sub-tags">
+              <span>夏日苏苏_Official</span>
+              <span>房间号: 223388</span>
+              <span>人气: 14.8万</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-follow">+ 关注</button>
+      </div>
+
+      <!-- 2. 播放器画面与弹幕 -->
+      <div class="video-viewport">
+        <div class="video-placeholder">▶ 1080P 60FPS 极速传输中</div>
+        <div class="screen-bullet-layer" id="bulletLayer"></div>
+      </div>
+
+      <!-- 3. 控制栏 -->
+      <div class="player-control-bar">
+        <div class="ctrl-group">
+          <span class="ctrl-item">⏸ 播放/暂停</span>
+          <span class="ctrl-item">🔄 刷新</span>
+          <span class="ctrl-item">🔈 音量</span>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-item">原画</span>
+          <span class="ctrl-item">弹幕: 开启</span>
+          <span class="ctrl-item">⛶ 全屏</span>
+        </div>
+      </div>
+
+      <!-- 4. 礼物栏 -->
+      <div class="gift-tray">
+        <div class="gift-grid">
+          <div class="gift-pill" onclick="sendGift('辣条', '🌶️')">🌶️ 辣条 (免费)</div>
+          <div class="gift-pill" onclick="sendGift('冰红茶', '🧃')">🧃 冰红茶 (2电池)</div>
+          <div class="gift-pill" onclick="sendGift('B坷垃', '📦')">📦 B坷垃 (99电池)</div>
+        </div>
+        <span style="font-size: 11px; color: var(--text-sub);">电池余额: <strong style="color: var(--bili-gold);">880</strong></span>
+      </div>
+    </div>
+
+    <!-- 右侧：Tab + SC + 弹幕列表 + 发送框 -->
+    <div class="chat-section">
+      <div class="chat-tabs">
+        <div class="tab active">互动聊天</div>
+        <div class="tab">大航海 (24)</div>
+        <div class="tab">高能榜</div>
+      </div>
+
+      <!-- SuperChat 置顶 -->
+      <div class="sc-box">
+        <div class="sc-title-row">
+          <span class="sc-tag">醒目留言 SUPERCHAT</span>
+          <span class="sc-price">¥ 50.00</span>
+        </div>
+        <div class="sc-text"><strong>星空漫步者:</strong> 恭喜苏苏粉丝破十万！今天的高音太稳了 🎉</div>
+      </div>
+
+      <!-- 弹幕列表 -->
+      <div class="chat-list" id="chatList">
+        <div class="chat-row" style="color: var(--bili-blue);">
+          系统提示：哔哩哔哩倡导绿色直播，请勿发布违规言论。
+        </div>
+        <div class="chat-row">
+          <span class="badge-fans">烤肉机 12</span>
+          <span class="user-name">浅水游鱼:</span>
+          <span>晚上好呀，今天开播好准时！</span>
+        </div>
+        <div class="chat-row">
+          <span class="badge-captain">舰长</span>
+          <span class="badge-fans">苏打水 21</span>
+          <span class="user-name vip">老林爱喝茶:</span>
+          <span>前排打卡支持，今天嗓子听起来不错。</span>
+        </div>
+      </div>
+
+      <!-- 底部输入框 -->
+      <div class="chat-sender">
+        <input type="text" class="input-box" id="danmakuInput" placeholder="发个弹幕和主播互动吧..." maxlength="30" />
+        <button class="btn-send" id="btnSend">发送</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const chatList = document.getElementById('chatList');
+    const bulletLayer = document.getElementById('bulletLayer');
+    const danmakuInput = document.getElementById('danmakuInput');
+    const btnSend = document.getElementById('btnSend');
+
+    function addDanmaku(text, isSelf = false) {
+      if (!text.trim()) return;
+
+      // 1. 推入右侧列表
+      const row = document.createElement('div');
+      row.className = 'chat-row';
+      const userBadge = isSelf ? '<span class="badge-captain">舰长</span>' : '<span class="badge-fans">烤肉机 08</span>';
+      const userName = isSelf ? '你 (我)' : '水友_' + Math.floor(Math.random() * 899 + 100);
+      row.innerHTML = `${userBadge}<span class="user-name ${isSelf ? 'vip' : ''}">${userName}:</span><span>${text}</span>`;
+      chatList.appendChild(row);
+      chatList.scrollTop = chatList.scrollHeight;
+
+      // 2. 触发屏幕飞屏
+      const bullet = document.createElement('div');
+      bullet.className = 'screen-bullet';
+      bullet.innerText = text;
+      bullet.style.top = Math.floor(Math.random() * 60 + 5) + '%';
+      if (isSelf) {
+        bullet.style.color = '#00aeec';
+      }
+      bulletLayer.appendChild(bullet);
+
+      setTimeout(() => bullet.remove(), 6500);
+    }
+
+    function sendGift(name, icon) {
+      addDanmaku(`投喂了 ${name} ${icon} x1`, true);
+    }
+
+    btnSend.addEventListener('click', () => {
+      addDanmaku(danmakuInput.value, true);
+      danmakuInput.value = '';
+    });
+
+    danmakuInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addDanmaku(danmakuInput.value, true);
+        danmakuInput.value = '';
+      }
+    });
+
+    // 模拟弹幕自动流动
+    const mocks = ['这首歌前奏好听！', '2333333333', '主播今天状态真好', '点歌《晴天》'];
+    setInterval(() => {
+      addDanmaku(mocks[Math.floor(Math.random() * mocks.length)], false);
+      if (chatList.children.length > 40) chatList.removeChild(chatList.children[1]);
+    }, 3000);
+  </script>
+</body>
+</html>
+```

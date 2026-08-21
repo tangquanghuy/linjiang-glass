@@ -1,0 +1,996 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>突发事件卡片 · GALgame 风格小样</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   小样页外壳 —— 沿用 glass-hud 本体的 token 与玻璃配方
+   src/styles/tokens.css · glass.css · cards.css · pages.css
+   ============================================================ */
+:root {
+  --fs-title: 29px;
+  --fs-display: 28px;
+  --fs-value: 23px;
+  --fs-lead: 17px;
+  --fs-body: 15px;
+  --fs-caption: 14px;
+  --fs-micro: 13px;
+
+  --ink-strong: #f4f6ff;
+  --ink: rgba(236, 236, 252, .93);
+  --ink-mute: rgba(228, 228, 250, .72);
+  --ink-faint: rgba(224, 226, 248, .58);
+  --ink-gold: rgba(248, 236, 216, .93);
+
+  --sp-1: 4px;  --sp-2: 7px;  --sp-3: 11px; --sp-4: 14px;
+  --sp-5: 17px; --sp-6: 21px; --sp-7: 24px; --sp-8: 34px;
+
+  --page-rim: rgba(232, 236, 255, .56);
+  --shadow-ink: 0 1px 4px rgba(4, 6, 18, .55);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* 夜景舞台：模拟 HUD 背后的城市底图，让玻璃有东西可折射 */
+body {
+  min-height: 100vh;
+  padding: 44px clamp(14px, 4vw, 54px) 110px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 60% 42% at 18% 8%,  rgba(255, 150, 120, .30), transparent 62%),
+    radial-gradient(ellipse 52% 40% at 88% 22%, rgba(120, 150, 255, .28), transparent 64%),
+    radial-gradient(ellipse 70% 46% at 62% 96%, rgba(255, 130, 190, .22), transparent 66%),
+    linear-gradient(168deg, #131a34 0%, #0d1224 46%, #080a16 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { width: min(100%, 1000px); margin: 0 auto; }
+
+.page-eyebrow {
+  display: block; margin-bottom: 9px;
+  font: 400 var(--fs-micro)/1 'Outfit', sans-serif;
+  color: var(--ink-faint);
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.page-h {
+  display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px;
+}
+.page-h span { font: 400 26px/1 'Pinyon Script', cursive; color: rgba(247, 230, 243, .74); }
+.page-h h1 { font: 500 18px/1 'Noto Sans SC', sans-serif; color: rgba(250, 247, 255, .92); letter-spacing: .08em; }
+
+/* 分节标题 */
+.spec { margin: 0 0 54px; }
+.spec > .sh { display: flex; align-items: baseline; gap: 13px; margin-bottom: 7px; }
+.spec > .sh b {
+  font: 500 15px/1 'Noto Sans SC', sans-serif;
+  color: rgba(250, 247, 255, .94); letter-spacing: .09em;
+}
+.spec > .sh em {
+  font: 400 12px/1 'Outfit', sans-serif; font-style: normal;
+  color: var(--ink-faint); letter-spacing: .16em; text-transform: uppercase;
+}
+.spec > .note {
+  max-width: 74ch; margin-bottom: 20px;
+  font: 400 13px/1.85 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .66);
+}
+.spec > .note b { color: rgba(250, 247, 255, .93); font-weight: 500; }
+
+/* 字段色板 */
+.palette {
+  display: grid; gap: 2px;
+  padding: 6px 0;
+  border: 1px solid rgba(232, 236, 255, .14); border-radius: 16px;
+  background: rgba(24, 30, 62, .42);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 32px rgba(7, 8, 27, .28);
+}
+.palette .prow {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center; gap: 14px;
+  padding: 10px 18px;
+}
+.palette .prow + .prow { box-shadow: 0 -1px 0 rgba(232, 236, 255, .08); }
+.palette .pg {
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .52); letter-spacing: .16em;
+}
+.palette .pl { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+
+/* 对象栏边界演示 */
+.acases { display: grid; gap: 14px; }
+.acase {
+  overflow: hidden;
+  border: 1px solid rgba(232, 236, 255, .14); border-radius: 16px;
+  background: rgba(24, 30, 62, .38);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.acase .ct {
+  display: block; padding: 9px 18px 0;
+  font: 400 11px/1 'Outfit', sans-serif;
+  color: rgba(226, 228, 250, .50); letter-spacing: .12em;
+}
+/* 演示台：给绝对定位的 .evt-cast 一块地方站 */
+.acase .astage {
+  position: relative; min-height: 92px;
+  background: linear-gradient(110deg, rgba(30, 38, 78, .5), rgba(18, 23, 52, .3));
+}
+.acase .evt-cast { bottom: 15px; }
+.acase .ab {
+  position: absolute; right: 18px; bottom: 18px;
+  display: flex; gap: 7px;
+}
+</style>
+
+<style id="evt-base">
+/* ============================================================
+   <突发事件> 卡片 · 共享层
+   分类 → signal 主题色，走 cards.css 的 --signal/--rim/--glow 三件套
+   ============================================================ */
+.evt { container-type: inline-size; margin: 0; }
+.evt, .evt * { box-sizing: border-box; }
+/* 图标兜底：pages.css 里 .ic 是全局的，这里自带一份。
+   对象栏与色板可能脱离 .evt 单独出现（小样演示），所以一并覆盖 */
+.evt .ic, .evt-actor .ic, .palette .ic {
+  display: inline-block; width: 13px; height: 13px; flex: none; line-height: 0;
+}
+.evt .ic svg, .evt-actor .ic svg, .palette .ic svg {
+  display: block; width: 100%; height: 100%;
+}
+
+/* 七分类主题色。命名沿用 cards.css 的 t-* 语义 */
+.evt[data-cat="纯爱"]     { --signal: #ff5fa8; --rim: rgba(255, 218, 235, .92); --glow: rgba(255, 148, 198, .42); --wash: rgba(255, 178, 213, .26); }
+.evt[data-cat="日常"]     { --signal: #6fd3ff; --rim: rgba(214, 238, 255, .90); --glow: rgba(126, 198, 255, .34); --wash: rgba(160, 206, 255, .22); }
+.evt[data-cat="生理窘迫"] { --signal: #ffbe45; --rim: rgba(255, 236, 199, .93); --glow: rgba(255, 200, 118, .40); --wash: rgba(255, 214, 158, .24); }
+.evt[data-cat="调教"]     { --signal: #a874ff; --rim: rgba(236, 222, 255, .92); --glow: rgba(196, 152, 255, .42); --wash: rgba(214, 186, 255, .25); }
+.evt[data-cat="睡奸"]     { --signal: #7d8cff; --rim: rgba(219, 224, 255, .90); --glow: rgba(150, 162, 255, .38); --wash: rgba(176, 186, 255, .23); }
+.evt[data-cat="催眠奸"]   { --signal: #34dcc8; --rim: rgba(206, 250, 242, .90); --glow: rgba(96, 224, 206, .36); --wash: rgba(140, 232, 219, .22); }
+.evt[data-cat="特殊H"]    { --signal: #ff4668; --rim: rgba(255, 198, 210, .92); --glow: rgba(255, 96, 130, .44); --wash: rgba(255, 138, 165, .25); }
+
+/* ── 玻璃面板：page-modal 的配方，收成卡片尺度 ── */
+.evt-glass {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--page-rim);
+  background: rgba(36, 50, 96, .44);
+  backdrop-filter: blur(26px) saturate(1.34);
+  -webkit-backdrop-filter: blur(26px) saturate(1.34);
+  box-shadow:
+    0 20px 52px rgba(7, 8, 27, .40),
+    0 0 26px color-mix(in srgb, var(--glow) 60%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .40),
+    inset 1px 0 0 rgba(255, 255, 255, .14),
+    inset 0 -1px 0 rgba(255, 215, 232, .16);
+}
+/* 顶沿高光细线，两端内缩 —— cards.css / pages.css 同一手法 */
+.evt-glass::after {
+  content: ''; position: absolute; left: 26px; right: 26px; top: 0; height: 1px;
+  z-index: 6; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.80) 18%, rgba(255,255,255,.30) 75%, transparent);
+}
+/* 边缘导光，plus-lighter 加光而非覆盖 */
+.evt-edge {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  background:
+    radial-gradient(ellipse 62% 56% at 8% -12%, rgba(226, 232, 255, .15), transparent 64%),
+    linear-gradient(90deg,  rgba(250, 178, 176, .11), rgba(248, 130, 96, .05) 22px, rgba(255, 90, 40, 0) 68px),
+    linear-gradient(270deg, rgba(255, 186, 148, .12), rgba(252, 152, 108, .055) 20px, rgba(255, 120, 70, 0) 66px),
+    linear-gradient(0deg,   rgba(255, 176, 196, .14), rgba(255, 168, 190, .055) 28px, rgba(255, 150, 180, 0) 78px);
+}
+
+/* ── 场景图：横向 mask 渐隐进玻璃（cards.css 的 card-art-clip 手法） ── */
+.evt-art {
+  position: absolute; inset: 0; z-index: 0; overflow: hidden;
+}
+.evt-art img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; pointer-events: none;
+}
+.evt-art::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 72% 92% at 108% 16%, rgba(255,255,255,.14), transparent 68%),
+    linear-gradient(90deg, transparent 40%,
+      color-mix(in srgb, var(--wash) 30%, transparent) 54%,
+      color-mix(in srgb, var(--wash) 78%, transparent) 70%,
+      var(--wash) 100%);
+}
+
+/* ── eyebrow / 标题 ── */
+.evt-eyebrow {
+  display: flex; align-items: center; gap: 7px;
+  font: 400 11px/1 'Outfit', sans-serif;
+  color: var(--ink-faint); letter-spacing: .17em; text-transform: uppercase;
+}
+.evt-eyebrow .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--signal) 72%, #fff); }
+.evt-eyebrow s { text-decoration: none; opacity: .42; }
+.evt-title {
+  font: 700 21px/1.34 'Noto Sans SC', sans-serif;
+  color: #fff; letter-spacing: .03em;
+  text-shadow: 0 1px 5px rgba(16, 8, 24, .55);
+}
+
+/* ── 元信息丸：时段 / 私密度 ── */
+.evt-metas { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.evt-mp {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 10px;
+  border: 1px solid rgba(226, 231, 255, .20); border-radius: 12px;
+  background: rgba(10, 13, 34, .34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09);
+  font: 500 11.5px/1 'Noto Sans SC', sans-serif;
+  color: rgba(238, 240, 255, .82); letter-spacing: .05em; white-space: nowrap;
+}
+.evt-mp .ic { width: 13px; height: 13px; color: rgba(226, 232, 255, .62); }
+.evt-mp b { font: 500 12px/1 'Outfit', sans-serif; color: #fff; }
+/* 私密度 5 格 */
+.evt-pips { display: inline-flex; gap: 3px; }
+.evt-pips s {
+  width: 5px; height: 5px; border-radius: 50%; text-decoration: none;
+  background: rgba(226, 230, 255, .22);
+}
+.evt-pips s.on {
+  background: color-mix(in srgb, var(--signal) 88%, #fff);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--signal) 70%, transparent);
+}
+
+/* ============================================================
+   交互对象 —— AI 传入名字，这里出头像 + 印象色 + 心情
+   她【站在场景图上】，不另开一条横带：卡片只有两段（场景 / 选择）
+   ============================================================ */
+.evt-cast {
+  --ac: #9aa4dd;                        /* 角色印象色，由 CHARACTER_CONFIG.color 注入 */
+  position: absolute; left: 18px; bottom: 15px; z-index: 4;
+  display: flex; align-items: center; gap: 11px;
+  max-width: calc(100% - 36px);
+}
+
+/* 头像：圆角方形立绘，印象色发光环 */
+.evt-face {
+  position: relative;
+  width: 62px; height: 62px; flex: none;
+  border-radius: 17px;
+  overflow: hidden;
+  border: 1.5px solid color-mix(in srgb, var(--ac) 70%, #fff);
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--ac) 42%, transparent),
+    rgba(16, 20, 44, .9));
+  /* 压在场景图上，需要更实的投影把她从背景里托起来 */
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--ac) 60%, transparent),
+    0 6px 18px rgba(6, 8, 20, .52),
+    inset 0 1px 0 rgba(255, 255, 255, .32);
+}
+.evt-face img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 16%;
+}
+/* 图床挂了就退回首字 —— 印象色底 + 大字 */
+.evt-face i {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font: 700 26px/1 'Noto Sans SC', sans-serif; font-style: normal;
+  color: rgba(255, 255, 255, .94);
+  text-shadow: 0 1px 4px rgba(8, 10, 24, .6);
+}
+.evt-face img + i { display: none; }
+
+/* 名字 + 心情 */
+.evt-who { min-width: 0; display: grid; gap: 5px; }
+.evt-who .nm {
+  display: flex; align-items: baseline; gap: 7px;
+  font: 700 16px/1 'Noto Sans SC', sans-serif;
+  color: #fff; letter-spacing: .04em;
+  /* 名字直接压在图上，要靠描影读得出来 */
+  text-shadow: 0 1px 4px rgba(6, 8, 20, .85), 0 0 14px rgba(6, 8, 20, .6);
+}
+/* 同行 / 独行 标记 */
+.evt-who .nm em {
+  font: 400 10.5px/1 'Outfit', sans-serif; font-style: normal;
+  color: color-mix(in srgb, var(--ac) 34%, #fff);
+  letter-spacing: .16em; text-transform: uppercase;
+  opacity: .9;
+}
+.evt-who .st { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.evt-mood {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 19px; padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--ac) 40%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ac) 16%, transparent);
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  color: #fff; letter-spacing: .05em; white-space: nowrap;
+}
+.evt-mood .ic { width: 11px; height: 11px; color: color-mix(in srgb, var(--ac) 30%, #fff); }
+/* 异常状态：橙色，和结算里的 异常状态 同族 */
+.evt-abn {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 19px; padding: 0 8px;
+  border: 1px solid rgba(255, 155, 61, .42);
+  border-radius: 10px;
+  background: rgba(255, 155, 61, .14);
+  font: 500 11px/1 'Noto Sans SC', sans-serif;
+  color: #ffbe7e; letter-spacing: .05em; white-space: nowrap;
+}
+.evt-abn .ic { width: 11px; height: 11px; }
+
+/* 羁绊数值丸：不做进度条。
+   选项里已经写了「顺从度 ≥ 350 ✓」，再画一条带刻度的仪表是重复信息，
+   而且两条细条一摆就回到后台面板的味道。这里只报当前值。 */
+.evt-bond {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--bc) 34%, transparent);
+  border-radius: 11px;
+  background: rgba(8, 10, 26, .46);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.evt-bond .ic { width: 11px; height: 11px; color: color-mix(in srgb, var(--bc) 76%, #fff); }
+.evt-bond .bk {
+  font: 400 10.5px/1 'Noto Sans SC', sans-serif;
+  color: rgba(226, 228, 250, .60); letter-spacing: .08em;
+}
+.evt-bond .bv {
+  font: 500 12.5px/1 'Outfit', sans-serif;
+  color: color-mix(in srgb, var(--bc) 86%, #fff);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--bc) 48%, transparent);
+}
+.evt-bond[data-k="好感度"] { --bc: #ff8ebd; }
+.evt-bond[data-k="顺从度"] { --bc: #be9aff; }
+
+/* ── 悬念文 ── */
+.evt-brief {
+  font: 400 13px/1.85 'Noto Sans SC', sans-serif;
+  color: rgba(228, 230, 250, .74);
+  text-shadow: 0 1px 3px rgba(6, 8, 20, .45);
+}
+
+/* ============================================================
+   选择支 —— GALgame 的选项条
+   每条自带分类色：左侧发光竖条、分类签、hover 时整条亮起
+   ============================================================ */
+.evt-opts { list-style: none; display: grid; gap: var(--sp-2); }
+
+.evt-opt {
+  --signal: #8f9bd8; --glow: rgba(150, 162, 255, .34); --rim: rgba(226, 231, 255, .62);
+  position: relative;
+  display: grid; grid-template-columns: 3px auto minmax(0, 1fr) auto;
+  align-items: center; gap: 0 var(--sp-3);
+  width: 100%;
+  min-height: 52px; padding: 9px 14px 9px 0;
+  overflow: hidden;
+  border: 1px solid rgba(232, 236, 255, .17);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(60, 72, 128, .40), rgba(28, 36, 74, .46));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 4px 14px rgba(8, 10, 28, .22);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .18s ease, box-shadow .22s ease, transform .18s ease, background .2s ease;
+}
+/* 分类色继承：li 上的 data-cat 覆盖 signal 三件套 */
+.evt-opt[data-cat="纯爱"]     { --signal: #ff5fa8; --glow: rgba(255, 148, 198, .46); }
+.evt-opt[data-cat="日常"]     { --signal: #6fd3ff; --glow: rgba(126, 198, 255, .38); }
+.evt-opt[data-cat="生理窘迫"] { --signal: #ffbe45; --glow: rgba(255, 200, 118, .44); }
+.evt-opt[data-cat="调教"]     { --signal: #a874ff; --glow: rgba(196, 152, 255, .46); }
+.evt-opt[data-cat="睡奸"]     { --signal: #7d8cff; --glow: rgba(150, 162, 255, .42); }
+.evt-opt[data-cat="催眠奸"]   { --signal: #34dcc8; --glow: rgba(96, 224, 206, .40); }
+.evt-opt[data-cat="特殊H"]    { --signal: #ff4668; --glow: rgba(255, 96, 130, .48); }
+
+/* 左缘发光竖条 */
+.evt-opt > .bar {
+  align-self: stretch;
+  border-radius: 14px 0 0 14px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--signal) 96%, #fff),
+    color-mix(in srgb, var(--signal) 62%, transparent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 80%, transparent);
+}
+@media (hover: hover) {
+  .evt-opt:hover {
+    transform: translateX(2px);
+    border-color: color-mix(in srgb, var(--rim) 88%, transparent);
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--signal) 22%, rgba(60, 72, 128, .42)),
+      rgba(30, 38, 78, .50));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .20),
+      0 0 20px color-mix(in srgb, var(--glow) 85%, transparent),
+      0 6px 20px rgba(8, 10, 28, .30);
+  }
+  .evt-opt:hover .evt-go { opacity: 1; transform: translateX(2px); }
+}
+
+/* 分类签 */
+.evt-cat {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 46px; height: 22px; padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--signal) 52%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--signal) 20%, transparent);
+  color: color-mix(in srgb, var(--signal) 30%, #fff);
+  font: 700 11px/1 'Noto Sans SC', sans-serif; letter-spacing: .08em;
+  white-space: nowrap;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+
+/* 选项正文 + 结算行 */
+.evt-opt .col { min-width: 0; }
+.evt-opt .act {
+  font: 500 14px/1.55 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .95);
+  text-shadow: 0 1px 3px rgba(8, 10, 24, .5);
+}
+.evt-opt .sub { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: 5px; }
+
+/* ============================================================
+   结算数值 —— 按【字段】给色，不跟分支分类色绑死
+   这样一条选项里「好感度+15」和「露出经验+1」一眼是两类东西
+   色相与 pages.css 的 tone-* 进度条同族
+   ============================================================ */
+.evt-gain {
+  --gc: #cfd4f5;                       /* 兜底：未登记字段 */
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.evt-gain[data-tone="rose"]    { --gc: #ff7fb4; }  /* 好感度 —— 羁绊 */
+.evt-gain[data-tone="violet"]  { --gc: #b58cff; }  /* 顺从度 —— 服从 */
+.evt-gain[data-tone="crimson"] { --gc: #ff5c7e; }  /* 性欲度 —— 情动 */
+.evt-gain[data-tone="mint"]    { --gc: #4ce0c4; }  /* 体力 —— 消耗/恢复 */
+.evt-gain[data-tone="amber"]   { --gc: #ff9b3d; }  /* 尿意 / 异常状态 —— 推向橙，和经验金拉开 */
+.evt-gain[data-tone="sky"]     { --gc: #7cd0ff; }  /* 心情 */
+.evt-gain[data-tone="gold"]    { --gc: #ffd35f; }  /* 12 轴性经历 / 次数 */
+.evt-gain[data-tone="coin"]    { --gc: #d8c98a; }  /* 金钱 —— 去饱和的金属金，不和经验金抢 */
+
+.evt-gain .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--gc) 82%, #fff); }
+.evt-gain .k { font: 400 11.5px/1 'Noto Sans SC', sans-serif; color: rgba(226, 228, 250, .60); }
+.evt-gain .v {
+  font: 500 13px/1 'Outfit', sans-serif;
+  color: color-mix(in srgb, var(--gc) 88%, #fff);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--gc) 55%, transparent);
+}
+/* 非数值结算（重置 / 心情→枚举）用中文字体，别让 Outfit 渲染汉字 */
+.evt-gain .v.word {
+  font: 500 12px/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .04em;
+}
+/* 负向结算只对【羁绊】报警：好感/顺从掉了才是关系受损，转暗红。
+   体力 -20、金钱 -500 是中性资源变化，保留字段色，方向交给符号表达。 */
+.evt-gain.down[data-tone="rose"],
+.evt-gain.down[data-tone="violet"] { --gc: #ff3c52; }
+.evt-gain.down[data-tone="rose"] .v,
+.evt-gain.down[data-tone="violet"] .v {
+  font-weight: 600;
+  text-shadow: 0 0 11px rgba(255, 60, 82, .55);
+}
+/* 羁绊下降加一枚下箭头：不靠颜色也读得出「这条会掉好感」 */
+.evt-gain.down[data-tone="rose"] .v::after,
+.evt-gain.down[data-tone="violet"] .v::after {
+  content: '';
+  display: inline-block;
+  width: 0; height: 0; margin-left: 4px; vertical-align: 1px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+/* 前进箭头 */
+.evt-go {
+  width: 20px; height: 20px; flex: none;
+  color: color-mix(in srgb, var(--signal) 40%, #fff);
+  opacity: .5;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.evt-go svg { width: 100%; height: 100%; display: block; }
+
+/* ── 门槛未达：锁定态 ── */
+.evt-opt.locked {
+  cursor: not-allowed;
+  border-color: rgba(226, 231, 255, .10);
+  background: rgba(18, 22, 46, .40);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+.evt-opt.locked > .bar { background: rgba(226, 230, 255, .16); box-shadow: none; }
+.evt-opt.locked .evt-cat {
+  border-color: rgba(226, 231, 255, .16);
+  background: rgba(226, 230, 255, .07);
+  color: rgba(228, 230, 250, .46);
+  text-shadow: none;
+}
+.evt-opt.locked .act { color: rgba(228, 230, 250, .48); text-shadow: none; }
+.evt-opt.locked .evt-gain { display: none; }
+.evt-opt.locked .evt-go { display: none; }
+@media (hover: hover) { .evt-opt.locked:hover { transform: none; } }
+
+/* 门槛条 */
+.evt-req {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px;
+  border-radius: 10px;
+  background: rgba(10, 13, 34, .42);
+  font: 400 11px/1 'Outfit', sans-serif;
+  color: rgba(226, 230, 255, .56); letter-spacing: .02em; white-space: nowrap;
+}
+.evt-req .ic { width: 11px; height: 11px; }
+.evt-opt.locked .evt-req { color: rgba(255, 190, 190, .62); background: rgba(48, 16, 26, .40); }
+.evt-req.met { color: color-mix(in srgb, var(--signal) 30%, #fff); background: color-mix(in srgb, var(--signal) 16%, transparent); }
+</style>
+
+<style id="evt-layout">
+/* ============================================================
+   三种版式
+   ============================================================ */
+
+/* ── A. 立绘卡：左场景图 + 右信息，选项在下 ────────────── */
+.evt-a .evt-glass { border-radius: 22px; }
+/* 图铺满整个上部。原来只占左 54% + 横向渐隐，是「左图右文」的排版思路；
+   她要站进场景里，就得有一整片场景可站。 */
+.evt-a .evt-art {
+  -webkit-mask-image: none; mask-image: none;
+}
+/* 右侧压暗给文字，底部压暗给角色 —— 两道渐变叠加 */
+.evt-a .evt-art::after {
+  background:
+    linear-gradient(90deg, rgba(10, 13, 32, .10) 0%, rgba(12, 16, 40, .52) 40%, rgba(14, 19, 46, .80) 100%),
+    linear-gradient(180deg, transparent 34%, rgba(10, 13, 32, .62) 100%),
+    linear-gradient(90deg, transparent 46%, color-mix(in srgb, var(--wash) 34%, transparent) 100%);
+}
+/* stage 自己裁图，图就不会漫到选择支区域 */
+.evt-a .stage {
+  position: relative; z-index: 2; overflow: hidden;
+  display: grid; grid-template-columns: 42% minmax(0, 1fr);
+  min-height: 232px;
+}
+/* 左格留给角色，右格是文字 */
+.evt-a .stage > .spacer { position: relative; }
+/* 场所铭牌移到左上，把左下让给角色 */
+.evt-a .plate {
+  position: absolute; left: 18px; top: 16px; z-index: 4;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, .26); border-radius: 13px;
+  background: rgba(8, 10, 24, .52);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font: 500 11.5px/1 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .92); letter-spacing: .06em; white-space: nowrap;
+}
+.evt-a .plate .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--signal) 60%, #fff); }
+/* z-index 必须显式给：.evt-art 是 absolute/z-0，而 head 若为 static
+   就会被绘制在它之下 —— 图一铺满，标题和悬念全被盖掉。 */
+.evt-a .head {
+  position: relative; z-index: 2;
+  padding: 20px 24px 18px 8px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.evt-a .body {
+  position: relative; z-index: 2; padding: 15px 24px 20px;
+  background: linear-gradient(180deg, rgba(14, 18, 42, .30), rgba(14, 18, 42, .52));
+}
+.evt-a .rule { display: none; }
+
+/* ── B. 横幅卡：顶部场景图 banner，标题压图 ─────────────── */
+.evt-b .evt-glass { border-radius: 20px; }
+.evt-b .banner {
+  position: relative; z-index: 2;
+  height: 148px; overflow: hidden;
+}
+.evt-b .banner .evt-art {
+  -webkit-mask-image: none; mask-image: none;
+}
+.evt-b .banner .evt-art::after {
+  background:
+    linear-gradient(180deg, rgba(8,10,24,.10) 0%, rgba(8,10,24,.30) 48%, rgba(20,26,54,.88) 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--wash) 40%, transparent), transparent 62%);
+}
+.evt-b .banner .cap {
+  position: absolute; inset: auto 22px 15px; z-index: 3;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.evt-b .banner .evt-title { font-size: 22px; }
+/* 时段徽标压在右上 */
+.evt-b .phase {
+  position: absolute; top: 14px; right: 16px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--signal) 46%, transparent);
+  border-radius: 14px;
+  background: rgba(8, 10, 24, .50);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--glow) 60%, transparent);
+  font: 700 12px/1 'Noto Sans SC', sans-serif;
+  color: color-mix(in srgb, var(--signal) 24%, #fff);
+  letter-spacing: .1em;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--signal) 60%, transparent);
+}
+.evt-b .body { position: relative; z-index: 2; padding: 15px 20px 18px; display: grid; gap: 13px; }
+
+/* ── C. 紧凑条：无图，密度优先 ──────────────────────────── */
+.evt-c .evt-glass { border-radius: 16px; }
+.evt-c .body { position: relative; z-index: 2; padding: 15px 18px 16px; display: grid; gap: 12px; }
+.evt-c .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.evt-c .evt-title { font-size: 17px; }
+.evt-c .evt-opt { min-height: 44px; border-radius: 11px; }
+.evt-c .evt-opt .act { font-size: 13px; }
+/* 左缘一道 signal 光，替代场景图 */
+.evt-c .evt-glass::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 5;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--signal) 92%, #fff), color-mix(in srgb, var(--signal) 40%, transparent));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--signal) 78%, transparent);
+}
+
+/* ── 窄屏 ── */
+@container (max-width: 560px) {
+  .evt-a .stage { grid-template-columns: 1fr; min-height: 0; }
+  .evt-a .evt-art { width: 100%; height: 150px; bottom: auto; }
+  .evt-a .evt-art::after {
+    background:
+      linear-gradient(180deg, rgba(10, 13, 32, .12) 0%, rgba(12, 16, 40, .40) 52%, rgba(14, 19, 46, .86) 100%),
+      linear-gradient(90deg, transparent 50%, color-mix(in srgb, var(--wash) 30%, transparent) 100%);
+  }
+  .evt-a .stage > .spacer { height: 150px; }
+  .evt-a .head { padding: 14px 18px 14px; }
+  .evt-a .body { padding: 0 18px 18px; }
+  .evt-b .banner { height: 124px; }
+  .evt-opt { grid-template-columns: 3px auto minmax(0, 1fr); }
+  .evt-go { display: none; }
+  /* 窄屏图变横幅，角色改站在横幅底部 */
+  .evt-cast { left: 14px; bottom: 12px; gap: 9px; }
+  .evt-face { width: 52px; height: 52px; border-radius: 14px; }
+  .evt-who .nm { font-size: 15px; }
+  .evt-a .plate { left: 14px; top: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="page-eyebrow">Sudden Event Card</span>
+  <div class="page-h"><span>Rinkou</span><h1>突发事件卡片 · 三款小样</h1></div>
+</div>
+<div class="wrap" id="specs"></div>
+
+<script>
+/* SVG 图标：取自 src/icons.js 的同名图标 */
+const IC = {
+  mapPin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  moon:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg>',
+  clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  heart:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19 10.7c0 4.9-7 9.3-7 9.3z"/></svg>',
+  sparkle:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/></svg>',
+  star:   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.9 6.3.7-4.7 4.3 1.3 6.1L12 17l-5.6 3 1.3-6.1L3 9.6l6.3-.7z"/></svg>',
+  sakura: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="3.1"/><circle cx="17.7" cy="10.1" r="3.1"/><circle cx="15.5" cy="16.9" r="3.1"/><circle cx="8.5" cy="16.9" r="3.1"/><circle cx="6.3" cy="10.1" r="3.1"/></svg>',
+  lock:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.4 10.5V7.8a3.6 3.6 0 0 1 7.2 0v2.7"/></svg>',
+  check:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-10"/></svg>',
+  go:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5.5l7 6.5-7 6.5"/></svg>',
+  drop:   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3s5.5 6.4 5.5 10.2A5.5 5.5 0 0 1 6.5 13.2C6.5 9.4 12 3 12 3z"/></svg>',
+  smile:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.8 13.6a3.9 3.9 0 0 0 6.4 0"/><circle cx="9.4" cy="9.9" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="9.9" r=".9" fill="currentColor" stroke="none"/></svg>',
+  coin:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6v8.8M9.7 10h3.1a1.9 1.9 0 0 1 0 3.8H9.7"/></svg>'
+};
+const ic = (k, cls) => `<i class="ic${cls ? ' ' + cls : ''}">${IC[k] || ''}</i>`;
+
+/* ============================================================
+   结算字段 → [图标, 色调]
+   字段名全部对齐《变量草稿》；色调决定数值颜色，见 evt-base 的 data-tone
+   ============================================================ */
+const GAIN_MAP = {
+  好感度:   ['heart',   'rose'],
+  顺从度:   ['sakura',  'violet'],
+  性欲度:   ['heart',   'crimson'],
+  体力:     ['sparkle', 'mint'],
+  尿意:     ['drop',    'amber'],
+  异常状态: ['sparkle', 'amber'],
+  心情:     ['smile',   'sky'],
+  金钱:     ['coin',    'coin'],
+  近期性经验次数: ['star', 'gold']
+};
+/* 12 轴性经历统一走金色 —— 它们是同一族（性经历累积），统一才读得出分组 */
+function gainMeta(key) {
+  if (GAIN_MAP[key]) return GAIN_MAP[key];
+  if (/经验$/.test(key)) return ['star', 'gold'];
+  return ['sparkle', ''];
+}
+
+/* ── 事件数据：字段对齐 PLAN v2 / 变量草稿 ── */
+const EVT = {
+  事件ID: 'evt_qp_main_cliff',
+  区域: '青屏山风景区·青屏山密林',
+  场所: '观景崖边',
+  标题: '黄昏落日下的观景崖边',
+  时段: '暮',
+  私密度: 4,
+  优先级: 60,
+  底图: '../city/plate/qingpingshan_night.webp',
+  /* AI 只需要传名字，头像与印象色由 CHARACTER_CONFIG 查出来 */
+  对象: { 名字: '塔菲', 心情: '害羞', 好感度: 620, 顺从度: 380, 异常状态: [] },
+  简述: '夕阳沉进云海，观景平台上没有别人，铁栏杆晒了一天还烫手。她把外套搭在栏杆上，保温杯留在石凳边。',
+  选项: [
+    { 分类: '纯爱', 选项: '并肩坐到最后一线日光沉下去',
+      结算: [['好感度', '+15'], ['心情', '开朗']] },
+    { 分类: '调教', 门槛: '顺从度 ≥ 350', 达成: true,
+      选项: '要她在无人的崖边解开衣襟，只对着山谷与你',
+      结算: [['顺从度', '+20'], ['露出经验', '+1'], ['心情', '害羞']] },
+    { 分类: '特殊H', 门槛: '性欲度 ≥ 75 · 顺从度 ≥ 450', 达成: false,
+      选项: '借暮色与铁栏遮蔽，在崖边展开露天青奸',
+      结算: [['性欲度', '重置'], ['青奸经验', '+1'], ['近期性经验次数', '+1']] }
+  ]
+};
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ============================================================
+   角色注册表 —— 直接复用《正文美化》的 CHARACTER_CONFIG
+   头像图床与印象色都是那边现成的，AI 只需要传名字
+   ============================================================ */
+const AVATAR_BASE = 'https://anchor.bolt.qzz.io/' + encodeURIComponent('头像') + '/';
+const charAvatar = n => AVATAR_BASE + encodeURIComponent(n) + '.webp';
+const CHARACTER_CONFIG = {
+  '东雪莲':   { color: '#5b8fd4', avatar: charAvatar('东雪莲') },
+  '塔菲':     { color: '#e75480', avatar: charAvatar('塔菲') },
+  '沙花叉':   { color: '#d6454f', avatar: charAvatar('沙花叉') },
+  '时雨羽衣': { color: '#c49a3c', avatar: charAvatar('时雨羽衣') },
+  '红蔷薇':   { color: '#c4332b', avatar: charAvatar('红蔷薇') },
+  '斯黛拉':   { color: '#8b63b8', avatar: charAvatar('斯黛拉') },
+  '璃亚梦':   { color: '#e84390', avatar: charAvatar('璃亚梦') }
+};
+/* 未登记的名字也要能出卡：拿名字算一个稳定色，头像退回首字 */
+function charOf(name) {
+  if (CHARACTER_CONFIG[name]) return CHARACTER_CONFIG[name];
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return { color: `hsl(${h} 46% 62%)`, avatar: '' };
+}
+
+/* 从各分支门槛里抽出好感/顺从的刻度值，画到迷你条上 */
+function thresholds(e, key) {
+  const out = [];
+  e.选项.forEach(o => {
+    if (!o.门槛) return;
+    const re = new RegExp(key + '\\s*[≥>=]+\\s*(\\d+)', 'g');
+    let m; while ((m = re.exec(o.门槛))) out.push(+m[1]);
+  });
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+/* 羁绊数值丸，跟时段/私密并排放在元信息行 */
+function bond(key, val, icon) {
+  return `<span class="evt-bond" data-k="${key}">${ic(icon)}`
+    + `<span class="bk">${key.replace('度', '')}</span>`
+    + `<span class="bv">${val}</span></span>`;
+}
+const bonds = e => {
+  const a = e.对象;
+  if (!a || !a.名字) return '';
+  return bond('好感度', a.好感度, 'heart') + bond('顺从度', a.顺从度, 'sakura');
+};
+
+/* 交互对象：站在场景图左下。e.对象 为空（独行）就不渲染 */
+function cast(e) {
+  const a = e.对象;
+  if (!a || !a.名字) return '';
+  const cc = charOf(a.名字);
+  /* 断图 只用于小样演示图床失效；正式渲染不需要这个字段 */
+  const src = a.断图 ? '' : cc.avatar;
+  const face = src
+    ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()"><i>${esc(a.名字[0])}</i>`
+    : `<i>${esc(a.名字[0])}</i>`;
+  return `<div class="evt-cast" style="--ac:${esc(cc.color)}">
+    <span class="evt-face">${face}</span>
+    <div class="evt-who">
+      <span class="nm">${esc(a.名字)}<em>同行</em></span>
+      <span class="st">
+        <span class="evt-mood">${ic('smile')}${esc(a.心情)}</span>
+        ${(a.异常状态 || []).map(s => `<span class="evt-abn">${ic('sparkle')}${esc(s)}</span>`).join('')}
+      </span>
+    </div>
+  </div>`;
+}
+
+/* ── 共用零件 ── */
+function pips(n) {
+  let h = '';
+  for (let i = 1; i <= 5; i++) h += `<s class="${i <= n ? 'on' : ''}"></s>`;
+  return `<span class="evt-pips">${h}</span>`;
+}
+function gains(list) {
+  return list.map(([k, v]) => {
+    const [icon, tone] = gainMeta(k);
+    const num = /^[+\-]\d/.test(String(v));          // +15 / -20
+    const down = /^-\d/.test(String(v));
+    return `<span class="evt-gain${down ? ' down' : ''}"${tone ? ` data-tone="${tone}"` : ''}>`
+      + ic(icon)
+      + `<span class="k">${esc(k)}</span>`
+      + `<span class="v${num ? '' : ' word'}">${esc(v)}</span>`
+      + `</span>`;
+  }).join('');
+}
+function reqChip(o) {
+  if (!o.门槛) return '';
+  return `<span class="evt-req${o.达成 ? ' met' : ''}">${ic(o.达成 ? 'check' : 'lock')}${esc(o.门槛)}</span>`;
+}
+/* 一条选择支 */
+function opt(o) {
+  const locked = o.门槛 && !o.达成;
+  return `<li>
+    <button class="evt-opt${locked ? ' locked' : ''}" data-cat="${esc(o.分类)}" type="button"${locked ? ' disabled aria-disabled="true"' : ''}>
+      <span class="bar"></span>
+      <span class="evt-cat">${esc(o.分类)}</span>
+      <span class="col">
+        <span class="act">${esc(o.选项)}</span>
+        <span class="sub">${reqChip(o)}${locked ? '' : gains(o.结算)}</span>
+      </span>
+      <span class="evt-go">${IC.go}</span>
+    </button>
+  </li>`;
+}
+const opts = e => `<ul class="evt-opts">${e.选项.map(opt).join('')}</ul>`;
+/* 卡片主色：取【最后一条已解锁】分支。
+   锁着的分支不参与，所以不会因为卡框发红就暴露今晚能走到特殊H；
+   而已解锁的分支本来就摆在选项列表里，用它上色不算剧透。 */
+const 主色 = e => {
+  const open = e.选项.filter(o => !o.门槛 || o.达成);
+  return (open[open.length - 1] || e.选项[0]).分类;
+};
+const 区域文 = e => esc(e.区域.replace('·', ' · '));
+const art = e => `<div class="evt-art"><img src="${esc(e.底图)}" alt="" loading="lazy"></div>`;
+
+/* ── A. 立绘卡 ── */
+const renderA = e => `<div class="evt evt-a" data-cat="${esc(主色(e))}"><div class="evt-glass">
+  <div class="evt-edge"></div>
+  <div class="stage">
+    ${art(e)}
+    <span class="plate">${ic('mapPin')}${esc(e.场所)}</span>
+    ${cast(e)}
+    <div class="spacer"></div>
+    <div class="head">
+      <span class="evt-eyebrow">${ic('sparkle')}突发事件<s>/</s>${区域文(e)}</span>
+      <h3 class="evt-title">${esc(e.标题)}</h3>
+      <div class="evt-metas">
+        <span class="evt-mp">${ic('moon')}${esc(e.时段)}</span>
+        <span class="evt-mp">私密${pips(e.私密度)}</span>
+        ${bonds(e)}
+      </div>
+      <p class="evt-brief">${esc(e.简述)}</p>
+    </div>
+  </div>
+  <div class="body">${opts(e)}</div>
+</div></div>`;
+
+/* ── B. 横幅卡 ── */
+const renderB = e => `<div class="evt evt-b" data-cat="${esc(主色(e))}"><div class="evt-glass">
+  <div class="banner">
+    ${art(e)}
+    <span class="phase">${ic('moon')}${esc(e.时段)}</span>
+    <div class="cap">
+      <span class="evt-eyebrow">${ic('mapPin')}${区域文(e)}<s>/</s>${esc(e.场所)}</span>
+      <h3 class="evt-title">${esc(e.标题)}</h3>
+    </div>
+  </div>
+  <div class="evt-edge"></div>
+  <div class="body">
+    <div class="evt-metas">
+      <span class="evt-mp">私密${pips(e.私密度)}</span>
+      <span class="evt-mp">优先<b>${e.优先级}</b></span>
+    </div>
+    <p class="evt-brief">${esc(e.简述)}</p>
+    ${opts(e)}
+  </div>
+</div></div>`;
+
+/* ── C. 紧凑条 ── */
+const renderC = e => `<div class="evt evt-c" data-cat="${esc(主色(e))}"><div class="evt-glass">
+  <div class="evt-edge"></div>
+  <div class="body">
+    <div class="top">
+      <div>
+        <span class="evt-eyebrow">${ic('sparkle')}突发事件<s>/</s>${esc(e.场所)}</span>
+        <h3 class="evt-title" style="margin-top:6px">${esc(e.标题)}</h3>
+      </div>
+      <div class="evt-metas" style="justify-content:flex-end">
+        <span class="evt-mp">${ic('moon')}${esc(e.时段)}</span>
+        <span class="evt-mp">私密${pips(e.私密度)}</span>
+      </div>
+    </div>
+    ${opts(e)}
+  </div>
+</div></div>`;
+
+/* ── 另两个事件：验证配色在别的分类下站不站得住 ── */
+const EVT_睡奸 = {
+  区域: '落霞区·临江大学城', 场所: '通宵自习室', 标题: '空调停机后的通宵自习室',
+  时段: '深夜', 私密度: 3, 优先级: 72,
+  底图: '../city/plate/luoxia_night.webp',
+  对象: { 名字: '东雪莲', 心情: '困倦', 好感度: 780, 顺从度: 300, 异常状态: ['深度昏睡'] },
+  简述: '末班公交早过了，整层只剩两盏灯。她伏在摊开的书上没动，呼吸很轻，保温杯倒在手边。',
+  选项: [
+    { 分类: '纯爱', 选项: '把外套盖上，守到她自己醒',
+      结算: [['好感度', '+18'], ['体力', '+15'], ['心情', '依恋']] },
+    { 分类: '调教', 门槛: '顺从度 ≥ 250', 达成: true,
+      选项: '趁她伏睡，拍下摊开的书页与她的睡颜',
+      结算: [['盗摄经验', '+1'], ['顺从度', '+10']] },
+    { 分类: '睡奸', 门槛: '对象体力 ≤ 20', 达成: true,
+      选项: '就着她深度衰竭的睡意，在桌间实施睡奸',
+      结算: [['睡奸经验', '+1'], ['近期性经验次数', '+1'], ['性欲度', '重置'], ['好感度', '-15']] }
+  ]
+};
+const EVT_窘迫 = {
+  区域: '明湖区·德泰百货', 场所: '地下街公厕', 标题: '排队到尽头的地下街公厕',
+  时段: '昼', 私密度: 1, 优先级: 45,
+  底图: '../city/plate/minghu_night.webp',
+  对象: { 名字: '璃亚梦', 心情: '委屈', 好感度: 410, 顺从度: 420, 异常状态: ['极度憋尿', '微醺'] },
+  简述: '地下街只此一处卫生间，队伍拐了两道弯。她已经换了三次站姿，手里那杯冰饮还剩一半。',
+  选项: [
+    { 分类: '纯爱', 选项: '替她去问导购要员工通道的钥匙',
+      结算: [['好感度', '+12'], ['尿意', '归零'], ['心情', '开朗']] },
+    { 分类: '生理窘迫', 门槛: '顺从度 ≥ 350', 达成: true,
+      选项: '要她把冰饮喝完再排，一步都不许离队',
+      结算: [['排泄调教经验', '+1'], ['顺从度', '+25'], ['异常状态', '极度憋尿']] },
+    { 分类: '特殊H', 门槛: '性欲度 ≥ 75 · 顺从度 ≥ 450', 达成: false,
+      选项: '挤进同一个隔间，从背后按住她的腰',
+      结算: [['隐奸经验', '+1'], ['近期性经验次数', '+1']] }
+  ]
+};
+
+/* 字段色板：把所有登记字段按色调列出来，方便核对 */
+function swatches() {
+  const rows = [
+    ['羁绊', [['好感度', '+20'], ['顺从度', '+25']]],
+    ['生理', [['性欲度', '+15'], ['体力', '-20'], ['尿意', '归零'], ['异常状态', '微醺']]],
+    ['即时', [['心情', '害羞'], ['金钱', '-500']]],
+    ['性经历', [['露出经验', '+1'], ['青奸经验', '+1'], ['睡奸经验', '+1'], ['近期性经验次数', '+1']]],
+    ['负向', [['好感度', '-30']]]
+  ];
+  return `<div class="palette">${rows.map(([g, list]) =>
+    `<div class="prow"><span class="pg">${g}</span><div class="pl">${gains(list)}</div></div>`).join('')}</div>`;
+}
+
+/* 对象栏的三种边界：登记角色 / 图床挂掉 / 未登记名字 */
+function actorCases() {
+  const mk = (a, note) => {
+    const e = { 对象: a };
+    return `<div class="acase"><span class="ct">${note}</span>
+      <div class="astage">${cast(e)}<div class="ab">${bonds(e)}</div></div>
+    </div>`;
+  };
+  return `<div class="acases">
+    ${mk({ 名字: '沙花叉', 心情: '发情', 好感度: 880, 顺从度: 700, 异常状态: [] },
+        '登记角色 · 图床头像 + 自带印象色')}
+    ${mk({ 名字: '时雨羽衣', 心情: '崩溃', 好感度: 240, 顺从度: 930,
+        异常状态: ['蓝色花粉催情中'], 断图: true },
+        '图床挂掉 · 回退首字 + 印象色底')}
+    ${mk({ 名字: '新登场角色', 心情: '开朗', 好感度: 60, 顺从度: 20, 异常状态: [] },
+        '未登记名字 · 由名字散列出稳定色')}
+  </div>`;
+}
+
+const SPECS = [
+  { name: '立绘卡 · 纯爱／调教／特殊H', en: 'Primary', html: renderA(EVT),
+    note: '定稿方向。左侧场景图横向渐隐进玻璃（角色卡 <b>card-art-clip</b> 的手法），场所铭牌压图，右侧 eyebrow → 标题 → 元信息 → 悬念，选择支在下半区的暗底上。' },
+  { name: '结算字段色板', en: 'Value tones', html: swatches(),
+    note: '数值颜色<b>按字段</b>给，不跟分支分类色绑死 —— 好感玫瑰、顺从紫、性欲绯、体力青、尿意与异常状态橙、心情天蓝、金钱哑金、12 轴性经历统一金。<br>两处刻意共用同色：<b>经验族</b>都是金（同一族累积值，统一才读得出「这条给的是经历」）、<b>尿意与异常状态</b>都是橙（同属生理失控）。<br>只有<b>羁绊下降</b>才转警告红并加 ▼ —— 体力 -20、金钱 -500 是中性资源变化，保留字段色，方向交给负号读。' },
+  { name: '立绘卡 · 睡奸事件', en: 'Variant', html: renderA(EVT_睡奸),
+    note: '换分类、换底图、换字段组合。这条的睡奸分支带 <b>好感度 -15</b>，可以看负向结算怎么和正向拉开。' },
+  { name: '立绘卡 · 生理窘迫事件', en: 'Variant', html: renderA(EVT_窘迫),
+    note: '私密度只有 1（开放公共），特殊H 分支因门槛未达而锁定。琥珀色的尿意与异常状态在同一条里并排。' },
+  { name: '交互对象栏 · 三种边界', en: 'Actor fallback', html: actorCases(),
+    note: 'AI 只需要传 <b>名字</b>，头像与印象色都从《正文美化》现成的 <b>CHARACTER_CONFIG</b> 查（图床 <code>anchor.bolt.qzz.io/头像/{名字}.webp</code>）。图床挂了自动回退首字，未登记的新名字也能出卡 —— 拿名字散列出一个稳定色，同一个名字每次都是同一色。' }
+];
+
+document.getElementById('specs').innerHTML = SPECS.map(s => `
+  <section class="spec">
+    <div class="sh"><b>${s.name}</b><em>${s.en}</em></div>
+    <p class="note">${s.note}</p>
+    ${s.html}
+  </section>`).join('');
+</script>
+</body>
+</html>

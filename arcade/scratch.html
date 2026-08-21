@@ -77,24 +77,210 @@ body[data-theme=classic-dark]{color-scheme:dark;--stage:#161310;--panel:#29231e;
 @media(max-width:560px){.ticket[data-tier="starlight"] .jackpot-block,.ticket[data-tier="crown"] .jackpot-block{column-gap:6px;padding-left:4px}.ticket[data-tier="starlight"] .jackpot-label,.ticket[data-tier="crown"] .jackpot-label{font-size:21px}.ticket[data-tier="starlight"] .jackpot-value,.ticket[data-tier="crown"] .jackpot-value{font-size:42px}.ticket[data-tier="crown"] .jackpot-value{font-size:39px}.ticket[data-tier="starlight"] .jackpot-unit,.ticket[data-tier="crown"] .jackpot-unit{font-size:16px}}
 </style>
 <style id="phone-landscape-fit">
-/* Forced landscape on a portrait phone: the lobby rotator makes this document
-   a short, wide viewport (~phone-height × phone-width). Keep the 2-column
-   ticket instead of the stacked 850px portrait layout. */
+/* Real phone landscape: keep the two-column ticket. Portrait phones use the
+   stacked 560px layout instead of CSS-rotating the whole lobby. */
 @media (orientation: landscape) and (max-height: 520px) {
-  body{padding:4px;overflow:auto}
-  .control-strip{margin-bottom:6px;padding:6px 10px;border-radius:12px}
-  .ticket{min-height:0;padding:10px 16px 8px}
-  .ticket-body{grid-template-columns:minmax(180px,.7fr) minmax(280px,1.4fr)!important;gap:10px;align-items:stretch}
-  .info-side{display:flex!important;flex-direction:column;gap:8px}
-  .ticket-head{min-height:56px;gap:8px}
-  .cat-word{font-size:36px}
-  .dream-word{font-size:24px}
-  .mascot{width:52px;height:52px;flex-basis:52px}
-  .cloud-frame{min-height:min(260px,calc(100dvh - 140px))}
-  .ticket-foot{margin-top:8px;gap:8px}
-  .buy-btn,.reveal-btn{min-height:40px}
-  .ledger{margin-top:8px}
+  html,body{height:100%;overflow:hidden!important}
+  body{padding:2px 8px 4px 2px!important}
+  .scene{height:100%;min-height:0;display:flex;flex-direction:column}
+  .control-strip{flex:0 0 auto;margin:0 0 4px;padding:4px 8px;border-radius:10px}
+  .ledger{display:none!important}
+  .ticket{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:6px 10px!important;overflow:hidden}
+  .ticket-head{flex:0 0 auto;min-height:0;gap:6px}
+  .cat-word{font-size:28px}
+  .dream-word{font-size:18px}
+  .mascot{width:40px;height:40px;flex-basis:40px}
+  .ticket-body{flex:1 1 auto;min-height:0;display:grid!important;grid-template-columns:minmax(132px,.5fr) minmax(0,1.5fr)!important;gap:8px!important;align-items:stretch!important}
+  .info-side{display:flex!important;flex-direction:column;gap:6px;min-height:0;overflow:auto}
+  .rules-copy{font-size:11px;line-height:1.4}
+  .jackpot-label{font-size:16px}
+  .jackpot-value{font-size:28px}
+  .jackpot-unit{font-size:14px}
+  .scratch-side,.cloud-frame{min-height:0!important;height:100%}
+  .cloud-frame{padding:16px 18px!important}
+  .empty-cloud{padding:20px}
+  .prize-grid{height:100%;grid-template-rows:repeat(4,minmax(0,1fr))!important}
+  .ticket-foot{flex:0 0 auto;display:flex!important;flex-wrap:nowrap;grid-template-columns:none!important;margin-top:6px!important;gap:8px;padding-right:4px}
+  .ticket-foot .result{flex:1;min-width:0;min-height:36px;grid-column:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .buy-btn,.reveal-btn{flex:0 0 auto;min-height:36px;font-size:13px}
+  .buy-btn{min-width:108px;padding:0 12px}
   .price-stamp{position:static}
+}
+@media (orientation: landscape) and (max-height: 360px) {
+  /* 头奖金额没有别处显示，收得比标题晚一档（见 mobile-fit-pass 的 300px）。 */
+  .ticket-head,.series-mark,.price-stamp{display:none!important}
+  .rules-card{padding:8px}
+  .rules-copy{font-size:10px}
+  .cloud-frame{padding:10px 12px!important}
+  .empty-cloud{padding:24px}
+  .buy-btn{min-width:100px;padding:0 12px}
+}
+</style>
+<style id="mobile-fit-pass">
+/* ------------------------------------------------------------------ *
+ * 手机适配收尾。修的是三件独立的事：
+ *   1) 标题描边把字吃掉      -webkit-text-stroke 默认画在填充之上，
+ *                            字号一小，3px 描边就把笔画糊成一团黑。
+ *   2) 票价印章压住头奖文字  原来在 ≤560px 用 absolute 定位硬塞，
+ *                            换回文档流里排。
+ *   3) 竖屏要滚动才够到「购买」 把票面收进一屏，记录抽屉留在下面。
+ * ------------------------------------------------------------------ */
+
+/* 1) 描边先画、填充后画，笔画就不会被自己的描边糊掉；
+      手机上再把描边宽度改成随字号走的 em。 */
+.cat-word,.dream-word,.jackpot-value,.jackpot-label,.win-amount{paint-order:stroke fill}
+@media(max-width:600px),(orientation:landscape) and (max-height:520px){
+  .cat-word{-webkit-text-stroke-width:.075em}
+  .dream-word{-webkit-text-stroke-width:.07em}
+  .jackpot-value{-webkit-text-stroke-width:.055em}
+}
+
+/* 2) 票价印章回到文档流：规则卡整行，头奖和印章并排收底。 */
+@media(max-width:850px){
+  .info-side{
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto;
+    align-items:end;column-gap:10px;row-gap:8px;
+  }
+  .rules-card{grid-column:1/-1;grid-row:1}
+  .jackpot-block{grid-column:1;grid-row:2;margin:0}
+  .price-stamp{
+    position:static!important;right:auto!important;top:auto!important;
+    grid-column:2;grid-row:2;align-self:end;
+  }
+}
+
+/* 3) 票档不再横向藏起来：三档平铺，名称和票价上下排。 */
+@media(max-width:600px){
+  .tier-switch{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;overflow:visible;padding:0;
+  }
+  .tier-btn{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:1px;min-width:0;min-height:44px;padding:5px 4px;
+    font-size:11px;line-height:1.2;
+  }
+  .tier-btn b{margin-left:0;font-size:11px}
+}
+@media(max-width:430px){
+  /* 名称和票价上下排之后，三档 + 音乐 + 余额在 320px 里也是一行装得下的，
+     所以不必换行 —— 换行会白吃掉 34px 高，320x568 的机器上正好差这一点。 */
+  .control-strip{gap:6px}
+  .tier-btn{font-size:10px;padding:5px 2px}
+  .tier-btn b{font-size:10px}
+  .wallet{padding:5px 4px 5px 8px}
+  .wallet b{font-size:14px}
+}
+
+/* 4) 竖屏一屏放下整张票，「购买」不用滚动。
+      用 svh 而不是 dvh：地址栏收放不会改变 svh，
+      否则每次收放都触发 resize 重画涂层，刮开的进度会被抹掉。 */
+@media (orientation: portrait) and (max-width: 600px){
+  body{padding:4px}
+  .scene{
+    display:flex;flex-direction:column;
+    min-height:calc(100vh - 8px);min-height:calc(100svh - 8px);
+  }
+  .control-strip{flex:0 0 auto}
+  .ledger{flex:0 0 auto}
+  .ticket{
+    /* 基础样式里的 min-height:570px 比 320x568 的整个视口还高，
+       是这一档「必须滚动才够到购买键」的根因。 */
+    flex:1 1 auto;min-height:0!important;
+    display:flex;flex-direction:column;
+  }
+  .ticket-head{flex:0 0 auto}
+  .ticket-body{
+    flex:1 1 auto;min-height:0;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:auto minmax(0,1fr);
+    align-items:stretch!important;
+  }
+  .info-side{min-height:0}
+  .scratch-side{min-height:0}
+  .cloud-frame{height:100%;min-height:120px!important}
+  .prize-grid{inset:14% 10%}
+  .ticket-foot{flex:0 0 auto}
+}
+/* 矮竖屏（<=740px 高）再把标题和规则收一档，给刮奖区留面积。 */
+@media (orientation: portrait) and (max-width: 600px) and (max-height: 760px){
+  .ticket-head{min-height:0;gap:7px}
+  .cat-word{font-size:34px}
+  .dream-word{font-size:23px}
+  .mascot{width:46px;height:46px;flex-basis:46px}
+  .cat-svg{width:32px;height:32px}
+  .rules-card{padding:8px 9px}
+  .rules-title{margin-bottom:6px;padding:4px 9px;font-size:12px}
+  .rules-copy{padding:0 4px 2px;font-size:11px;line-height:1.45}
+  .jackpot-label{font-size:19px}
+  .jackpot-value{font-size:38px}
+  .jackpot-unit{font-size:14px;margin-left:6px}
+  .price-stamp{padding:5px 9px;font-size:11px}
+  .ticket{padding:12px 13px 11px}
+  .ticket-foot{margin-top:9px;gap:8px}
+  .result{min-height:38px;padding:6px 11px;font-size:12px}
+  .buy-btn,.reveal-btn{min-height:44px}
+}
+
+/* 5) 横屏：info-side 原来 overflow:auto，票价印章被裁在下沿。
+      改成不裁切，并按高度把头奖收小。 */
+@media (orientation: landscape) and (max-height: 520px){
+  .info-side{overflow:visible!important;justify-content:flex-start}
+  .jackpot-block{margin:0;padding-left:4px}
+  .jackpot-label{font-size:clamp(12px,3.4vh,16px)}
+  .jackpot-value{font-size:clamp(21px,6.4vh,30px)}
+  .jackpot-unit{font-size:clamp(11px,2.8vh,14px);margin-left:5px}
+  .price-stamp{align-self:flex-start;padding:4px 9px;font-size:10px}
+  .cat-word{font-size:clamp(19px,7vh,28px)}
+  .dream-word{font-size:clamp(13px,4.6vh,18px)}
+}
+@media (orientation: landscape) and (max-height: 430px){
+  /* 430px 高以下，标题那一行只剩被描边糊住的一条黑边，收掉换刮奖面积。
+     票价在顶部票档按钮上已经写着了，印章也一起收。
+     头奖金额没有别处显示，留下来。 */
+  .ticket-head,.series-mark,.price-stamp{display:none!important}
+  .info-side{grid-template-columns:minmax(0,1fr)!important}
+  .rules-card{grid-row:auto}
+  .jackpot-block{grid-column:1!important;grid-row:auto!important}
+  .jackpot-label{font-size:clamp(11px,3vh,14px)}
+  .jackpot-value{font-size:clamp(19px,5.6vh,26px)}
+  .jackpot-unit{font-size:11px;margin-left:4px}
+}
+@media (orientation: landscape) and (max-height: 300px){
+  .jackpot-block{display:none!important}
+}
+
+/* 6) 触摸目标：音乐键和票档键原来只有 21~34px 高。 */
+.scratch-audio-dock button,.reveal-btn,.win-close{position:relative}
+.scratch-audio-dock button:after,.win-close:after{
+  content:"";position:absolute;left:50%;top:50%;
+  min-width:44px;min-height:44px;width:100%;height:100%;
+  transform:translate(-50%,-50%);
+}
+@media (hover:hover) and (pointer:fine){
+  .scratch-audio-dock button:after,.win-close:after{display:none}
+}
+@media(max-width:600px){
+  .scratch-audio-dock button{height:44px}
+  .reveal-btn{min-height:44px}
+}
+/* 横屏：票档键 34px、购买/全部刮开 36px，都不够指尖。
+   标题行收掉之后腾出的高度正好补给它们。 */
+@media (orientation: landscape) and (max-height: 520px){
+  .tier-btn{min-height:44px}
+  .scratch-audio-dock button{height:38px}
+  .buy-btn,.reveal-btn{min-height:44px!important}
+  .ticket-foot .result{min-height:44px}
+}
+
+/* 可读性下限：手机上被压到 9px 以下的标签抬回 9px。 */
+@media(max-width:600px),(orientation:landscape) and (max-height:520px){
+  .wallet span{font-size:9px}
+  .mini-title{font-size:10px}
+  .stat small{font-size:9px}
+  .history-row{font-size:10px}
+  .odds{font-size:10px}
+  .empty-cloud span{font-size:10px}
 }
 </style>
 <style id="hud-embed">
@@ -112,22 +298,22 @@ html.is-hud .control-strip{justify-content:flex-start}
 <section class="scratch-side"><div class="cloud-outline"></div><div class="cloud-frame" id="scratch"><div class="empty-cloud" id="empty"><span class="empty-message">&#36141;&#20080;&#19968;&#24352;&#24425;&#31080;&#21518;&#21038;&#24320;&#28784;&#33394;&#21306;&#22495;</span></div><div class="prize-grid" id="grid" hidden></div><canvas id="canvas" hidden aria-label="刮奖涂层"></canvas></div></section></div>
 <footer class="ticket-foot"><div class="result" id="result" aria-live="polite">&#36873;&#25321;&#31080;&#26723;&#65292;&#28982;&#21518;&#36141;&#20080;&#19968;&#24352;&#24425;&#31080;</div><button class="buy-btn" id="buy" type="button">购买 ¥10</button><button class="reveal-btn" id="reveal" type="button" disabled>全部刮开</button></footer>
 </article>
-<details class="ledger"><summary>开奖记录、个人统计与理论概率</summary><div class="ledger-body"><section class="history"><div class="mini-title">最近记录 <span>最多 12 条</span></div><div class="history-list" id="history"></div></section><section class="stats-panel"><div class="mini-title">个人统计 <span>本地存档</span></div><div class="stats"><div class="stat"><small>购票次数</small><b id="count">0</b></div><div class="stat"><small>有返还</small><b id="returns">0</b></div><div class="stat"><small>净盈利</small><b id="wins">0</b></div><div class="stat"><small>保本次数</small><b id="breakEven">0</b></div><div class="stat"><small>累计投入</small><b id="spent">¥0</b></div><div class="stat"><small>累计返还</small><b id="paid">¥0</b></div></div></section><section class="odds"><table><thead><tr><th>票档</th><th>票价</th><th>头奖</th><th>任意返还率</th><th>理论返还率</th></tr></thead><tbody id="oddsTable"></tbody></table></section></div></details>
+<details class="ledger"><summary>开奖记录、个人统计与理论概率</summary><div class="ledger-body"><section class="history"><div class="mini-title">最近记录 <span>最多 12 条</span></div><div class="history-list" id="history"></div></section><section class="stats-panel"><div class="mini-title">个人统计 <span>本地存档</span></div><div class="stats"><div class="stat"><small>购票次数</small><b id="count">0</b></div><div class="stat"><small>中奖次数</small><b id="returns">0</b></div><div class="stat"><small>中奖率</small><b id="winRate">0%</b></div><div class="stat"><small>最高返奖</small><b id="maxPayout">¥0</b></div><div class="stat"><small>累计投入</small><b id="spent">¥0</b></div><div class="stat"><small>累计返奖</small><b id="paid">¥0</b></div></div></section><section class="odds"><table><thead><tr><th>票档</th><th>票价</th><th>头奖</th><th>任意返还率</th><th>理论返还率</th></tr></thead><tbody id="oddsTable"></tbody></table></section></div></details>
 </main><div class="win-overlay" id="winOverlay" hidden>
   <section class="win-modal" id="winModal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
     <button class="win-close" id="winClose" type="button" aria-label="关闭中奖提醒">×</button>
     <span class="win-spark" aria-hidden="true"></span>
     <div class="win-paw" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="win-kicker" id="winTier">薄荷小梦</div>
-    <h2 class="win-title" id="winTitle">恭喜净盈利！</h2>
+    <h2 class="win-title" id="winTitle">恭喜中奖！</h2>
     <div class="win-amount" id="winAmount">¥0</div>
-    <p class="win-copy" id="winCopy">净盈利已存入角色资金</p>
+    <p class="win-copy" id="winCopy">本张奖金已存入角色资金</p>
     <button class="win-accept" id="winAccept" type="button">收下奖金</button>
   </section>
 </div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 (()=>{'use strict';
-const VERSION='2.1.0',KEY='airp_scratch_card_state_v2',WALLET_KEY='airp_arcade_wallet_v1',SLOT_KEY='airp_physical_slot_state_v2',FISH_KEY='airp_fishing_state_v1',DEFAULT_BALANCE=1000,LIMIT=12,THRESHOLD=.78,THEMES=new Set(['warm-white','dark','green','classic-dark']);
+const VERSION='2.1.1',KEY='airp_scratch_card_state_v2',WALLET_KEY='airp_arcade_wallet_v1',SLOT_KEY='airp_physical_slot_state_v2',FISH_KEY='airp_fishing_state_v1',DEFAULT_BALANCE=1000,LIMIT=12,THRESHOLD=.78,THEMES=new Set(['warm-white','dark','green','classic-dark']);
 // 每档均使用精确整数权重，Σ(倍率×权重)/Σ权重 = 0.98。
 const TIERS=[
 {id:'note',name:'\u8584\u8377\u5c0f\u68a6',title1:'\u732b\u722a',title2:'\u68a6\u5883',price:10,desc:'\u9ad8\u9891\u5c0f\u5956',color:'#8d6dff',paper:'#c9f4ef',paper2:'#a9dfe8',pink:'#eda0ed',cyan:'#7ff5ee',gold:'#ffe264',ink:'#24203c',ticketText:'#24203c',titleMain:'#edffff',titleSub:'#ffaff1',titleShadow:'#33e9e2',mascotA:'#4e398b',mascotB:'#6654a7',mascotFill:'#b8fae9',ruleA:'#7561b4',ruleB:'#554583',ruleHead:'#241c40',ruleAccent:'#d5fff5',ruleBorder:'#273052',ruleShadow:'#1c1837',foil:['#8b8b8f','#5f6065','#929296','#55565d','#85858a'],foilLine:'#22222d',foilText:'#e7e4e9',gridA:'#66676d',gridB:'#75757b',icons:['#8eefff','#c8d5ff','#ffe58a','#ff9bdd','#c7b4ff','#ffabd0'],prizeText:'#fff',jackpotFill:'#fff',out:[[0,51290],[.5,15000],[1,15000],[2,10000],[5,8300],[10,400],[1000,10]]},
@@ -135,7 +321,7 @@ const TIERS=[
 {id:'crown',name:'\u7687\u51a0\u957f\u68a6',title1:'\u91d1\u722a',title2:'\u7687\u51a0',price:200,desc:'\u4f4e\u9891\u9ad8\u5956',color:'#d97923',paper:'#ffeab3',paper2:'#e99b72',pink:'#ef4f5e',cyan:'#64d7c7',gold:'#fff196',ink:'#4b1f20',ticketText:'#541f20',titleMain:'#fff6cb',titleSub:'#ff5d63',titleShadow:'#e6a82d',mascotA:'#9d2633',mascotB:'#d46a2f',mascotFill:'#ffe99b',ruleA:'#a52f39',ruleB:'#681f2d',ruleHead:'#3f1720',ruleAccent:'#ffe89a',ruleBorder:'#662027',ruleShadow:'#43131a',foil:['#ad8b61','#715137','#c0a16c','#65452f','#99774f'],foilLine:'#422d25',foilText:'#fff3ce',gridA:'#674b35',gridB:'#806246',icons:['#9cecff','#f6d7ff','#ffe264','#ff7d74','#ffc86b','#ff9d8b'],prizeText:'#fff7df',jackpotFill:'#fff5c0',out:[[0,806655],[.5,50000],[1,60000],[2,50000],[5,20000],[20,10000],[100,3000],[500,340],[5000,5]]}
 ];
 const BGM_TRACKS=['https://cdn1.suno.ai/96da335a-8e9b-4529-8000-12b4e1924942.mp3','https://cdn1.suno.ai/127e81f1-7901-4ec1-9b0e-0476ec0ab686.mp3'],AUDIO_PREF_KEY='airp_scratch_audio_v1';
-const $=id=>document.getElementById(id),E={tiers:$('tiers'),balance:$('balance'),music:$('scratchMusicToggle'),ticket:$('ticket'),series:$('seriesMark'),titleMain:$('titleMain'),titleSub:$('titleSub'),jackpot:$('jackpot'),stamp:$('priceStamp'),scratch:$('scratch'),empty:$('empty'),grid:$('grid'),canvas:$('canvas'),result:$('result'),buy:$('buy'),reveal:$('reveal'),history:$('history'),count:$('count'),returns:$('returns'),wins:$('wins'),breakEven:$('breakEven'),spent:$('spent'),paid:$('paid'),odds:$('oddsTable'),toast:$('toast'),winOverlay:$('winOverlay'),winTier:$('winTier'),winAmount:$('winAmount'),winCopy:$('winCopy'),winAccept:$('winAccept'),winClose:$('winClose')};
+const $=id=>document.getElementById(id),E={tiers:$('tiers'),balance:$('balance'),music:$('scratchMusicToggle'),ticket:$('ticket'),series:$('seriesMark'),titleMain:$('titleMain'),titleSub:$('titleSub'),jackpot:$('jackpot'),stamp:$('priceStamp'),scratch:$('scratch'),empty:$('empty'),grid:$('grid'),canvas:$('canvas'),result:$('result'),buy:$('buy'),reveal:$('reveal'),history:$('history'),count:$('count'),returns:$('returns'),winRate:$('winRate'),maxPayout:$('maxPayout'),spent:$('spent'),paid:$('paid'),odds:$('oddsTable'),toast:$('toast'),winOverlay:$('winOverlay'),winTier:$('winTier'),winAmount:$('winAmount'),winCopy:$('winCopy'),winAccept:$('winAccept'),winClose:$('winClose')};
 let state=load(),selected=TIERS.some(t=>t.id===state.selectedTierId)?state.selectedTierId:TIERS[0].id,pointer={down:false,x:0,y:0,moves:0},opaqueBase=0,toastTimer=0,resizeTimer=0;
 let audioPrefs=loadAudioPrefs(),audioUnlocked=false,bgmIndex=0,bgmErrors=0;const bgmAudio=new Audio();bgmAudio.preload='auto';bgmAudio.volume=1;bgmAudio.setAttribute('playsinline','');
 function loadAudioPrefs(){try{return{music:true,...JSON.parse(localStorage.getItem(AUDIO_PREF_KEY)||'null')}}catch(_){return{music:true}}}
@@ -152,7 +338,7 @@ function money(v,f=0){v=Number(v);return Number.isFinite(v)?Math.round(v*100)/10
 function readJSON(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(_){return null}}
 function readSharedBalance(){const wallet=readJSON(WALLET_KEY);if(wallet&&Number.isFinite(+wallet.balance))return money(wallet.balance,DEFAULT_BALANCE);for(const key of [KEY,FISH_KEY,SLOT_KEY]){const x=readJSON(key);if(x&&Number.isFinite(+x.balance))return money(x.balance,DEFAULT_BALANCE)}return DEFAULT_BALANCE}
 function writeSharedBalance(value){value=money(value);const updatedAt=Date.now();try{localStorage.setItem(WALLET_KEY,JSON.stringify({balance:value,updatedAt,source:'scratch'}));for(const key of [SLOT_KEY,FISH_KEY]){const x=readJSON(key);if(x&&typeof x==='object'){x.balance=value;x.walletUpdatedAt=updatedAt;localStorage.setItem(key,JSON.stringify(x))}}}catch(_){}return value}
-function fresh(){return{version:VERSION,balance:readSharedBalance(),selectedTierId:TIERS[0].id,currentTicket:null,history:[],stats:{count:0,wins:0,profitWins:0,breakEven:0,spent:0,paid:0}}}
+function fresh(){return{version:VERSION,balance:readSharedBalance(),selectedTierId:TIERS[0].id,currentTicket:null,history:[],stats:{count:0,wins:0,profitWins:0,breakEven:0,spent:0,paid:0,maxPayout:0}}}
 function load(){const f=fresh();try{const p=readJSON(KEY);if(!p)return f;const current=p.currentTicket&&Array.isArray(p.currentTicket.cells)?p.currentTicket:null;return{...f,...p,version:VERSION,currentTicket:current,balance:readSharedBalance(),history:Array.isArray(p.history)?p.history.slice(0,LIMIT):[],stats:{...f.stats,...(p.stats||{})}}}catch(e){console.warn('[AIRP ScratchCard] load failed',e);return f}}
 function save(){state.version=VERSION;state.selectedTierId=selected;state.balance=money(state.balance);state.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(state));writeSharedBalance(state.balance)}catch(e){console.warn('[AIRP ScratchCard] save failed',e)}}
 function fm(v,plus=false){v=money(v);const a=Math.abs(v),d=Number.isInteger(a)?0:2;return(v<0?'-¥':plus&&v>0?'+¥':'¥')+a.toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:2})}
@@ -171,7 +357,7 @@ function newTicket(t){const multiplier=pick(t),payout=money(t.price*multiplier);
 function emit(name,detail={}){const payload={...detail,version:VERSION,balance:state.balance};try{dispatchEvent(new CustomEvent(name,{detail:payload}))}catch(_){}try{if(parent&&parent!==window)parent.postMessage({type:name,detail:payload},'*')}catch(_){}}
 function toast(s){clearTimeout(toastTimer);E.toast.textContent=s;E.toast.classList.add('show');toastTimer=setTimeout(()=>E.toast.classList.remove('show'),1900)}
 let winOpener=null;
-function showWinModal(tk){const t=tier(tk.tierId),net=money(tk.payout-tk.price);winOpener=document.activeElement;E.winOverlay.dataset.tier=t.id;E.winTier.textContent=t.name;E.winAmount.textContent=fm(net);E.winCopy.textContent=`返还 ${fm(tk.payout)}，扣除票价后净盈利 ${fm(net)}`;E.winOverlay.hidden=false;requestAnimationFrame(()=>E.winAccept.focus())}
+function showWinModal(tk){const t=tier(tk.tierId);winOpener=document.activeElement;E.winOverlay.dataset.tier=t.id;E.winTier.textContent=t.name;E.winAmount.textContent=fm(tk.payout);E.winCopy.textContent=`本张奖面金额 ${fm(tk.payout)}，已存入角色资金`;E.winOverlay.hidden=false;requestAnimationFrame(()=>E.winAccept.focus())}
 function hideWinModal(){if(E.winOverlay.hidden)return;E.winOverlay.hidden=true;if(winOpener&&typeof winOpener.focus==='function')winOpener.focus();winOpener=null}
 function renderTiers(){E.tiers.innerHTML=TIERS.map(t=>`<button class="tier-btn" type="button" data-id="${t.id}" aria-pressed="${t.id===selected}" style="--tier-color:${t.color}">${t.name}<b>${fm(t.price)}</b></button>`).join('');E.tiers.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>selectTier(b.dataset.id))}
 function appearance(t){const m=metrics(t),i=TIERS.indexOf(t)+1,vars={'--paper':t.paper,'--paper2':t.paper2,'--pink':t.pink,'--cyan':t.cyan,'--gold':t.gold,'--ink':t.ink,'--ticket-text':t.ticketText,'--title-main':t.titleMain,'--title-sub':t.titleSub,'--title-shadow':t.titleShadow,'--mascot-a':t.mascotA,'--mascot-b':t.mascotB,'--mascot-fill':t.mascotFill,'--rule-a':t.ruleA,'--rule-b':t.ruleB,'--rule-head':t.ruleHead,'--rule-accent':t.ruleAccent,'--rule-border':t.ruleBorder,'--rule-shadow':t.ruleShadow,'--foil-1':t.foil[0],'--foil-2':t.foil[1],'--foil-3':t.foil[2],'--foil-4':t.foil[3],'--foil-5':t.foil[4],'--foil-line':t.foilLine,'--foil-text':t.foilText,'--grid-a':t.gridA,'--grid-b':t.gridB,'--icon-snow':t.icons[0],'--icon-cloud':t.icons[1],'--icon-moon':t.icons[2],'--icon-star':t.icons[3],'--icon-cat':t.icons[4],'--icon-paw':t.icons[5],'--prize-text':t.prizeText,'--jackpot-fill':t.jackpotFill};Object.entries(vars).forEach(([k,v])=>E.ticket.style.setProperty(k,v));E.ticket.dataset.tier=t.id;E.titleMain.textContent=t.title1;E.titleSub.textContent=t.title2;E.series.textContent=`N.T.I \u00b7 0${i}`;E.jackpot.textContent=compact(m.jackpot);E.stamp.textContent=`\u7968\u4ef7 ${fm(t.price)}`;E.buy.textContent=`\u8d2d\u4e70 ${fm(t.price)}`}
@@ -179,13 +365,13 @@ function renderOdds(){E.odds.innerHTML=TIERS.map(t=>{const m=metrics(t);return`<
 function renderBalance(){E.balance.textContent=fm(state.balance)}
 function iconHtml(c){if(c.paw)return '<span class="prize-icon paw"><i></i><i></i><i></i><i></i></span>';if(c.icon==='cat')return '<span class="prize-icon cat-face"><i></i></span>';return `<span class="prize-icon ${c.icon}">${c.glyph}</span>`}
 function renderTicket(){const tk=state.currentTicket;if(!tk){const t=tier();appearance(t);E.empty.hidden=false;E.grid.hidden=true;E.canvas.hidden=true;E.canvas.classList.remove('cleared');E.result.className='result';E.result.textContent='\u9009\u62e9\u7968\u6863\uff0c\u7136\u540e\u8d2d\u4e70\u4e00\u5f20\u5f69\u7968';E.reveal.disabled=true;E.buy.disabled=state.balance<t.price;return}const t=tier(tk.tierId);appearance(t);E.empty.hidden=true;E.grid.hidden=false;const rows=[tk.cells.slice(0,2),tk.cells.slice(2,6),tk.cells.slice(6,10),tk.cells.slice(10,12)];E.grid.innerHTML=rows.map(row=>`<div class="prize-row${row.length===2?' short':''}">${row.map(c=>`<div class="prize-cell${c.paw?' paw-cell':''}">${iconHtml(c)}<span class="prize-amount">${fm(c.amount)}</span></div>`).join('')}</div>`).join('');E.canvas.hidden=false;E.reveal.disabled=!!tk.settled;E.buy.disabled=!tk.settled||state.balance<tier().price;if(tk.settled){E.canvas.classList.add('cleared');renderResult(tk)}else{E.canvas.classList.remove('cleared');E.result.className='result';E.result.textContent='\u5f69\u7968\u5df2\u51c6\u5907\u597d\uff0c\u7528\u9f20\u6807\u6216\u624b\u6307\u522e\u5f00\u7070\u8272\u533a\u57df';requestAnimationFrame(drawFoil)}}
-function renderResult(tk){const net=money(tk.payout-tk.price);if(net>0){E.result.className='result win';E.result.textContent=`发现 ${tk.paws} 枚猫爪！返还 ${fm(tk.payout)}，净赚 ${fm(net)}`}else if(net===0){E.result.className='result';E.result.textContent=`返还 ${fm(tk.payout)}，本张保本`}else if(tk.payout>0){E.result.className='result lose';E.result.textContent=`返还 ${fm(tk.payout)}，实际净亏 ${fm(Math.abs(net))}`}else{E.result.className='result lose';E.result.textContent='这场梦里没有出现猫爪，本张未中奖'}}
-function renderHistory(){E.history.innerHTML=state.history.length?state.history.map(x=>{const net=money(x.payout-x.price),result=net>0?`净赚 ${fm(net,true)}`:net===0?'保本':`净亏 ${fm(Math.abs(net))}`;return`<div class="history-row"><span class="history-name">${tier(x.tierId).name} · ${x.paws||0}爪</span><span class="history-cost">-${fm(x.price)}</span><span class="history-prize${net>0?'':' zero'}">${result}</span></div>`}).join(''):'<div style="color:var(--muted);font-size:10px;padding:18px 0;text-align:center">尚无开奖记录</div>'}
-function renderStats(){E.count.textContent=(+state.stats.count||0).toLocaleString('zh-CN');E.returns.textContent=(+state.stats.wins||0).toLocaleString('zh-CN');E.wins.textContent=(+state.stats.profitWins||0).toLocaleString('zh-CN');E.breakEven.textContent=(+state.stats.breakEven||0).toLocaleString('zh-CN');E.spent.textContent=fm(state.stats.spent);E.paid.textContent=fm(state.stats.paid)}
+function renderResult(tk){if(tk.payout>0){E.result.className='result win';E.result.textContent=`发现 ${tk.paws} 枚猫爪！本张奖金 ${fm(tk.payout)}`}else{E.result.className='result lose';E.result.textContent='这场梦里没有出现猫爪，本张未中奖'}}
+function renderHistory(){E.history.innerHTML=state.history.length?state.history.map(x=>{const hasPrize=money(x.payout)>0,result=hasPrize?`奖金 ${fm(x.payout)}`:'未中奖';return`<div class="history-row"><span class="history-name">${tier(x.tierId).name} · ${x.paws||0}爪</span><span class="history-cost">-${fm(x.price)}</span><span class="history-prize${hasPrize?'':' zero'}">${result}</span></div>`}).join(''):'<div style="color:var(--muted);font-size:10px;padding:18px 0;text-align:center">尚无开奖记录</div>'}
+function renderStats(){const count=+state.stats.count||0,wins=+state.stats.wins||0,maxPayout=Math.max(money(state.stats.maxPayout),...state.history.map(x=>money(x.payout)));E.count.textContent=count.toLocaleString('zh-CN');E.returns.textContent=wins.toLocaleString('zh-CN');E.winRate.textContent=count?((wins/count)*100).toFixed(1)+'%':'0%';E.maxPayout.textContent=fm(maxPayout);E.spent.textContent=fm(state.stats.spent);E.paid.textContent=fm(state.stats.paid)}
 function render(){renderTiers();renderOdds();renderBalance();renderTicket();renderHistory();renderStats()}
 function selectTier(id){if(!TIERS.some(t=>t.id===id))return;if(state.currentTicket&&!state.currentTicket.settled){toast('请先刮开当前梦境券');return}selected=id;state.currentTicket=null;save();renderTiers();renderTicket()}
 function buy(){const t=tier();if(state.currentTicket&&!state.currentTicket.settled){toast('请先刮开当前梦境券');return}if(state.balance<t.price){toast(`角色资金还差 ${fm(t.price-state.balance)}`);return}const before=state.balance;state.balance=money(state.balance-t.price);state.currentTicket=newTicket(t);state.stats.count=(+state.stats.count||0)+1;state.stats.spent=money((+state.stats.spent||0)+t.price);save();render();emit('airp-scratch:transaction',{kind:'purchase',tierId:t.id,ticketId:state.currentTicket.id,delta:-t.price,before,after:state.balance})}
-function settle(source='scratch'){const tk=state.currentTicket;if(!tk||tk.settled)return;const before=state.balance;tk.settled=true;state.balance=money(state.balance+tk.payout);const net=money(tk.payout-tk.price),hasReturn=tk.payout>0,profitable=net>0,breakEven=net===0,result=profitable?'profit':breakEven?'break-even':hasReturn?'partial-loss':'loss';if(hasReturn)state.stats.wins=(+state.stats.wins||0)+1;if(profitable)state.stats.profitWins=(+state.stats.profitWins||0)+1;else if(breakEven)state.stats.breakEven=(+state.stats.breakEven||0)+1;state.stats.paid=money((+state.stats.paid||0)+tk.payout);state.history.unshift({tierId:tk.tierId,ticketId:tk.id,price:tk.price,payout:tk.payout,net,result,paws:tk.paws,timestamp:Date.now()});state.history=state.history.slice(0,LIMIT);save();E.canvas.classList.add('cleared');renderBalance();renderHistory();renderStats();renderResult(tk);E.reveal.disabled=true;E.buy.disabled=state.balance<tier().price;if(profitable){toast(`${tk.paws}枚猫爪，净赚 ${fm(net)}`);showWinModal(tk)}else if(breakEven)toast('本张返还本金，结果保本');else if(hasReturn)toast(`返还 ${fm(tk.payout)}，仍净亏 ${fm(Math.abs(net))}`);emit('airp-scratch:settled',{source,tierId:tk.tierId,ticketId:tk.id,price:tk.price,payout:tk.payout,net,result,hasReturn,profitable,breakEven,paws:tk.paws,multiplier:tk.multiplier,delta:tk.payout,before,after:state.balance})}
+function settle(source='scratch'){const tk=state.currentTicket;if(!tk||tk.settled)return;const before=state.balance;tk.settled=true;state.balance=money(state.balance+tk.payout);const net=money(tk.payout-tk.price),hasReturn=tk.payout>0,profitable=net>0,breakEven=net===0,result=profitable?'profit':breakEven?'break-even':hasReturn?'partial-loss':'loss';if(hasReturn)state.stats.wins=(+state.stats.wins||0)+1;if(profitable)state.stats.profitWins=(+state.stats.profitWins||0)+1;else if(breakEven)state.stats.breakEven=(+state.stats.breakEven||0)+1;state.stats.paid=money((+state.stats.paid||0)+tk.payout);state.stats.maxPayout=Math.max(money(state.stats.maxPayout),tk.payout);state.history.unshift({tierId:tk.tierId,ticketId:tk.id,price:tk.price,payout:tk.payout,net,result,paws:tk.paws,timestamp:Date.now()});state.history=state.history.slice(0,LIMIT);save();E.canvas.classList.add('cleared');renderBalance();renderHistory();renderStats();renderResult(tk);E.reveal.disabled=true;E.buy.disabled=state.balance<tier().price;if(hasReturn){toast(`${tk.paws}枚猫爪，奖金 ${fm(tk.payout)}`);showWinModal(tk)}emit('airp-scratch:settled',{source,tierId:tk.tierId,ticketId:tk.id,price:tk.price,payout:tk.payout,net,result,hasReturn,profitable,breakEven,paws:tk.paws,multiplier:tk.multiplier,delta:tk.payout,before,after:state.balance})}
 function cloudPath(c,w,h){c.beginPath();c.moveTo(.12*w,.18*h);c.bezierCurveTo(.08*w,.08*h,.18*w,.02*h,.27*w,.08*h);c.bezierCurveTo(.33*w,0,.43*w,.02*h,.49*w,.09*h);c.bezierCurveTo(.57*w,.01*h,.68*w,.02*h,.73*w,.09*h);c.bezierCurveTo(.84*w,.04*h,.95*w,.10*h,.94*w,.22*h);c.bezierCurveTo(w,.28*h,.99*w,.39*h,.94*w,.45*h);c.bezierCurveTo(w,.53*h,.98*w,.66*h,.91*w,.70*h);c.bezierCurveTo(.94*w,.82*h,.82*w,.91*h,.72*w,.86*h);c.bezierCurveTo(.65*w,.98*h,.53*w,.94*h,.48*w,.88*h);c.bezierCurveTo(.38*w,.98*h,.28*w,.91*h,.25*w,.83*h);c.bezierCurveTo(.13*w,.88*h,.04*w,.80*h,.08*w,.68*h);c.bezierCurveTo(0,.61*h,.01*w,.49*h,.07*w,.44*h);c.bezierCurveTo(0,.35*h,.03*w,.23*h,.12*w,.18*h);c.closePath()}
 function countOpaque(c,w,h){const d=c.getImageData(0,0,w,h).data,step=32;let n=0;for(let p=0;p<w*h;p+=step)if(d[p*4+3]>=64)n++;return n}
 function drawFoil(){const tk=state.currentTicket;if(!tk||tk.settled||E.canvas.hidden)return;const r=E.scratch.getBoundingClientRect();if(r.width<=0)return;const d=Math.min(devicePixelRatio||1,2),w=Math.round(r.width*d),h=Math.round(r.height*d);E.canvas.width=w;E.canvas.height=h;E.canvas.style.width=r.width+'px';E.canvas.style.height=r.height+'px';const c=E.canvas.getContext('2d',{willReadFrequently:true});c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,r.width,r.height);c.save();cloudPath(c,r.width,r.height);c.clip();const style=getComputedStyle(E.ticket),cv=(n,f)=>style.getPropertyValue(n).trim()||f,g=c.createLinearGradient(0,0,r.width,r.height);g.addColorStop(0,cv('--foil-1','#8b8b8f'));g.addColorStop(.32,cv('--foil-2','#5f6065'));g.addColorStop(.55,cv('--foil-3','#929296'));g.addColorStop(.78,cv('--foil-4','#55565d'));g.addColorStop(1,cv('--foil-5','#85858a'));c.fillStyle=g;c.fillRect(0,0,r.width,r.height);c.globalAlpha=.22;for(let i=0;i<150;i++){c.strokeStyle=i%2?cv('--foil-text','#fff'):cv('--foil-line','#16161d');c.lineWidth=rf()*1.1+.2;const x=rf()*r.width,y=rf()*r.height;c.beginPath();c.moveTo(x,y);c.lineTo(x+18+rf()*55,y-8+rf()*12);c.stroke()}c.globalAlpha=.5;c.strokeStyle=cv('--foil-line','#22222d');c.lineWidth=1.4;c.setLineDash([6,5]);const scratchRect=E.scratch.getBoundingClientRect();E.grid.querySelectorAll('.prize-cell').forEach(cell=>{const box=cell.getBoundingClientRect(),x=box.left-scratchRect.left,y=box.top-scratchRect.top;c.strokeRect(x,y,box.width,box.height)});c.setLineDash([]);c.globalAlpha=.83;c.fillStyle=cv('--foil-text','#e7e4e9');c.textAlign='center';c.textBaseline='middle';c.font=`1000 ${Math.max(17,Math.min(28,r.width/22))}px system-ui`;c.fillText('\u627e\u5230\u732b\u722a\u5373\u53ef\u83b7\u5f97\u5956\u91d1',r.width/2,r.height/2+23);c.restore();opaqueBase=countOpaque(E.canvas.getContext('2d',{willReadFrequently:true}),w,h)}

@@ -13,6 +13,8 @@ import './styles/drawer.css';
    overrides have to land on top of the cell rules they narrow. */
 import './styles/gifts.css';
 import './styles/portrait.css';
+/* The compact more tray serves both compositions, so its stylesheet lands after both. */
+import './styles/menu.css';
 import './styles/perf.css';
 
 import { cssUrl } from './asset.js';
@@ -37,6 +39,8 @@ import { startBridge } from './bridge.js';
    sharing the material, the tokens' structure and the construction rules.
 
    ?mode=portrait / ?mode=landscape forces one for testing. */
+const portraitMq = matchMedia('(max-width: 879px) and (orientation: portrait)');
+
 function wantsPortrait() {
   const forced = new URLSearchParams(location.search).get('mode');
   /* A tavern status iframe on a phone is a tall, narrow column.  Honour that
@@ -45,7 +49,7 @@ function wantsPortrait() {
   if (phoneColumn) return true;
   if (forced === 'portrait') return true;
   if (forced === 'landscape') return false;
-  return innerWidth < innerHeight && innerWidth < 720;
+  return portraitMq.matches || (innerWidth < innerHeight && innerWidth < 720);
 }
 
 function bootLandscape() {
@@ -97,9 +101,12 @@ function bootLandscape() {
 
 function bootPortrait() {
   const viewport = document.querySelector('.viewport');
-  const host = document.createElement('div');
-  host.id = 'pstage';
-  viewport.appendChild(host);
+  let host = document.getElementById('pstage');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'pstage';
+    viewport.appendChild(host);
+  }
 
   const stage = createPortraitStage(host);
   mountPortraitContent(stage, {
@@ -135,6 +142,14 @@ function applyMode() {
      is that opening the preview makes the page taller. */
   document.documentElement.classList.toggle('portrait-mode', portrait);
 
+  /* Inline `hidden` so the unused canvas is gone even if the CSS bundle is late.
+     A phone otherwise keeps the landscape glass in the tree, paints a second
+     portrait copy, and Chrome reloads until it reports the URL repeating. */
+  const landscape = document.getElementById('stage');
+  if (landscape) landscape.hidden = portrait;
+  const portraitHost = document.getElementById('pstage');
+  if (portraitHost) portraitHost.hidden = !portrait;
+
   if (portrait) {
     if (!portraitStage) portraitStage = bootPortrait();
     else portraitStage.sync();
@@ -148,7 +163,10 @@ applyMode();
 startBridge();
 
 let modeTick = 0;
-addEventListener('resize', () => {
+const scheduleMode = () => {
   cancelAnimationFrame(modeTick);
   modeTick = requestAnimationFrame(applyMode);
-});
+};
+addEventListener('resize', scheduleMode);
+if (portraitMq.addEventListener) portraitMq.addEventListener('change', scheduleMode);
+else if (portraitMq.addListener) portraitMq.addListener(scheduleMode);

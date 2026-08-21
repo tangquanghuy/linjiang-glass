@@ -5,11 +5,11 @@ import devMatrix from './dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, NO_STATUS, PRIVACY, THRESHOLDS,
   characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon,
-  itemIconTag, partArt, player, potencyNotches, scheduleHint, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
+  itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
-import { requestClockIn } from './bridge.js';
+import { openPhone, requestClockIn } from './bridge.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 
@@ -375,7 +375,6 @@ function scheduleRun(row) {
 
 function schedulePage() {
   const model = streamSchedule();
-  const hint = scheduleHint(model);
   const dayHead = model.days.map((day) => `<b class="${day.isToday ? 'is-today' : ''}">${day.day}${day.isToday ? '<em>今天</em>' : ''}</b>`).join('');
   const rows = model.rows.map((row) => `
     <article class="schedule-line t-${row.theme}${row.watching ? ' is-watching' : ''}">
@@ -387,8 +386,12 @@ function schedulePage() {
   const today = model.today.map((row) => `<span class="schedule-today-chip t-${row.theme}${row.live ? ' is-live' : ''}"><i></i><b>${row.start}</b>${row.name}</span>`).join('');
 
   return pageShell('Weekly Schedule', '开播日程表', `
+    <!-- The page's dateline, and only that.  It used to lead with a count of who was
+         rostered, live and off; 今日顺序 below names those people, so the numbers were a
+         tally of the next two rows.  What is left is the one fact the rest of the page
+         needs and does not state: which day and hour 今日 means. -->
     <div class="schedule-summary">
-      <div><b>${hint}</b><span>${model.weekday} · ${model.clock}</span></div>
+      <div><b>${model.weekday} · ${model.clock}</b></div>
     </div>
     <div class="schedule-today"><b>今日顺序</b>${today}</div>
     <div class="schedule-board-head"><span>主播</span><span>常用时间</span><div>${dayHead}</div><span>今日状态</span></div>
@@ -595,12 +598,16 @@ function profilePage() {
   })}
     </div>
 
+    <!-- 查看开播日程 used to sit under the roster here.  It is gone because 更多工具条 now
+         reaches 开播日程表 in one press from the pod, and a second route to it from inside
+         another page made this column the place people learned to look for it -- which is
+         the habit the directory exists to replace.  Its live hint line was the one thing
+         the link carried that the directory did not, so that moved to the tile's note
+         (see menuGroups in data.js) rather than being lost.  The roster takes the freed
+         height: .profile-fans is grid-auto-rows:1fr, so the rows simply breathe. -->
     <aside class="profile-fans-col">
       <div class="archive-head">${mark()}<b>粉丝身份</b><span>${fanHint}</span><i></i></div>
       <div class="profile-fans">${fans}</div>
-      <button class="profile-schedule-link" type="button" data-page="schedule">
-        <span><b>查看开播日程</b><small>${scheduleHint()}</small></span>${ic('arrowRight')}
-      </button>
     </aside>
   </div>
   `, 'profile-page');
@@ -711,7 +718,12 @@ function relationsPage() {
    The city map and the arcade are not sheets: they cover the unscaled viewport
    so pan/zoom and game pointers are not fighting the canvas transform, and they
    peel as a page. */
-export function mountPages(stage, { onGift, onDock } = {}) {
+/* `onOverlay` fires when the city map or the arcade is about to take the viewport.  It
+   used to be the tool button's job to evict the drawer and the gift tray first, but 街机
+   now also opens from the compact more tray, and a destination that clears the bottom band from one
+   entry point and not the other is a bug waiting to be found.  So the eviction moved to
+   the thing that actually knows an overlay is opening. */
+export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   let layer = stage.querySelector(':scope > .page-layer');
   if (!layer) {
     layer = document.createElement('div');
@@ -775,6 +787,7 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   };
 
   const openMap = () => {
+    onOverlay?.();
     closeNote();
     drop('.page-shade, .page-modal');
     closeMap();
@@ -784,6 +797,7 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   };
 
   const openArcade = () => {
+    onOverlay?.();
     closeNote();
     drop('.page-shade, .page-modal');
     closeMap();
@@ -825,6 +839,11 @@ export function mountPages(stage, { onGift, onDock } = {}) {
   };
 
   const open = (page) => {
+    if (page === 'phone') {
+      closePage();
+      openPhone().catch((err) => console.warn('[phone]', err));
+      return;
+    }
     if (page === 'map') { openMap(); return; }
     if (page === 'arcade') { openArcade(); return; }
     if (page === 'inventory') inventoryLeaf = 0;

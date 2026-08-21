@@ -4,9 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Glass HUD — 状态栏复刻</title>
+<script>
+/* GitHub project pages 301 /repo → /repo/.  Some mobile Chromes still resolve
+   ./assets against the slash-less URL and then reload; one extra replace here
+   matches the server, it does not bounce back. */
+(function () {
+  var path = location.pathname;
+  if (path && path.charAt(path.length - 1) !== '/' && !/\.[a-zA-Z0-9]+$/.test(path)) {
+    location.replace(path + '/' + location.search + location.hash);
+  }
+})();
+</script>
+<style>
+  /* Hide the landscape canvas before the JS bundle arrives.  Otherwise a phone
+     first-paints the 1672×941 glass (and its 2MB plate), then boots a second
+     portrait copy of the same scene — Chrome then looks like it refreshed into
+     a duplicated page. */
+  @media (max-width: 879px) and (orientation: portrait) {
+    #stage { display: none !important; }
+  }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Great+Vibes&family=Italianno&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript>
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Great+Vibes&family=Italianno&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+</noscript>
 </head>
 <body>
 <div class="viewport">

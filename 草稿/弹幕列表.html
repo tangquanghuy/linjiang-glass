@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>塔菲的直播间</title>
+  <style>
+    :root {
+      --blue: #00aeec;
+      --blue-hover: #23ade5;
+      --pink: #ff6699;
+      --pink-hover: #fb7299;
+      --gold: #ffb027;
+      --jian: #5798f8;
+      --ti: #d4a017;
+      --du: #c46bb0;
+      --bg: #141517;
+      --card: #1c1e22;
+      --sub: #252830;
+      --line: #2e323b;
+      --text: #fff;
+      --muted: #9499a0;
+      --dim: #61666d;
+      --chat: #ccd0d7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      padding: 28px 16px 40px;
+      background: #fdfbf7;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 预览按正文美化栏宽：外层 800，正文区大约 700 */
+    .page {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 18px 20px 24px;
+      container-type: inline-size;
+    }
+    .page-note {
+      margin: 0 0 12px;
+      color: #6b5d4a;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .room {
+      position: relative;
+      width: 100%;
+      height: 560px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
+      grid-template-rows: 52px minmax(0, 1fr) auto;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    }
+    .room-h { grid-column: 1 / -1; }
+    .cam { grid-column: 1; grid-row: 2; }
+    .tray { grid-column: 1; grid-row: 3; }
+    .side { grid-column: 2; grid-row: 2 / -1; }
+
+    .room-h {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      height: 52px;
+      padding: 0 12px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .host {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1.5px solid var(--pink);
+      border-radius: 50%;
+      background: #2a2230;
+    }
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 18%;
+    }
+    .meta { min-width: 0; }
+    .meta h1 {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta p {
+      display: flex;
+      gap: 10px;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .follow {
+      flex-shrink: 0;
+      height: 30px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 16px;
+      background: var(--pink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s ease, transform .2s ease;
+    }
+    .follow:hover { background: var(--pink-hover); transform: translateY(-1px); }
+    .follow.on { background: var(--sub); color: var(--muted); }
+    .room-h .acts {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .cam {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      container-type: inline-size;
+      border-right: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 28%, rgba(255, 140, 160, .16), transparent 58%),
+        linear-gradient(180deg, #2a2230, #12141c);
+    }
+    .cam img.feed {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 16%;
+    }
+    .cam::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(0,0,0,.12), transparent 30%, transparent 72%, rgba(0,0,0,.28));
+    }
+    .danmu {
+      position: absolute;
+      inset: 28px 0 36px;
+      z-index: 3;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .cam.quiet .danmu { display: none; }
+    .fly {
+      position: absolute;
+      left: 100%;
+      white-space: nowrap;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      text-shadow: 1px 1px 2px #000, -1px 0 2px #000, 0 -1px 2px #000;
+      animation: fly linear forwards;
+    }
+    .fly.jian { color: #9ec9ff; }
+    .fly.ti { color: #ffe08a; }
+    .fly.du { color: #f3b7e6; }
+    .fly.gift { color: var(--gold); }
+    .fly.self { color: var(--blue); }
+    .live {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 4px;
+      background: #e23d3d;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      box-shadow: 0 4px 12px rgba(226, 61, 61, .28);
+    }
+    .live i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    .toast {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: calc(100% - 16px);
+      padding: 7px 12px 7px 7px;
+      border-radius: 999px;
+      background: rgba(20, 16, 18, .62);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .22);
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .28s ease, transform .28s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast img { width: 26px; height: 26px; object-fit: contain; }
+    .toast b { color: var(--gold); font-size: 12px; }
+    .toast span { color: #fff; font-size: 12px; font-weight: 650; }
+
+    .pause {
+      margin-left: 8px;
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .pause:hover { color: var(--blue); }
+
+    .tray {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      height: 38px;
+      padding: 0 4px 0 10px;
+      background: #16181d;
+      border-top: 1px solid var(--line);
+    }
+    .wallet {
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .wallet b { color: var(--gold); font-weight: 700; }
+    .rail {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+    }
+    .pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      padding: 0 22px;
+      overflow: hidden;
+      cursor: grab;
+    }
+    .pills.is-drag { cursor: grabbing; }
+    .nudge {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      border: 0;
+      color: #fff;
+      cursor: pointer;
+      transition: opacity .18s ease, color .18s ease;
+    }
+    .nudge svg { display: block; width: 12px; height: 12px; }
+    .nudge.prev {
+      left: 0;
+      background: linear-gradient(90deg, #16181d 62%, transparent);
+    }
+    .nudge.next {
+      right: 0;
+      background: linear-gradient(270deg, #16181d 62%, transparent);
+    }
+    .nudge i {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .16);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+    }
+    .nudge.off { opacity: 0; pointer-events: none; }
+    .nudge:hover { color: var(--blue); }
+    .nudge:hover i { background: rgba(0, 174, 236, .35); }
+    .pill {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 5px;
+      flex: 0 0 auto;
+      height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--sub);
+      color: var(--chat);
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color .2s ease, background .2s ease;
+    }
+    .pill:hover { border-color: var(--blue); background: #2c3240; }
+    .pill img { width: 18px; height: 18px; object-fit: contain; }
+    .pill b { font-weight: 650; }
+    .pill em { font-style: normal; color: var(--gold); font-weight: 700; }
+
+    .overlay {
+      grid-column: 1 / -1;
+      grid-row: 1 / -1;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(8, 10, 14, .52);
+      pointer-events: auto;
+    }
+    .overlay.show { display: flex; }
+    .dlg {
+      width: min(268px, 100%);
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 12px;
+      background: #1e2128;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+    }
+    .dlg-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .dlg-ico {
+      display: grid;
+      flex-shrink: 0;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: #16181d;
+    }
+    .dlg-ico img { width: 40px; height: 40px; object-fit: contain; }
+    .dlg-meta { min-width: 0; }
+    .dlg-meta h3 { font-size: 15px; font-weight: 700; }
+    .dlg-meta .price {
+      margin-top: 4px;
+      color: var(--gold);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .qty-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .qty-row > span { width: 32px; color: var(--muted); font-size: 12px; }
+    .qty-row button {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--sub);
+      color: #fff;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .qty-row input {
+      width: 72px;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #16181d;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+    }
+    .qty-row input:focus, .dlg-sc textarea:focus { border-color: var(--blue); }
+    .chips { display: flex; gap: 6px; margin-bottom: 14px; }
+    .chips button {
+      flex: 1;
+      height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--sub);
+      color: var(--chat);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .chips button.on {
+      border-color: var(--blue);
+      background: rgba(0, 174, 236, .18);
+      color: #fff;
+    }
+    .dlg-sc textarea {
+      width: 100%;
+      height: 52px;
+      margin-bottom: 14px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #16181d;
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      resize: none;
+      outline: none;
+    }
+    .dlg-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dlg-sum {
+      margin-right: auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .dlg-sum b { color: var(--gold); font-variant-numeric: tabular-nums; }
+    .dlg-sum .broke { color: #ff6b81; font-weight: 700; }
+    .dlg-foot button {
+      height: 32px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .dlg-foot .cancel { background: var(--sub); color: var(--chat); }
+    .dlg-foot .ok { min-width: 72px; background: var(--blue); color: #fff; }
+    .dlg-foot .ok.hot { background: #ff5d38; }
+    .dlg-foot .ok:disabled { opacity: .4; cursor: not-allowed; }
+
+    .join { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+    .join-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 6px;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--sub);
+      color: var(--chat);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .join-btn:hover { border-color: var(--blue); }
+    .join-btn img { width: 22px; height: 22px; object-fit: contain; }
+    .join-btn span { flex: 1; text-align: left; font-weight: 700; }
+    .join-btn em { font-style: normal; color: var(--gold); font-weight: 700; }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      background: var(--card);
+      border-left: 1px solid var(--line);
+    }
+    .tabs {
+      display: flex;
+      height: 38px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      flex: 1;
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab.on {
+      color: var(--blue);
+      box-shadow: inset 0 -2px 0 var(--blue);
+    }
+
+    .pin {
+      display: none;
+      flex-shrink: 0;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      background: transparent;
+      border-bottom: 0;
+      transition: opacity .4s ease, max-height .4s ease;
+    }
+    .pin.show, .pin.out { display: block; }
+    .pin.show {
+      max-height: 180px;
+      opacity: 1;
+    }
+    .pin.out {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .pin-h {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 0;
+      padding: 7px 10px 9px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .pin-tag {
+      flex-shrink: 0;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(0, 0, 0, .22);
+      color: #fff;
+    }
+    .pin-user {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .pin-yen {
+      flex-shrink: 0;
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+    .pin-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      background: rgba(0, 0, 0, .22);
+      pointer-events: none;
+    }
+    .pin-bar > span {
+      display: block;
+      height: 100%;
+      width: 100%;
+      transform: scaleX(var(--sc-p, 1));
+      transform-origin: left center;
+      background: rgba(255, 255, 255, .92);
+    }
+    .pin-t {
+      margin: 0;
+      padding: 8px 10px;
+      color: #ffe3c2;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+    .pin.sc-30 .pin-h { background: #2b86d6; }
+    .pin.sc-30 .pin-t { background: #d7ecfb; color: #16324a; }
+    .pin.sc-50 .pin-h { background: #1aa0b8; }
+    .pin.sc-50 .pin-t { background: #d6f4f8; color: #123840; }
+    .pin.sc-100 .pin-h { background: #d59a18; }
+    .pin.sc-100 .pin-t { background: #fff1c4; color: #4a3208; }
+
+    .pane { display: none; flex: 1; min-height: 0; overflow: auto; padding: 10px; }
+    .pane.on { display: block; }
+    .pane::-webkit-scrollbar { width: 4px; }
+    .pane::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
+    .row {
+      margin-bottom: 6px;
+      color: var(--chat);
+      font-size: 12px;
+      line-height: 1.55;
+      word-break: break-all;
+      animation: in .2s ease both;
+    }
+    .enter, .sys { color: var(--dim); }
+    .sys { color: #c07a7a; }
+
+    .medal, .bdg {
+      display: inline-block;
+      height: 16px;
+      margin-right: 4px;
+      padding: 0 4px;
+      border-radius: 2px;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 16px;
+      vertical-align: 1px;
+    }
+    .medal { background: #3874cb; }
+    .bdg.jian { background: var(--jian); }
+    .bdg.ti { background: linear-gradient(180deg, #f0c45a, #c49220); color: #3a2a08; }
+    .bdg.du { background: linear-gradient(180deg, #e8a0d2, #c45aa0); }
+
+    .name { margin-right: 4px; color: var(--muted); font-weight: 600; }
+    .row.jian .name { color: #8bbaff; }
+    .row.ti .name { color: #e8c56a; }
+    .row.du .name { color: #e39ad4; }
+
+    .gift-line { color: var(--gold); font-weight: 700; }
+    .gift-line .name { color: #ffd18a; }
+    .gift-line em { font-style: normal; color: #fff; }
+
+    .sc {
+      margin: 4px 0 8px;
+      overflow: hidden;
+      border-radius: 6px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
+    }
+    .sc-h {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .sc-b {
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+    .sc-30 .sc-h { background: #2b86d6; }
+    .sc-30 .sc-b { background: #d7ecfb; color: #16324a; }
+    .sc-50 .sc-h { background: #1aa0b8; }
+    .sc-50 .sc-b { background: #d6f4f8; color: #123840; }
+    .sc-100 .sc-h { background: #d59a18; }
+    .sc-100 .sc-b { background: #fff1c4; color: #4a3208; }
+
+    .guard, .rank {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+    .guard:last-child, .rank:last-child { border-bottom: 0; }
+    .rank b { color: var(--gold); font-variant-numeric: tabular-nums; }
+    .hint { color: var(--dim); font-size: 12px; padding: 8px 2px; }
+
+    .send {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px 10px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--line);
+    }
+    .send input {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--sub);
+      color: #fff;
+      font-size: 12px;
+      outline: none;
+    }
+    .send input:focus { border-color: var(--blue); }
+    .send-acts {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .send-acts button {
+      flex: none;
+      height: 34px;
+      border: 0;
+      border-radius: 17px;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 34px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background .2s ease, color .2s ease;
+    }
+    .send-acts .sc-btn {
+      padding: 0 8px;
+      background: transparent;
+      color: #ff7a58;
+    }
+    .send-acts .sc-btn:hover { background: rgba(255, 93, 56, .12); }
+    .send-acts .go {
+      min-width: 52px;
+      padding: 0 14px;
+      background: var(--blue);
+      color: #fff;
+    }
+    .send-acts .go:hover { background: var(--blue-hover); }
+
+    .cam > .pin.show, .cam > .pin.out {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 10px;
+      z-index: 8;
+      overflow: hidden;
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
+    }
+    .cam > .pin.show { max-height: 108px; }
+    .cam > .pin .pin-h { padding: 5px 8px 7px; }
+    .cam > .pin .pin-t {
+      padding: 6px 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .cam:has(> .pin.show) .toast {
+      top: 32px;
+      bottom: auto;
+    }
+    .cam:has(> .pin.show) .danmu { bottom: 118px; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .35; }
+    }
+    @keyframes fly {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(-100cqi - 100%)); }
+    }
+    @keyframes in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 8px; }
+      .page { width: 100%; padding: 4px 0 12px; }
+      .page-note { margin-bottom: 8px; font-size: 11px; }
+    }
+
+    /* 房间自身变窄就上下叠，不靠屏幕宽度硬拆两栏 */
+    @container (max-width: 580px) {
+      .room {
+        height: min(720px, calc(100dvh - 16px));
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
+      }
+      .room-h {
+        height: 46px;
+        padding: 0 8px;
+        gap: 8px;
+      }
+      .cam { grid-column: 1; grid-row: 2; }
+      .tray {
+        grid-column: 1;
+        grid-row: 3;
+        height: 44px;
+      }
+      .side {
+        grid-column: 1;
+        grid-row: 4;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+      .avatar { width: 30px; height: 30px; }
+      .meta h1 { display: none; }
+      .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
+      .meta p span:nth-child(2) { display: none; }
+      .room-h .acts { gap: 2px; }
+      .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
+      #pause { display: none; }
+      .follow { height: 32px; padding: 0 12px; }
+      .cam img.feed { object-position: 50% 10%; }
+      .tabs { height: 40px; }
+      .tab { font-size: 13px; }
+      .pane { padding: 8px; }
+      .send { padding: 8px 8px 10px; }
+      .dlg { width: min(300px, 100%); }
+    }
+
+    @media (max-width: 640px) {
+      .room {
+        height: min(720px, calc(100dvh - 16px));
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
+      }
+      .room-h {
+        height: 46px;
+        padding: 0 8px;
+        gap: 8px;
+      }
+      .cam { grid-column: 1; grid-row: 2; }
+      .tray {
+        grid-column: 1;
+        grid-row: 3;
+        height: 44px;
+      }
+      .side {
+        grid-column: 1;
+        grid-row: 4;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+      .avatar { width: 30px; height: 30px; }
+      .meta h1 { display: none; }
+      .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
+      .meta p span:nth-child(2) { display: none; }
+      .room-h .acts { gap: 2px; }
+      .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
+      #pause { display: none; }
+      .follow { height: 32px; padding: 0 12px; }
+      .cam img.feed { object-position: 50% 10%; }
+      .tabs { height: 40px; }
+      .tab { font-size: 13px; }
+      .pane { padding: 8px; }
+      .send { padding: 8px 8px 10px; }
+      .dlg { width: min(300px, 100%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="page-note">按正文美化栏宽预览 · 约 700px × 560px</p>
+  <div class="room" id="room">
+      <header class="room-h">
+        <div class="host">
+          <div class="avatar"><img id="hostAvatar" alt="" onerror="this.parentNode.style.background='#3a2a32'"></div>
+          <div class="meta">
+            <h1 id="hostTitle">王牌级杂谈：读 SC 与整活</h1>
+            <p><span id="hostName">塔菲</span><span id="hostSlot">晚间主档 20:00–23:30</span><span id="hostPop">人气 1.8万</span></p>
+          </div>
+        </div>
+        <div class="acts">
+          <button class="pause" id="toggleDanmu" type="button">弹幕 开</button>
+          <button class="pause" id="pause" type="button">播放中</button>
+          <button class="follow" id="follow" type="button">+ 关注</button>
+        </div>
+      </header>
+
+      <div class="cam" id="cam">
+        <img class="feed" id="hostFeed" alt="" onerror="this.style.display='none'">
+        <span class="live"><i></i>LIVE</span>
+        <div class="danmu" id="danmu"></div>
+        <div class="toast" id="toast"><img alt=""><b></b><span></span></div>
+      </div>
+
+      <aside class="side">
+        <div class="tabs">
+          <button class="tab on" type="button" data-tab="chat">互动</button>
+          <button class="tab" type="button" data-tab="navy">大航海</button>
+          <button class="tab" type="button" data-tab="rank">高能榜</button>
+        </div>
+        <div class="pin" id="pin"></div>
+        <div class="pane on" id="chat" role="log" aria-live="polite"></div>
+        <div class="pane" id="navy"></div>
+        <div class="pane" id="rank"></div>
+        <form class="send" id="form">
+          <input id="say" maxlength="30" placeholder="发个弹幕和主播互动吧" autocomplete="off">
+          <div class="send-acts">
+            <button class="sc-btn" id="scBtn" type="button">醒目留言</button>
+            <button class="go" type="submit">发送</button>
+          </div>
+        </form>
+      </aside>
+
+      <div class="tray">
+        <div class="wallet">金钱 <b id="money">￥286,450</b></div>
+        <div class="rail">
+          <button class="nudge prev off" id="giftPrev" type="button" aria-label="向左看更多礼物">
+            <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M8 2 4 6l4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></i>
+          </button>
+          <div class="pills" id="gifts"></div>
+          <button class="nudge next off" id="giftNext" type="button" aria-label="向右看更多礼物">
+            <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></i>
+          </button>
+        </div>
+      </div>
+      <div class="overlay" id="overlay"><div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"></div></div>
+  </div>
+  </div>
+
+  <script>
+    const TIER = { jian: '舰长', ti: '提督', du: '总督' };
+    const QTY_STEPS = [1, 10, 66, 233];
+    const SC_STEPS = [30, 50, 100];
+    const ART = '../dist/assets/gifts/';
+    const ART_HOST = 'https://anchor.bolt.qzz.io';
+    const HOSTS = {
+      '东雪莲': { cover: '东雪莲', title: '', slot: '深夜杂谈 21:30–00:30', pop: 0 },
+      '塔菲': { cover: '塔菲', title: '王牌级杂谈：读SC与整活', slot: '晚间主档 20:00–23:30', pop: 18240 },
+      '沙花叉': { cover: '沙花叉', title: '', slot: '历史常用晚间档 21:00–00:30', pop: 0 },
+      '时雨羽衣': { cover: '时雨羽衣', title: '', slot: '周更型 22:00–00:30', pop: 0 },
+      '红蔷薇': { cover: '红蔷薇', title: '', slot: '黄昏音乐台 19:00–22:00', pop: 0 },
+      '斯黛拉': { cover: '斯黛拉', title: '', slot: '傍晚电台 18:30–21:30', pop: 0 },
+      '璃亚梦': { cover: '梦见璃亚梦', title: '深夜emo小作文与观众互动', slot: '深夜互动 23:00–02:00', pop: 6310 },
+    };
+    const HOST_ALIAS = { '永雏塔菲': '塔菲', '沙花叉克萝伊': '沙花叉', '梦见璃亚梦': '璃亚梦', '伊贺栖寅': '斯黛拉', '斯黛拉（伊贺栖寅）': '斯黛拉' };
+    const artUrl = (folder, file) => ART_HOST + '/' + encodeURIComponent(folder) + '/' + encodeURIComponent(file) + '.webp';
+    const canonHost = (name) => HOST_ALIAS[name] || name;
+    function formatPop(n) {
+      const x = Number(n) || 0;
+      if (x >= 10000) return (Math.round(x / 1000) / 10).toFixed(1).replace(/\.0$/, '') + '万';
+      if (x >= 1000) return Math.round(x / 100) * 100 + '';
+      return String(x);
+    }
+    function paintHost(name) {
+      const key = canonHost(name);
+      const host = HOSTS[key];
+      if (!host) return;
+      const avatar = document.getElementById('hostAvatar');
+      const feed = document.getElementById('hostFeed');
+      avatar.src = artUrl('头像', key);
+      avatar.alt = key;
+      feed.src = artUrl('封面', host.cover);
+      feed.alt = key + '立绘';
+      document.getElementById('hostTitle').textContent = host.title || key + '的直播间';
+      document.getElementById('hostName').textContent = key;
+      document.getElementById('hostSlot').textContent = host.slot;
+      document.getElementById('hostPop').textContent = host.pop ? '人气 ' + formatPop(host.pop) : '人气 —';
+    }
+    paintHost('塔菲');
+    const ICONS = {
+      '小心心': ART + 'gift-heart.png',
+      '辣条': ART + 'gift-snack.png',
+      '干杯': ART + 'gift-cheers.png',
+      '心愿盲盒': ART + 'gift-blindbox.png',
+      '情书': ART + 'gift-letter.png',
+      '小飞机': ART + 'gift-plane.png',
+      '摩天大楼': ART + 'gift-tower.png',
+      '火箭': ART + 'gift-rocket.png',
+      '舰长': ART + 'gift-guard-1.png',
+      '提督': ART + 'gift-guard-2.png',
+      '总督': ART + 'gift-guard-3.png',
+    };
+    const GIFTS = [
+      { name: '小心心', price: 0 },
+      { name: '辣条', price: 1 },
+      { name: '干杯', price: 20 },
+      { name: '心愿盲盒', price: 50 },
+      { name: '情书', price: 100 },
+      { name: '小飞机', price: 200 },
+      { name: '摩天大楼', price: 520 },
+      { name: '火箭', price: 1288 },
+    ];
+    const GUARD_BUY = [
+      { name: '舰长', price: 138, tier: 'jian', days: 30 },
+      { name: '提督', price: 1998, tier: 'ti', days: 30 },
+      { name: '总督', price: 19998, tier: 'du', days: 30 },
+    ];
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const yen = (n) => '￥' + Number(n).toLocaleString('en-US');
+    const priceTag = (n) => n ? '¥' + n : '免费';
+
+    const DATA = [
+      { type: 'sys', text: '系统提示：请保持弹幕礼仪，人身攻击将被禁言。' },
+      { type: 'enter', user: '云庭7楼' },
+      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '来了，电梯刚好卡在十三层' },
+      { type: 'chat', user: '电竞舱隔壁', text: '耳机漏音，听得到你骂棺人' },
+      { type: 'chat', user: '阿初', tier: 'jian', medal: '塔 21', text: '今日发型是认真的，不是随手抓的' },
+      { type: 'gift', user: '辣条批发部', gift: '辣条', n: 66 },
+      { type: 'enter', user: '明湖散步的猫' },
+      { type: 'chat', user: '明湖散步的猫', text: '周三休那天真的会来查房吗' },
+      { type: 'sc', user: '西洲加班人', amount: 30, text: '加班到现在，求一句「辛苦了」，我就去睡觉' },
+      { type: 'chat', user: '深海灯', tier: 'ti', medal: '塔 27', text: '王牌级杂谈名副其实，节奏稳' },
+      { type: 'chat', user: '临江夜航', tier: 'du', medal: '塔 31', text: '大航海续上了。别被火箭带跑，按你自己的节奏说' },
+      { type: 'gift', user: '鼓岭晚风', gift: '干杯', n: 10 },
+      { type: 'chat', user: '梧桐里便利店', text: '便当加热好了，主播记得吃饭' },
+      { type: 'chat', user: '星芒夜班', tier: 'jian', medal: '塔 18', text: '读到我那条关于云庭公寓的 SC 没有' },
+      { type: 'sc', user: '莲花池守夜人', amount: 100, text: '今晚唱半首也行。不用完整，情绪到了就够' },
+      { type: 'chat', user: '青屏山雾', text: '画面有点暗，是电竞舱的灯还是滤镜' },
+      { type: 'gift', user: '火箭人', gift: '火箭', n: 1 },
+      { type: 'enter', user: '湖滨卡座' },
+      { type: 'chat', user: '湖滨卡座', text: '沙花叉今晚没播，所以全挤过来了吗' },
+      { type: 'sys', text: '用户 匿名棺 已被禁言' },
+      { type: 'chat', user: '阿初', tier: 'jian', medal: '塔 21', text: '那条烂梗已经被禁了，谢谢' },
+      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '好活' },
+      { type: 'chat', user: '深海灯', tier: 'ti', medal: '塔 27', text: '标题写读 SC，结果你在整活。观众很吃这套' },
+      { type: 'sc', user: '明湖散步的猫', amount: 50, text: '下播后如果去湖滨，记得把外套拉链拉上' },
+      { type: 'chat', user: '时雨路过', medal: '羽 8', text: '羽衣今晚不播，我来串门' },
+    ];
+
+    const LOOP = [
+      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '火箭刚过去，弹幕被冲掉一层' },
+      { type: 'enter', user: '鼓岭晚风' },
+      { type: 'gift', user: '星芒夜班', gift: '小心心', n: 1 },
+      { type: 'chat', user: '临江夜航', tier: 'du', medal: '塔 31', text: '别急着念 ID，先把那句辛苦了给人' },
+      { type: 'chat', user: '电竞舱隔壁', text: '隔壁舱也在看，敲墙三下' },
+      { type: 'chat', user: '梧桐里便利店', text: '233333' },
+      { type: 'chat', user: '青屏山雾', text: '这波节奏可以' },
+    ];
+
+    const GUARDS = [
+      { user: '临江夜航', tier: 'du', days: 28 },
+      { user: '深海灯', tier: 'ti', days: 16 },
+      { user: '阿初', tier: 'jian', days: 18 },
+      { user: '星芒夜班', tier: 'jian', days: 12 },
+    ];
+
+    const RANK = [
+      { user: '火箭人', score: 1288 },
+      { user: '莲花池守夜人', score: 100 },
+      { user: '明湖散步的猫', score: 50 },
+      { user: '西洲加班人', score: 30 },
+      { user: '鼓岭晚风', score: 200 },
+      { user: '辣条批发部', score: 66 },
+    ];
+
+    const chat = document.getElementById('chat');
+    const pin = document.getElementById('pin');
+    const toast = document.getElementById('toast');
+    const danmu = document.getElementById('danmu');
+    const cam = document.getElementById('cam');
+    const room = document.getElementById('room');
+    const tabs = document.querySelector('.tabs');
+
+    function placePin() {
+      const narrow = room.clientWidth <= 580;
+      if (narrow) {
+        if (pin.parentNode !== cam) cam.appendChild(pin);
+      } else if (tabs && pin.previousElementSibling !== tabs) {
+        tabs.after(pin);
+      }
+    }
+    placePin();
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(placePin).observe(room);
+    else window.addEventListener('resize', placePin);
+    const overlay = document.getElementById('overlay');
+    const dlg = document.getElementById('dlg');
+    const giftsEl = document.getElementById('gifts');
+    let money = 286450;
+    let paused = false;
+    let lane = 0;
+    let pending = null;
+    let swipeMoved = 0;
+    let playerTier = 'jian';
+    const LANES = 9;
+
+    function prefix(item) {
+      return (item.medal ? `<span class="medal">${esc(item.medal)}</span>` : '')
+        + (item.tier ? `<span class="bdg ${item.tier}">${TIER[item.tier]}</span>` : '');
+    }
+    function scBand(n) { return n >= 100 ? '100' : n >= 50 ? '50' : '30'; }
+    function scHold(amount) {
+      const n = Number(amount) || 0;
+      if (n >= 100) return 5 * 60 * 1000;
+      if (n >= 50) return 2 * 60 * 1000;
+      return 60 * 1000;
+    }
+    function scHtml(item) {
+      return `<div class="sc sc-${scBand(item.amount)}"><div class="sc-h"><span>${esc(item.user)}</span><span>¥${item.amount}</span></div><div class="sc-b">${esc(item.text)}</div></div>`;
+    }
+    function htmlOf(item) {
+      if (item.type === 'enter') return `<p class="row enter">${esc(item.user)} 来了</p>`;
+      if (item.type === 'sys') return `<p class="row sys">${esc(item.text)}</p>`;
+      if (item.type === 'gift') {
+        return `<p class="row gift-line"><span class="name">${esc(item.user)}</span>投喂了 <em>${esc(item.gift)}</em> x${item.n}</p>`;
+      }
+      if (item.type === 'sc') return `<div class="row">${scHtml(item)}</div>`;
+      return `<p class="row ${item.tier || ''}">${prefix(item)}<span class="name">${esc(item.user)}:</span><span>${esc(item.text)}</span></p>`;
+    }
+
+    let scQueue = [];
+    let scCur = null;
+    let scRaf = 0;
+
+    function pinMarkup(item) {
+      return `<div class="pin-h"><span class="pin-tag">醒目留言</span><span class="pin-user">${esc(item.user)}</span><span class="pin-yen">¥ ${item.amount}.00</span><span class="pin-bar"><span></span></span></div><p class="pin-t">${esc(item.text)}</p>`;
+    }
+    function playPin() {
+      placePin();
+      cancelAnimationFrame(scRaf);
+      const item = scQueue.shift();
+      if (!item) {
+        pin.className = 'pin';
+        pin.innerHTML = '';
+        pin.style.opacity = '';
+        pin.style.removeProperty('--sc-p');
+        scCur = null;
+        return;
+      }
+      pin.className = 'pin show sc-' + scBand(item.amount);
+      pin.style.opacity = '1';
+      pin.style.setProperty('--sc-p', 1);
+      pin.innerHTML = pinMarkup(item);
+      const hold = scHold(item.amount);
+      scCur = { item, hold, left: hold, last: performance.now() };
+      scRaf = requestAnimationFrame(tickPin);
+    }
+    function tickPin(now) {
+      if (!scCur) return;
+      if (!pin.isConnected) { cancelAnimationFrame(scRaf); scCur = null; return; }
+      if (!paused) scCur.left -= now - scCur.last;
+      scCur.last = now;
+      const p = Math.max(0, scCur.left / scCur.hold);
+      pin.style.setProperty('--sc-p', String(p));
+      pin.style.opacity = p < 0.2 ? String(0.28 + (p / 0.2) * 0.72) : '1';
+      if (p <= 0) {
+        pin.style.opacity = '';
+        pin.classList.add('out');
+        scCur = null;
+        setTimeout(playPin, 420);
+        return;
+      }
+      scRaf = requestAnimationFrame(tickPin);
+    }
+    function pinSc(item) {
+      scQueue.push(item);
+      if (!scCur) playPin();
+    }
+
+    function showToast(item) {
+      toast.querySelector('img').src = ICONS[item.gift] || '';
+      toast.querySelector('b').textContent = item.user;
+      toast.querySelector('span').textContent = item.line || `投喂了 ${item.gift} x${item.n}`;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function spawnFly(item, self) {
+      if (cam.classList.contains('quiet')) return;
+      if (item.type !== 'chat' && item.type !== 'gift') return;
+      const el = document.createElement('span');
+      el.className = 'fly ' + (self ? 'self' : (item.tier || (item.type === 'gift' ? 'gift' : '')));
+      el.textContent = item.type === 'gift'
+        ? `${item.gift} x${item.n}`
+        : item.text;
+      el.style.top = `${4 + (lane % LANES) * 10}%`;
+      el.style.animationDuration = `${5.5 + (lane % 4) * 0.7}s`;
+      lane += 1;
+      danmu.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    function push(item, self) {
+      chat.insertAdjacentHTML('beforeend', htmlOf(item));
+      while (chat.children.length > 46) chat.removeChild(chat.firstChild);
+      chat.scrollTop = chat.scrollHeight;
+      if (item.type === 'sc') pinSc(item);
+      if (item.type === 'gift') showToast(item);
+      spawnFly(item, self);
+    }
+
+    function paintMoney() {
+      document.getElementById('money').textContent = yen(money);
+    }
+    function paintNavy() {
+      document.getElementById('navy').innerHTML = GUARDS.map((g) =>
+        `<div class="guard"><span>${prefix(g)}<span class="name ${g.tier}">${esc(g.user)}</span></span><span class="hint" style="padding:0">剩余 ${g.days} 天</span></div>`
+      ).join('') + `<div class="join"><p class="hint" style="padding:0 2px 4px">开通大航海：弹幕优先被看见，ID 会被记住。</p>${
+        GUARD_BUY.map((g) =>
+          `<button class="join-btn" type="button" data-guard="${esc(g.name)}"><img src="${ICONS[g.name]}" alt=""><span>${esc(g.name)} ${g.days} 天</span><em>${priceTag(g.price)}</em></button>`
+        ).join('')
+      }</div>`;
+    }
+    function paintRank() {
+      RANK.sort((a, b) => b.score - a.score);
+      document.getElementById('rank').innerHTML = RANK.map((r, i) =>
+        `<div class="rank"><span>${i + 1}. ${esc(r.user)}</span><b>${yen(r.score)}</b></div>`
+      ).join('');
+    }
+    function addRank(user, score) {
+      if (!score) return;
+      const hit = RANK.find((r) => r.user === user);
+      if (hit) hit.score += score;
+      else RANK.push({ user, score });
+      paintRank();
+    }
+    function upsertGuard(tier, days) {
+      playerTier = tier;
+      const me = GUARDS.find((g) => g.user === '你');
+      if (me) { me.tier = tier; me.days = days; }
+      else GUARDS.unshift({ user: '你', tier, days });
+      paintNavy();
+    }
+
+    paintNavy();
+    paintRank();
+
+    DATA.forEach((item, i) => setTimeout(() => push(item), i * 80));
+
+    let tick = 0;
+    setInterval(() => {
+      if (paused) return;
+      push(LOOP[tick % LOOP.length]);
+      tick += 1;
+    }, 2800);
+
+    document.querySelectorAll('.tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((t) => t.classList.remove('on'));
+        document.querySelectorAll('.pane').forEach((p) => p.classList.remove('on'));
+        btn.classList.add('on');
+        document.getElementById(btn.dataset.tab).classList.add('on');
+      });
+    });
+
+    document.getElementById('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('say');
+      const text = input.value.trim();
+      if (!text) return;
+      push({ type: 'chat', user: '你', tier: playerTier, medal: '塔 21', text }, true);
+      input.value = '';
+    });
+
+    function costOf() {
+      if (!pending) return 0;
+      if (pending.mode === 'gift') return pending.price * pending.qty;
+      if (pending.mode === 'guard') return pending.price;
+      return pending.amount;
+    }
+    function syncDlg() {
+      if (!pending) return;
+      const cost = costOf();
+      const broke = money < cost;
+      const empty = pending.mode === 'sc' && !String(pending.text || '').trim();
+      const sum = dlg.querySelector('[data-sum]');
+      if (sum) sum.innerHTML = broke ? '<span class="broke">余额不足</span>' : `合计 <b>${yen(cost)}</b>`;
+      const ok = dlg.querySelector('[data-ok]');
+      if (ok) ok.disabled = broke || empty || (pending.mode === 'gift' && pending.qty < 1);
+      dlg.querySelectorAll('[data-setqty]').forEach((b) => {
+        b.classList.toggle('on', Number(b.dataset.setqty) === pending.qty);
+      });
+      dlg.querySelectorAll('[data-setamt]').forEach((b) => {
+        b.classList.toggle('on', Number(b.dataset.setamt) === pending.amount);
+      });
+      const qty = dlg.querySelector('[data-qty]');
+      if (qty && document.activeElement !== qty) qty.value = pending.qty;
+    }
+    function renderDlg() {
+      if (!pending) return;
+      if (pending.mode === 'gift') {
+        dlg.innerHTML = `
+          <div class="dlg-top">
+            <div class="dlg-ico"><img src="${ICONS[pending.name]}" alt=""></div>
+            <div class="dlg-meta">
+              <h3 id="dlgTitle">${esc(pending.name)}</h3>
+              <p class="price">${priceTag(pending.price)} / 个</p>
+            </div>
+          </div>
+          <div class="qty-row">
+            <span>数量</span>
+            <button type="button" data-step="-1">−</button>
+            <input data-qty value="${pending.qty}" inputmode="numeric" maxlength="4" aria-label="赠送数量">
+            <button type="button" data-step="1">+</button>
+          </div>
+          <div class="chips">${QTY_STEPS.map((n) => `<button type="button" data-setqty="${n}">${n}</button>`).join('')}</div>
+          <div class="dlg-foot">
+            <span class="dlg-sum" data-sum></span>
+            <button type="button" class="cancel" data-cancel>取消</button>
+            <button type="button" class="ok" data-ok>赠送</button>
+          </div>`;
+      } else if (pending.mode === 'guard') {
+        dlg.innerHTML = `
+          <div class="dlg-top">
+            <div class="dlg-ico"><img src="${ICONS[pending.name]}" alt=""></div>
+            <div class="dlg-meta">
+              <h3 id="dlgTitle">${esc(pending.name)}</h3>
+              <p class="price">${pending.days} 天 · ${priceTag(pending.price)}</p>
+            </div>
+          </div>
+          <div class="dlg-foot">
+            <span class="dlg-sum" data-sum></span>
+            <button type="button" class="cancel" data-cancel>取消</button>
+            <button type="button" class="ok" data-ok>开通</button>
+          </div>`;
+      } else {
+        dlg.innerHTML = `
+          <div class="dlg-top">
+            <div class="dlg-meta">
+              <h3 id="dlgTitle">醒目留言</h3>
+            </div>
+          </div>
+          <div class="chips">${SC_STEPS.map((n) => `<button type="button" data-setamt="${n}">¥${n}</button>`).join('')}</div>
+          <div class="dlg-sc"><textarea data-sc-text maxlength="40" placeholder="说点什么">${esc(pending.text || '')}</textarea></div>
+          <div class="dlg-foot">
+            <span class="dlg-sum" data-sum></span>
+            <button type="button" class="cancel" data-cancel>取消</button>
+            <button type="button" class="ok hot" data-ok>发送</button>
+          </div>`;
+      }
+      syncDlg();
+    }
+    function closeDlg() {
+      overlay.classList.remove('show');
+      pending = null;
+    }
+    function openDlg() {
+      overlay.classList.add('show');
+      renderDlg();
+      const focus = dlg.querySelector('[data-qty], [data-sc-text]');
+      focus?.focus();
+      if (focus && focus.select) focus.select();
+    }
+    function setQty(n) {
+      pending.qty = Math.max(1, Math.min(9999, parseInt(n, 10) || 1));
+      const input = dlg.querySelector('[data-qty]');
+      if (input) input.value = pending.qty;
+      syncDlg();
+    }
+    function sendGift(name, qty) {
+      const gift = GIFTS.find((g) => g.name === name);
+      if (!gift) return;
+      const cost = gift.price * qty;
+      if (money < cost) return;
+      money -= cost;
+      paintMoney();
+      push({ type: 'gift', user: '你', gift: name, n: qty }, true);
+      addRank('你', cost);
+    }
+    function openGift(name) {
+      const gift = GIFTS.find((g) => g.name === name);
+      if (!gift) return;
+      if (!gift.price) {
+        sendGift(name, 1);
+        return;
+      }
+      pending = { mode: 'gift', ...gift, qty: 1 };
+      openDlg();
+    }
+    function openGuard(name) {
+      const card = GUARD_BUY.find((g) => g.name === name);
+      if (!card) return;
+      pending = { mode: 'guard', ...card };
+      openDlg();
+    }
+    function openSc() {
+      pending = {
+        mode: 'sc',
+        amount: 30,
+        text: document.getElementById('say').value.trim(),
+      };
+      openDlg();
+    }
+    function confirmSend() {
+      if (!pending) return;
+      const cost = costOf();
+      if (money < cost) return;
+      if (pending.mode === 'sc' && !String(pending.text || '').trim()) return;
+      if (pending.mode === 'gift') {
+        sendGift(pending.name, pending.qty);
+      } else if (pending.mode === 'guard') {
+        money -= cost;
+        paintMoney();
+        upsertGuard(pending.tier, pending.days);
+        showToast({ user: '你', gift: pending.name, line: `开通了 ${pending.name} ${pending.days} 天` });
+        push({ type: 'sys', text: `你成为了塔菲的${pending.name}（${pending.days} 天）` }, true);
+        spawnFly({ type: 'gift', gift: pending.name, n: 1 }, true);
+        addRank('你', cost);
+      } else {
+        money -= cost;
+        paintMoney();
+        const text = pending.text.trim();
+        push({ type: 'sc', user: '你', amount: pending.amount, text }, true);
+        document.getElementById('say').value = '';
+        addRank('你', cost);
+      }
+      closeDlg();
+    }
+
+    giftsEl.innerHTML = GIFTS.map((g) =>
+      `<button class="pill" type="button" data-kind="gift" data-gift="${esc(g.name)}"><img src="${ICONS[g.name]}" alt=""><b>${esc(g.name)}</b><em>${priceTag(g.price)}</em></button>`
+    ).join('') + GUARD_BUY.map((g) =>
+      `<button class="pill" type="button" data-kind="guard" data-gift="${esc(g.name)}"><img src="${ICONS[g.name]}" alt=""><b>${esc(g.name)}</b><em>${priceTag(g.price)}</em></button>`
+    ).join('');
+
+    function pickGift(btn) {
+      if (!btn) return;
+      if (btn.dataset.kind === 'guard') openGuard(btn.dataset.gift);
+      else openGift(btn.dataset.gift);
+    }
+
+    document.getElementById('navy').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-guard]');
+      if (btn) openGuard(btn.dataset.guard);
+    });
+    document.getElementById('scBtn').addEventListener('click', openSc);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeDlg();
+    });
+    dlg.addEventListener('click', (e) => {
+      if (e.target.closest('[data-cancel]')) { closeDlg(); return; }
+      if (e.target.closest('[data-ok]')) { confirmSend(); return; }
+      const step = e.target.closest('[data-step]');
+      if (step && pending?.mode === 'gift') setQty(pending.qty + Number(step.dataset.step));
+      const q = e.target.closest('[data-setqty]');
+      if (q && pending?.mode === 'gift') setQty(q.dataset.setqty);
+      const a = e.target.closest('[data-setamt]');
+      if (a && pending?.mode === 'sc') { pending.amount = Number(a.dataset.setamt); syncDlg(); }
+    });
+    dlg.addEventListener('input', (e) => {
+      if (e.target.dataset.qty !== undefined && pending?.mode === 'gift') {
+        pending.qty = Math.max(1, Math.min(9999, parseInt(e.target.value, 10) || 1));
+        syncDlg();
+      }
+      if (e.target.dataset.scText !== undefined && pending?.mode === 'sc') {
+        pending.text = e.target.value;
+        syncDlg();
+      }
+    });
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        confirmSend();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('show')) {
+        e.preventDefault();
+        closeDlg();
+      }
+    });
+
+    (function bindGiftRail() {
+      const prev = document.getElementById('giftPrev');
+      const next = document.getElementById('giftNext');
+      const sync = () => {
+        const max = giftsEl.scrollWidth - giftsEl.clientWidth;
+        prev.classList.toggle('off', max < 8 || giftsEl.scrollLeft < 8);
+        next.classList.toggle('off', max < 8 || giftsEl.scrollLeft > max - 8);
+      };
+      prev.addEventListener('click', () => giftsEl.scrollBy({ left: -150, behavior: 'smooth' }));
+      next.addEventListener('click', () => giftsEl.scrollBy({ left: 150, behavior: 'smooth' }));
+      giftsEl.addEventListener('scroll', sync, { passive: true });
+      window.addEventListener('resize', sync);
+      requestAnimationFrame(sync);
+
+      let down = false, x0 = 0, left0 = 0, pressPill = null;
+      giftsEl.addEventListener('pointerdown', (e) => {
+        if (e.button && e.button !== 0) return;
+        down = true;
+        pressPill = e.target.closest('.pill');
+        x0 = e.clientX;
+        left0 = giftsEl.scrollLeft;
+        swipeMoved = 0;
+        giftsEl.setPointerCapture(e.pointerId);
+        giftsEl.classList.add('is-drag');
+      });
+      giftsEl.addEventListener('pointermove', (e) => {
+        if (!down) return;
+        const dx = e.clientX - x0;
+        if (Math.abs(dx) < 10) return;
+        swipeMoved = Math.max(swipeMoved, Math.abs(dx));
+        giftsEl.scrollLeft = left0 - dx;
+      });
+      giftsEl.addEventListener('pointerup', (e) => {
+        const pill = pressPill;
+        const moved = swipeMoved;
+        down = false;
+        pressPill = null;
+        giftsEl.classList.remove('is-drag');
+        try { giftsEl.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (pill && moved <= 10) pickGift(pill);
+      });
+      giftsEl.addEventListener('pointercancel', () => {
+        down = false;
+        pressPill = null;
+        giftsEl.classList.remove('is-drag');
+      });
+      giftsEl.addEventListener('wheel', (e) => {
+        if (giftsEl.scrollWidth <= giftsEl.clientWidth) return;
+        e.preventDefault();
+        giftsEl.scrollLeft += e.deltaY + e.deltaX;
+      }, { passive: false });
+    }());
+
+    document.getElementById('follow').addEventListener('click', function () {
+      const on = this.classList.toggle('on');
+      this.textContent = on ? '已关注' : '+ 关注';
+    });
+
+    document.getElementById('toggleDanmu').addEventListener('click', function () {
+      const quiet = cam.classList.toggle('quiet');
+      this.textContent = quiet ? '弹幕 关' : '弹幕 开';
+    });
+
+    document.getElementById('pause').addEventListener('click', function () {
+      paused = !paused;
+      this.textContent = paused ? '已暂停' : '播放中';
+    });
+  </script>
+</body>
+</html>

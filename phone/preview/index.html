@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小手机 · 样式预览</title>
+<style>
+  /* 预览页自己的背景，模拟酒馆聊天区的底色，不参与脚本样式 */
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #10131a linear-gradient(160deg, #1b2030 0%, #0c0e14 100%);
+    font-family: system-ui, sans-serif;
+    color: #6b7280;
+  }
+  #preview-hint {
+    position: fixed; left: 16px; bottom: 12px; font-size: 12px; opacity: .5; z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div id="preview-hint">小手机样式预览 · 数据来自 preview/mock.js</div>
+
+<!-- 酒馆里 Font Awesome 是宿主页面自带的，脚本只在缺失时补一个 link。
+     预览页没有宿主，所以这里显式引一份，否则所有图标都是空白。 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" crossorigin="anonymous">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js" crossorigin="anonymous"></script>
+<script src="./mock.js"></script>
+<script src="../小手机脚本.js"></script>
+<script>
+  /* 脚本自己会等 Mvu 就绪后 initializeMobilePhone()，这里只负责把手机打开，
+     并暴露给截图脚本一个稳定的入口。 */
+  window.__openPhone = async () => {
+    await window.__phoneReady;
+    if (typeof window.openMobilePhone === 'function') window.openMobilePhone();
+  };
+</script>
+</body>
+</html>

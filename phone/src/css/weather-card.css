@@ -1,0 +1,56 @@
+/* ==================== 时间天气卡片 ====================
+   这张卡本来就被作者关掉了（原实现是 visibility:hidden，但仍占着 ~110px 高度，
+   于是图标被挤到屏幕中间）。这里改成 display:none：图标从顶部排下来，
+   跟真机主屏一致，壁纸下半部分也露得出来。
+   下面的字号/字重保留并按 iOS 锁屏时钟调过，想重新启用只要去掉 display:none。 */
+.weather-card {
+    display: none;
+}
+
+.weather-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.current-date {
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.2px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+
+/* iOS 锁屏时钟：超大字号 + 细字重 + 紧字距 */
+.current-time {
+    font-family: var(--ph-num);
+    font-size: 76px;
+    font-weight: 250;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.4);
+}
+
+.weather-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 999px;
+    padding: 7px 14px;
+    gap: 8px;
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.24);
+}
+
+.weather-desc {
+    font-size: 13px;
+    color: #fff;
+    font-weight: 500;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}

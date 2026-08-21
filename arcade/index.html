@@ -37,7 +37,11 @@
 [hidden]{display:none!important}
 html,body{margin:0;min-height:100%}
 body{
-  --nav-h:62px;
+  /* --dock-h is measured from the real topbar by JS; --nav-h is what the
+     stage subtracts.  Keeping them separate lets the full-bleed games
+     zero out the reserve without losing the measurement. */
+  --dock-h:62px;
+  --nav-h:var(--dock-h);
   padding:0;background:var(--stage);color:var(--text);
   font:14px/1.5 "Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;overflow-x:hidden;
@@ -49,7 +53,9 @@ a{color:inherit}
 .topbar{
   position:sticky;top:0;z-index:60;
   display:flex;align-items:center;gap:10px;
-  min-height:var(--nav-h);padding:8px 12px;
+  /* A literal floor, not var(--nav-h): --nav-h is derived from this
+     element's height, so feeding it back in makes the reserve drift. */
+  min-height:56px;padding:8px 12px;
   background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 88%,transparent),color-mix(in srgb,var(--stage) 70%,transparent));
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
 }
@@ -65,7 +71,7 @@ html.is-hud .wallet-mint{display:none!important}
 }
 .tab{
   display:flex;align-items:center;justify-content:center;gap:7px;
-  min-width:0;padding:9px 8px;border:0;border-radius:12px;
+  min-width:0;min-height:44px;padding:9px 8px;border:0;border-radius:12px;
   background:transparent;cursor:pointer;
   font-weight:800;font-size:13px;letter-spacing:.02em;
   transition:background .16s,color .16s,box-shadow .16s;
@@ -85,7 +91,8 @@ html.is-hud .wallet-mint{display:none!important}
 .wallet{position:relative}
 .wallet-btn{
   display:flex;align-items:center;gap:6px;
-  min-height:40px;padding:0 12px 0 10px;
+  position:relative;
+  min-height:44px;padding:0 12px 0 10px;
   border:1px solid color-mix(in srgb,var(--good) 28%,var(--line));
   border-radius:999px;background:#00000028;cursor:pointer;
 }
@@ -94,7 +101,7 @@ html.is-hud .wallet-mint{display:none!important}
   background:color-mix(in srgb,var(--good) 22%,transparent);
   color:var(--good);font-size:12px;font-weight:900;
 }
-.wallet-btn b{color:var(--good);font-size:15px;font-variant-numeric:tabular-nums;font-weight:800}
+.wallet-btn b{color:var(--good);font-size:15px;font-variant-numeric:tabular-nums;font-weight:800;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wallet-btn:hover{background:#ffffff12}
 .pop{
   position:absolute;right:0;top:calc(100% + 8px);z-index:70;
@@ -188,28 +195,29 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent2);outline-of
   .tab .ico{font-size:15px}
 }
 @media(max-width:520px){
-  body{--nav-h:56px}
-  .topbar{padding:6px 8px;gap:8px}
+  .topbar{min-height:50px;padding:6px 8px;gap:8px}
   html.is-hud .topbar{padding-right:50px}
   .tabs{padding:3px;border-radius:14px}
-  .tab{flex-direction:column;gap:2px;padding:6px 2px;font-size:10px;border-radius:10px}
+  .tab{flex-direction:column;gap:2px;padding:5px 2px;font-size:10px;border-radius:10px}
   .tab .ico{font-size:16px}
-  .wallet-btn{min-height:36px;padding:0 8px 0 6px}
-  .wallet-btn b{font-size:13px}
+  .wallet-btn{padding:0 8px 0 6px}
+  .wallet-btn b{font-size:12px;max-width:26vw}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
 
-/* Scratch and fishing are landscape games. On a portrait phone the rotator
-   is sized as a landscape stage (width = 100dvh, height = 100dvw) and turned
-   -90deg so the games see a wide viewport without squeezing into a column.
-   Clockwise phone rotation then matches: game-top sits on the phone's left. */
+/* 刮刮乐、每日一签、深海寻宝都是横向构图的游戏。手机竖着拿时，把 .rotator
+   做成一个横屏舞台（width = 100dvh，height = 100dvw）再转 -90deg，
+   游戏拿到的就是真正的宽视口，而不是被挤成一条竖列。
+   逆时针转页面 = 顺时针转手机，游戏的上边落在手机左侧。
+
+   深海寻宝必须这样：它的画布位图写死 960x540 且 object-fit:fill，
+   竖屏会被横向压到 27%，鱼全被拉高 3.7 倍。 */
 .rotator{display:contents}
 html.is-force-landscape,html.is-force-landscape body{
   width:100%;height:100%;overflow:hidden;
 }
-html.is-force-landscape body{--nav-h:52px}
 html.is-force-landscape .rotator{
   display:block;position:fixed;z-index:1;
   top:50%;left:50%;
@@ -219,11 +227,15 @@ html.is-force-landscape .rotator{
   overflow:hidden;background:var(--stage);
 }
 html.is-force-landscape .topbar{
-  position:sticky;padding:6px 10px;gap:8px;
+  position:sticky;min-height:0;padding:5px 10px;gap:8px;
   background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 88%,transparent),color-mix(in srgb,var(--stage) 70%,transparent));
 }
-html.is-force-landscape .tabs{max-width:none}
-html.is-force-landscape .tab{flex-direction:row;padding:7px 6px;font-size:12px}
+html.is-force-landscape .tabs{flex:1 1 auto;max-width:none;padding:3px}
+html.is-force-landscape .tab{flex-direction:row;gap:6px;min-height:40px;padding:6px;font-size:12px}
+html.is-force-landscape .tab .label{display:inline}
+html.is-force-landscape .tab .ico{font-size:15px}
+html.is-force-landscape .wallet-btn{min-height:40px}
+html.is-force-landscape .wallet-btn b{font-size:13px;max-width:22vh}
 html.is-force-landscape .stage{
   height:calc(100% - var(--nav-h));
   min-height:0;
@@ -232,6 +244,89 @@ html.is-force-landscape .stage{
 html.is-force-landscape .stage[data-fit=viewport] .frame,
 html.is-force-landscape .stage[data-fit=content] .frame{
   height:100%!important;min-height:0!important;
+}
+/* 每日一签和深海寻宝是整屏画面，坞浮在上面不吃高度；
+   刮刮乐自带标题栏，坞浮起来会把它压掉，所以留在文档流里。 */
+html.is-force-landscape[data-game=shrine] body,
+html.is-force-landscape[data-game=fishing] body{--nav-h:0px}
+html.is-force-landscape[data-game=shrine] .topbar,
+html.is-force-landscape[data-game=fishing] .topbar{
+  position:absolute;left:0;right:0;top:0;z-index:60;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--stage) 78%,transparent),transparent);
+  pointer-events:none;
+}
+html.is-force-landscape[data-game=shrine] .tabs,
+html.is-force-landscape[data-game=fishing] .tabs,
+html.is-force-landscape[data-game=shrine] .bar-right,
+html.is-force-landscape[data-game=fishing] .bar-right{pointer-events:auto}
+html.is-force-landscape[data-game=shrine] .tabs,
+html.is-force-landscape[data-game=fishing] .tabs{flex:0 0 auto;background:#00000055}
+html.is-force-landscape[data-game=shrine] .stage,
+html.is-force-landscape[data-game=fishing] .stage{height:100%}
+
+/* 手机真横屏（横着拿）：顶栏收成图标坞。
+   每日一签和深海寻宝是整屏画面，坞浮在上面；刮刮乐和幸运机自带顶部标题，
+   坞若浮起来就会把标题压掉，所以那两个游戏保持坞在文档流里。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  html,body{height:100%;overflow:hidden}
+  .topbar{
+    min-height:0;padding:6px 10px;gap:8px;
+    align-items:center;
+  }
+  html.is-hud .topbar{padding-right:52px}
+  .tabs,.bar-right,.wallet,.tab{pointer-events:auto}
+  .tabs{
+    flex:0 0 auto;width:auto;max-width:none;
+    grid-template-columns:repeat(4,44px);
+    gap:2px;padding:3px;
+    background:#00000055;
+  }
+  .tab{
+    position:relative;
+    flex-direction:column;padding:4px 2px;min-height:38px;
+    font-size:0;gap:0;
+  }
+  /* 38px 的坞在 390px 高的横屏里已经占掉一成高度，不再往上加；
+     命中区用透明 ::after 撑到 44px。 */
+  .tab:after{
+    content:"";position:absolute;left:0;right:0;top:50%;
+    min-height:44px;height:100%;
+    transform:translateY(-50%);
+  }
+  .tab .label{display:none}
+  .tab .ico{font-size:18px}
+  .wallet-btn{min-height:38px;padding:0 8px 0 6px}
+  .wallet-btn:after{
+    content:"";position:absolute;left:0;right:0;top:50%;
+    min-height:44px;height:100%;
+    transform:translateY(-50%);
+  }
+  .wallet-btn b{font-size:12px;max-width:22vw}
+
+  /* full-bleed games: float the dock, hand the game the whole viewport */
+  html[data-game=shrine] .topbar,
+  html[data-game=fishing] .topbar{
+    position:absolute;left:0;right:0;top:0;z-index:60;
+    align-items:flex-start;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--stage) 70%,transparent),transparent);
+    pointer-events:none;
+  }
+  html[data-game=shrine] body,
+  html[data-game=fishing] body{--nav-h:0px}
+
+  .stage[data-fit=viewport] .frame,
+  .stage[data-fit=content] .frame{
+    height:calc(100dvh - var(--nav-h))!important;min-height:0!important;
+  }
+  html[data-game=slots] body{overflow:hidden;height:100%}
+  html[data-game=slots] .stage{
+    display:flex;justify-content:center;
+    height:calc(100dvh - var(--nav-h));overflow:hidden;
+  }
+  html[data-game=slots] .frame{
+    width:min(100%,460px);
+    height:calc(100dvh - var(--nav-h))!important;min-height:0!important;
+  }
 }
 </style>
 </head>
@@ -298,9 +393,10 @@ const DEFAULT_BALANCE = 1000;
 
 const GAMES = [
   {id:'shrine',  file:'shrine.html',  ns:'airp-shrine',  ico:'⛩️', label:'每日一签',
-   title:'每日一签',       state:null, fit:'viewport', themed:false},
+   title:'每日一签',       state:null, fit:'viewport', themed:false, landscape:true},
   {id:'scratch', file:'scratch.html', ns:'airp-scratch', ico:'🐾', label:'刮刮乐',
    title:'猫爪梦境刮刮乐', state:'airp_scratch_card_state_v2', fit:'content', themed:true, landscape:true},
+  /* 幸运机是竖柜，竖屏本来就是它的正确形态，不参与强制横屏。 */
   {id:'slots',   file:'slots.html',   ns:'airp-slot',    ico:'🎰', label:'幸运机',
    title:'直播幸运机',     state:'airp_physical_slot_state_v2', fit:'content', themed:true},
   {id:'fishing', file:'fishing.html', ns:'airp-fishing', ico:'🐟', label:'深海寻宝',
@@ -322,6 +418,7 @@ const el = {
 
 let current = GAMES[0];
 let theme = document.documentElement.dataset.theme || 'dark';
+let arcadeProfile = null;
 
 const embedded = (() => { try { return parent !== window; } catch (_) { return false; } })();
 let hostReady = !embedded;
@@ -331,15 +428,6 @@ try { if (embedded) document.documentElement.classList.add('is-hud'); } catch (_
 if (embedded) {
   const hint = document.getElementById('walletHint');
   if (hint) hint.textContent = '四个游戏共用角色资金，与世界「金钱」同步。';
-}
-
-function portraitPhone() { return innerHeight > innerWidth; }
-
-function syncForceLandscape() {
-  const on = !!current.landscape && portraitPhone();
-  document.documentElement.classList.toggle('is-force-landscape', on);
-  el.stage.dataset.fit = on ? 'viewport' : current.fit;
-  if (on) el.frame.style.height = '';
 }
 
 /* ---------------- storage helpers ---------------- */
@@ -427,7 +515,9 @@ function applyHostBalance(raw) {
   if (!el.frame.getAttribute('src')) show(gameFromHash());
 }
 
-function renderBalance() { el.balance.textContent = fmt(readBalance()); }
+function renderBalance() {
+  el.balance.textContent = money(readBalance()).toLocaleString('zh-CN', {maximumFractionDigits: 0});
+}
 
 /* ---------------- messaging into the active page ---------------- */
 function send(type, extra) {
@@ -478,6 +568,7 @@ function buildTabs() {
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', 'false');
     b.title = g.title;
+    b.setAttribute('aria-label', g.label);
     b.innerHTML = '<span class="ico" aria-hidden="true">' + g.ico +
                   '</span><span class="label">' + g.label + '</span>';
     b.addEventListener('click', () => { location.hash = '#' + g.id; });
@@ -522,11 +613,56 @@ function route() {
   show(g);
 }
 
+/* ---------------- forced landscape ---------------- */
+/* Three of the four games are horizontal compositions, and 深海寻宝 is worse
+   than that: its canvas bitmap is a fixed 960x540 with object-fit:fill, so a
+   portrait box squeezes the picture to 27% of its width.  On a portrait phone
+   the whole shell is rotated instead, which hands every game a wide viewport. */
+/* Phone-sized only.  A tablet held in portrait has room for the native
+   layout, and rotating a whole tablet UI is jarring rather than helpful. */
+function portraitPhone() {
+  return innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+}
+
+function syncForceLandscape() {
+  const on = !!current.landscape && portraitPhone();
+  document.documentElement.classList.toggle('is-force-landscape', on);
+  el.stage.dataset.fit = on ? 'viewport' : current.fit;
+  if (on) el.frame.style.height = '';
+  measureDock();
+}
+
+/* ---------------- dock height ---------------- */
+/* The dock grows and shrinks with the layout: 4 icon-over-label tabs on a
+   360px phone are taller than one row on a desktop.  A hard-coded --nav-h
+   left the stage 9px too tall on every phone, which is enough to make the
+   page scroll and the mobile address bar jitter.  Measure it instead.
+
+   offsetHeight, not getBoundingClientRect: in forced landscape the dock sits
+   inside a rotate(-90deg) subtree, and a client rect is post-transform, so it
+   would report the dock's width as its height. */
+const dock = document.querySelector('.topbar');
+function measureDock() {
+  const h = dock.offsetHeight;
+  if (h > 0) document.body.style.setProperty('--dock-h', h + 'px');
+}
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(measureDock).observe(dock);
+measureDock();
+
 /* ---------------- iframe sizing ---------------- */
 let ro = null;
 
+function shortLandscape() {
+  return innerWidth > innerHeight && innerHeight <= 520;
+}
+
 function fit() {
   if (el.stage.dataset.fit === 'viewport') return;
+  /* 幸运机在矮横屏里锁成竖列视口，不要按内容把 iframe 拉高。 */
+  if (current.id === 'slots' && shortLandscape()) {
+    el.frame.style.height = '';
+    return;
+  }
   let doc = null;
   try { doc = el.frame.contentDocument; } catch (_) { doc = null; }
   if (!doc || !doc.documentElement) {
@@ -558,6 +694,7 @@ el.frame.addEventListener('load', () => {
   send('kivotos-theme-change', {theme});
   if (current.themed) send(current.ns + ':set-theme', {theme});
   send(current.ns + ':set-balance', {balance: readBalance()});
+  if (arcadeProfile) send(current.ns + ':set-profile', {profile: arcadeProfile});
   fit(); watchFrame();
   setTimeout(fit, 260);
   setTimeout(fit, 900);
@@ -603,10 +740,21 @@ addEventListener('message', (e) => {
   const d = e.data || {};
   if (e.source === parent) {
     if (d.type === 'airp-arcade:set-balance' && Number.isFinite(+d.balance)) applyHostBalance(d.balance);
+    if (d.type === 'airp-arcade:set-profile') {
+      arcadeProfile = d.profile && typeof d.profile === 'object' ? d.profile : null;
+      if (arcadeProfile) send(current.ns + ':set-profile', {profile: arcadeProfile});
+      const unlocked = Array.isArray(d.unlocked) ? d.unlocked : [];
+      if (unlocked.length) toast('里程碑解锁：' + unlocked.map(x => x.label || x.id).join(' / '));
+    }
     return;
   }
   if (e.source !== el.frame.contentWindow) return;
   if (typeof d.type !== 'string' || d.type.indexOf('airp-') !== 0) return;
+  if (/:settled$/.test(d.type) && embedded) {
+    const detail = d.detail && typeof d.detail === 'object' ? d.detail : {};
+    try { parent.postMessage({ type: 'airp-arcade:event', event: { game: current.id, type: d.type, detail } }, '*'); }
+    catch (_) {}
+  }
   const b = pickBalance(d);
   if (Number.isFinite(b) && hostReady) writeBalance(b);
   if (d.type === 'airp-shrine:claimed') {
@@ -635,9 +783,15 @@ function toast(msg) {
 /* ---------------- boot ---------------- */
 buildTabs();
 buildThemes();
+measureDock();
 applyTheme(theme, {persist: false, notify: false});
 addEventListener('hashchange', route);
-if (!location.hash) location.replace('#' + GAMES[0].id);
+if (!location.hash) {
+  /* replaceState, not location.replace: mobile Chrome on GitHub Pages treats a
+     hash replace as a real navigation, then the slash-less arcade URL 301s
+     back without the hash and the page reloads until the browser stops it. */
+  history.replaceState(null, '', '#' + GAMES[0].id);
+}
 if (embedded) {
   requestHost();
   helloTimer = setInterval(requestHost, 400);

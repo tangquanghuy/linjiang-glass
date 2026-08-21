@@ -45,8 +45,10 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 
 /* One layout visible at a time; both stay mounted so rotating does not rebuild
    geometry, rim SVGs or scroll position. */
-.viewport.is-portrait > #stage { display: none; }
-.viewport:not(.is-portrait) > #pstage { display: none; }
+.viewport.is-portrait > #stage,
+#stage[hidden] { display: none !important; }
+.viewport:not(.is-portrait) > #pstage,
+#pstage[hidden] { display: none !important; }
 
 .pstage {
   position: relative;

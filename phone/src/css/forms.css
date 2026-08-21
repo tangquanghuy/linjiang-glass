@@ -1,0 +1,177 @@
+/* ==================== 表单与按钮（iOS 分组表单） ====================
+   ph-group   一张白卡，里面若干 ph-field，行间用 0.5px 发丝线分隔
+   ph-field   标签在左、输入在右，最小 44px 触控高度
+   ph-chip    带边框的次级按钮（机型预设那种）
+   ph-btn     主操作按钮，filled = 蓝底白字，plain = 无底蓝字 */
+
+.ph-group {
+    background: var(--ph-bg-card);
+    border: var(--ph-hairline) solid rgba(0, 0, 0, 0.045);
+    border-radius: var(--ph-r-md);
+    box-shadow: var(--ph-shadow-card);
+    overflow: hidden;
+}
+
+.ph-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 8px 14px;
+}
+
+/* 行分隔线只画在行之间，并且从标签文字位置起，跟 iOS 一样 */
+.ph-field + .ph-field {
+    border-top: var(--ph-hairline) solid var(--ph-separator);
+}
+
+.ph-field-label {
+    font-size: 16px;
+    color: var(--ph-label);
+    letter-spacing: -0.3px;
+    flex-shrink: 0;
+}
+
+.ph-field-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    text-align: right;
+    font-family: inherit;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ph-blue);
+    padding: 6px 0;
+    /* 去掉 number 类型的上下箭头，iOS 表单里没有这东西 */
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.ph-field-input::-webkit-outer-spin-button,
+.ph-field-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.ph-field-unit {
+    font-size: 15px;
+    color: var(--ph-label-3);
+    flex-shrink: 0;
+}
+
+.ph-group-footnote {
+    font-size: 13px;
+    color: var(--ph-label-2);
+    line-height: 1.4;
+    padding: 7px 4px 0;
+}
+
+/* ---------- 次级按钮（机型预设） ---------- */
+.ph-chip-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.ph-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    min-height: 52px;
+    padding: 8px 10px;
+    background: var(--ph-bg-card);
+    border: var(--ph-hairline) solid rgba(0, 0, 0, 0.045);
+    border-radius: var(--ph-r-sm);
+    box-shadow: var(--ph-shadow-card);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--ph-dur-fast) var(--ph-ease-out),
+        transform var(--ph-dur-fast) var(--ph-spring);
+}
+
+.ph-chip-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ph-label);
+    letter-spacing: -0.2px;
+}
+
+.ph-chip-sub {
+    font-size: 12px;
+    color: var(--ph-label-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.ph-chip:hover {
+    background: #FAFAFC;
+}
+
+.ph-chip:active {
+    background: #E5E5EA;
+    transform: scale(0.97);
+}
+
+/* ---------- 主操作按钮 ---------- */
+.ph-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 50px;
+    margin-top: 18px;
+    padding: 14px 20px;
+    border: none;
+    border-radius: var(--ph-r-md);
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    cursor: pointer;
+    transition: background var(--ph-dur-fast) var(--ph-ease-out),
+        transform var(--ph-dur-fast) var(--ph-spring), opacity var(--ph-dur-fast) var(--ph-ease-out);
+}
+
+.ph-btn--filled {
+    background: var(--ph-blue);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(0, 122, 255, 0.24);
+}
+
+.ph-btn--filled:hover {
+    background: #1a86ff;
+}
+
+.ph-btn--filled:active {
+    background: var(--ph-blue-press);
+    transform: scale(0.985);
+}
+
+.ph-btn--plain {
+    background: transparent;
+    color: var(--ph-blue);
+    margin-top: 8px;
+    box-shadow: none;
+    font-weight: 500;
+}
+
+.ph-btn--plain:hover {
+    background: var(--ph-fill);
+}
+
+.ph-btn--plain:active {
+    opacity: 0.5;
+}
+
+/* 危险操作用红色，比如清空/删除 */
+.ph-btn--danger {
+    background: transparent;
+    color: var(--ph-red);
+}
+
+.ph-btn--danger:hover {
+    background: rgba(255, 59, 48, 0.08);
+}
