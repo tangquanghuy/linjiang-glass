@@ -1006,36 +1006,36 @@
     const DATA = [
       { type: 'sys', text: '系统提示：请保持弹幕礼仪，人身攻击将被禁言。' },
       { type: 'enter', user: '云庭7楼' },
-      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '来了，电梯刚好卡在十三层' },
+      { type: 'chat', user: '云庭7楼', medal: '雏草姬 12', text: '来了，电梯刚好卡在十三层' },
       { type: 'chat', user: '电竞舱隔壁', text: '耳机漏音，听得到你骂棺人' },
-      { type: 'chat', user: '阿初', tier: 'jian', medal: '塔 21', text: '今日发型是认真的，不是随手抓的' },
+      { type: 'chat', user: '阿初', tier: 'jian', medal: '雏草姬 16', text: '今日发型是认真的，不是随手抓的' },
       { type: 'gift', user: '辣条批发部', gift: '辣条', n: 66 },
       { type: 'enter', user: '明湖散步的猫' },
       { type: 'chat', user: '明湖散步的猫', text: '周三休那天真的会来查房吗' },
       { type: 'sc', user: '西洲加班人', amount: 30, text: '加班到现在，求一句「辛苦了」，我就去睡觉' },
-      { type: 'chat', user: '深海灯', tier: 'ti', medal: '塔 27', text: '王牌级杂谈名副其实，节奏稳' },
-      { type: 'chat', user: '临江夜航', tier: 'du', medal: '塔 31', text: '大航海续上了。别被火箭带跑，按你自己的节奏说' },
+      { type: 'chat', user: '深海灯', tier: 'ti', medal: '雏草姬 19', text: '王牌级杂谈名副其实，节奏稳' },
+      { type: 'chat', user: '临江夜航', tier: 'du', medal: '雏草姬 20', text: '大航海续上了。别被火箭带跑，按你自己的节奏说' },
       { type: 'gift', user: '鼓岭晚风', gift: '干杯', n: 10 },
       { type: 'chat', user: '梧桐里便利店', text: '便当加热好了，主播记得吃饭' },
-      { type: 'chat', user: '星芒夜班', tier: 'jian', medal: '塔 18', text: '读到我那条关于云庭公寓的 SC 没有' },
+      { type: 'chat', user: '星芒夜班', tier: 'jian', medal: '雏草姬 15', text: '读到我那条关于云庭公寓的 SC 没有' },
       { type: 'sc', user: '莲花池守夜人', amount: 100, text: '今晚唱半首也行。不用完整，情绪到了就够' },
       { type: 'chat', user: '青屏山雾', text: '画面有点暗，是电竞舱的灯还是滤镜' },
       { type: 'gift', user: '火箭人', gift: '火箭', n: 1 },
       { type: 'enter', user: '湖滨卡座' },
       { type: 'chat', user: '湖滨卡座', text: '沙花叉今晚没播，所以全挤过来了吗' },
       { type: 'sys', text: '用户 匿名棺 已被禁言' },
-      { type: 'chat', user: '阿初', tier: 'jian', medal: '塔 21', text: '那条烂梗已经被禁了，谢谢' },
-      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '好活' },
-      { type: 'chat', user: '深海灯', tier: 'ti', medal: '塔 27', text: '标题写读 SC，结果你在整活。观众很吃这套' },
+      { type: 'chat', user: '阿初', tier: 'jian', medal: '雏草姬 16', text: '那条烂梗已经被禁了，谢谢' },
+      { type: 'chat', user: '云庭7楼', medal: '雏草姬 12', text: '好活' },
+      { type: 'chat', user: '深海灯', tier: 'ti', medal: '雏草姬 19', text: '标题写读 SC，结果你在整活。观众很吃这套' },
       { type: 'sc', user: '明湖散步的猫', amount: 50, text: '下播后如果去湖滨，记得把外套拉链拉上' },
-      { type: 'chat', user: '时雨路过', medal: '羽 8', text: '羽衣今晚不播，我来串门' },
+      { type: 'chat', user: '时雨路过', medal: '雨户 8', text: '羽衣今晚不播，我来串门' },
     ];
 
     const LOOP = [
-      { type: 'chat', user: '云庭7楼', medal: '塔 12', text: '火箭刚过去，弹幕被冲掉一层' },
+      { type: 'chat', user: '云庭7楼', medal: '雏草姬 12', text: '火箭刚过去，弹幕被冲掉一层' },
       { type: 'enter', user: '鼓岭晚风' },
       { type: 'gift', user: '星芒夜班', gift: '小心心', n: 1 },
-      { type: 'chat', user: '临江夜航', tier: 'du', medal: '塔 31', text: '别急着念 ID，先把那句辛苦了给人' },
+      { type: 'chat', user: '临江夜航', tier: 'du', medal: '雏草姬 20', text: '别急着念 ID，先把那句辛苦了给人' },
       { type: 'chat', user: '电竞舱隔壁', text: '隔壁舱也在看，敲墙三下' },
       { type: 'chat', user: '梧桐里便利店', text: '233333' },
       { type: 'chat', user: '青屏山雾', text: '这波节奏可以' },
@@ -1252,7 +1252,7 @@
       const input = document.getElementById('say');
       const text = input.value.trim();
       if (!text) return;
-      push({ type: 'chat', user: '你', tier: playerTier, medal: '塔 21', text }, true);
+      push({ type: 'chat', user: '你', tier: playerTier, medal: '雏草姬 16', text }, true);
       input.value = '';
     });
 

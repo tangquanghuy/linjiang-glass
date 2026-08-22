@@ -387,3 +387,138 @@ body.life-map-step .section-head{margin-bottom:15px}
   .opening-map-card:fullscreen,.opening-map-card.is-fullscreen{padding:10px}
   .opening-map-card:fullscreen .opening-map-copy span,.opening-map-card.is-fullscreen .opening-map-copy span{display:none}
 }
+
+/* ============================================================
+   第三步：真正做成"通透玻璃"，不是磨砂板
+   ------------------------------------------------------------
+   上一层虽然把填充说薄了，实际还是三个问题叠在一起：
+     1. 壳层填充是紫的、.30 起步，卡片再压一层 .20 的紫；
+     2. backdrop-filter 的模糊是嵌套累加的——壳 24px 之后卡片再 14px，
+        背后的花枝到卡片里已经是一团色块，看不出是什么东西；
+     3. 为了让白字压得住，只能继续往上加不透明度，越加越闷。
+
+   这一层换个做法：
+     - 模糊大幅降下来（壳 8px、卡片 3px），背景的形状要能认出来，
+       "隐约透出背景"靠的是低模糊，不是低不透明度；
+     - 读性靠 backdrop-filter 的 brightness() 压暗背后那一块，
+       而不是往上刷一层不透明色。压暗的是"透过来的光"，
+       所以画面还是透的，只是暗一档；
+     - 填充退到近乎没有（白，.04~.09），层级全靠边光 + 高光斜切分。
+   ============================================================ */
+
+/* 背景本身别再压那么暗——玻璃自己会压，重复压两次就是闷 */
+body:before{
+  background:
+    radial-gradient(62% 42% at 50% 0,rgba(255,231,243,.10),transparent 72%),
+    linear-gradient(180deg,rgba(22,20,52,.06),rgba(20,18,48,.18));
+}
+
+/* 外壳：一片玻璃。填充白到几乎不存在，靠 brightness 压暗透过来的光 */
+.shell{
+  border:1px solid rgba(255,255,255,.50);
+  background:linear-gradient(158deg,rgba(255,255,255,.10),rgba(186,198,255,.05) 46%,rgba(255,206,232,.08));
+  backdrop-filter:blur(8px) saturate(1.5) brightness(.68) contrast(1.05);
+  -webkit-backdrop-filter:blur(8px) saturate(1.5) brightness(.68) contrast(1.05);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(255,255,255,.62),
+    inset 0 -1px 0 rgba(255,255,255,.14),
+    inset 1px 0 0 rgba(255,255,255,.14),
+    inset -1px 0 0 rgba(255,255,255,.14);
+}
+/* 斜切高光是"晶莹"的来源：一道窄而亮的反光，不是一整片雾 */
+.shell:before{
+  background:
+    linear-gradient(118deg,rgba(255,255,255,.30),rgba(255,255,255,.05) 16%,transparent 34%,transparent 74%,rgba(255,255,255,.14));
+}
+
+.header{background:linear-gradient(90deg,rgba(255,255,255,.07),transparent 58%)}
+.step-tab:hover{background:rgba(255,255,255,.09)}
+.step-tab.active{
+  background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.08));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 10px 26px -16px rgba(24,18,52,.6);
+}
+
+/* 卡片：同一块玻璃上的第二层。模糊只加一点点，够把字底下的细节抹平就行；
+   brightness 再往下压一点点，让卡片比壳略沉，层级就出来了 */
+.card{
+  border:1px solid rgba(255,255,255,.38);
+  background:linear-gradient(155deg,rgba(255,255,255,.11),rgba(255,255,255,.035));
+  backdrop-filter:blur(4px) saturate(1.18) brightness(.84);
+  -webkit-backdrop-filter:blur(4px) saturate(1.18) brightness(.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.52),
+    inset 0 -1px 0 rgba(255,255,255,.08),
+    0 16px 36px -28px rgba(22,16,50,.55);
+}
+
+/* 输入框是玻璃上凿出来的凹槽：填充更薄，靠上沿暗影 + 下沿高光做"凹" */
+.control{
+  border:1px solid rgba(255,255,255,.30);
+  background:rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 2px rgba(24,18,52,.20),inset 0 -1px 0 rgba(255,255,255,.26);
+  backdrop-filter:blur(3px) brightness(.80);
+  -webkit-backdrop-filter:blur(3px) brightness(.80);
+}
+.control:hover{border-color:rgba(255,255,255,.50);background:rgba(255,255,255,.11)}
+.control:focus{
+  border-color:rgba(255,196,222,.92);
+  background:rgba(255,255,255,.14);
+  box-shadow:0 0 0 3px rgba(255,163,201,.16),inset 0 1px 2px rgba(24,18,52,.14);
+}
+.segment{border-color:rgba(255,255,255,.26);background:rgba(255,255,255,.07)}
+.tag{border-color:rgba(255,255,255,.26);background:rgba(255,255,255,.07)}
+.range-box,.file-pick{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.24)}
+/* 阅读面：世界书正文和长文本域是要逐字读的，不是扫一眼的标签。
+   这两块单独再压一档亮度——依然是压"透过来的光"，不是糊上一层板 */
+.book-entry{
+  border-color:rgba(255,255,255,.24);
+  background:rgba(24,20,52,.26);
+  backdrop-filter:blur(5px) brightness(.66);
+  -webkit-backdrop-filter:blur(5px) brightness(.66);
+  box-shadow:inset 0 1px 2px rgba(20,16,46,.28),inset 0 -1px 0 rgba(255,255,255,.16);
+}
+.book-entry pre{color:rgba(255,255,255,.90)}
+textarea.control{background:rgba(24,20,52,.12);backdrop-filter:blur(4px) brightness(.72);-webkit-backdrop-filter:blur(4px) brightness(.72)}
+.generated{
+  border-color:rgba(255,255,255,.30);
+  background:linear-gradient(150deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
+}
+.secondary{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.36)}
+.secondary:hover{background:rgba(255,255,255,.18)}
+.icon-btn{background:rgba(255,255,255,.10)}
+.quick{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.24)}
+.map-fullscreen-btn{background:rgba(255,255,255,.08)}
+.map-mode-tabs{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.28)}
+.map-current-picks>span{background:rgba(255,255,255,.07)}
+.footer{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01))}
+.side-story{background:linear-gradient(155deg,rgba(255,255,255,.13),rgba(255,255,255,.04))}
+.selection-cost{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.05))}
+.life-selection-card{border-color:rgba(255,255,255,.26)}
+.life-selection-card:first-child{box-shadow:inset 0 1px 0 rgba(255,255,255,.52),inset 2px 0 0 rgba(255,134,186,.85),0 16px 36px -28px rgba(22,16,50,.55)}
+.work-selection-card{box-shadow:inset 0 1px 0 rgba(255,255,255,.52),inset 2px 0 0 rgba(124,192,255,.85),0 16px 36px -28px rgba(22,16,50,.55)}
+.work-metric{background:rgba(255,255,255,.06)}
+
+/* 玻璃变薄之后，白字底下随时可能滑过一片花枝高光。
+   与其把玻璃加厚，不如给文字自己一层贴身的暗投影——
+   这是最省"通透度"的读性手段 */
+.header,.steps,.main,.footer{text-shadow:0 1px 3px rgba(20,16,46,.55),0 0 14px rgba(20,16,46,.28)}
+.segment button.on,.tag.on,.primary,.map-mode-tabs button.on{text-shadow:none}
+
+/* 弹窗：遮罩别糊死，对话框同样走薄玻璃 */
+.map-modal{background:rgba(28,22,56,.44);backdrop-filter:blur(6px) brightness(.86);-webkit-backdrop-filter:blur(6px) brightness(.86)}
+.map-dialog{
+  border-color:rgba(255,255,255,.46);
+  background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.05));
+  backdrop-filter:blur(10px) saturate(1.3) brightness(.88);
+  -webkit-backdrop-filter:blur(10px) saturate(1.3) brightness(.88);
+  box-shadow:0 35px 110px -40px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.6);
+}
+.toast{background:rgba(40,34,76,.58);backdrop-filter:blur(14px) saturate(1.2)}
+
+/* 全屏地图那块本来是实心紫板，也让它透一点，跟页面同一套语言 */
+.opening-map-card:fullscreen,.opening-map-card.is-fullscreen{
+  background:linear-gradient(150deg,rgba(46,50,88,.92),rgba(23,29,60,.94) 56%,rgba(56,44,77,.92));
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}

@@ -1688,6 +1688,17 @@
       font-size: 13px;
     }
 
+    /* 桌面端：两层容器不参与布局，四个主题按钮仍是 .inline-controls 的直接 flex 子项；
+       触发按钮只在窄屏出现（窄屏样式见 max-width: 720px media query）。 */
+    .theme-switch,
+    .theme-switch__menu {
+      display: contents;
+    }
+
+    .theme-switch__trigger {
+      display: none;
+    }
+
     .settings-panel {
       position: absolute;
       top: 48px;
@@ -5326,7 +5337,10 @@
       background-color: rgba(30, 30, 30, .9);
       background-image: none;
       box-shadow: none;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+      /* 黑夜正文默认用系统无衬线（沿用旧观感）；--reading-font-user 只在用户显式选择字体时由
+         applyReadingFontStack() 写到 body 上，所以设置里选了什么就一定生效。
+         注意不能在这里写字面量字体栈：后代选择器的字面量会永久压过 body 上的变量。 */
+      font-family: var(--reading-font-user, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif);
       font-weight: 400;
       letter-spacing: 0;
       text-shadow: none;
@@ -5570,9 +5584,7 @@
       color: #111111 !important;
     }
 
-    body[data-theme="paper-white"] .reading-header-banner {
-      filter: grayscale(.72) saturate(.28) brightness(1.1) contrast(.92);
-    }
+    /* 纯白页眉的滤镜与遮罩统一放在 #mobile-header-and-paper-white-fix 里，避免两处参数打架 */
   </style>
 
   <style id="named-inner-voice-style">
@@ -5615,27 +5627,36 @@
       background-repeat: no-repeat;
       background-position: center 39%;
       background-size: cover;
-      filter: grayscale(.72) saturate(.28) brightness(1.1) contrast(.98);
+      /* 纯白底上原参数会把 WebP 的彩色噪点提亮成脏灰颗粒：改为完全去色 + 降对比压噪，
+         再用 mask 让画面下缘溶进纸白（移动端 ::after 渐隐被禁用，硬切边靠 mask 兜住）。 */
+      filter: grayscale(1) brightness(1.08) contrast(.9) opacity(.88);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
     }
 
     /* 竖屏窄屏：控件在自己的横向滚动带内，不再把页面撑宽。 */
     @media (max-width: 720px) {
+      /* 控件在窄屏自占一行：正文顶部那条居中的鸟纹装饰原本与控件同一行，320 屏会横向重叠 43px。
+         注意不能用负 top 把控件移到横幅上——.reading-content 的 content-visibility: auto
+         隐含 paint containment，绝对定位子元素会被裁在正文边框盒内，移出去就完全不绘制。 */
       .inline-controls {
         left: auto;
         right: 10px;
-        top: 10px;
+        top: 8px;
         width: auto;
         max-width: calc(100% - 20px);
         justify-content: flex-end;
-        flex-wrap: nowrap;
+        /* 展开后换行而不是横向滚动，窄屏不会再截断看不到后面的主题 */
+        flex-wrap: wrap;
         gap: 2px;
         padding: 3px;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible;
       }
-      .inline-controls::-webkit-scrollbar { display: none; }
+      /* 把鸟纹装饰下移到控件那一行下方，让收起态的胶囊完全不压装饰 */
+      .reading-opening-mark,
+      .reading-opening-mark.bird-opening-ornament {
+        margin-top: 46px;
+      }
       .inline-controls .control-btn {
         flex: 0 0 auto;
         min-width: 0;
@@ -5650,17 +5671,18 @@
         padding: 0;
         font-size: 12px;
       }
-      /* 移动端默认只露出当前主题，点一下再展开其余选项，避免压住页眉下方的鸟纹装饰 */
-      .inline-controls.is-theme-collapsed .control-btn[data-theme-key] {
-        display: none;
+      /* 窄屏：主题切换收成「当前主题 ▾」一个按钮，点开后是竖排下拉，不再横向铺开 */
+      .inline-controls.is-theme-collapsed .theme-switch {
+        position: relative;
+        display: flex;
+        align-items: center;
       }
-      .inline-controls.is-theme-collapsed .control-btn[data-theme-key].active {
+      .inline-controls.is-theme-collapsed .theme-switch__trigger {
         display: inline-flex;
         align-items: center;
-        gap: .3em;
+        gap: .32em;
       }
-      .inline-controls.is-theme-collapsed .control-btn[data-theme-key].active::after {
-        content: "";
+      .inline-controls.is-theme-collapsed .theme-switch__caret {
         width: 0;
         height: 0;
         border-left: 3px solid transparent;
@@ -5669,19 +5691,43 @@
         opacity: .55;
         transition: transform .22s ease;
       }
-      .inline-controls.is-theme-collapsed.is-theme-open .control-btn[data-theme-key] {
-        display: inline-flex;
-        animation: themeChipIn .22s ease both;
-      }
-      .inline-controls.is-theme-collapsed.is-theme-open .control-btn[data-theme-key].active::after {
+      .inline-controls.is-theme-collapsed.is-theme-open .theme-switch__caret {
         transform: rotate(180deg);
       }
-      @keyframes themeChipIn {
-        from { opacity: 0; transform: translateX(6px); }
-        to { opacity: 1; transform: none; }
+      .inline-controls.is-theme-collapsed .theme-switch__menu {
+        position: absolute;
+        top: calc(100% + 7px);
+        right: -3px;
+        z-index: 2;
+        display: grid;
+        gap: 2px;
+        min-width: 76px;
+        padding: 4px;
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--paper) 94%, transparent);
+        -webkit-backdrop-filter: blur(12px) saturate(.9);
+        backdrop-filter: blur(12px) saturate(.9);
+        box-shadow: 0 6px 18px color-mix(in srgb, var(--stage) 42%, transparent);
+        visibility: hidden;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity .18s ease, transform .18s ease, visibility .18s;
+      }
+      .inline-controls.is-theme-collapsed.is-theme-open .theme-switch__menu {
+        visibility: visible;
+        opacity: 1;
+        transform: none;
+      }
+      .inline-controls.is-theme-collapsed .theme-switch__menu .control-btn {
+        width: 100%;
+        justify-content: center;
+        height: 28px;
+        border-radius: 8px;
       }
       @media (prefers-reduced-motion: reduce) {
-        .inline-controls.is-theme-collapsed.is-theme-open .control-btn[data-theme-key] { animation: none; }
+        .inline-controls.is-theme-collapsed .theme-switch__menu,
+        .inline-controls.is-theme-collapsed .theme-switch__caret { transition: none; }
       }
     }
 
@@ -5712,10 +5758,12 @@
         'kaiti': '"KaiTi", "Kaiti SC", "STKaiti", "DFKai-SB", serif',
         'fangsong': '"FangSong", "FangSong_GB2312", "STFangsong", serif'
       };
-      const savedFontKey = localStorage.getItem('reading-font-family-v3') || 'zhenkai';
+      // 未显式选择过字体时走 'theme-default'（不写内联变量），由各主题自己决定默认字体：
+      // 白昼/纯白/茶色 = 霞鹜臻楷，黑夜 = 系统无衬线
+      const savedFontKey = localStorage.getItem('reading-font-family-v3') || 'theme-default';
       const initialFontKey = Object.prototype.hasOwnProperty.call(initialFontFamilies, savedFontKey)
         ? savedFontKey
-        : 'zhenkai';
+        : 'theme-default';
       const initialFamily = initialFontFamilies[initialFontKey];
       if (initialFamily) {
         document.body.style.setProperty('--font-main', initialFamily);
@@ -5733,10 +5781,22 @@
     <div class="reading-header-banner" aria-hidden="true"></div>
     <div class="reading-content" id="readingContent">
       <div class="inline-controls" id="inlineControls">
-        <button class="control-btn" data-theme-key="warm-white" onclick="setTheme('warm-white')" title="白昼主题">白昼</button>
-        <button class="control-btn" data-theme-key="paper-white" onclick="setTheme('paper-white')" title="纯白高对比主题">纯白</button>
-        <button class="control-btn" data-theme-key="dark" onclick="setTheme('dark')" title="黑夜主题">黑夜</button>
-        <button class="control-btn" data-theme-key="green" onclick="setTheme('green')" title="茶色主题">茶色</button>
+        <!-- 主题切换：桌面端 .theme-switch / .theme-switch__menu 都是 display: contents，
+             四个按钮仍是 .inline-controls 的直接 flex 子项，布局与原来完全一致；
+             窄屏下变成「当前主题」触发按钮 + 竖排下拉菜单。 -->
+        <div class="theme-switch" id="themeSwitch">
+          <button class="control-btn theme-switch__trigger" id="themeMenuTrigger" type="button"
+            aria-haspopup="true" aria-expanded="false" title="切换主题">
+            <span class="theme-switch__label" id="themeMenuLabel">白昼</span>
+            <span class="theme-switch__caret" aria-hidden="true"></span>
+          </button>
+          <div class="theme-switch__menu" id="themeMenu">
+            <button class="control-btn" data-theme-key="warm-white" onclick="setTheme('warm-white')" title="白昼主题">白昼</button>
+            <button class="control-btn" data-theme-key="paper-white" onclick="setTheme('paper-white')" title="纯白高对比主题">纯白</button>
+            <button class="control-btn" data-theme-key="dark" onclick="setTheme('dark')" title="黑夜主题">黑夜</button>
+            <button class="control-btn" data-theme-key="green" onclick="setTheme('green')" title="茶色主题">茶色</button>
+          </div>
+        </div>
         <button class="control-btn" id="settingsBtn" title="设置">⚙</button>
       </div>
       <div class="settings-panel" id="settingsPanel">
@@ -5758,8 +5818,8 @@
         <div class="settings-option">
           <div class="settings-label">正文字体</div>
           <select class="settings-select" id="readingFontSelect">
-            <option value="theme-default">跟随主题</option>
-            <option value="zhenkai" selected>霞鹜臻楷</option>
+            <option value="theme-default" selected>跟随主题</option>
+            <option value="zhenkai">霞鹜臻楷</option>
             <option value="noto-serif">思源宋体</option>
             <option value="qiushui">秋水書体</option>
             <option value="yahei">微软雅黑</option>
@@ -5912,13 +5972,13 @@
     // ==================== 直播间 <LiveRoom> ====================
     const LR_HOST_ALIAS = { '永雏塔菲': '塔菲', '沙花叉克萝伊': '沙花叉', '梦见璃亚梦': '璃亚梦', '伊贺栖寅': '斯黛拉', '斯黛拉（伊贺栖寅）': '斯黛拉' };
     const LR_HOSTS = {
-      '东雪莲': { cover: '东雪莲', slot: '深夜杂谈 21:30–00:30', pop: 4200, medal: '莲' },
-      '塔菲': { cover: '塔菲', slot: '晚间主档 20:00–23:30', pop: 18240, medal: '塔' },
-      '沙花叉': { cover: '沙花叉', slot: '历史常用晚间档 21:00–00:30', pop: 3600, medal: '叉' },
-      '时雨羽衣': { cover: '时雨羽衣', slot: '周更型 22:00–00:30', pop: 1200, medal: '羽' },
-      '红蔷薇': { cover: '红蔷薇', slot: '黄昏音乐台 19:00–22:00', pop: 2800, medal: '薇' },
-      '斯黛拉': { cover: '斯黛拉', slot: '傍晚电台 18:30–21:30', pop: 3100, medal: '斯' },
-      '璃亚梦': { cover: '梦见璃亚梦', slot: '深夜互动 23:00–02:00', pop: 6310, medal: '梦' }
+      '东雪莲': { cover: '东雪莲', slot: '深夜杂谈 21:30–00:30', pop: 4200, medal: '棺人痴' },
+      '塔菲': { cover: '塔菲', slot: '晚间主档 20:00–23:30', pop: 18240, medal: '雏草姬' },
+      '沙花叉': { cover: '沙花叉', slot: '历史常用晚间档 21:00–00:30', pop: 3600, medal: '饲养员' },
+      '时雨羽衣': { cover: '时雨羽衣', slot: '周更型 22:00–00:30', pop: 1200, medal: '雨户' },
+      '红蔷薇': { cover: '红蔷薇', slot: '黄昏音乐台 19:00–22:00', pop: 2800, medal: '亲爱的' },
+      '斯黛拉': { cover: '斯黛拉', slot: '傍晚电台 18:30–21:30', pop: 3100, medal: '小猪' },
+      '璃亚梦': { cover: '梦见璃亚梦', slot: '深夜互动 23:00–02:00', pop: 6310, medal: '病友' }
     };
     const LR_TIER = { jian: '舰长', ti: '提督', du: '总督' };
     const LR_TIER_KEY = { '舰长': 'jian', '提督': 'ti', '总督': 'du' };
@@ -6032,7 +6092,7 @@
 
     function lrSplitLineFields(line) {
       const text = String(line || '');
-      const re = /(类型|名字|礼物|数量|金额|内容)\s*[:：]/g;
+      const re = /(类型|名字|礼物|数量|金额|内容|牌子)\s*[:：]/g;
       const hits = [];
       let m;
       while ((m = re.exec(text))) hits.push({ key: m[1], at: m.index, end: m.index + m[0].length });
@@ -6056,6 +6116,10 @@
         type: kind,
         user: fields.名字 || '',
         text: fields.内容 || '',
+        // 粉丝牌整串照收（可以是别家主播的牌子，串门观众就靠这个体现），
+        // 只把结尾的等级夹到 20 —— 玩家侧 lrBadgeLevel 的上限也是 20，
+        // 否则路人随手一个 35 级，玩家再怎么打赏都追不上。
+        medal: String(fields.牌子 || '').trim().replace(/(\d+)\s*$/, (m, n) => Math.min(20, +n)),
         gift: fields.礼物 || '',
         n: Math.max(1, parseInt(fields.数量, 10) || 1),
         amount: Math.max(0, parseInt(fields.金额, 10) || 0)
@@ -8667,10 +8731,13 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
         document.body.style.setProperty('--font-main', family);
         document.body.style.setProperty('--serif', family);
         document.body.style.setProperty('--kai', family);
+        // 显式选择的标记：黑夜正文用它覆盖自己的默认无衬线栈
+        document.body.style.setProperty('--reading-font-user', family);
       } else {
         document.body.style.removeProperty('--font-main');
         document.body.style.removeProperty('--serif');
         document.body.style.removeProperty('--kai');
+        document.body.style.removeProperty('--reading-font-user');
       }
     }
 
@@ -8725,7 +8792,7 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
     function applyReadingFont(fontKey, options = {}) {
       const normalizedKey = Object.prototype.hasOwnProperty.call(READING_FONT_PRESETS, fontKey)
         ? fontKey
-        : 'zhenkai';
+        : 'theme-default';
       const preset = READING_FONT_PRESETS[normalizedKey];
       const readingFontSelect = document.getElementById('readingFontSelect');
 
@@ -8764,7 +8831,7 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
         applyImageSize();
         
         initAnimationObserver();
-        const fontKey = window.__initialReadingFontKey || localStorage.getItem('reading-font-family-v3') || 'zhenkai';
+        const fontKey = window.__initialReadingFontKey || localStorage.getItem('reading-font-family-v3') || 'theme-default';
         if (fontKey === 'noto-serif') ensureGoogleReadingFonts();
         const revealReading = () => {
           document.body.classList.remove('render-pending', 'theme-preload');
@@ -8814,7 +8881,7 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       window.__namedInnerVoiceDefaultExpand = innerVoiceExpand;
       if (innerVoiceToggle && innerVoiceExpand) innerVoiceToggle.classList.add('active');
       document.querySelectorAll('.named-inner-voice').forEach(panel => setNamedInnerVoiceOpen(panel, innerVoiceExpand));
-      const initialReadingFont = applyReadingFont(localStorage.getItem('reading-font-family-v3') || 'zhenkai', {
+      const initialReadingFont = applyReadingFont(localStorage.getItem('reading-font-family-v3') || 'theme-default', {
         skipPersist: true
       });
       if (readingFontSelect) readingFontSelect.value = initialReadingFont;
@@ -8834,6 +8901,7 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       }
 
       initNamedInnerVoiceInteractions();
+      initThemeCollapse(); // 正文渲染后控件节点是新的，重新同步收起状态
       settingsBtn.addEventListener('click', function (e) { e.stopPropagation(); settingsPanel.classList.toggle('active'); });
       imageToggle.addEventListener('click', function () {
         this.classList.toggle('active');
@@ -8900,6 +8968,7 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       document.querySelectorAll('.control-btn[data-theme-key]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.themeKey === theme);
       });
+      syncThemeMenuLabel(theme);
     };
 
     const notifyEmbeddedThemeChange = (theme) => {
@@ -8935,31 +9004,65 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       applyTheme(savedTheme, skipAnimation);
     }
 
-    // 移动端主题切换收起：只显示当前主题，点击展开全部，选完自动收回
-    function initThemeCollapse() {
-      const box = document.getElementById('inlineControls');
-      if (!box || window.__themeCollapseBound) return;
-      window.__themeCollapseBound = true;
-      const mq = window.matchMedia('(max-width: 720px)');
-      const syncMode = () => {
-        box.classList.toggle('is-theme-collapsed', mq.matches);
-        if (!mq.matches) box.classList.remove('is-theme-open');
-      };
-      syncMode();
-      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', syncMode);
-      else if (typeof mq.addListener === 'function') mq.addListener(syncMode);
+    // 移动端主题切换收起：只显示当前主题，点击展开全部，选完自动收回。
+    // 注意：#inlineControls 在正文渲染时会随 #readingContent 一起被重建，
+    // 所以状态每次现查节点、事件走 document 委托，不能把监听绑在某个具体节点上。
+    const THEME_COLLAPSE_QUERY = '(max-width: 720px)';
 
-      box.addEventListener('click', (event) => {
-        if (!box.classList.contains('is-theme-collapsed')) return;
-        const btn = event.target.closest?.('.control-btn[data-theme-key]');
-        if (!btn) return;
-        // 收起时点当前主题只负责展开（onclick 重复应用同一主题无副作用）；展开后任选一项即收回
-        box.classList.toggle('is-theme-open', !box.classList.contains('is-theme-open'));
-      });
+    function syncThemeCollapseMode() {
+      const box = document.getElementById('inlineControls');
+      if (!box) return null;
+      const collapse = window.matchMedia(THEME_COLLAPSE_QUERY).matches;
+      box.classList.toggle('is-theme-collapsed', collapse);
+      if (!collapse) box.classList.remove('is-theme-open');
+      // 正文重渲染后触发按钮是新节点，这里补一次当前主题文字
+      syncThemeMenuLabel(document.body.dataset.theme || 'warm-white');
+      return box;
+    }
+
+    function initThemeCollapse() {
+      syncThemeCollapseMode();
+      if (window.__themeCollapseBound) return;
+      window.__themeCollapseBound = true;
+
+      const mq = window.matchMedia(THEME_COLLAPSE_QUERY);
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', syncThemeCollapseMode);
+      else if (typeof mq.addListener === 'function') mq.addListener(syncThemeCollapseMode);
 
       document.addEventListener('click', (event) => {
-        if (!box.contains(event.target)) box.classList.remove('is-theme-open');
+        const box = syncThemeCollapseMode();
+        if (!box) return;
+        // 点面板外收起
+        if (!box.contains(event.target)) {
+          setThemeMenuOpen(box, false);
+          return;
+        }
+        if (!box.classList.contains('is-theme-collapsed')) return;
+        // 点「当前主题 ▾」开合下拉
+        if (event.target.closest?.('.theme-switch__trigger')) {
+          setThemeMenuOpen(box, !box.classList.contains('is-theme-open'));
+          return;
+        }
+        // 在下拉里选了某个主题：切换由按钮自身的 onclick 完成，这里只负责收起
+        if (event.target.closest?.('.theme-switch__menu .control-btn')) {
+          setThemeMenuOpen(box, false);
+        }
       });
+    }
+
+    function setThemeMenuOpen(box, open) {
+      box.classList.toggle('is-theme-open', open);
+      const trigger = box.querySelector('.theme-switch__trigger');
+      if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    // 触发按钮上的文字始终显示当前主题
+    function syncThemeMenuLabel(theme) {
+      const label = document.getElementById('themeMenuLabel');
+      const trigger = document.getElementById('themeMenuTrigger');
+      const active = document.querySelector('.theme-switch__menu .control-btn[data-theme-key="' + theme + '"]');
+      if (label && active) label.textContent = active.textContent.trim();
+      if (trigger && active) trigger.title = active.title || '切换主题';
     }
 
     function updateReadingWidthControls() {

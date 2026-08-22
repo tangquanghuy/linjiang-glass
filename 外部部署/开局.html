@@ -8,15 +8,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
-  /* 视觉沿用开局页 opening.css 的那套令牌，卡片就是那块玻璃壳的一小段截面。 */
+  /* 视觉沿用开局页 opening.css 的那套令牌，卡片就是那块玻璃壳的一小段截面。
+     跟开局页同一次改动：填充退到近乎没有、模糊压低，景深靠 backdrop-filter
+     的 brightness() 压暗透过来的光来拿，而不是往上刷一块深紫板。
+     这张卡衬的是酒馆聊天背景（深浅都有可能），压暗对两种底都成立，
+     刷固定深色只对深色主题成立。 */
   :root {
-    --ink: rgba(240, 242, 255, .94);
-    --mute: rgba(226, 229, 250, .66);
-    --faint: rgba(221, 225, 248, .42);
-    --line: rgba(228, 233, 255, .16);
-    --pink: #ff78b0;
-    --blue: #83c9ff;
-    --ok: #8ce1c4;
+    --ink: #fff;
+    --mute: rgba(255, 255, 255, .82);
+    --faint: rgba(255, 255, 255, .70);
+    --line: rgba(255, 255, 255, .22);
+    --rim: rgba(255, 255, 255, .46);
+    --pink: #ffa3c9;
+    --blue: #a9d6ff;
+    --ok: #9ff0cd;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: transparent; }
@@ -35,24 +40,40 @@
     align-items: center;
     gap: 18px 24px;
     padding: 20px 24px;
-    border: 1px solid rgba(238, 241, 255, .34);
+    border: 1px solid var(--rim);
     border-radius: 22px;
-    background: linear-gradient(135deg, rgba(50, 59, 105, .5), rgba(17, 22, 51, .58) 48%, rgba(51, 36, 74, .46));
-    box-shadow: 0 22px 60px rgba(3, 5, 18, .42), inset 0 1px rgba(255, 255, 255, .18), inset 0 -1px rgba(255, 168, 204, .16);
-    backdrop-filter: blur(26px) saturate(1.2);
-    -webkit-backdrop-filter: blur(26px) saturate(1.2);
+    /* 填充只是一层几乎不存在的白，颜色让背景给 */
+    background: linear-gradient(158deg, rgba(255, 255, 255, .10), rgba(186, 198, 255, .05) 46%, rgba(255, 206, 232, .08));
+    box-shadow:
+      0 22px 60px -28px rgba(12, 8, 30, .55),
+      inset 0 1px 0 rgba(255, 255, 255, .58),
+      inset 0 -1px 0 rgba(255, 255, 255, .12),
+      /* 亮边压在浅色主题上会整条消失，补一圈极淡的外描边当轮廓 */
+      0 0 0 1px rgba(28, 22, 58, .10);
+    backdrop-filter: blur(8px) saturate(1.5) brightness(.62) contrast(1.05);
+    -webkit-backdrop-filter: blur(8px) saturate(1.5) brightness(.62) contrast(1.05);
+    /* 玻璃薄了之后白字底下什么都可能滑过去，给文字自己一层贴身暗影兜底 */
+    text-shadow: 0 1px 3px rgba(20, 16, 46, .55), 0 0 14px rgba(20, 16, 46, .28);
   }
   #launch::before {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
+    /* 一道窄而亮的斜切反光，不是一整片雾——"晶莹"是这么来的 */
     background:
-      radial-gradient(56% 120% at 8% 0%, rgba(255, 139, 185, .2), transparent 70%),
-      radial-gradient(48% 130% at 96% 4%, rgba(112, 154, 255, .2), transparent 72%),
-      linear-gradient(110deg, rgba(255, 255, 255, .07), transparent 30%, transparent 72%, rgba(255, 164, 205, .08));
+      radial-gradient(56% 120% at 8% 0%, rgba(255, 163, 201, .14), transparent 70%),
+      radial-gradient(48% 130% at 96% 4%, rgba(169, 214, 255, .14), transparent 72%),
+      linear-gradient(118deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .05) 16%, transparent 34%, transparent 74%, rgba(255, 255, 255, .14));
   }
   #launch > * { position: relative; }
+  /* backdrop-filter 不可用时，压暗那一步就没了，白字会糊在亮底上。
+     这种情况退回到不透明深底——闷，但至少读得出来。 */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    #launch {
+      background: linear-gradient(135deg, rgba(50, 59, 105, .92), rgba(17, 22, 51, .94) 48%, rgba(51, 36, 74, .9));
+    }
+  }
 
   .brand { display: flex; align-items: center; gap: 15px; min-width: 0; }
   .mark {
@@ -62,25 +83,25 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 1px solid rgba(239, 242, 255, .28);
-    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .28), rgba(109, 126, 200, .12));
-    box-shadow: 0 0 26px rgba(255, 125, 177, .16);
+    border: 1px solid rgba(255, 255, 255, .62);
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
+    box-shadow: 0 0 26px rgba(255, 178, 212, .30), inset 0 1px 0 rgba(255, 255, 255, .7);
   }
   .mark img { width: 23px; height: 23px; object-fit: contain; }
   .script {
     flex: 0 0 auto;
     font: 400 30px/1 'Pinyon Script', cursive;
-    color: #f9e7d9;
-    text-shadow: 0 2px 12px rgba(255, 177, 204, .25);
+    color: #fff;
+    text-shadow: 0 2px 18px rgba(255, 160, 205, .55);
   }
   .copy { min-width: 0; }
   .copy .eyebrow {
     color: var(--faint);
-    font: 400 10px/1.4 'Outfit', 'Noto Sans SC', sans-serif;
+    font: 600 10px/1.4 'Outfit', 'Noto Sans SC', sans-serif;
     letter-spacing: .18em;
     text-transform: uppercase;
   }
-  .copy h1 { margin-top: 4px; font-size: 17px; font-weight: 500; letter-spacing: .1em; }
+  .copy h1 { margin-top: 4px; font-size: 17px; font-weight: 600; letter-spacing: .1em; }
   .copy p { margin-top: 5px; color: var(--mute); font-size: 12px; line-height: 1.5; }
 
   #open {
@@ -90,12 +111,15 @@
     align-items: center;
     gap: 9px;
     padding: 12px 24px;
-    border: 1px solid rgba(255, 197, 226, .58);
+    border: 1px solid rgba(255, 255, 255, .9);
     border-radius: 999px;
-    background: linear-gradient(120deg, rgba(255, 143, 195, .42), rgba(126, 150, 255, .42));
-    box-shadow: 0 10px 26px rgba(255, 120, 176, .18), inset 0 1px rgba(255, 255, 255, .3);
-    color: #fff;
-    font: 500 14px/1 'Noto Sans SC', system-ui, sans-serif;
+    /* 主按钮反过来做成实心亮片：整张卡都透了，唯一的落点得是不透明的，
+       不然"开始配置"跟背景一起飘 */
+    background: linear-gradient(135deg, #fff2f8, #e6f1ff 58%, #fff3dd);
+    box-shadow: 0 14px 30px -14px rgba(255, 170, 208, .8), inset 0 1px 0 #fff;
+    color: #3a2740;
+    text-shadow: none;
+    font: 600 14px/1 'Noto Sans SC', system-ui, sans-serif;
     letter-spacing: .1em;
     cursor: pointer;
     transition: border-color .18s, box-shadow .18s, transform .18s;
@@ -107,8 +131,9 @@
     transition: transform .18s;
   }
   #open:hover {
-    border-color: rgba(255, 255, 255, .86);
-    box-shadow: 0 14px 32px rgba(255, 120, 176, .28), inset 0 1px rgba(255, 255, 255, .42);
+    border-color: #fff;
+    box-shadow: 0 16px 34px -14px rgba(255, 120, 176, .9), inset 0 1px 0 #fff;
+    filter: brightness(1.04);
   }
   #open:hover i { transform: translateX(3px); }
   #open:active { transform: translateY(1px); }
@@ -126,9 +151,13 @@
     align-items: baseline;
     gap: 7px;
     padding: 6px 13px;
-    border: 1px solid var(--line);
+    border: 1px solid rgba(255, 255, 255, .26);
     border-radius: 999px;
-    background: rgba(10, 15, 38, .28);
+    /* 小字块用淡深色底 + 自己再压一档亮度：白色底在亮背景上是"提亮"，
+       小字会被一起冲掉；压暗才压得住，而且照样透 */
+    background: rgba(24, 20, 52, .16);
+    backdrop-filter: blur(3px) brightness(.82);
+    -webkit-backdrop-filter: blur(3px) brightness(.82);
     color: var(--mute);
     font-size: 12px;
   }
@@ -145,9 +174,11 @@
     align-items: center;
     gap: 9px;
     padding: 9px 14px;
-    border: 1px solid var(--line);
+    border: 1px solid rgba(255, 255, 255, .26);
     border-radius: 12px;
-    background: rgba(10, 15, 38, .34);
+    background: rgba(24, 20, 52, .16);
+    backdrop-filter: blur(3px) brightness(.82);
+    -webkit-backdrop-filter: blur(3px) brightness(.82);
     color: var(--mute);
     font-size: 12px;
     line-height: 1.5;
