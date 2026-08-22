@@ -7,6 +7,11 @@ import { chromium } from 'playwright';
 import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
+import { readOpeningPool } from './lib/opening-pool.mjs';
+
+/* 通勤矩阵的锚点里含"开局可选住所／岗位"，这份名单以 opening.js 为唯一真源，
+   不在这里再抄一遍。页面上下文拿不到 node 的变量，所以要显式传进 evaluate。 */
+const POOL = readOpeningPool();
 
 /**
  * 区枢纽按【底板】分，不按 district 字段分：
@@ -31,7 +36,7 @@ page.on('pageerror', e => console.log('PAGEERROR:', e.message));
 await page.goto(pathToFileURL(path.resolve('city/plate_map.html')).href);
 await page.waitForTimeout(2000);
 
-const dump = await page.evaluate((HUB) => {
+const dump = await page.evaluate(({ HUB, POOL }) => {
   const N = window.CITY_NET, PM = window.__PM, D = window.CITY_MAP_DATA;
   const R = N.R;
 
@@ -111,7 +116,8 @@ const dump = await page.evaluate((HUB) => {
         rent: n.housing.rent,
         deposit: n.housing.deposit,
         sale: n.housing.sale,
-        minMoney: n.housing.unlock && n.housing.unlock.minMoney || 0
+        minMoney: n.housing.unlock && n.housing.unlock.minMoney || 0,
+        note: n.housing.note || ''
       };
     }
     return o;
@@ -198,14 +204,11 @@ const dump = await page.evaluate((HUB) => {
      住所和工作是玩家唯一每天来回跑的一对，值必须精确，不能用"到区枢纽"糊过去。
      可选住所（开局十处 + 带 housing 字段的进阶房）和可选岗位（开局十二个 + canWork 的点）
      都是有限集合，直接把这一对全算完。 */
-  const HOME_IDS = [
-    'lx_share', 'pj_apt', 'gl_yunting', 'xz_jiayuan', 'gl_wutong', 'pj_village',
-    'wx_home', 'mh_youth_apt', 'dt_town_rental', 'qp_foothill_share'
-  ].concat(ids.filter(id => D.nodeById[id].housing));
-  const JOB_IDS = [
-    'lx_print', 'gl_parcel', 'mh_mart', 'xz_esports', 'dt_gas', 'xz_sound_studio',
-    'xz_theatre', 'gl_pet', 'mh_hospital', 'lx_lab', 'ys_rdpark', 'wx_dye'
-  ].concat(ids.filter(id => D.nodeById[id].features && D.nodeById[id].features.canWork));
+  // 开局池从 opening.js 读，不再手抄一份：见 scripts/lib/opening-pool.mjs 的说明
+  const HOME_IDS = POOL.homeIds
+    .concat(ids.filter(id => D.nodeById[id].housing));
+  const JOB_IDS = POOL.jobIds
+    .concat(ids.filter(id => D.nodeById[id].features && D.nodeById[id].features.canWork));
   const uniq = a => [...new Set(a)].filter(x => world[x]);
   const homeIds = uniq(HOME_IDS), jobIds = uniq(JOB_IDS);
   const commute = {};
@@ -260,7 +263,7 @@ const dump = await page.evaluate((HUB) => {
     nodes, links, second, near, toHub, commute, homeIds, jobIds, districts, metro, ways, hubs,
     stats: { pois: ids.length, verts: G.V.size, edges: G.E.length, cutWater: G.cutWater }
   };
-}, HUB);
+}, { HUB, POOL: { homeIds: POOL.homeIds, jobIds: POOL.jobIds } });
 
 await browser.close();
 

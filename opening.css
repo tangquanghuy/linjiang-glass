@@ -273,7 +273,7 @@ body:after{opacity:.05;mix-blend-mode:soft-light}
 .legend-dot.work{color:#7cc0ff;background:#7cc0ff}
 .legend-dot.route{color:#9ff0cd;background:#9ff0cd}
 
-.life-inspector{display:grid;grid-template-rows:auto auto 1fr;gap:12px;min-width:0}
+.life-inspector{display:grid;grid-template-rows:auto auto;align-content:start;gap:12px;min-width:0}
 .life-selection-card{padding:18px}
 .inspector-kicker{font:600 10px/1 'Outfit','Noto Sans SC';letter-spacing:.18em;color:var(--blue)}
 .life-selection-card h3{margin-top:11px;color:#fff;font-size:20px;font-weight:600;line-height:1.25}
@@ -294,14 +294,11 @@ body:after{opacity:.05;mix-blend-mode:soft-light}
 .commute-card{margin-top:13px;padding:11px 12px;border-left:2px solid #9ff0cd;border-radius:10px;background:rgba(159,240,205,.14)}
 .commute-card span{display:block;color:rgba(210,255,236,.82);font:600 9px/1 'Outfit';letter-spacing:.16em}
 .commute-card b{display:block;margin-top:7px;color:#eaffF6;font-size:12px;font-weight:600;line-height:1.45}
-.life-tip-card{padding:16px 18px}
-.life-tip-card p{margin:8px 0 0;color:rgba(255,255,255,.70);font-size:11px;line-height:1.75}
 
 @media(max-width:1050px){
   .life-map-layout{grid-template-columns:1fr}
   .opening-map-viewport{height:clamp(420px,58vh,600px)}
-  .life-inspector{grid-template-columns:1fr 1fr;grid-template-rows:auto auto}
-  .life-tip-card{grid-column:1/-1}
+  .life-inspector{grid-template-columns:1fr 1fr;grid-template-rows:auto}
 }
 @media(max-width:700px){
   .opening-map-card{padding:10px}
@@ -336,16 +333,13 @@ body.life-map-step .section-head{margin-bottom:15px}
 .map-current-picks b{display:block;margin-top:5px;overflow:hidden;color:#fff;font-size:11.5px;font-weight:600;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
 .opening-map-viewport{height:clamp(610px,68vh,840px);min-height:560px;border-radius:15px}
 
-.life-inspector{display:grid;grid-template-columns:minmax(0,.9fr) minmax(460px,1.4fr) minmax(260px,.72fr);grid-template-rows:1fr;gap:12px;align-items:stretch}
-.life-selection-card,.life-tip-card{height:100%}
+.life-inspector{display:grid;grid-template-columns:minmax(0,.92fr) minmax(460px,1.5fr);grid-template-rows:1fr;gap:12px;align-items:stretch}
+.life-selection-card{height:100%}
 .life-selection-card{padding:16px 18px}
 .life-selection-card h3{margin-top:9px;font-size:18px}
 .life-selection-card p{margin-top:6px;line-height:1.55}
 .selection-cost{margin-top:10px;padding:9px 11px}
 .inspector-action{margin-top:11px;min-height:36px}
-.life-tip-card{padding:16px 18px}
-.life-tip-card p{line-height:1.68}
-.life-tip-card p b{color:#fff;font-weight:600}
 
 .commute-card{margin-top:11px;padding:11px 12px;border:1px solid rgba(159,240,205,.24);border-left:2px solid #9ff0cd;border-radius:11px;background:linear-gradient(135deg,rgba(159,240,205,.13),rgba(255,255,255,.07))}
 .commute-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.12)}
@@ -367,7 +361,6 @@ body.life-map-step .section-head{margin-bottom:15px}
   .map-current-picks{grid-column:1/-1;grid-row:2}
   .opening-map-actions{grid-column:2;grid-row:1}
   .life-inspector{grid-template-columns:1fr 1.25fr}
-  .life-tip-card{grid-column:1/-1}
   .work-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:760px){
@@ -747,11 +740,13 @@ body.life-map-step .opening-map-head b{font-size:16px}
 body.life-map-step .map-fullscreen-btn,body.life-map-step .map-mode-tabs button{height:auto;padding:8px 13px}
 body.life-map-step .opening-map-viewport{flex:1 1 auto;height:auto;min-height:260px}
 
-/* 侧栏变成一根竖条：三张卡竖着排，第三张（怎么看）吃掉剩余高度 */
+/* 侧栏变成一根竖条。两张卡都按内容高、贴着顶排：拉伸填满会在「去地图上挑工作」
+   底下留一片空的卡内区域，读起来像少了点东西；空白留在栏外反而是留白。 */
 body.life-map-step .life-inspector{
-  grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);
-  gap:10px;min-height:0;
+  grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;
+  align-content:start;gap:10px;min-height:0;
 }
+body.life-map-step .life-selection-card{height:auto}
 body.life-map-step .life-selection-card{padding:14px 16px}
 body.life-map-step .life-selection-card h3{margin-top:7px;font-size:17px}
 body.life-map-step .life-selection-card p{margin-top:5px;font-size:11px;line-height:1.5}
@@ -763,8 +758,6 @@ body.life-map-step .commute-head{padding-bottom:7px}
 body.life-map-step .work-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
 body.life-map-step .work-metric{padding:6px 8px}
 body.life-map-step .work-metric small{display:none}
-body.life-map-step .life-tip-card{padding:13px 16px}
-body.life-map-step .life-tip-card p{margin-top:6px;font-size:10.5px;line-height:1.6}
 }
 
 @media(min-width:1051px){

@@ -8,21 +8,28 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
-  /* 对着原型示意图那块 HUD 做的：冷紫玻璃 + 一圈暖粉外泛光 + 底边一道亮光，
-     标题是「花体英文 / 中文小标」那种成对写法。
-     跟上一版的关键区别：不再用 backdrop-filter: brightness() 压暗背景。
-     压暗在酒馆的深色聊天底上会把整张卡拉成一块炭黑板（跟原型完全不搭），
-     改成填充自己带足够的紫（alpha 约 .55），深底浅底都是同一块紫玻璃。 */
+  /* 这块启动卡的做法跟 opening.css 是同一套：先铺一张照片，再让玻璃浮在照片上。
+     上一版是反过来的——一整块 alpha .55 的紫填充，靠 backdrop-filter 去模糊酒馆的
+     深色聊天底。聊天底本来就是一片平的深色，模糊它等于什么都没模糊，所以那块紫
+     只能读成"贴上去的塑料板"，跟原型那种晶莹感差得远。
+
+     这一版把背景补上：卡里自己带一条从原型背景图裁下来的横带（花枝 — 书架暖灯 —
+     窗外湖面 — 桌沿反光），然后所有玻璃件（按钮、步骤块、徽记、状态条）都改成
+     薄白填充 + 亮边 + backdrop-filter，模糊的对象是这张照片而不是聊天底。
+     颜色让照片给，玻璃保持中性偏白——这是 opening.css 里那条"填充极薄，景深靠
+     模糊拿，不靠往上刷不透明深色"的规则。 */
   :root {
     --ink: #fff;
-    --mute: rgba(255, 255, 255, .82);
-    --faint: rgba(255, 255, 255, .62);
-    --line: rgba(255, 255, 255, .17);
-    --rim: rgba(255, 255, 255, .52);
+    --mute: rgba(255, 255, 255, .84);
+    --faint: rgba(255, 255, 255, .66);
+    --rim: rgba(255, 255, 255, .46);
+    --rim-soft: rgba(255, 255, 255, .32);
     --pink: #ffb3d4;
     --blue: #a9d6ff;
     --gold: #ffe0aa;
     --ok: #9ff0cd;
+    /* 字压在照片上，靠这道影子站住，不靠把照片压暗 */
+    --tsh: 0 1px 3px rgba(16, 12, 38, .62), 0 2px 16px rgba(18, 14, 42, .34);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: transparent; }
@@ -36,6 +43,7 @@
 
   #launch {
     position: relative;
+    isolation: isolate;
     overflow: hidden;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -44,34 +52,68 @@
     padding: 22px 26px 24px;
     border: 1px solid var(--rim);
     border-radius: 26px;
-    /* 冷紫玻璃：两角各一团暖粉／湖蓝的光晕，是原型上那块 HUD 的取色 */
-    background:
-      radial-gradient(120% 150% at 4% -20%, rgba(255, 172, 210, .22), transparent 58%),
-      radial-gradient(110% 150% at 100% -6%, rgba(154, 198, 255, .20), transparent 60%),
-      linear-gradient(158deg, rgba(80, 78, 142, .54), rgba(38, 40, 90, .58) 48%, rgba(94, 62, 114, .54));
+    /* 照片没加载出来之前的底色，也是照片边缘透出来的那一层 */
+    background: linear-gradient(155deg, #3f3d78, #232550 52%, #4c3060);
     box-shadow:
       /* 落地阴影 + 两圈外泛光：原型那块板是"发光的亚克力"，不是贴上去的方块 */
       0 26px 64px -30px rgba(10, 8, 30, .70),
       0 0 30px -6px rgba(255, 170, 212, .34),
       0 0 72px -20px rgba(154, 198, 255, .30),
-      inset 0 1px 0 rgba(255, 255, 255, .58),
-      inset 0 -22px 46px -30px rgba(255, 198, 226, .40);
-    backdrop-filter: blur(16px) saturate(1.35);
-    -webkit-backdrop-filter: blur(16px) saturate(1.35);
-    text-shadow: 0 1px 3px rgba(20, 16, 46, .42);
+      inset 0 1px 0 rgba(255, 255, 255, .52);
+    text-shadow: var(--tsh);
   }
+
+  /* 照片本体。裁的是 opening-strip.webp（原图的一条横带，90KB）；
+     取不到就退回全尺寸原图，两者的 object-position 都对着同一段景。 */
+  #scene {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 48%;
+    /* 轻微失焦。opening.html 里照片是被整块玻璃的 backdrop-filter 模糊掉的，
+       卡里从来看不到锐利的实景；这张横条只有 190 高，书架和桌面的细节全挤在
+       标题后面，压一点焦既还原那种柔光，也让白字站得住。
+       scale 是为了把 blur 在四边糊出来的透明边推到裁切框外面。 */
+    filter: blur(2px) saturate(1.14) contrast(1.02);
+    transform: scale(1.045);
+    pointer-events: none;
+    user-select: none;
+  }
+  #scene.full { object-position: 50% 42%; }
+
+  /* 收一档冷色。幅度小到照片的层次还在——左边字多的一侧压得重些，
+     右边窗外湖面留亮，卡片才有"从暗处看向窗外"的纵深 */
+  .veil {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 150% at 4% -20%, rgba(255, 172, 210, .20), transparent 56%),
+      radial-gradient(110% 150% at 100% -6%, rgba(154, 198, 255, .18), transparent 58%),
+      /* 最右边是一丛绿植，绿色在这张紫调的卡上很跳，用一层冷紫把它并回来 */
+      linear-gradient(270deg, rgba(46, 34, 82, .30), rgba(46, 34, 82, .10) 12%, transparent 22%),
+      linear-gradient(97deg, rgba(19, 15, 42, .48) 0%, rgba(21, 17, 46, .30) 42%, rgba(26, 20, 54, .12) 68%, rgba(32, 24, 60, .16)),
+      linear-gradient(180deg, rgba(22, 18, 48, .08), rgba(20, 17, 46, .30));
+  }
+
+  /* 一道窄而亮的斜切反光，不是一整片雾——"晶莹"是这么来的 */
   #launch::before {
     content: '';
     position: absolute;
+    z-index: 2;
     inset: 0;
     pointer-events: none;
-    /* 一道窄而亮的斜切反光，不是一整片雾——"晶莹"是这么来的 */
-    background: linear-gradient(118deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .04) 15%, transparent 32%, transparent 76%, rgba(255, 255, 255, .13));
+    background: linear-gradient(118deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .04) 14%, transparent 30%, transparent 78%, rgba(255, 255, 255, .12));
   }
   /* 底边那道亮光：原型里 HUD 下沿是压在桌面上的一条粉蓝反光 */
   #launch::after {
     content: '';
     position: absolute;
+    z-index: 4;
     left: 7%;
     right: 7%;
     bottom: 0;
@@ -81,13 +123,7 @@
     background: linear-gradient(90deg, transparent, rgba(255, 196, 224, .9) 26%, rgba(182, 214, 255, .9) 70%, transparent);
     box-shadow: 0 0 18px rgba(255, 178, 214, .75);
   }
-  #launch > * { position: relative; z-index: 1; }
-  /* backdrop-filter 不可用时只是少了模糊，填充本身就够紫，补足 alpha 即可 */
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    #launch {
-      background: linear-gradient(158deg, rgba(78, 76, 138, .94), rgba(34, 36, 84, .96) 48%, rgba(90, 58, 110, .94));
-    }
-  }
+  .brand, #open, .steps, #status { position: relative; z-index: 3; }
 
   /* 樱花徽记贴着花体标题那一行，跟原型里 Girls 旁边那朵一样；
      垂直居中会让它掉到标题和正文中间的空当里 */
@@ -100,9 +136,11 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, .58);
-    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .58), rgba(255, 214, 234, .16));
-    box-shadow: 0 0 24px rgba(255, 178, 212, .42), inset 0 1px 0 rgba(255, 255, 255, .7);
+    border: 1px solid rgba(255, 255, 255, .60);
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .52), rgba(255, 214, 234, .12));
+    box-shadow: 0 0 24px rgba(255, 178, 212, .40), inset 0 1px 0 rgba(255, 255, 255, .72);
+    backdrop-filter: blur(8px) saturate(1.2);
+    -webkit-backdrop-filter: blur(8px) saturate(1.2);
   }
   .mark img { width: 22px; height: 22px; object-fit: contain; }
   .copy { min-width: 0; }
@@ -113,7 +151,7 @@
     font: 400 30px/1 'Pinyon Script', cursive;
     font-style: normal;
     color: #fff5f9;
-    text-shadow: 0 2px 16px rgba(255, 168, 208, .70);
+    text-shadow: 0 2px 16px rgba(255, 168, 208, .70), 0 1px 4px rgba(16, 12, 38, .5);
   }
   .titleline span {
     color: var(--faint);
@@ -131,15 +169,17 @@
     align-items: center;
     gap: 9px;
     padding: 12px 24px;
-    border: 1px solid rgba(255, 255, 255, .72);
+    border: 1px solid rgba(255, 255, 255, .70);
     border-radius: 999px;
     /* 原型里的按钮是同一块玻璃上磨出来的亮胶囊，不是一片实心白纸。
-       实心白在这张卡上抢掉全部视线，改成半透明 + 一圈粉光。 */
-    background: linear-gradient(150deg, rgba(255, 255, 255, .30), rgba(255, 224, 240, .14) 55%, rgba(210, 228, 255, .18));
+       现在它下面是照片，backdrop-filter 才真的有东西可模糊。 */
+    background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(255, 224, 240, .12) 55%, rgba(210, 228, 255, .16));
     box-shadow:
-      0 0 24px -4px rgba(255, 178, 214, .60),
+      0 0 24px -4px rgba(255, 178, 214, .56),
       0 10px 24px -14px rgba(14, 10, 34, .70),
       inset 0 1px 0 rgba(255, 255, 255, .72);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
     color: #fff;
     text-shadow: 0 1px 4px rgba(24, 18, 52, .55);
     font: 600 14px/1 'Noto Sans SC', system-ui, sans-serif;
@@ -155,7 +195,7 @@
   }
   #open:hover {
     border-color: #fff;
-    background: linear-gradient(150deg, rgba(255, 255, 255, .40), rgba(255, 224, 240, .22) 55%, rgba(210, 228, 255, .26));
+    background: linear-gradient(150deg, rgba(255, 255, 255, .36), rgba(255, 224, 240, .20) 55%, rgba(210, 228, 255, .24));
     box-shadow:
       0 0 30px -2px rgba(255, 160, 204, .78),
       0 12px 26px -14px rgba(14, 10, 34, .70),
@@ -163,6 +203,7 @@
   }
   #open:hover i { transform: translateX(3px); }
   #open:active { transform: translateY(1px); }
+  #open:focus-visible { outline: 2px solid rgba(255, 214, 234, .9); outline-offset: 3px; }
 
   .steps {
     grid-column: 1 / -1;
@@ -179,12 +220,13 @@
     align-items: baseline;
     gap: 7px;
     padding: 6px 13px;
-    border: 1px solid rgba(255, 255, 255, .30);
+    border: 1px solid var(--rim-soft);
     border-radius: 999px;
-    /* 卡片本体已经是紫玻璃，步骤块就在它上面再提一层亮，
-       而不是反过来抠一块暗（暗块在这张卡上会变成几个黑洞） */
-    background: linear-gradient(150deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .05));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38);
+    /* 步骤块是照片上的一层薄玻璃：往上提亮，不往下抠暗 */
+    background: linear-gradient(150deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .36);
+    backdrop-filter: blur(9px) saturate(1.24);
+    -webkit-backdrop-filter: blur(9px) saturate(1.24);
     color: var(--mute);
     font-size: 12px;
   }
@@ -202,10 +244,12 @@
     align-items: center;
     gap: 9px;
     padding: 9px 14px;
-    border: 1px solid rgba(255, 255, 255, .28);
+    border: 1px solid var(--rim-soft);
     border-radius: 13px;
     background: linear-gradient(150deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .34);
+    backdrop-filter: blur(9px) saturate(1.24);
+    -webkit-backdrop-filter: blur(9px) saturate(1.24);
     color: var(--mute);
     font-size: 12px;
     line-height: 1.5;
@@ -220,14 +264,26 @@
     background: var(--blue);
     box-shadow: 0 0 12px var(--blue);
   }
-  #status.ok { color: rgba(214, 245, 233, .9); }
+  #status.ok { color: rgba(224, 250, 240, .94); }
   #status.ok::before { background: var(--ok); box-shadow: 0 0 12px var(--ok); }
-  #status.warn { color: rgba(255, 214, 236, .9); }
+  #status.warn { color: rgba(255, 222, 240, .94); }
   #status.warn::before { background: var(--pink); box-shadow: 0 0 12px var(--pink); }
+
+  /* 没有 backdrop-filter 时玻璃件会直接透出照片，字会糊在花枝和湖面高光上，
+     所以把填充补厚一点——只在这一种情况下补 */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    #open { background: linear-gradient(150deg, rgba(96, 92, 156, .78), rgba(60, 58, 116, .74)); }
+    .steps span, #status { background: linear-gradient(150deg, rgba(74, 70, 130, .70), rgba(46, 46, 98, .66)); }
+    .mark { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .5), rgba(120, 110, 178, .7)); }
+  }
 
   @media (max-width: 520px) {
     body { padding: 6px 6px 10px; }
     #launch { grid-template-columns: minmax(0, 1fr); gap: 13px; padding: 18px 18px 20px; border-radius: 20px; }
+    /* 竖着堆之后卡片接近方形，照片会横向裁掉大半。再往右就只剩天和湖面一片渐变了，
+       停在这儿能同时留住窗台的植物、栏杆和右边的湖，画面还认得出是同一个房间 */
+    #scene { object-position: 47% 50%; }
+    #scene.full { object-position: 50% 44%; }
     .brand { gap: 12px; align-items: flex-start; }
     .titleline em { font-size: 26px; }
     .titleline span { font-size: 10px; letter-spacing: .12em; }
@@ -240,6 +296,10 @@
 </head>
 <body>
 <div id="launch">
+  <img id="scene" alt="" aria-hidden="true" decoding="async"
+       src="https://tangquanghuy.github.io/linjiang-glass/assets/opening-strip.webp"
+       onerror="this.onerror=null;this.classList.add('full');this.src='https://tangquanghuy.github.io/linjiang-glass/assets/opening-background.png';">
+  <div class="veil" aria-hidden="true"></div>
   <div class="brand">
     <div class="mark"><img src="https://tangquanghuy.github.io/linjiang-glass/assets/mark-sakura.png" alt=""></div>
     <div class="copy">

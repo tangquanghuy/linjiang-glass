@@ -7,7 +7,7 @@
  *   102. wx_home         乌溪康养中心 (乌溪区)
  *   103. xz_jiayuan      西洲滨江大平层 (西洲区)
  *   104. dt_townhouse    东塘联排别墅 (东塘区)
- *   105. qp_villa        青屏半山独栋 (青屏山区)
+ *   105. qp_villa        青屏半山独栋 (青屏山风景区)
  *   106. mh_civic        明湖市民中心政务大厅 (明湖区)
  *   107. gl_pharmacy     百草国药铺 (鼓岭区)
  *   108. gl_barber       永红老理发店 (鼓岭区)
@@ -402,8 +402,8 @@ export const BATCH_11_NODES = [
   {
     id: "qp_villa",
     name: "青屏半山独栋",
-    fullName: "青屏山区 · 青屏半山独栋庄园",
-    district: "青屏山区",
+    fullName: "青屏山风景区 · 青屏半山独栋庄园",
+    district: "青屏山风景区",
     archetype: "nature",
     privacy: 4,
     openHours: [ "朝", "昼", "暮", "夜", "深夜" ],

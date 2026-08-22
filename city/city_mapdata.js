@@ -6677,6 +6677,16 @@ const nodes = [
       materials: [ "进口冰谷陈酿白葡萄酒", "高档真丝睡袍面料", "奢华室内皮革护理剂", "高档香氛精油", "奢品保养素材" ],
       desc: "酒柜与衣帽间内备有冰镇白葡萄酒、纯丝睡袍以及高档香氛喷雾素材。"
     },
+    housing: {
+      tier: "upper",
+      transaction: "rent_or_buy",
+      rent: 13000,
+      deposit: 26000,
+      sale: 5200000,
+      privacy: 4,
+      unlock: { minMoney: 260000 },
+      note: "整套五百平大平层。开局那档 3900 是同一套里分租出去的一间主卧，整套拿下才算真正住进来"
+    },
     special: [ "整面悬空落地窗视野无遮挡，俯瞰江景的同时室内地灯勾勒出肉体轮廓。", "中央大理石岛台高度一米一，台面冰凉平整，极其适合面对面抱坐骑乘。", "步入式衣帽间配备环绕式三面落地全身镜，可无死角反射身体细节。" ],
     events: [
       {
@@ -6765,6 +6775,16 @@ const nodes = [
       materials: [ "庭院天然花卉精油", "车用高级真皮滋养膏", "庭院园艺修剪工具", "家装香氛素材", "优质燃料耗材" ],
       desc: "车库工作台与庭院工具房备有真皮护理膏、花卉精油及园艺工具素材。"
     },
+    housing: {
+      tier: "upper",
+      transaction: "rent_or_buy",
+      rent: 9800,
+      deposit: 19600,
+      sale: 3800000,
+      privacy: 4,
+      unlock: { minMoney: 190000 },
+      note: "独门独户联排，带下沉庭院与双车位地库；南郊湿地旁，进城通勤长"
+    },
     special: [ "地下车库隔音卷帘门完全降下后，内部声音与外界彻底隔绝。", "下沉式庭院四周被高大绿植与陡峭石墙包围，上方只能看见星空，绝无外人视线。", "挑高客厅真皮皮质沙发宽达两米，回弹优良。" ],
     events: [
       {
@@ -6815,8 +6835,8 @@ const nodes = [
   {
     id: "qp_villa",
     name: "青屏半山独栋",
-    fullName: "青屏山区 · 青屏半山独栋庄园",
-    district: "青屏山区",
+    fullName: "青屏山风景区 · 青屏半山独栋庄园",
+    district: "青屏山风景区",
     archetype: "nature",
     privacy: 4,
     openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
@@ -6826,6 +6846,16 @@ const nodes = [
     gather: {
       materials: [ "深山冷泉天然矿物盐", "高纯度松针精油", "野奢羊毛织物耗材", "山地草本素材", "特异温泉矿物" ],
       desc: "主卧与泳池旁备有松针精油、冷泉矿物盐及天然羊毛织物素材。"
+    },
+    housing: {
+      tier: "luxury",
+      transaction: "rent_or_buy",
+      rent: 26000,
+      deposit: 52000,
+      sale: 11500000,
+      privacy: 4,
+      unlock: { minMoney: 600000 },
+      note: "全市天花板：私人山地庄园，悬崖无边泳池；山路末班公交极早，没车基本出不了门"
     },
     special: [ "主卧长绒地毯柔软干净，可用于小狗情趣跪地舔吸与体位固定。", "悬崖无边泳池边缘采用全透明亚克力板，下半身浸在水中时外部视觉张力极强。", "半山腰山风呼啸，松涛声能完全掩盖肉体撞击与娇吟声。" ],
     events: [
@@ -7280,11 +7310,11 @@ const nodes = [
   {
     id: "mh_lanting",
     name: "明湖澜庭",
-    fullName: "明湖区 ? 明湖澜庭",
+    fullName: "明湖区 · 明湖澜庭",
     district: "明湖区",
     archetype: "living",
     privacy: 4,
-    openHours: [ "?", "?", "?", "?", "??" ],
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
     intro: "明湖东岸的改善型公寓，高层阳台能看到湖面。",
     draw: "进阶租住，适合稳定收入后换房。",
     features: { canGather: false, canDate: true, canWork: false, hasShop: false },
@@ -7295,7 +7325,8 @@ const nodes = [
       deposit: 10400,
       sale: 1900000,
       privacy: 4,
-      unlock: { minMoney: 80000 }
+      unlock: { minMoney: 80000 },
+      note: "明湖东岸改善型公寓，高层阳台看得到湖面；换房的第一档，地铁两站进 CBD"
     },
     special: [],
     events: []
@@ -7303,12 +7334,12 @@ const nodes = [
   {
     id: "xz_jiangwan",
     name: "西洲江湾公寓",
-    fullName: "西洲区 ? 西洲江湾公寓",
+    fullName: "西洲区 · 西洲江湾公寓",
     district: "西洲区",
     archetype: "living",
     privacy: 4,
-    openHours: [ "?", "?", "?", "?", "??" ],
-    intro: "靠近直播产业带的江景公寕。",
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "靠近直播产业带的江景公寓。",
     draw: "进阶住宅，距离西洲工作节点更近。",
     features: { canGather: false, canDate: true, canWork: false, hasShop: false },
     housing: {
@@ -7318,7 +7349,8 @@ const nodes = [
       deposit: 13600,
       sale: 2600000,
       privacy: 4,
-      unlock: { minMoney: 120000 }
+      unlock: { minMoney: 120000 },
+      note: "河西江景高层，落地窗对着临江；步行就能到声学棚、电竞舱和剧院，直播从业者的首选"
     },
     special: [],
     events: []
@@ -7372,11 +7404,11 @@ const nodes = [
   {
     id: "pj_yunju",
     name: "浦江云居",
-    fullName: "雨石与浦江区 ? 浦江云居",
+    fullName: "雨石与浦江区 · 浦江云居",
     district: "雨石与浦江区",
     archetype: "living",
     privacy: 4,
-    openHours: [ "?", "?", "?", "?", "??" ],
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
     intro: "研创园北侧的高层住宅。",
     draw: "中高级住宅，适合研创园或浦江夜班工作。",
     features: { canGather: false, canDate: true, canWork: false, hasShop: false },
@@ -7387,7 +7419,8 @@ const nodes = [
       deposit: 15200,
       sale: 3200000,
       privacy: 4,
-      unlock: { minMoney: 160000 }
+      unlock: { minMoney: 160000 },
+      note: "研创园北侧高层，园区通勤十分钟；在江北，进城要过临江大桥或过江隧道"
     },
     special: [],
     events: []
@@ -7395,12 +7428,12 @@ const nodes = [
   {
     id: "ys_riverside",
     name: "雨石江岸公寓",
-    fullName: "雨石与浦江区 ? 雨石江岸公寓",
+    fullName: "雨石与浦江区 · 雨石江岸公寓",
     district: "雨石与浦江区",
     archetype: "living",
     privacy: 4,
-    openHours: [ "?", "?", "?", "?", "??" ],
-    intro: "沿江改造的中高档公寕。",
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "沿江改造的中高档公寓。",
     draw: "进阶江景住宅，交通方便。",
     features: { canGather: false, canDate: true, canWork: false, hasShop: false },
     housing: {
@@ -7410,9 +7443,196 @@ const nodes = [
       deposit: 11600,
       sale: 2200000,
       privacy: 4,
-      unlock: { minMoney: 100000 }
+      unlock: { minMoney: 100000 },
+      note: "沿江改造的中高档公寓，交通方便；临江南站就在旁边，货运车流的噪音是代价"
     },
     special: [],
+    events: []
+  },
+  {
+    id: "gl_gongguan",
+    name: "鼓岭石库门老公馆",
+    fullName: "鼓岭区 · 鼓岭石库门老公馆",
+    district: "鼓岭区",
+    archetype: "living",
+    privacy: 4,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "鼓岭老街深处的民国石库门公馆，整栋三层带天井院。清水红砖外墙、柚木楼梯与彩绘玻璃气窗保存完好，二楼有环通的木质回廊，三楼阁楼开了老虎窗。天井里有一口封了的老井和一株石榴树，院门是两扇厚重黑漆木门，落栓后整栋与外界隔断。",
+    draw: "整栋老公馆起居。天井石榴树下的露天沐浴、二楼回廊栏杆上撩裙后入与阁楼老虎窗下的地铺缠绵。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "老公馆天井石榴", "百年柚木碎料", "彩绘玻璃残片", "封井陈年井水" ],
+      desc: "天井院里能摘到石榴、收集封井渗水，阁楼堆着修缮换下的柚木与彩玻碎料。"
+    },
+    housing: {
+      tier: "upper",
+      transaction: "rent_or_buy",
+      rent: 11000,
+      deposit: 22000,
+      sale: 4200000,
+      privacy: 4,
+      unlock: { minMoney: 210000 },
+      note: "整栋民国石库门公馆，三层带天井院；文化街区核心、生活配套最密，代价是老木结构几乎不隔音"
+    },
+    special: [
+      "院门两扇黑漆木门可从内落栓，落栓后整栋公馆与外界完全隔断。",
+      "二楼环通木回廊栏杆只到腰高，站在天井里仰头能看清回廊上的一切。"
+    ],
+    events: []
+  },
+  {
+    id: "wx_riverhouse",
+    name: "乌溪枕水河房",
+    fullName: "乌溪区 · 乌溪枕水二层河房",
+    district: "乌溪区",
+    archetype: "living",
+    privacy: 4,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "乌溪水巷里的明清二层枕水河房，后墙直接砌在河道上，自带一段私家石阶水码头。一层是青砖堂屋与老灶间，二层临河那面整排都是可推开的木格花窗，推窗即是摇橹船来往的水面。屋后水码头入夜后完全落进石桥阴影，只剩对岸零星灯火。",
+    draw: "临河老宅长住。二楼推窗全开面河跪坐、私家水码头石阶上背对河面后入与老灶间灶台边缘的隐秘缠绵。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "河房檐下青苔", "老灶柴火余烬", "河道菱角与螺", "明清木构残料" ],
+      desc: "水码头石阶与檐下能采到青苔螺蛳，老灶间常年备着柴火与修屋换下的木料。"
+    },
+    housing: {
+      tier: "upper",
+      transaction: "rent_or_buy",
+      rent: 7200,
+      deposit: 14400,
+      sale: 3000000,
+      privacy: 4,
+      unlock: { minMoney: 140000 },
+      note: "明清枕水河房整栋，自带私家水码头；老城南水巷深处，潮气重、没电梯没车位，进出只能走石板巷"
+    },
+    special: [
+      "后墙水码头石阶入夜后完全落在石桥阴影里，两岸都看不清人影。",
+      "二楼临河木格花窗能整排推开，推开后与水面之间没有任何遮挡。"
+    ],
+    events: []
+  },
+  {
+    id: "lx_faculty",
+    name: "学府雅苑教师公寓",
+    fullName: "落霞区 · 学府雅苑教职工公寓",
+    district: "落霞区",
+    archetype: "living",
+    privacy: 4,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "落霞大学城内部的教职工公寓组团，红砖坡顶六层板楼，楼间距大、树荫极厚。户型是标准一室一书房，书房整面墙做到顶的书架，南向落地飘窗宽得能躺人。组团有独立门禁与校卫巡逻，晚十一点后外来车辆一律不放行，是大学城里最安静的一片。",
+    draw: "大学城安静长住。落地书房飘窗上的午后缠绵、厚树荫遮挡下的白天不拉窗帘与门禁社区里几乎不被打扰的整夜同居。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "校园梧桐落叶标本", "教职工特供茶叶", "旧书页与藏书票", "文具与装帧耗材" ],
+      desc: "组团院内能捡到梧桐标本叶，书房与楼下活动室常年堆着旧书、藏书票和装帧耗材。"
+    },
+    housing: {
+      tier: "advanced",
+      transaction: "rent_or_buy",
+      rent: 4800,
+      deposit: 9600,
+      sale: 1800000,
+      privacy: 4,
+      unlock: { minMoney: 60000 },
+      note: "大学城内一室一书房，门禁严、树荫厚、全城最安静；但要有校内或科研关系才租得到，晚十一点后车进不来"
+    },
+    special: [
+      "组团门禁晚十一点后不放外来车辆，进出都会被校卫记一笔。",
+      "楼间距大且树荫极厚，白天拉开窗帘也不会被对楼看见。"
+    ],
+    events: []
+  },
+  {
+    id: "dt_farmhouse",
+    name: "东塘田园农舍",
+    fullName: "东塘区 · 东塘田园独门农舍",
+    district: "东塘区",
+    archetype: "living",
+    privacy: 5,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "东塘镇外农田中间的独门农舍，青瓦平房带一个大院子和三分自留菜地。院里有土灶、压水井、晒谷场和一棵老柿子树，屋后是连片稻田与灌溉渠。方圆两百米没有第二户人家，入夜后只有虫鸣和远处高速的车流声，整片田野没有一盏路灯。",
+    draw: "乡下农舍长住。晒谷场摊开凉席的星空野合、菜地垄间沾泥的跪伏后入与土灶柴火边的取暖缠绵。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "自留地时令蔬菜", "散养土鸡蛋", "晒干稻草与柴火", "灌溉渠边野生草药" ],
+      desc: "三分自留菜地全年有菜，院里散养鸡下蛋，晒谷场堆着稻草柴火，渠边长着野生草药。"
+    },
+    housing: {
+      tier: "advanced",
+      transaction: "rent",
+      rent: 3300,
+      deposit: 6600,
+      sale: 0,
+      privacy: 5,
+      unlock: { minMoney: 30000 },
+      note: "青瓦农舍带院子和三分自留菜地，最便宜的独门独院；宅基地不能买卖只能长租，进城单程一个多小时"
+    },
+    special: [
+      "方圆两百米没有第二户人家，院门一关整片农田都算私人空间。",
+      "晒谷场入夜后完全没有照明，抬头是没有光污染的整片星空。"
+    ],
+    events: []
+  },
+  {
+    id: "qp_hillhouse",
+    name: "松涧山居小院",
+    fullName: "青屏山风景区 · 松涧一进山居小院",
+    district: "青屏山风景区",
+    archetype: "living",
+    privacy: 5,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "青屏山半山松林里的一进木构小院，依着一道常年有水的山涧修建。院子用溪石垒了矮墙，廊下架着接活山泉的竹管，主屋是南向通间，推开整排木窗就是松林与涧水。上山只有一条盘山土路，末班公交五点半，入夜后整片山坡不会有人经过。",
+    draw: "山景小院长住。廊下竹管山泉冲淋、溪石矮墙边听着涧水的野外缠绵与通间木窗全开的松涛下同眠。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "山涧清泉水", "松针与松脂", "半山野生菌类", "溪石与苔藓" ],
+      desc: "院外山涧可取清泉，松林里能采松脂野菌，溪石与苔藓随手可得。"
+    },
+    housing: {
+      tier: "advanced",
+      transaction: "rent_or_buy",
+      rent: 6200,
+      deposit: 12400,
+      sale: 2400000,
+      privacy: 5,
+      unlock: { minMoney: 110000 },
+      note: "半山松林一进木构小院，带山涧与竹管活泉；山景与私密度都是顶级，代价是末班公交五点半、暴雨会断路"
+    },
+    special: [
+      "上山只有一条盘山土路，末班公交五点半，入夜后整片山坡不会有人经过。",
+      "廊下竹管引的是活山泉，可以直接在院子里冲淋，四周只有松林。"
+    ],
+    events: []
+  },
+  {
+    id: "mh_skyloft",
+    name: "明湖天镜顶层复式",
+    fullName: "明湖区 · 明湖天镜双子塔顶层复式",
+    district: "明湖区",
+    archetype: "living",
+    privacy: 5,
+    openHours: [ "朝", "昼", "暮", "夜", "深夜" ],
+    intro: "明湖 CBD 双子塔其中一栋的顶层复式，两层挑空七米，四面都是无框全景玻璃，正对明湖与全城天际线。上层是悬挑出去的玻璃底观景平台，下层客厅嵌了一条通往室外空中泳池的水道。整层只有一户，专属电梯必须刷卡直达，物业不上门。",
+    draw: "塔顶复式起居。玻璃底观景平台上的悬空缠绵、无框全景窗前的城市俯瞰后入与空中泳池的夜泳结合。",
+    features: { canGather: true, canDate: true, canWork: false, hasShop: false },
+    gather: {
+      materials: [ "进口气泡水与冰酒", "高定家居织物", "顶层空气净化滤材", "无框玻璃养护剂" ],
+      desc: "酒柜与储物间常备冰酒气泡水，家政柜里是高定织物与玻璃幕墙养护耗材。"
+    },
+    housing: {
+      tier: "luxury",
+      transaction: "rent_or_buy",
+      rent: 22000,
+      deposit: 44000,
+      sale: 9500000,
+      privacy: 5,
+      unlock: { minMoney: 500000 },
+      note: "双子塔顶层复式，两层挑空、四面无框全景玻璃、带空中泳池；市中心地段天花板，专属电梯刷卡直达"
+    },
+    special: [
+      "整层只有一户，专属电梯必须刷卡直达，走廊里不会出现任何外人。",
+      "上层观景平台的地板是通透玻璃，站在上面时下方两百米的街景一览无余。"
+    ],
     events: []
   }
 ];

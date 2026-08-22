@@ -32,31 +32,64 @@ const OSHI_BADGE=8;      // 目标牌子等级
    floor(20*(打赏/200000)^(1/3.5)) 重算它。想稳定拿到 8 级，只能把打赏写成
    反解出来的那个数——8100 正好落在 8 级的下沿。 */
 const OSHI_TIPPED=8100;
+/* 初始住宅只存在于这里，不进《地图静态资料》——玩家换房永远是往上换，
+   把 1400~3900 这一档挂给 AI 只会让它建议玩家搬去更差的地方。
+   name / fullName / district 必须和 city/city_mapdata.js 的节点逐字一致（节点重构V3 之后的名字），
+   否则 openingPayload 写出去的 位置.区域 与 居住地 在地图和状态栏里都定位不到。
+   分隔符是「 · 」，跟 变量更新规则 的 区域格式 对齐，不能用斜杠。 */
 const HOMES=[
-{id:'lx_share',name:'落霞合租屋',fullName:'落霞区 / 落霞合租屋',district:'落霞区',tenure:'合租',note:'大学城南的普通两居合租，租金低，隔音一般',rent:1800,deposit:3600,cost:'月租 RMB 1,800 / 押二付一'},
-{id:'pj_apt',name:'浦江人才公寓',fullName:'雨石与浦江区 / 浦江人才公寓',district:'雨石与浦江区',tenure:'租住',note:'园区外的小户型人才公寓，适合园区通勤',rent:2600,deposit:5200,cost:'月租 RMB 2,600 / 押二付一'},
-{id:'gl_yunting',name:'鼓岭云庭公寓',fullName:'鼓岭区 / 鼓岭云庭公寓',district:'鼓岭区',tenure:'租住',note:'老城精装单间，日常配套完整',rent:3200,deposit:6400,cost:'月租 RMB 3,200 / 押二付一'},
-{id:'xz_jiayuan',name:'西洲嘉苑',fullName:'西洲区 / 西洲嘉苑',district:'西洲区',tenure:'租住',note:'靠近直播产业带的高层单间',rent:3900,deposit:7800,cost:'月租 RMB 3,900 / 押二付一'},
-{id:'gl_wutong',name:'梧桐里步行房',fullName:'鼓岭区 / 梧桐里',district:'鼓岭区',tenure:'租住',note:'老城区步行房，生活方便，楼梯和邻里声较近',rent:2200,deposit:4400,cost:'月租 RMB 2,200 / 押二付一'},
-{id:'pj_village',name:'浦江城中村单间',fullName:'雨石与浦江区 / 浦江城中村',district:'雨石与浦江区',tenure:'租住',note:'租金最低，离园区近，公共空间紧凑',rent:1500,deposit:3000,cost:'月租 RMB 1,500 / 押二付一'},
-{id:'wx_home',name:'乌溪自宅',fullName:'乌溪区 / 乌溪自宅',district:'乌溪区',tenure:'自有',note:'带小型药剂工坊的自有住宅',rent:0,deposit:0,cost:'自有房产 / 无月租'},
-{id:'mh_youth_apt',name:'明湖青年公寓',fullName:'明湖区 / 明湖青年公寓',district:'明湖区',tenure:'租住',note:'城区小单间，公交和生活配套方便',rent:3200,deposit:3200,cost:'月租 RMB 3,200 / 押一付一'},
-{id:'dt_town_rental',name:'东塘镇口出租屋',fullName:'东塘区 / 东塘镇口出租屋',district:'东塘区',tenure:'租住',note:'镇口低租单间，生活成本低但进城较远',rent:1400,deposit:1400,cost:'月租 RMB 1,400 / 押一付一'},
-{id:'qp_foothill_share',name:'青屏山脚合租院',fullName:'青屏山风景区 / 青屏山脚合租院',district:'青屏山风景区',tenure:'合租',note:'独立卧室、共用厨房，末班公交较早',rent:1800,deposit:1800,cost:'月租 RMB 1,800 / 押一付一'}];
+{id:'lx_share',name:'文汇新村合租公寓',fullName:'落霞区 · 文汇新村合租公寓',district:'落霞区',tenure:'合租',note:'大学城南的两居合租，租金低，隔音一般',rent:1800,deposit:3600,cost:'月租 RMB 1,800 / 押二付一'},
+{id:'pj_apt',name:'泊寓青年社区',fullName:'雨石与浦江区 · 泊寓青年社区',district:'雨石与浦江区',tenure:'租住',note:'园区外的小户型人才公寓，适合园区通勤',rent:2600,deposit:5200,cost:'月租 RMB 2,600 / 押二付一'},
+{id:'gl_yunting',name:'鼓岭云汀私厨',fullName:'鼓岭区 · 鼓岭云汀私厨',district:'鼓岭区',tenure:'租住',note:'竹林私厨后院分租的独立厢房，安静，离老城配套近',rent:3200,deposit:6400,cost:'月租 RMB 3,200 / 押二付一'},
+{id:'xz_jiayuan',name:'西洲滨江大平层',fullName:'西洲区 · 西洲滨江大平层',district:'西洲区',tenure:'租住',note:'滨江大平层里分租出来的主卧，楼下就是直播产业带',rent:3900,deposit:7800,cost:'月租 RMB 3,900 / 押二付一'},
+{id:'gl_wutong',name:'梧桐里花园洋房',fullName:'鼓岭区 · 梧桐里花园洋房',district:'鼓岭区',tenure:'租住',note:'老洋房里隔出来的步行房，生活方便，楼梯和邻里声较近',rent:2200,deposit:4400,cost:'月租 RMB 2,200 / 押二付一'},
+{id:'pj_village',name:'浦江老街自建房',fullName:'雨石与浦江区 · 浦江老街自建房',district:'雨石与浦江区',tenure:'租住',note:'城中村自建房单间，租金最低，离园区近，公共空间紧凑',rent:1500,deposit:3000,cost:'月租 RMB 1,500 / 押二付一'},
+{id:'wx_home',name:'乌溪康养中心',fullName:'乌溪区 · 乌溪康养中心',district:'乌溪区',tenure:'自有',note:'自家开的小型中医康养理疗馆，前店后住，无月租',rent:0,deposit:0,cost:'自有房产 / 无月租'},
+{id:'mh_youth_apt',name:'明湖青年公寓',fullName:'明湖区 · 明湖青年公寓',district:'明湖区',tenure:'租住',note:'城区小单间，公交和生活配套方便',rent:3200,deposit:3200,cost:'月租 RMB 3,200 / 押一付一'},
+{id:'dt_town_rental',name:'东塘镇口出租屋',fullName:'东塘区 · 东塘镇口出租屋',district:'东塘区',tenure:'租住',note:'镇口低租单间，生活成本低但进城较远',rent:1400,deposit:1400,cost:'月租 RMB 1,400 / 押一付一'},
+{id:'qp_foothill_share',name:'青屏山脚合租院',fullName:'青屏山风景区 · 青屏山脚合租院',district:'青屏山风景区',tenure:'合租',note:'独立卧室、共用厨房，末班公交较早',rent:1800,deposit:1800,cost:'月租 RMB 1,800 / 押一付一'},
+/* 下面五处补的是"住得起但住法不一样"的档：原来十处清一色是合租／整租／自有，
+   开局的经济处境只有贵和便宜两种读法。这五种各自带明确代价——舱位没有私人空间、
+   民宿和客栈是旅居身份、帮工房拿房租换劳动、驿站铺位跟着货运作息，
+   都在《收入与物价规则》第四节"合租与借住 700~2000"这一档里，不是白送的房子。 */
+{id:'lx_capsule',name:'星宿24h太空舱',fullName:'落霞区 · 星宿24h太空舱',district:'落霞区',tenure:'舱位',note:'胶囊舱按月租的铺位，最便宜，只有一张床和一个柜子，洗漱全公用',rent:900,deposit:900,cost:'月租 RMB 900 / 押一付一'},
+{id:'dt_stay',name:'竹里馆古宅民宿',fullName:'东塘区 · 竹里馆古宅民宿',district:'东塘区',tenure:'长包',note:'民宿淡季长包的一间厢房，院子安静，旺季要腾房，进城很远',rent:2000,deposit:2000,cost:'月租 RMB 2,000 / 押一付一'},
+{id:'wx_inn',name:'水岸枕河居客栈',fullName:'乌溪区 · 水岸枕河居客栈',district:'乌溪区',tenure:'包月',note:'老巷临水客栈包月的二楼客房，推窗是河，隔壁住客换得勤',rent:1900,deposit:1900,cost:'月租 RMB 1,900 / 押一付一'},
+{id:'qp_farm',name:'林下柴火农家乐',fullName:'青屏山风景区 · 林下柴火农家乐',district:'青屏山风景区',tenure:'帮工房',note:'农家乐后院的帮工房，含三餐，代价是早晚要搭手干活，末班车很早',rent:800,deposit:800,cost:'月租 RMB 800 / 押一付一 / 含三餐'},
+{id:'pj_nightshift',name:'临港司机驿站',fullName:'雨石与浦江区 · 临港司机驿站',district:'雨石与浦江区',tenure:'铺位',note:'货运司机驿站的长租铺位，通宵有人进出，离园区和码头都近',rent:700,deposit:700,cost:'月租 RMB 700 / 押一付一'}];
+/* place 是要写进 工作.地点 的字符串，必须是「{行政区} · {地图节点名}」且节点名与
+   city_mapdata.js 逐字一致，不然《地图加载》算不出通勤、状态栏也判不出"是否到岗"。 */
 const JOBS=[
 {name:'暂时无业',place:null,node:null,monthly:0,daily:0,hours:'自由安排',kind:'free'},
-{name:'打印店店员',place:'落霞区 / 落霞打印店',node:'lx_print',monthly:4500,daily:205,hours:'09:00-18:00',kind:'service'},
-{name:'快递驿站店员',place:'鼓岭区 / 鼓岭快递驿站',node:'gl_parcel',monthly:4800,daily:220,hours:'08:30-18:30',kind:'service'},
-{name:'便利店店员',place:'明湖区 / 明湖通宵便利',node:'mh_mart',monthly:4700,daily:215,hours:'14:00-22:00',kind:'service'},
-{name:'电竞舱值班员',place:'西洲区 / 星芒电竞训练直播舱',node:'xz_esports',monthly:5200,daily:235,hours:'16:00-00:00',kind:'live'},
-{name:'加油站夜班店员',place:'东塘区 / 东塘加油站',node:'dt_gas',monthly:5600,daily:255,hours:'20:00-06:00',kind:'service'},
-{name:'录音棚助理',place:'西洲区 / 极光数码声学录音棚',node:'xz_sound_studio',monthly:5400,daily:245,hours:'11:00-20:00',kind:'live'},
-{name:'剧院场务',place:'西洲区 / 西洲大剧院',node:'xz_theatre',monthly:4600,daily:210,hours:'13:00-22:00',kind:'live'},
-{name:'宠物诊疗所助理',place:'鼓岭区 / 梧桐里宠物医疗中心',node:'gl_pet',monthly:5000,daily:225,hours:'10:00-19:00',kind:'medical'},
-{name:'医院前台助理',place:'明湖区 / 明湖中心医院',node:'mh_hospital',monthly:5800,daily:260,hours:'08:00-17:00',kind:'medical'},
-{name:'实验楼值班助理',place:'落霞区 / 落霞实验楼',node:'lx_lab',monthly:6000,daily:270,hours:'18:00-02:00',kind:'academy'},
-{name:'研创园行政助理',place:'雨石与浦江区 / 浦江研创园',node:'ys_rdpark',monthly:6200,daily:280,hours:'09:30-18:30',kind:'office'},
-{name:'扎染作坊学徒',place:'乌溪区 / 乌溪扎染作坊',node:'wx_dye',monthly:4200,daily:190,hours:'10:00-19:00',kind:'craft'}];
+{name:'打印店店员',place:'落霞区 · 图文天下24h快印',node:'lx_print',monthly:4500,daily:205,hours:'09:00-18:00',kind:'service'},
+{name:'快递驿站店员',place:'鼓岭区 · 菜鸟驿站老街店',node:'gl_parcel',monthly:4800,daily:220,hours:'08:30-18:30',kind:'service'},
+{name:'便利店店员',place:'明湖区 · 罗森24h便利店',node:'mh_mart',monthly:4700,daily:215,hours:'14:00-22:00',kind:'service'},
+{name:'电竞舱值班员',place:'西洲区 · 星芒次元电竞舱',node:'xz_esports',monthly:5200,daily:235,hours:'16:00-00:00',kind:'live'},
+{name:'加油站夜班店员',place:'东塘区 · 东塘加油站洗车房',node:'dt_gas',monthly:5600,daily:255,hours:'20:00-06:00',kind:'service'},
+{name:'录音棚助理',place:'西洲区 · 极光专业声学工坊',node:'xz_sound_studio',monthly:5400,daily:245,hours:'11:00-20:00',kind:'live'},
+{name:'剧院场务',place:'西洲区 · 西洲保利大剧院',node:'xz_theatre',monthly:4600,daily:210,hours:'13:00-22:00',kind:'live'},
+{name:'宠物诊疗所助理',place:'鼓岭区 · 芭比堂宠物医院',node:'gl_pet',monthly:5000,daily:225,hours:'10:00-19:00',kind:'medical'},
+{name:'医院前台助理',place:'明湖区 · 市第一人民医院',node:'mh_hospital',monthly:5800,daily:260,hours:'08:00-17:00',kind:'medical'},
+{name:'实验楼值班助理',place:'落霞区 · 高分子重点实验楼',node:'lx_lab',monthly:6000,daily:270,hours:'18:00-02:00',kind:'academy'},
+{name:'研创园行政助理',place:'雨石与浦江区 · 浦江研创园',node:'ys_rdpark',monthly:6200,daily:280,hours:'09:30-18:30',kind:'office'},
+{name:'扎染作坊学徒',place:'乌溪区 · 江南扎染非遗工坊',node:'wx_dye',monthly:4200,daily:190,hours:'10:00-19:00',kind:'craft'},
+/* 下面十二个把每个城区补到 3 个岗位。原来青屏山一个都没有、东塘乌溪浦江各只有一个，
+   开局挑住处时等于"选了这几个区就别想就近上班"，通勤卡永远是跨城那一档。
+   月薪全部落在《收入与物价规则》第三节的开局区间 4000~6000，daily = monthly÷22
+   四舍五入到 5 或 10（第一节的折算口径），最高最低差不到一倍。
+   全部挂在既有节点上——新增节点要给坐标并接进路网，check-net 会查连通性，不值当。 */
+{name:'奥莱店铺导购',place:'东塘区 · 杉杉奥特莱斯',node:'dt_outlet',monthly:4300,daily:195,hours:'10:00-19:00',kind:'service'},
+{name:'航站楼地服引导员',place:'东塘区 · 临江机场T2航站楼',node:'dt_airport',monthly:5200,daily:235,hours:'06:00-14:00',kind:'service'},
+{name:'茶馆跑堂',place:'乌溪区 · 临水居老茶馆',node:'wx_teahouse',monthly:4000,daily:180,hours:'09:00-18:00',kind:'service'},
+{name:'实景剧场NPC演员',place:'乌溪区 · 迷雾剧社实景剧场',node:'wx_script',monthly:4800,daily:220,hours:'14:00-23:00',kind:'live'},
+{name:'影城放映助理',place:'明湖区 · 万达影城IMAX巨幕',node:'mh_cinema',monthly:4400,daily:200,hours:'12:00-21:00',kind:'service'},
+{name:'食堂帮厨',place:'落霞区 · 大学城第一食堂',node:'lx_canteen',monthly:4100,daily:185,hours:'06:00-14:00',kind:'service'},
+{name:'高铁站务引导员',place:'雨石与浦江区 · 临江南站高铁枢纽',node:'ys_station',monthly:5000,daily:225,hours:'07:00-16:00',kind:'service'},
+{name:'生煎馆早班帮工',place:'雨石与浦江区 · 老张生煎馆',node:'pj_morning',monthly:4300,daily:195,hours:'05:00-13:00',kind:'service'},
+{name:'游客中心咨询员',place:'青屏山风景区 · 青屏山游客中心',node:'qp_visitor',monthly:4500,daily:205,hours:'08:30-17:30',kind:'service'},
+{name:'索道值守员',place:'青屏山风景区 · 青屏山全景索道',node:'qp_cable',monthly:4700,daily:215,hours:'08:00-17:00',kind:'service'},
+{name:'半山茶舍服务员',place:'青屏山风景区 · 半山听松古茶舍',node:'qp_teahouse',monthly:4200,daily:190,hours:'09:00-18:00',kind:'service'},
+{name:'洋房咖啡师',place:'鼓岭区 · 青砖记洋房咖啡',node:'gl_cafe',monthly:4600,daily:210,hours:'08:00-17:00',kind:'craft'}];
 const CATEGORIES=['杂谈','游戏','唱歌','ASMR','绘画','舞蹈','户外','美食','虚拟主播','综合内容'];
 /* 人设不再是一组固定字段，而是一整段「角色详情」YAML —— 跟 世界书/红蔷薇、斯黛拉、
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
@@ -165,7 +198,10 @@ function closeMap(){var modal=document.querySelector('#map-modal');if(modal)moda
 function syncMapFullscreen(){var card=document.querySelector('#opening-map-card'),btn=document.querySelector('#map-fullscreen');if(!card||!btn)return;var on=document.fullscreenElement===card;btn.textContent=on?'× 退出全屏':'⛶ 全屏地图';card.classList.toggle('is-fullscreen',on);setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},120)}
 function toggleMapFullscreen(){var card=document.querySelector('#opening-map-card');if(!card)return;if(document.fullscreenElement===card){document.exitFullscreen()}else if(card.requestFullscreen){card.requestFullscreen()}}
 function openMap(target){if(target==='player'||target==='work'){setOpeningTarget(target);go(2);return}state.mapTarget='streamer';document.querySelector('#map-title').textContent='选择自定义主播住所';document.querySelector('#map-modal').classList.add('on');var frame=document.querySelector('#map-iframe');if(!frame.getAttribute('src'))frame.src=MAP_URL;var api=modalMapApi();try{if(api&&api.setOpeningTarget)api.setOpeningTarget('home')}catch(_){} }
-function handleMapPick(node){if(!node||!node.id)return;var knownHome=HOMES.find(function(h){return h.id===node.id});if(state.mapTarget==='player'){if(knownHome)return setHome(Object.assign({},knownHome,{name:node.name,fullName:node.fullName||knownHome.fullName,district:node.district||knownHome.district}));toast('请点击地图上的粉色住宅节点');return}if(state.mapTarget==='work'){var knownJob=JOBS.find(function(j){return j.node===node.id});if(knownJob)return setJob(knownJob);toast('请选择已加入开局岗位池的工作节点');return}if(state.mapTarget==='streamer'&&node.archetype==='living')return setHome({id:node.id,name:node.name,fullName:node.fullName||node.district+' / '+node.name,district:node.district,tenure:'租住',note:node.draw||'从地图选择的居住地点',rent:0,deposit:0,cost:'费用由开局后设定'},'streamer');toast('请选择住所类地点')}
+function handleMapPick(node){if(!node||!node.id)return;var knownHome=HOMES.find(function(h){return h.id===node.id});if(state.mapTarget==='player'){/* 用 district + name 现拼，不用 node.fullName：city_mapdata 的 fullName 尾巴常和 name
+   不一样（"落霞区 · 文汇新村青年合租公寓" vs name "文汇新村合租公寓"），
+   写成 fullName 会让 位置.区域 的子区域对不上节点名，地图和状态栏都定位不到。 */
+if(knownHome){var hn=node.name||knownHome.name,hd=node.district||knownHome.district;return setHome(Object.assign({},knownHome,{name:hn,district:hd,fullName:hd+' · '+hn}))}toast('请点击地图上的粉色住宅节点');return}if(state.mapTarget==='work'){var knownJob=JOBS.find(function(j){return j.node===node.id});if(knownJob)return setJob(knownJob);toast('请选择已加入开局岗位池的工作节点');return}if(state.mapTarget==='streamer'&&node.archetype==='living')return setHome({id:node.id,name:node.name,fullName:node.district+' · '+node.name,district:node.district,tenure:'租住',note:node.draw||'从地图选择的居住地点',rent:0,deposit:0,cost:'费用由开局后设定'},'streamer');toast('请选择住所类地点')}
 function updateArt(src,type){state.art={src,type};const box=$('#art-preview'),img=$('#art-img');if(src){img.src=src;box.classList.add('has')}else{img.removeAttribute('src');box.classList.remove('has')}}
 function streamerInput(){const s=streamScale($('#streamer-tier').value);return{name:value('#streamer-name'),handle:value('#streamer-handle'),age:+value('#streamer-age')||23,home:state.streamerHome?.fullName||'',categories:[...state.categories],scale:s,hours:value('#streamer-hours'),tone:value('#streamer-tone'),seed:value('#streamer-seed'),medal:value('#streamer-medal')}}
 /* 模型不可用时的兜底草稿。格式和字段跟 世界书/红蔷薇 那几条一致（也就是

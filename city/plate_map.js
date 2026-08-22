@@ -140,7 +140,8 @@
       wx_arch: [0.560, 0.720],
       wx_huafang: [0.640, 0.640],
       wx_inn: [0.700, 0.560],
-      wx_bathhouse: [0.868, 0.672]
+      wx_bathhouse: [0.868, 0.672],
+      wx_riverhouse: [0.780, 0.420]
     },
     minghu: {
       mh_yunque: [0.540, 0.280],
@@ -158,7 +159,8 @@
       mh_mart: [0.400, 0.640],
       mh_gym: [0.340, 0.700],
       mh_lanting: [0.700, 0.660],
-      mh_youth_apt: [0.520, 0.740]
+      mh_youth_apt: [0.520, 0.740],
+      mh_skyloft: [0.660, 0.300]
     },
     guling: {
       gl_florist: [0.380, 0.360],
@@ -177,7 +179,8 @@
       gl_parcel: [0.540, 0.600],
       gl_clinic: [0.280, 0.640],
       gl_agency: [0.660, 0.660],
-      gl_yunting: [0.700, 0.740]
+      gl_yunting: [0.700, 0.740],
+      gl_gongguan: [0.720, 0.380]
     },
     xizhou: {
       xz_jiangyan: [0.740, 0.200],
@@ -211,7 +214,8 @@
       lx_backstreet: [0.360, 0.620],
       lx_share: [0.500, 0.660],
       lx_capsule: [0.340, 0.680],
-      lx_bus: [0.300, 0.740]
+      lx_bus: [0.300, 0.740],
+      lx_faculty: [0.700, 0.360]
     },
     pujiang: {
       pj_apt: [0.560, 0.220],
@@ -246,7 +250,8 @@
       qp_cable: [0.340, 0.620],
       qp_farm: [0.780, 0.740],
       qp_visitor: [0.400, 0.840],
-      qp_foothill_share: [0.520, 0.760]
+      qp_foothill_share: [0.520, 0.760],
+      qp_hillhouse: [0.280, 0.240]
     },
     dongtang: {
       dt_nursery: [0.780, 0.200],
@@ -263,7 +268,8 @@
       dt_drive: [0.640, 0.720],
       dt_service: [0.440, 0.800],
       dt_townhouse: [0.400, 0.880],
-      dt_town_rental: [0.240, 0.760]
+      dt_town_rental: [0.240, 0.760],
+      dt_farmhouse: [0.580, 0.220]
     }
   };
 
@@ -442,14 +448,20 @@
   const OPENING_HOME_META = {
     lx_share: { cost: '月租 RMB 1,800 / 押二付一', note: '普通合租 / 大学城南侧通勤', tier: 'starter' },
     pj_apt: { cost: '月租 RMB 2,600 / 押二付一', note: '园区人才公寓 / 配套完整', tier: 'starter' },
-    gl_yunting: { cost: '月租 RMB 3,200 / 押二付一', note: '精装单间 / 住宅密度高', tier: 'starter' },
-    xz_jiayuan: { cost: '月租 RMB 3,900 / 押二付一', note: '西洲高层 / 靠近直播产业带', tier: 'starter' },
-    gl_wutong: { cost: '月租 RMB 2,200 / 押二付一', note: '老城步行房 / 离生活配套近', tier: 'starter' },
-    pj_village: { cost: '月租 RMB 1,500 / 押二付一', note: '低租金 / 公共空间紧凑', tier: 'starter' },
-    wx_home: { cost: '自有房产 / 无月租', note: '带小型工坊 / 无初始租金', tier: 'starter' },
+    gl_yunting: { cost: '月租 RMB 3,200 / 押二付一', note: '私厨后院厢房 / 安静', tier: 'starter' },
+    xz_jiayuan: { cost: '月租 RMB 3,900 / 押二付一', note: '大平层分租主卧 / 靠近直播产业带', tier: 'starter' },
+    gl_wutong: { cost: '月租 RMB 2,200 / 押二付一', note: '老洋房步行房 / 离生活配套近', tier: 'starter' },
+    pj_village: { cost: '月租 RMB 1,500 / 押二付一', note: '城中村自建房 / 公共空间紧凑', tier: 'starter' },
+    wx_home: { cost: '自有房产 / 无月租', note: '前店后住的康养馆 / 无初始租金', tier: 'starter' },
     mh_youth_apt: { cost: '月租 RMB 3,200 / 押一付一', note: '城区小单间 / 公交与生活配套方便', tier: 'starter' },
     dt_town_rental: { cost: '月租 RMB 1,400 / 押一付一', note: '镇口低租单间 / 进城通勤较长', tier: 'starter' },
-    qp_foothill_share: { cost: '月租 RMB 1,800 / 押一付一', note: '山脚合租卧室 / 末班公交较早', tier: 'starter' }
+    qp_foothill_share: { cost: '月租 RMB 1,800 / 押一付一', note: '山脚合租卧室 / 末班公交较早', tier: 'starter' },
+    // 五种"住法不同"的补充档，cost 与 opening.js 的 HOMES.cost 逐字一致
+    lx_capsule: { cost: '月租 RMB 900 / 押一付一', note: '胶囊舱铺位 / 洗漱全公用', tier: 'starter' },
+    dt_stay: { cost: '月租 RMB 2,000 / 押一付一', note: '民宿长包厢房 / 旺季要腾房', tier: 'starter' },
+    wx_inn: { cost: '月租 RMB 1,900 / 押一付一', note: '临水客栈包月房 / 邻居换得勤', tier: 'starter' },
+    qp_farm: { cost: '月租 RMB 800 / 押一付一 / 含三餐', note: '农家乐帮工房 / 早晚要搭手', tier: 'starter' },
+    pj_nightshift: { cost: '月租 RMB 700 / 押一付一', note: '司机驿站铺位 / 通宵有人进出', tier: 'starter' }
   };
   const OPENING_JOB_META = {
     lx_print: { label: '\u6253\u5370\u5e97\u5e97\u5458', pay: 'RMB 4,500 / \u6708', hours: '09:00-18:00' },
@@ -463,7 +475,20 @@
     mh_hospital: { label: '\u533b\u9662\u524d\u53f0\u52a9\u7406', pay: 'RMB 5,800 / \u6708', hours: '08:00-17:00' },
     lx_lab: { label: '\u5b9e\u9a8c\u697c\u503c\u73ed\u52a9\u7406', pay: 'RMB 6,000 / \u6708', hours: '18:00-02:00' },
     ys_rdpark: { label: '\u7814\u521b\u56ed\u884c\u653f\u52a9\u7406', pay: 'RMB 6,200 / \u6708', hours: '09:30-18:30' },
-    wx_dye: { label: '\u624e\u67d3\u4f5c\u574a\u5b66\u5f92', pay: 'RMB 4,200 / \u6708', hours: '10:00-19:00' }
+    wx_dye: { label: '\u624e\u67d3\u4f5c\u574a\u5b66\u5f92', pay: 'RMB 4,200 / \u6708', hours: '10:00-19:00' },
+    // 每区补到 3 个岗位；label/pay/hours 与 opening.js 的 JOBS 逐字一致
+    dt_outlet: { label: '奥莱店铺导购', pay: 'RMB 4,300 / 月', hours: '10:00-19:00' },
+    dt_airport: { label: '航站楼地服引导员', pay: 'RMB 5,200 / 月', hours: '06:00-14:00' },
+    wx_teahouse: { label: '茶馆跑堂', pay: 'RMB 4,000 / 月', hours: '09:00-18:00' },
+    wx_script: { label: '实景剧场NPC演员', pay: 'RMB 4,800 / 月', hours: '14:00-23:00' },
+    mh_cinema: { label: '影城放映助理', pay: 'RMB 4,400 / 月', hours: '12:00-21:00' },
+    lx_canteen: { label: '食堂帮厨', pay: 'RMB 4,100 / 月', hours: '06:00-14:00' },
+    ys_station: { label: '高铁站务引导员', pay: 'RMB 5,000 / 月', hours: '07:00-16:00' },
+    pj_morning: { label: '生煎馆早班帮工', pay: 'RMB 4,300 / 月', hours: '05:00-13:00' },
+    qp_visitor: { label: '游客中心咨询员', pay: 'RMB 4,500 / 月', hours: '08:30-17:30' },
+    qp_cable: { label: '索道值守员', pay: 'RMB 4,700 / 月', hours: '08:00-17:00' },
+    qp_teahouse: { label: '半山茶舍服务员', pay: 'RMB 4,200 / 月', hours: '09:00-18:00' },
+    gl_cafe: { label: '洋房咖啡师', pay: 'RMB 4,600 / 月', hours: '08:00-17:00' }
   };
   function openingNodeAllowed(n) {
     if (!OPENING_MODE) return true;
@@ -488,9 +513,24 @@
   }
 
   const OPENING_STARTER_IDS = new Set(Object.keys(OPENING_HOME_META));
+  /* 牌子挤在一起时把锚点推开几十像素。同一个区里两个开局选项落得太近，
+     后画的那张会压住前一张的名字，压过一半基本就点不到了。
+     偏移量用 scripts/probe-pin-overlap.mjs 量出来的重叠尺寸定，成对反向推。 */
   const OPENING_NODE_OFFSET = {
     xz_sound_studio: [-20, -13],
-    xz_esports: [20, 13]
+    xz_esports: [20, 13],
+    // 青屏山脚合租院 × 林下柴火农家乐：住所层里压了 87%
+    qp_farm: [-26, -22],
+    qp_foothill_share: [26, 22],
+    // 大学城第一食堂 × 图文天下24h快印
+    lx_canteen: [4, 26],
+    lx_print: [-4, -22],
+    // 杉杉奥特莱斯 × 东塘加油站洗车房
+    dt_outlet: [-22, -16],
+    dt_gas: [22, 16],
+    // 芭比堂宠物医院 × 菜鸟驿站老街店（顺带避开梧桐里花园洋房）
+    gl_pet: [-8, -18],
+    gl_parcel: [14, 18]
   };
   const HOUSING_TIER_LABEL = { starter: '\u521d\u59cb\u4f4f\u5b85', advanced: '\u8fdb\u9636\u4f4f\u5b85', upper: '\u4e2d\u9ad8\u7ea7\u4f4f\u5b85', luxury: '\u9ad8\u7ea7\u4f4f\u5b85' };
   const stage = document.getElementById('stage');

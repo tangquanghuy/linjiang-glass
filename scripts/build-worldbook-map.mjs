@@ -4,20 +4,27 @@
  * 源数据变了就重跑：node scripts/export-ai-map.mjs && node scripts/build-worldbook-map.mjs
  */
 import fs from 'node:fs';
+import { readOpeningPool } from './lib/opening-pool.mjs';
 
 const dump = JSON.parse(fs.readFileSync('artifacts/ai-map-dump.json', 'utf8'));
 
 /** 区的方位说明。offsetKm 是 footprint 中心相对全城中心的公里偏移（x 东正，y 南正） */
+/**
+ * 区的方位说明。措辞跟《舞台背景》对齐（那份是叙事口径的权威），
+ * 具体公里偏移仍然用 footprint 中心算出来的 offsetKm，两者一起给。
+ * 底板 footprint 是正方形、总览是斜俯视，所以偏移方向和叙事方位偶有一档出入
+ * （东塘叙事上是"南郊"，几何上落在西南），这时以叙事口径为准。
+ */
 const BEARING = {
-  pujiang: ['城北 · 江北岸', '过临江大桥或过江隧道才到，1 号线北端；园区、城中村与人才公寓混杂'],
-  xizhou: ['城西', '直播产业带：剧院、录音棚、电竞舱、Livehouse 和保税仓都在这一片'],
-  guling: ['城西偏中', '文化街区：老洋房、买手店、书店、菜场、诊所，生活配套最密'],
-  wuxi: ['城南偏西 · 老城', '老城南：明清街巷、扎染工坊、茶馆书场，也有情趣酒店和浴室'],
-  minghu: ['市中心', '全市 CBD：百货、影院、医院、银行、市民中心、环湖绿道'],
-  yushi: ['城南', '城南枢纽：临江南站、水产批发、船坞、轮渡与集装箱堆场'],
-  luoxia: ['城东南', '大学城：图书馆、实验楼、食堂、大排档、公交枢纽、合租与太空舱'],
-  qingping: ['城东 · 山区', '风景区：栈道、索道、瀑布、古刹、露营地，末班公交早，夜间脱管'],
-  dongtang: ['城西南 · 远郊', '空港与温泉：机场 T2、奥莱、驾培、卡丁车、水库、农家民宿']
+  pujiang: '江北·全市最北',
+  xizhou: '城西河西·直播产业带',
+  guling: '老城西北·文化街区',
+  wuxi: '老城南·市井水巷',
+  minghu: '市中心·商业核心',
+  yushi: '城南·枢纽地带',
+  luoxia: '城东·大学城',
+  qingping: '城东山地·风景区',
+  dongtang: '南郊·空港与温泉'
 };
 
 /** 区域名去掉行政后缀，用来做匹配 */
@@ -32,42 +39,36 @@ const nodeById = Object.fromEntries(dump.nodes.map(n => [n.id, n]));
 /** 时段数组压成一个串：朝昼暮夜深 → "朝昼暮夜深" */
 const hoursCode = arr => (arr || []).map(h => (h === '深夜' ? '深' : h)).join('');
 
-const HOUSE_TIER = { starter: '初始', advanced: '进阶', upper: '中高级', luxury: '高级' };
-const DEAL = { rent_or_buy: '租或买', rent: '仅租', buy: '仅买' };
+/* ============================================================
+ * 这份静态资料只管"路怎么走"，不管"这地方长什么样"
+ * ============================================================
+ * 地点详情（简介、看点、本地条件、采集物、房租押金售价、岗位薪酬班次）由另一批
+ * 按关键字触发的世界书条目负责。加载器只要把节点名打出来，那些条目自己会命中。
+ * 所以这里刻意不存任何描述性文字和价格：
+ *   - 存了 → 每轮都注入一遍，和详情条目重复，还会互相矛盾
+ *   - 不存 → 加载器输出压到一半，详情由玩家实际走到哪儿按需触发
+ * 这里留下的只有：名称、所属底板、类型、私密度、开放时段、功能标记，
+ * 加上路网（直连/步行圈/区枢纽/住宅×工作通勤）和区位方位。
+ */
 
 /* ============================================================
  * 开局页给出的住所与岗位（opening.js 的 HOMES / JOBS）
  * 这两张表是"找工作 / 换住所"规则的基线，必须和开局页一致
  * ============================================================ */
-const STARTER_HOMES = [
-  ['lx_share', '落霞合租屋', '合租', 1800, 3600, '大学城南的普通两居合租，租金低，隔音一般'],
-  ['pj_apt', '浦江人才公寓', '租住', 2600, 5200, '园区外的小户型人才公寓，适合园区通勤'],
-  ['gl_yunting', '鼓岭云庭公寓', '租住', 3200, 6400, '老城精装单间，日常配套完整'],
-  ['xz_jiayuan', '西洲嘉苑', '租住', 3900, 7800, '靠近直播产业带的高层单间'],
-  ['gl_wutong', '梧桐里步行房', '租住', 2200, 4400, '老城区步行房，生活方便，楼梯和邻里声较近'],
-  ['pj_village', '浦江城中村单间', '租住', 1500, 3000, '租金最低，离园区近，公共空间紧凑'],
-  ['wx_home', '乌溪自宅', '自有', 0, 0, '带小型药剂工坊的自有住宅，无月租'],
-  ['mh_youth_apt', '明湖青年公寓', '租住', 3200, 3200, '城区小单间，公交和生活配套方便'],
-  ['dt_town_rental', '东塘镇口出租屋', '租住', 1400, 1400, '镇口低租单间，生活成本低但进城较远'],
-  ['qp_foothill_share', '青屏山脚合租院', '合租', 1800, 1800, '独立卧室、共用厨房，末班公交较早']
-];
+/**
+ * 开局初始住宅的节点 id 与岗位表，全部从 opening.js 读——以前这里手抄了一份，
+ * 连月薪班次都是第二份数据，一漂就是"给 AI 的岗位基线和开局页说的不是一个数"。
+ *
+ * 住宅 id 只用来当"住宅×工作通勤矩阵"的锚点：玩家开局就住在这些点上，通勤是天天要
+ * 算的数，必须精确。名称与租金不进静态资料，见下面 homes 的说明。
+ */
+const POOL = readOpeningPool();
+const STARTER_HOME_IDS = POOL.homeIds;
+const STARTER_JOBS = POOL.JOBS
+  .filter(j => j.node)
+  .map(j => [j.node, j.name, j.monthly, j.daily, j.hours, j.kind]);
 
-const STARTER_JOBS = [
-  ['lx_print', '打印店店员', 4500, 205, '09:00-18:00', 'service'],
-  ['gl_parcel', '快递驿站店员', 4800, 220, '08:30-18:30', 'service'],
-  ['mh_mart', '便利店店员', 4700, 215, '14:00-22:00', 'service'],
-  ['xz_esports', '电竞舱值班员', 5200, 235, '16:00-00:00', 'live'],
-  ['dt_gas', '加油站夜班店员', 5600, 255, '20:00-06:00', 'service'],
-  ['xz_sound_studio', '录音棚助理', 5400, 245, '11:00-20:00', 'live'],
-  ['xz_theatre', '剧院场务', 4600, 210, '13:00-22:00', 'live'],
-  ['gl_pet', '宠物诊疗所助理', 5000, 225, '10:00-19:00', 'medical'],
-  ['mh_hospital', '医院前台助理', 5800, 260, '08:00-17:00', 'medical'],
-  ['lx_lab', '实验楼值班助理', 6000, 270, '18:00-02:00', 'academy'],
-  ['ys_rdpark', '研创园行政助理', 6200, 280, '09:30-18:30', 'office'],
-  ['wx_dye', '扎染作坊学徒', 4200, 190, '10:00-19:00', 'craft']
-];
-
-const starterHomeIds = new Set(STARTER_HOMES.map(h => h[0]));
+const starterHomeIds = new Set(STARTER_HOME_IDS);
 const starterJobIds = new Set(STARTER_JOBS.map(j => j[0]));
 
 /* ============================================================
@@ -81,6 +82,12 @@ const out = {
     kmPerUnit: dump.kmPerUnit,
     span: '全城约 24 × 16 km，横穿建成区约 14 km',
     nodeCount: dump.nodes.length,
+    /* 时段划分照抄 外部部署/辅助计算脚本.js 的 periodFromClock（起点含、终点不含）。
+       「朝昼暮夜深夜」是全项目通用的时段枚举，但光看这五个字读不出几点到几点，
+       所以加载器把这行原样打给 AI —— 开放时段、事件触发条件、直播档期全靠它对齐。 */
+    periods: '朝 06:00-09:00｜昼 09:00-16:00｜暮 16:00-19:00｜夜 19:00-23:00｜深夜 23:00-06:00',
+    /* 功能标记的字典。静态资料里存的是单字，加载器负责展开成人话。 */
+    flagLegend: '采=可采集 约=可约会 工=地图标了可打工 店=有商店 岗=有既存正式岗位（薪酬看详情）',
     note: '由 city_mapdata.js + city_net.js + plate_map.js 自动提炼，勿手改；改源数据后重跑 scripts/export-ai-map.mjs 与 scripts/build-worldbook-map.mjs'
   },
   // 出行参数（照抄 city_net.js，供 AI 自己估算未列出的路线）
@@ -96,27 +103,29 @@ const out = {
     stamina: '体力 = 步行km×4 + 轨道km×0.25 + 公交km×0.25 + 驾车km×0.12 + 出租km×0.1，最少 1'
   },
   districts: [],
-  metro: dump.metro.map(l => [l.name, l.stations.join('－')]),
+  /* [线名, 站序, 经过的底板]。第三项让加载器只输出与当前所在区相关的线路——
+     五条线全量摊开每轮六百字，而玩家一次只可能站在其中一两条上。 */
+  metro: dump.metro.map(l => [
+    l.name,
+    l.stations.join('－'),
+    [...new Set((l.onNodes || []).map(id => (nodeById[id] || {}).plate).filter(Boolean))]
+  ]),
   ways: dump.ways.map(w => [w.name, w.kind]),
   nodes: {},
   link: {},
   near: {},
   hub: {},
-  homes: {},
-  jobs: {},
   commute: {}
 };
 
 /* ---- 区 ---- */
 for (const d of dump.districts) {
-  const b = BEARING[d.key] || ['', ''];
   out.districts.push({
     key: d.key,
     name: d.name,
     varName: d.dataName,
     label: d.sub,
-    bearing: b[0],
-    desc: b[1],
+    bearing: BEARING[d.key] || d.sub || '',
     hub: d.hub,
     hubName: nodeById[d.hub] ? nodeById[d.hub].name : d.hub,
     spanKm: d.spanKm,
@@ -128,22 +137,12 @@ for (const d of dump.districts) {
 }
 
 /* ---- 节点 ----
-   [名称, 区(底板), 类型, 私密度, 开放时段, 功能标记, 简述, 看点, 特殊, 采集物] */
+   [名称, 区(底板), 类型, 私密度, 开放时段, 功能标记]
+   功能标记：采=可采集 约=可约会 工=地图标了可打工 店=有商店 岗=开局池里有既存正式岗位
+   一个描述字都不存，描述归详情条目。 */
 for (const n of dump.nodes) {
-  out.nodes[n.id] = [
-    n.name,
-    n.plate,
-    n.arch,
-    n.privacy,
-    hoursCode(n.hours),
-    n.f || '',
-    n.brief || '',
-    n.draw || '',
-    // 特殊条件是 AI 编不出来的本地规则（几点没人巡、哪儿是视觉死角），留 2 条
-    (n.special || []).slice(0, 2),
-    // 采集物只在 canGather 的点有意义，留 4 种
-    (n.f || '').includes('采') ? (n.mats || []).slice(0, 4) : []
-  ];
+  const flags = (n.f || '') + (starterJobIds.has(n.id) ? '岗' : '');
+  out.nodes[n.id] = [n.name, n.plate, n.arch, n.privacy, hoursCode(n.hours), flags];
 }
 
 /* ---- 直连支路 ----
@@ -174,38 +173,9 @@ for (const id of Object.keys(dump.toHub)) {
   if (Object.keys(row).length) out.hub[id] = row;
 }
 
-/* ---- 住所表 ----
-   开局十处 + city_mapdata 里带 housing 的进阶房。
-   [显示名, 产权, 月租, 押金, 售价, 门槛金钱, 档位, 备注] */
-for (const [id, name, tenure, rent, deposit, note] of STARTER_HOMES) {
-  out.homes[id] = [name, tenure, rent, deposit, 0, 0, '初始', note];
-}
-for (const n of dump.nodes) {
-  if (!n.housing) continue;
-  const h = n.housing;
-  out.homes[n.id] = [
-    n.name,
-    h.deal === 'rent' ? '租住' : '租或买',
-    h.rent || 0,
-    h.deposit || 0,
-    h.sale || 0,
-    h.minMoney || 0,
-    HOUSE_TIER[h.tier] || h.tier || '',
-    (DEAL[h.deal] || h.deal || '') + (h.minMoney ? `，需存款≥${h.minMoney}` : '')
-  ];
-}
-
-/* ---- 岗位表 ---- [岗位名, 月薪, 日结, 班次, 类别] */
-for (const [id, name, monthly, daily, hours, kind] of STARTER_JOBS) {
-  out.jobs[id] = [name, monthly, daily, hours, kind];
-}
-// city_mapdata 里 features.canWork 的点：地图承认"这里可能招人"，但没有预设岗位
-for (const n of dump.nodes) {
-  if (!(n.f || '').includes('工') || out.jobs[n.id]) continue;
-  out.jobs[n.id] = ['（可打工，岗位与薪酬按收入规则现场确定）', 0, 0, '按节点开放时段', n.arch];
-}
-
 /* ---- 住宅 × 工作 通勤 ----
+   锚点 = 开局初始住宅 + 带 housing 字段的房源。房租售价门槛一个都不存（详情的事），
+   但"从住处到上班地点单程多久、多少钱、掉多少体力"是天天要用的数，必须精确。
    { 住宅id: { 工作id: [公交分,公交元,公交体力, 打车分,打车元, 步行分,步行体力, km] } } */
 for (const h of Object.keys(dump.commute)) {
   const row = {};
@@ -221,7 +191,13 @@ for (const h of Object.keys(dump.commute)) {
 const j = v => JSON.stringify(v);
 const lines = [];
 lines.push('// 《地图静态资料 - 临江市》 — 由 scripts/export-ai-map.mjs + scripts/build-worldbook-map.mjs 自动生成，请勿手改。');
-lines.push('// 只保留《地图加载 - 临江市》要用的字段：区、节点摘要、直连支路、步行圈、到各区枢纽的通勤、住所与岗位表。');
+lines.push('// 只管"路怎么走"：区位方位、节点名与类型、直连支路、步行圈、到各区枢纽的通勤、住宅×工作通勤。');
+lines.push('// 不含任何描述、看点、本地条件、采集物、房租售价、岗位薪酬——那些由按关键字触发的地点详情条目负责。');
+lines.push('//');
+lines.push('// nodes 每行 = [名称, 底板key, 类型, 私密度0~5, 开放时段, 功能标记]');
+lines.push('//   开放时段：朝昼暮夜深（"深"=深夜）。' + out.meta.periods.replace(/｜/g, '，'));
+lines.push('//   功能标记：' + out.meta.flagLegend);
+lines.push('//   这两栏都是压缩存的，《地图加载》负责展开成人话再给 AI，AI 看不到这里的单字。');
 lines.push('var LJ_MAP_DATA = {');
 lines.push('  meta: ' + j(out.meta) + ',');
 lines.push('  travel: ' + j(out.travel) + ',');
@@ -244,12 +220,6 @@ lines.push('  },');
 lines.push('  hub: {');
 Object.keys(out.hub).forEach(k => lines.push(`    ${k}: ${j(out.hub[k])},`));
 lines.push('  },');
-lines.push('  homes: {');
-Object.keys(out.homes).forEach(k => lines.push(`    ${k}: ${j(out.homes[k])},`));
-lines.push('  },');
-lines.push('  jobs: {');
-Object.keys(out.jobs).forEach(k => lines.push(`    ${k}: ${j(out.jobs[k])},`));
-lines.push('  },');
 lines.push('  commute: {');
 Object.keys(out.commute).forEach(k => lines.push(`    ${k}: ${j(out.commute[k])},`));
 lines.push('  }');
@@ -262,5 +232,5 @@ fs.writeFileSync('世界书/地图静态资料', text, 'utf8');
 
 console.log('节点', Object.keys(out.nodes).length);
 console.log('直连表', Object.keys(out.link).length, '步行圈', Object.keys(out.near).length);
-console.log('住所', Object.keys(out.homes).length, '岗位', Object.keys(out.jobs).length);
+console.log('通勤锚点', Object.keys(out.commute).length);
 console.log('字节', Buffer.byteLength(text, 'utf8'), '→ 世界书/地图静态资料');
