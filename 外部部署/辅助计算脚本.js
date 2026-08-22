@@ -232,13 +232,17 @@
 
     /** 礼物栏要画的东西。价格、点数、图标 URL 都从这里拿，卡片不自己存。 */
     function roomMenu() {
-        const icon = file => `${ART_HOST}/${encodeURIComponent('礼物')}/${file}`;
+        /* 图标走 Pages 的 assets/gifts/。原来拼的是 图床/礼物/gift-*.png，
+           那个目录从来没上传过，11 个文件全 404 —— 礼物栏一直是没有图的。
+           现在用同目录下新出的 128×128 webp（合计 60KB，原来的 256 png 留着给 HUD 自己的礼物页）。 */
+        const icon = file => `${PAGES_HOST}/assets/gifts/${file}`;
         return {
             礼物: GIFTS.map(g => ({ ...g, 图标: icon(g.file) })),
             大航海: GUARD_BUY.map(g => ({ ...g, 图标: icon(g.file) })),
             数量档位: QTY_STEPS.slice(),
             醒目留言档位: SC_STEPS.slice(),
             资源域名: ART_HOST,
+            底图域名: `${PAGES_HOST}/city/plate`,
         };
     }
 
@@ -570,23 +574,32 @@
 
     // 一件东西一行：价格、人气点数、图标文件。以前价格/点数/图标分在三张表里。
     const GIFTS = [
-        { name: '小心心', price: 0, pop: 2, file: 'gift-heart.png' },
-        { name: '辣条', price: 1, pop: 8, file: 'gift-snack.png' },
-        { name: '干杯', price: 20, pop: 70, file: 'gift-cheers.png' },
-        { name: '心愿盲盒', price: 50, pop: 150, file: 'gift-blindbox.png' },
-        { name: '情书', price: 100, pop: 400, file: 'gift-letter.png' },
-        { name: '小飞机', price: 200, pop: 900, file: 'gift-plane.png' },
-        { name: '摩天大楼', price: 520, pop: 2200, file: 'gift-tower.png' },
-        { name: '火箭', price: 1288, pop: 8000, file: 'gift-rocket.png' },
+        { name: '小心心', price: 0, pop: 2, file: 'gift-heart.webp' },
+        { name: '辣条', price: 1, pop: 8, file: 'gift-snack.webp' },
+        { name: '干杯', price: 20, pop: 70, file: 'gift-cheers.webp' },
+        { name: '心愿盲盒', price: 50, pop: 150, file: 'gift-blindbox.webp' },
+        { name: '情书', price: 100, pop: 400, file: 'gift-letter.webp' },
+        { name: '小飞机', price: 200, pop: 900, file: 'gift-plane.webp' },
+        { name: '摩天大楼', price: 520, pop: 2200, file: 'gift-tower.webp' },
+        { name: '火箭', price: 1288, pop: 8000, file: 'gift-rocket.webp' },
     ];
     const GUARD_BUY = [
-        { name: '舰长', price: 138, pop: 500, days: 30, file: 'gift-guard-1.png' },
-        { name: '提督', price: 1998, pop: 9000, days: 30, file: 'gift-guard-2.png' },
-        { name: '总督', price: 19998, pop: 40000, days: 30, file: 'gift-guard-3.png' },
+        { name: '舰长', price: 138, pop: 500, days: 30, file: 'gift-guard-1.webp' },
+        { name: '提督', price: 1998, pop: 9000, days: 30, file: 'gift-guard-2.webp' },
+        { name: '总督', price: 19998, pop: 40000, days: 30, file: 'gift-guard-3.webp' },
     ];
     const QTY_STEPS = [1, 10, 66, 233];
     const SC_STEPS = [30, 50, 100];
+    /* 两个资源站，分工是被响应头逼出来的：
+       ART_HOST（图床）放头像和 SFW 封面。它不给 Cache-Control，也不给
+         Access-Control-Allow-Origin —— 后者意味着跨源 fetch 读不到响应体，
+         素材缓存脚本没法把它的东西收进 IndexedDB，只能交给浏览器的启发式缓存。
+         头像封面本来就在上面、<img> 直连不需要 CORS，所以不动它。
+       PAGES_HOST（GitHub Pages）放礼物图标和突发事件底图。它给
+         Cache-Control: max-age=600 + ETag + ACAO: *，能被缓存脚本接管；
+         而且这两类素材本来就在仓库里，跟着 pages.yml 一起发，不用手动上传。 */
     const ART_HOST = 'https://anchor.bolt.qzz.io';
+    const PAGES_HOST = 'https://tangquanghuy.github.io/linjiang-glass';
 
     /* NPC 名字池：临江本地网名的调子（地名 + 生活状态），不要平台网名腔。 */
     const NPC_NAMES = [

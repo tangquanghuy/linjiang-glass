@@ -4089,15 +4089,71 @@
   margin: 1.2em 0;
   container-type: inline-size;
 }
-.liveroom, .liveroom * { box-sizing: border-box; }
-.liveroom {
+
+/* ========== 与正文排版隔离 ==========
+   卡片长在 .reading-content 里，那边给阅读体验调的东西会漏进来，实测漏了两类：
+
+   1) 继承来的：font-size 18px、line-height 2.02、letter-spacing .045em、text-align justify。
+      结果是顶栏 .meta 撑到 83px 塞不进 52px 的行高里，标题被裁掉一半顶到卡片外面，
+      右侧公屏每行间距接近三倍、还被两端对齐拉开。下面在根节点上把这几项按组件的需要压回去，
+      后代靠继承就都正常了。
+
+   2) 按标签名命中的：主题里有大量 body[data-theme=...] .reading-content p / b / strong 这类
+      选择器，特异度 (0,2,2) 比原来的 .liveroom .row (0,2,0) 高，直接压过了组件样式——
+      公屏那些 <p class="row"> 拿到了 text-indent 2em、white-space pre-wrap、line-height 2.02。
+      所以本表所有 .liveroom 都写成三重类（基线 (0,3,0)），再给标签名留一层
+      (0,3,1) 的中和规则；组件规则 (0,4,x) 依然压得住这层中和。
+      改选择器不动 class 属性，JS 里的 querySelector 不受影响。 */
+.liveroom.liveroom.liveroom {
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
+  text-indent: 0;
+  text-shadow: none;
+  white-space: normal;
+  font-weight: 400;
+  font-style: normal;
+  font-variant: normal;
+  text-transform: none;
+  text-justify: auto;
+}
+.liveroom.liveroom.liveroom p,
+.liveroom.liveroom.liveroom h1,
+.liveroom.liveroom.liveroom b,
+.liveroom.liveroom.liveroom em,
+.liveroom.liveroom.liveroom i,
+.liveroom.liveroom.liveroom strong,
+.liveroom.liveroom.liveroom a,
+.liveroom.liveroom.liveroom blockquote,
+.liveroom.liveroom.liveroom code,
+.liveroom.liveroom.liveroom pre {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-indent: 0;
+  text-shadow: none;
+  white-space: normal;
+  font-style: normal;
+  -webkit-text-stroke: 0;
+}
+.liveroom.liveroom.liveroom, .liveroom.liveroom.liveroom * { box-sizing: border-box; }
+.liveroom.liveroom.liveroom {
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.liveroom .row.host-say .name { color: #fb7299; }
+.liveroom.liveroom.liveroom .row.host-say .name { color: #fb7299; }
 
-.liveroom {
+.liveroom.liveroom.liveroom {
       --blue: #00aeec;
       --blue-hover: #23ade5;
       --pink: #ff6699;
@@ -4115,8 +4171,8 @@
       --dim: #61666d;
       --chat: #ccd0d7;
     }
-.liveroom, .liveroom * { box-sizing: border-box; margin: 0; padding: 0; }
-.liveroom {
+.liveroom.liveroom.liveroom, .liveroom.liveroom.liveroom * { box-sizing: border-box; margin: 0; padding: 0; }
+.liveroom.liveroom.liveroom {
       position: relative;
       width: 100%;
       height: 560px;
@@ -4129,11 +4185,11 @@
       border-radius: 10px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
     }
-.liveroom .room-h { grid-column: 1 / -1; }
-.liveroom .cam { grid-column: 1; grid-row: 2; }
-.liveroom .tray { grid-column: 1; grid-row: 3; }
-.liveroom .side { grid-column: 2; grid-row: 2 / -1; }
-.liveroom .room-h {
+.liveroom.liveroom.liveroom .room-h { grid-column: 1 / -1; }
+.liveroom.liveroom.liveroom .cam { grid-column: 1; grid-row: 2; }
+.liveroom.liveroom.liveroom .tray { grid-column: 1; grid-row: 3; }
+.liveroom.liveroom.liveroom .side { grid-column: 2; grid-row: 2 / -1; }
+.liveroom.liveroom.liveroom .room-h {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -4143,13 +4199,13 @@
       flex-shrink: 0;
       border-bottom: 1px solid var(--line);
     }
-.liveroom .host {
+.liveroom.liveroom.liveroom .host {
       display: flex;
       align-items: center;
       gap: 12px;
       min-width: 0;
     }
-.liveroom .avatar {
+.liveroom.liveroom.liveroom .avatar {
       width: 36px;
       height: 36px;
       flex-shrink: 0;
@@ -4158,28 +4214,28 @@
       border-radius: 50%;
       background: #2a2230;
     }
-.liveroom .avatar img {
+.liveroom.liveroom.liveroom .avatar img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       object-position: 50% 18%;
     }
-.liveroom .meta { min-width: 0; }
-.liveroom .meta h1 {
+.liveroom.liveroom.liveroom .meta { min-width: 0; }
+.liveroom.liveroom.liveroom .meta h1 {
       font-size: 14px;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-.liveroom .meta p {
+.liveroom.liveroom.liveroom .meta p {
       display: flex;
       gap: 10px;
       margin-top: 3px;
       color: var(--muted);
       font-size: 12px;
     }
-.liveroom .follow {
+.liveroom.liveroom.liveroom .follow {
       flex-shrink: 0;
       height: 30px;
       padding: 0 14px;
@@ -4192,15 +4248,15 @@
       cursor: pointer;
       transition: background .2s ease, transform .2s ease;
     }
-.liveroom .follow:hover { background: var(--pink-hover); transform: translateY(-1px); }
-.liveroom .follow.on { background: var(--sub); color: var(--muted); }
-.liveroom .room-h .acts {
+.liveroom.liveroom.liveroom .follow:hover { background: var(--pink-hover); transform: translateY(-1px); }
+.liveroom.liveroom.liveroom .follow.on { background: var(--sub); color: var(--muted); }
+.liveroom.liveroom.liveroom .room-h .acts {
       display: flex;
       align-items: center;
       gap: 6px;
       flex-shrink: 0;
     }
-.liveroom .cam {
+.liveroom.liveroom.liveroom .cam {
       position: relative;
       min-height: 0;
       overflow: hidden;
@@ -4210,7 +4266,7 @@
         radial-gradient(ellipse 80% 50% at 50% 28%, rgba(255, 140, 160, .16), transparent 58%),
         linear-gradient(180deg, #2a2230, #12141c);
     }
-.liveroom .cam img.feed {
+.liveroom.liveroom.liveroom .cam img.feed {
       position: absolute;
       inset: 0;
       z-index: 0;
@@ -4219,7 +4275,7 @@
       object-fit: cover;
       object-position: 50% 16%;
     }
-.liveroom .cam::after {
+.liveroom.liveroom.liveroom .cam::after {
       content: "";
       position: absolute;
       inset: 0;
@@ -4227,15 +4283,15 @@
       pointer-events: none;
       background: linear-gradient(180deg, rgba(0,0,0,.12), transparent 30%, transparent 72%, rgba(0,0,0,.28));
     }
-.liveroom .danmu {
+.liveroom.liveroom.liveroom .danmu {
       position: absolute;
       inset: 28px 0 36px;
       z-index: 3;
       overflow: hidden;
       pointer-events: none;
     }
-.liveroom .cam.quiet .danmu { display: none; }
-.liveroom .fly {
+.liveroom.liveroom.liveroom .cam.quiet .danmu { display: none; }
+.liveroom.liveroom.liveroom .fly {
       position: absolute;
       left: 100%;
       white-space: nowrap;
@@ -4245,12 +4301,12 @@
       text-shadow: 1px 1px 2px #000, -1px 0 2px #000, 0 -1px 2px #000;
       animation: lr-fly linear forwards;
     }
-.liveroom .fly.jian { color: #9ec9ff; }
-.liveroom .fly.ti { color: #ffe08a; }
-.liveroom .fly.du { color: #f3b7e6; }
-.liveroom .fly.gift { color: var(--gold); }
-.liveroom .fly.self { color: var(--blue); }
-.liveroom .live {
+.liveroom.liveroom.liveroom .fly.jian { color: #9ec9ff; }
+.liveroom.liveroom.liveroom .fly.ti { color: #ffe08a; }
+.liveroom.liveroom.liveroom .fly.du { color: #f3b7e6; }
+.liveroom.liveroom.liveroom .fly.gift { color: var(--gold); }
+.liveroom.liveroom.liveroom .fly.self { color: var(--blue); }
+.liveroom.liveroom.liveroom .live {
       position: absolute;
       top: 12px;
       left: 12px;
@@ -4267,14 +4323,14 @@
       letter-spacing: .08em;
       box-shadow: 0 4px 12px rgba(226, 61, 61, .28);
     }
-.liveroom .live i {
+.liveroom.liveroom.liveroom .live i {
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: #fff;
       animation: lr-blink 1.2s ease-in-out infinite;
     }
-.liveroom .toast {
+.liveroom.liveroom.liveroom .toast {
       position: absolute;
       left: 12px;
       bottom: 12px;
@@ -4293,11 +4349,11 @@
       transform: translateY(8px);
       transition: opacity .28s ease, transform .28s ease;
     }
-.liveroom .toast.show { opacity: 1; transform: translateY(0); }
-.liveroom .toast img { width: 26px; height: 26px; object-fit: contain; }
-.liveroom .toast b { color: var(--gold); font-size: 12px; }
-.liveroom .toast span { color: #fff; font-size: 12px; font-weight: 650; }
-.liveroom .pause {
+.liveroom.liveroom.liveroom .toast.show { opacity: 1; transform: translateY(0); }
+.liveroom.liveroom.liveroom .toast img { width: 26px; height: 26px; object-fit: contain; }
+.liveroom.liveroom.liveroom .toast b { color: var(--gold); font-size: 12px; }
+.liveroom.liveroom.liveroom .toast span { color: #fff; font-size: 12px; font-weight: 650; }
+.liveroom.liveroom.liveroom .pause {
       margin-left: 8px;
       border: 0;
       background: none;
@@ -4306,8 +4362,8 @@
       font-size: 12px;
       cursor: pointer;
     }
-.liveroom .pause:hover { color: var(--blue); }
-.liveroom .tray {
+.liveroom.liveroom.liveroom .pause:hover { color: var(--blue); }
+.liveroom.liveroom.liveroom .tray {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -4317,21 +4373,21 @@
       background: #16181d;
       border-top: 1px solid var(--line);
     }
-.liveroom .wallet {
+.liveroom.liveroom.liveroom .wallet {
       flex-shrink: 0;
       color: var(--muted);
       font-size: 11px;
       white-space: nowrap;
       line-height: 1.2;
     }
-.liveroom .wallet b { color: var(--gold); font-weight: 700; }
-.liveroom .rail {
+.liveroom.liveroom.liveroom .wallet b { color: var(--gold); font-weight: 700; }
+.liveroom.liveroom.liveroom .rail {
       position: relative;
       flex: 1;
       min-width: 0;
       height: 100%;
     }
-.liveroom .pills {
+.liveroom.liveroom.liveroom .pills {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -4340,8 +4396,8 @@
       overflow: hidden;
       cursor: grab;
     }
-.liveroom .pills.is-drag { cursor: grabbing; }
-.liveroom .nudge {
+.liveroom.liveroom.liveroom .pills.is-drag { cursor: grabbing; }
+.liveroom.liveroom.liveroom .nudge {
       position: absolute;
       top: 0;
       bottom: 0;
@@ -4355,16 +4411,16 @@
       cursor: pointer;
       transition: opacity .18s ease, color .18s ease;
     }
-.liveroom .nudge svg { display: block; width: 12px; height: 12px; }
-.liveroom .nudge.prev {
+.liveroom.liveroom.liveroom .nudge svg { display: block; width: 12px; height: 12px; }
+.liveroom.liveroom.liveroom .nudge.prev {
       left: 0;
       background: linear-gradient(90deg, #16181d 62%, transparent);
     }
-.liveroom .nudge.next {
+.liveroom.liveroom.liveroom .nudge.next {
       right: 0;
       background: linear-gradient(270deg, #16181d 62%, transparent);
     }
-.liveroom .nudge i {
+.liveroom.liveroom.liveroom .nudge i {
       display: grid;
       place-items: center;
       width: 18px;
@@ -4373,10 +4429,10 @@
       background: rgba(255, 255, 255, .16);
       box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
     }
-.liveroom .nudge.off { opacity: 0; pointer-events: none; }
-.liveroom .nudge:hover { color: var(--blue); }
-.liveroom .nudge:hover i { background: rgba(0, 174, 236, .35); }
-.liveroom .pill {
+.liveroom.liveroom.liveroom .nudge.off { opacity: 0; pointer-events: none; }
+.liveroom.liveroom.liveroom .nudge:hover { color: var(--blue); }
+.liveroom.liveroom.liveroom .nudge:hover i { background: rgba(0, 174, 236, .35); }
+.liveroom.liveroom.liveroom .pill {
       display: flex;
       flex-direction: row;
       align-items: center;
@@ -4394,11 +4450,11 @@
       user-select: none;
       transition: border-color .2s ease, background .2s ease;
     }
-.liveroom .pill:hover { border-color: var(--blue); background: #2c3240; }
-.liveroom .pill img { width: 18px; height: 18px; object-fit: contain; }
-.liveroom .pill b { font-weight: 650; }
-.liveroom .pill em { font-style: normal; color: var(--gold); font-weight: 700; }
-.liveroom .overlay {
+.liveroom.liveroom.liveroom .pill:hover { border-color: var(--blue); background: #2c3240; }
+.liveroom.liveroom.liveroom .pill img { width: 18px; height: 18px; object-fit: contain; }
+.liveroom.liveroom.liveroom .pill b { font-weight: 650; }
+.liveroom.liveroom.liveroom .pill em { font-style: normal; color: var(--gold); font-weight: 700; }
+.liveroom.liveroom.liveroom .overlay {
       grid-column: 1 / -1;
       grid-row: 1 / -1;
       position: absolute;
@@ -4413,8 +4469,8 @@
       background: rgba(8, 10, 14, .52);
       pointer-events: auto;
     }
-.liveroom .overlay.show { display: flex; }
-.liveroom .dlg {
+.liveroom.liveroom.liveroom .overlay.show { display: flex; }
+.liveroom.liveroom.liveroom .dlg {
       width: min(268px, 100%);
       padding: 16px;
       border: 1px solid rgba(255, 255, 255, .08);
@@ -4422,13 +4478,13 @@
       background: #1e2128;
       box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
     }
-.liveroom .dlg-top {
+.liveroom.liveroom.liveroom .dlg-top {
       display: flex;
       align-items: center;
       gap: 12px;
       margin-bottom: 14px;
     }
-.liveroom .dlg-ico {
+.liveroom.liveroom.liveroom .dlg-ico {
       display: grid;
       flex-shrink: 0;
       place-items: center;
@@ -4437,23 +4493,23 @@
       border-radius: 12px;
       background: #16181d;
     }
-.liveroom .dlg-ico img { width: 40px; height: 40px; object-fit: contain; }
-.liveroom .dlg-meta { min-width: 0; }
-.liveroom .dlg-meta h3 { font-size: 15px; font-weight: 700; }
-.liveroom .dlg-meta .price {
+.liveroom.liveroom.liveroom .dlg-ico img { width: 40px; height: 40px; object-fit: contain; }
+.liveroom.liveroom.liveroom .dlg-meta { min-width: 0; }
+.liveroom.liveroom.liveroom .dlg-meta h3 { font-size: 15px; font-weight: 700; }
+.liveroom.liveroom.liveroom .dlg-meta .price {
       margin-top: 4px;
       color: var(--gold);
       font-size: 13px;
       font-weight: 700;
     }
-.liveroom .qty-row {
+.liveroom.liveroom.liveroom .qty-row {
       display: flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 10px;
     }
-.liveroom .qty-row > span { width: 32px; color: var(--muted); font-size: 12px; }
-.liveroom .qty-row button {
+.liveroom.liveroom.liveroom .qty-row > span { width: 32px; color: var(--muted); font-size: 12px; }
+.liveroom.liveroom.liveroom .qty-row button {
       width: 28px;
       height: 28px;
       border: 1px solid var(--line);
@@ -4464,7 +4520,7 @@
       line-height: 1;
       cursor: pointer;
     }
-.liveroom .qty-row input {
+.liveroom.liveroom.liveroom .qty-row input {
       width: 72px;
       height: 28px;
       border: 1px solid var(--line);
@@ -4476,9 +4532,9 @@
       text-align: center;
       outline: none;
     }
-.liveroom .qty-row input:focus, .liveroom .dlg-sc textarea:focus { border-color: var(--blue); }
-.liveroom .chips { display: flex; gap: 6px; margin-bottom: 14px; }
-.liveroom .chips button {
+.liveroom.liveroom.liveroom .qty-row input:focus, .liveroom.liveroom.liveroom .dlg-sc textarea:focus { border-color: var(--blue); }
+.liveroom.liveroom.liveroom .chips { display: flex; gap: 6px; margin-bottom: 14px; }
+.liveroom.liveroom.liveroom .chips button {
       flex: 1;
       height: 26px;
       border: 1px solid var(--line);
@@ -4488,12 +4544,12 @@
       font-size: 12px;
       cursor: pointer;
     }
-.liveroom .chips button.on {
+.liveroom.liveroom.liveroom .chips button.on {
       border-color: var(--blue);
       background: rgba(0, 174, 236, .18);
       color: #fff;
     }
-.liveroom .dlg-sc textarea {
+.liveroom.liveroom.liveroom .dlg-sc textarea {
       width: 100%;
       height: 52px;
       margin-bottom: 14px;
@@ -4507,19 +4563,19 @@
       resize: none;
       outline: none;
     }
-.liveroom .dlg-foot {
+.liveroom.liveroom.liveroom .dlg-foot {
       display: flex;
       align-items: center;
       gap: 8px;
     }
-.liveroom .dlg-sum {
+.liveroom.liveroom.liveroom .dlg-sum {
       margin-right: auto;
       color: var(--muted);
       font-size: 12px;
     }
-.liveroom .dlg-sum b { color: var(--gold); font-variant-numeric: tabular-nums; }
-.liveroom .dlg-sum .broke { color: #ff6b81; font-weight: 700; }
-.liveroom .dlg-foot button {
+.liveroom.liveroom.liveroom .dlg-sum b { color: var(--gold); font-variant-numeric: tabular-nums; }
+.liveroom.liveroom.liveroom .dlg-sum .broke { color: #ff6b81; font-weight: 700; }
+.liveroom.liveroom.liveroom .dlg-foot button {
       height: 32px;
       padding: 0 14px;
       border: 0;
@@ -4528,12 +4584,12 @@
       font-weight: 700;
       cursor: pointer;
     }
-.liveroom .dlg-foot .cancel { background: var(--sub); color: var(--chat); }
-.liveroom .dlg-foot .ok { min-width: 72px; background: var(--blue); color: #fff; }
-.liveroom .dlg-foot .ok.hot { background: #ff5d38; }
-.liveroom .dlg-foot .ok:disabled { opacity: .4; cursor: not-allowed; }
-.liveroom .join { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
-.liveroom .join-btn {
+.liveroom.liveroom.liveroom .dlg-foot .cancel { background: var(--sub); color: var(--chat); }
+.liveroom.liveroom.liveroom .dlg-foot .ok { min-width: 72px; background: var(--blue); color: #fff; }
+.liveroom.liveroom.liveroom .dlg-foot .ok.hot { background: #ff5d38; }
+.liveroom.liveroom.liveroom .dlg-foot .ok:disabled { opacity: .4; cursor: not-allowed; }
+.liveroom.liveroom.liveroom .join { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.liveroom.liveroom.liveroom .join-btn {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -4547,11 +4603,11 @@
       font-size: 12px;
       cursor: pointer;
     }
-.liveroom .join-btn:hover { border-color: var(--blue); }
-.liveroom .join-btn img { width: 22px; height: 22px; object-fit: contain; }
-.liveroom .join-btn span { flex: 1; text-align: left; font-weight: 700; }
-.liveroom .join-btn em { font-style: normal; color: var(--gold); font-weight: 700; }
-.liveroom .side {
+.liveroom.liveroom.liveroom .join-btn:hover { border-color: var(--blue); }
+.liveroom.liveroom.liveroom .join-btn img { width: 22px; height: 22px; object-fit: contain; }
+.liveroom.liveroom.liveroom .join-btn span { flex: 1; text-align: left; font-weight: 700; }
+.liveroom.liveroom.liveroom .join-btn em { font-style: normal; color: var(--gold); font-weight: 700; }
+.liveroom.liveroom.liveroom .side {
       display: flex;
       flex-direction: column;
       min-width: 0;
@@ -4559,13 +4615,13 @@
       background: var(--card);
       border-left: 1px solid var(--line);
     }
-.liveroom .tabs {
+.liveroom.liveroom.liveroom .tabs {
       display: flex;
       height: 38px;
       flex-shrink: 0;
       border-bottom: 1px solid var(--line);
     }
-.liveroom .tab {
+.liveroom.liveroom.liveroom .tab {
       flex: 1;
       border: 0;
       background: none;
@@ -4574,11 +4630,11 @@
       font-weight: 600;
       cursor: pointer;
     }
-.liveroom .tab.on {
+.liveroom.liveroom.liveroom .tab.on {
       color: var(--blue);
       box-shadow: inset 0 -2px 0 var(--blue);
     }
-.liveroom .pin {
+.liveroom.liveroom.liveroom .pin {
       display: none;
       flex-shrink: 0;
       overflow: hidden;
@@ -4588,17 +4644,17 @@
       border-bottom: 0;
       transition: opacity .4s ease, max-height .4s ease;
     }
-.liveroom .pin.show, .liveroom .pin.out { display: block; }
-.liveroom .pin.show {
+.liveroom.liveroom.liveroom .pin.show, .liveroom.liveroom.liveroom .pin.out { display: block; }
+.liveroom.liveroom.liveroom .pin.show {
       max-height: 180px;
       opacity: 1;
     }
-.liveroom .pin.out {
+.liveroom.liveroom.liveroom .pin.out {
       max-height: 0;
       opacity: 0;
       pointer-events: none;
     }
-.liveroom .pin-h {
+.liveroom.liveroom.liveroom .pin-h {
       position: relative;
       display: flex;
       align-items: center;
@@ -4609,14 +4665,14 @@
       font-size: 11px;
       font-weight: 700;
     }
-.liveroom .pin-tag {
+.liveroom.liveroom.liveroom .pin-tag {
       flex-shrink: 0;
       padding: 1px 4px;
       border-radius: 2px;
       background: rgba(0, 0, 0, .22);
       color: #fff;
     }
-.liveroom .pin-user {
+.liveroom.liveroom.liveroom .pin-user {
       flex: 1;
       min-width: 0;
       overflow: hidden;
@@ -4625,12 +4681,12 @@
       font-size: 12px;
       font-weight: 800;
     }
-.liveroom .pin-yen {
+.liveroom.liveroom.liveroom .pin-yen {
       flex-shrink: 0;
       margin-left: auto;
       font-variant-numeric: tabular-nums;
     }
-.liveroom .pin-bar {
+.liveroom.liveroom.liveroom .pin-bar {
       position: absolute;
       left: 0;
       right: 0;
@@ -4639,7 +4695,7 @@
       background: rgba(0, 0, 0, .22);
       pointer-events: none;
     }
-.liveroom .pin-bar > span {
+.liveroom.liveroom.liveroom .pin-bar > span {
       display: block;
       height: 100%;
       width: 100%;
@@ -4647,7 +4703,7 @@
       transform-origin: left center;
       background: rgba(255, 255, 255, .92);
     }
-.liveroom .pin-t {
+.liveroom.liveroom.liveroom .pin-t {
       margin: 0;
       padding: 8px 10px;
       color: #ffe3c2;
@@ -4655,17 +4711,17 @@
       line-height: 1.45;
       font-weight: 600;
     }
-.liveroom .pin.sc-30 .pin-h { background: #2b86d6; }
-.liveroom .pin.sc-30 .pin-t { background: #d7ecfb; color: #16324a; }
-.liveroom .pin.sc-50 .pin-h { background: #1aa0b8; }
-.liveroom .pin.sc-50 .pin-t { background: #d6f4f8; color: #123840; }
-.liveroom .pin.sc-100 .pin-h { background: #d59a18; }
-.liveroom .pin.sc-100 .pin-t { background: #fff1c4; color: #4a3208; }
-.liveroom .pane { display: none; flex: 1; min-height: 0; overflow: auto; padding: 10px; }
-.liveroom .pane.on { display: block; }
-.liveroom .pane::-webkit-scrollbar { width: 4px; }
-.liveroom .pane::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
-.liveroom .row {
+.liveroom.liveroom.liveroom .pin.sc-30 .pin-h { background: #2b86d6; }
+.liveroom.liveroom.liveroom .pin.sc-30 .pin-t { background: #d7ecfb; color: #16324a; }
+.liveroom.liveroom.liveroom .pin.sc-50 .pin-h { background: #1aa0b8; }
+.liveroom.liveroom.liveroom .pin.sc-50 .pin-t { background: #d6f4f8; color: #123840; }
+.liveroom.liveroom.liveroom .pin.sc-100 .pin-h { background: #d59a18; }
+.liveroom.liveroom.liveroom .pin.sc-100 .pin-t { background: #fff1c4; color: #4a3208; }
+.liveroom.liveroom.liveroom .pane { display: none; flex: 1; min-height: 0; overflow: auto; padding: 10px; }
+.liveroom.liveroom.liveroom .pane.on { display: block; }
+.liveroom.liveroom.liveroom .pane::-webkit-scrollbar { width: 4px; }
+.liveroom.liveroom.liveroom .pane::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+.liveroom.liveroom.liveroom .row {
       margin-bottom: 6px;
       color: var(--chat);
       font-size: 12px;
@@ -4673,9 +4729,9 @@
       word-break: break-all;
       animation: lr-in .2s ease both;
     }
-.liveroom .enter, .liveroom .sys { color: var(--dim); }
-.liveroom .sys { color: #c07a7a; }
-.liveroom .medal, .liveroom .bdg {
+.liveroom.liveroom.liveroom .enter, .liveroom.liveroom.liveroom .sys { color: var(--dim); }
+.liveroom.liveroom.liveroom .sys { color: #c07a7a; }
+.liveroom.liveroom.liveroom .medal, .liveroom.liveroom.liveroom .bdg {
       display: inline-block;
       height: 16px;
       margin-right: 4px;
@@ -4687,24 +4743,24 @@
       line-height: 16px;
       vertical-align: 1px;
     }
-.liveroom .medal { background: #3874cb; }
-.liveroom .bdg.jian { background: var(--jian); }
-.liveroom .bdg.ti { background: linear-gradient(180deg, #f0c45a, #c49220); color: #3a2a08; }
-.liveroom .bdg.du { background: linear-gradient(180deg, #e8a0d2, #c45aa0); }
-.liveroom .name { margin-right: 4px; color: var(--muted); font-weight: 600; }
-.liveroom .row.jian .name { color: #8bbaff; }
-.liveroom .row.ti .name { color: #e8c56a; }
-.liveroom .row.du .name { color: #e39ad4; }
-.liveroom .gift-line { color: var(--gold); font-weight: 700; }
-.liveroom .gift-line .name { color: #ffd18a; }
-.liveroom .gift-line em { font-style: normal; color: #fff; }
-.liveroom .sc {
+.liveroom.liveroom.liveroom .medal { background: #3874cb; }
+.liveroom.liveroom.liveroom .bdg.jian { background: var(--jian); }
+.liveroom.liveroom.liveroom .bdg.ti { background: linear-gradient(180deg, #f0c45a, #c49220); color: #3a2a08; }
+.liveroom.liveroom.liveroom .bdg.du { background: linear-gradient(180deg, #e8a0d2, #c45aa0); }
+.liveroom.liveroom.liveroom .name { margin-right: 4px; color: var(--muted); font-weight: 600; }
+.liveroom.liveroom.liveroom .row.jian .name { color: #8bbaff; }
+.liveroom.liveroom.liveroom .row.ti .name { color: #e8c56a; }
+.liveroom.liveroom.liveroom .row.du .name { color: #e39ad4; }
+.liveroom.liveroom.liveroom .gift-line { color: var(--gold); font-weight: 700; }
+.liveroom.liveroom.liveroom .gift-line .name { color: #ffd18a; }
+.liveroom.liveroom.liveroom .gift-line em { font-style: normal; color: #fff; }
+.liveroom.liveroom.liveroom .sc {
       margin: 4px 0 8px;
       overflow: hidden;
       border-radius: 6px;
       box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
     }
-.liveroom .sc-h {
+.liveroom.liveroom.liveroom .sc-h {
       display: flex;
       justify-content: space-between;
       gap: 8px;
@@ -4713,19 +4769,19 @@
       font-size: 12px;
       font-weight: 800;
     }
-.liveroom .sc-b {
+.liveroom.liveroom.liveroom .sc-b {
       padding: 8px 10px;
       font-size: 12px;
       font-weight: 700;
       line-height: 1.5;
     }
-.liveroom .sc-30 .sc-h { background: #2b86d6; }
-.liveroom .sc-30 .sc-b { background: #d7ecfb; color: #16324a; }
-.liveroom .sc-50 .sc-h { background: #1aa0b8; }
-.liveroom .sc-50 .sc-b { background: #d6f4f8; color: #123840; }
-.liveroom .sc-100 .sc-h { background: #d59a18; }
-.liveroom .sc-100 .sc-b { background: #fff1c4; color: #4a3208; }
-.liveroom .guard, .liveroom .rank {
+.liveroom.liveroom.liveroom .sc-30 .sc-h { background: #2b86d6; }
+.liveroom.liveroom.liveroom .sc-30 .sc-b { background: #d7ecfb; color: #16324a; }
+.liveroom.liveroom.liveroom .sc-50 .sc-h { background: #1aa0b8; }
+.liveroom.liveroom.liveroom .sc-50 .sc-b { background: #d6f4f8; color: #123840; }
+.liveroom.liveroom.liveroom .sc-100 .sc-h { background: #d59a18; }
+.liveroom.liveroom.liveroom .sc-100 .sc-b { background: #fff1c4; color: #4a3208; }
+.liveroom.liveroom.liveroom .guard, .liveroom.liveroom.liveroom .rank {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -4734,10 +4790,10 @@
       border-bottom: 1px solid var(--line);
       font-size: 12px;
     }
-.liveroom .guard:last-child, .liveroom .rank:last-child { border-bottom: 0; }
-.liveroom .rank b { color: var(--gold); font-variant-numeric: tabular-nums; }
-.liveroom .hint { color: var(--dim); font-size: 12px; padding: 8px 2px; }
-.liveroom .send {
+.liveroom.liveroom.liveroom .guard:last-child, .liveroom.liveroom.liveroom .rank:last-child { border-bottom: 0; }
+.liveroom.liveroom.liveroom .rank b { color: var(--gold); font-variant-numeric: tabular-nums; }
+.liveroom.liveroom.liveroom .hint { color: var(--dim); font-size: 12px; padding: 8px 2px; }
+.liveroom.liveroom.liveroom .send {
       display: flex;
       flex-direction: row;
       align-items: center;
@@ -4746,7 +4802,7 @@
       flex-shrink: 0;
       border-top: 1px solid var(--line);
     }
-.liveroom .send input {
+.liveroom.liveroom.liveroom .send input {
       flex: 1;
       width: auto;
       min-width: 0;
@@ -4759,14 +4815,14 @@
       font-size: 12px;
       outline: none;
     }
-.liveroom .send input:focus { border-color: var(--blue); }
-.liveroom .send-acts {
+.liveroom.liveroom.liveroom .send input:focus { border-color: var(--blue); }
+.liveroom.liveroom.liveroom .send-acts {
       display: flex;
       align-items: center;
       gap: 2px;
       flex-shrink: 0;
     }
-.liveroom .send-acts button {
+.liveroom.liveroom.liveroom .send-acts button {
       flex: none;
       height: 34px;
       border: 0;
@@ -4779,20 +4835,20 @@
       cursor: pointer;
       transition: background .2s ease, color .2s ease;
     }
-.liveroom .send-acts .sc-btn {
+.liveroom.liveroom.liveroom .send-acts .sc-btn {
       padding: 0 8px;
       background: transparent;
       color: #ff7a58;
     }
-.liveroom .send-acts .sc-btn:hover { background: rgba(255, 93, 56, .12); }
-.liveroom .send-acts .go {
+.liveroom.liveroom.liveroom .send-acts .sc-btn:hover { background: rgba(255, 93, 56, .12); }
+.liveroom.liveroom.liveroom .send-acts .go {
       min-width: 52px;
       padding: 0 14px;
       background: var(--blue);
       color: #fff;
     }
-.liveroom .send-acts .go:hover { background: var(--blue-hover); }
-.liveroom .cam > .pin.show, .liveroom .cam > .pin.out {
+.liveroom.liveroom.liveroom .send-acts .go:hover { background: var(--blue-hover); }
+.liveroom.liveroom.liveroom .cam > .pin.show, .liveroom.liveroom.liveroom .cam > .pin.out {
       position: absolute;
       left: 8px;
       right: 8px;
@@ -4802,20 +4858,20 @@
       border-radius: 8px;
       box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
     }
-.liveroom .cam > .pin.show { max-height: 108px; }
-.liveroom .cam > .pin .pin-h { padding: 5px 8px 7px; }
-.liveroom .cam > .pin .pin-t {
+.liveroom.liveroom.liveroom .cam > .pin.show { max-height: 108px; }
+.liveroom.liveroom.liveroom .cam > .pin .pin-h { padding: 5px 8px 7px; }
+.liveroom.liveroom.liveroom .cam > .pin .pin-t {
       padding: 6px 8px;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-.liveroom .cam:has(> .pin.show) .toast {
+.liveroom.liveroom.liveroom .cam:has(> .pin.show) .toast {
       top: 32px;
       bottom: auto;
     }
-.liveroom .cam:has(> .pin.show) .danmu { bottom: 118px; }
+.liveroom.liveroom.liveroom .cam:has(> .pin.show) .danmu { bottom: 118px; }
 @keyframes lr-blink {
       0%, 100% { opacity: 1; }
       50% { opacity: .35; }
@@ -4829,54 +4885,54 @@
       to { opacity: 1; transform: translateY(0); }
     }
 @media (max-width: 640px) {
-  .liveroom {
+  .liveroom.liveroom.liveroom {
     height: min(720px, calc(100dvh - 16px));
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
   }
-  .liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
-  .liveroom .cam { grid-column: 1; grid-row: 2; }
-  .liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
-  .liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
-  .liveroom .avatar { width: 30px; height: 30px; }
-  .liveroom .meta h1 { display: none; }
-  .liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
-  .liveroom .meta p span:nth-child(2) { display: none; }
-  .liveroom .room-h .acts { gap: 2px; }
-  .liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
-  .liveroom .follow { height: 32px; padding: 0 12px; }
-  .liveroom .cam img.feed { object-position: 50% 10%; }
-  .liveroom .tabs { height: 40px; }
-  .liveroom .tab { font-size: 13px; }
-  .liveroom .pane { padding: 8px; }
-  .liveroom .send { padding: 8px 8px 10px; }
-  .liveroom .dlg { width: min(300px, 100%); }
+  .liveroom.liveroom.liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
+  .liveroom.liveroom.liveroom .cam { grid-column: 1; grid-row: 2; }
+  .liveroom.liveroom.liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
+  .liveroom.liveroom.liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
+  .liveroom.liveroom.liveroom .avatar { width: 30px; height: 30px; }
+  .liveroom.liveroom.liveroom .meta h1 { display: none; }
+  .liveroom.liveroom.liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
+  .liveroom.liveroom.liveroom .meta p span:nth-child(2) { display: none; }
+  .liveroom.liveroom.liveroom .room-h .acts { gap: 2px; }
+  .liveroom.liveroom.liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
+  .liveroom.liveroom.liveroom .follow { height: 32px; padding: 0 12px; }
+  .liveroom.liveroom.liveroom .cam img.feed { object-position: 50% 10%; }
+  .liveroom.liveroom.liveroom .tabs { height: 40px; }
+  .liveroom.liveroom.liveroom .tab { font-size: 13px; }
+  .liveroom.liveroom.liveroom .pane { padding: 8px; }
+  .liveroom.liveroom.liveroom .send { padding: 8px 8px 10px; }
+  .liveroom.liveroom.liveroom .dlg { width: min(300px, 100%); }
 }
 @container (max-width: 580px) {
-  .liveroom {
+  .liveroom.liveroom.liveroom {
     height: min(720px, calc(100dvh - 16px));
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
   }
-  .liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
-  .liveroom .cam { grid-column: 1; grid-row: 2; }
-  .liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
-  .liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
-  .liveroom .avatar { width: 30px; height: 30px; }
-  .liveroom .meta h1 { display: none; }
-  .liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
-  .liveroom .meta p span:nth-child(2) { display: none; }
-  .liveroom .room-h .acts { gap: 2px; }
-  .liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
-  .liveroom .follow { height: 32px; padding: 0 12px; }
-  .liveroom .cam img.feed { object-position: 50% 10%; }
-  .liveroom .tabs { height: 40px; }
-  .liveroom .tab { font-size: 13px; }
-  .liveroom .pane { padding: 8px; }
-  .liveroom .send { padding: 8px 8px 10px; }
-  .liveroom .dlg { width: min(300px, 100%); }
+  .liveroom.liveroom.liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
+  .liveroom.liveroom.liveroom .cam { grid-column: 1; grid-row: 2; }
+  .liveroom.liveroom.liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
+  .liveroom.liveroom.liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
+  .liveroom.liveroom.liveroom .avatar { width: 30px; height: 30px; }
+  .liveroom.liveroom.liveroom .meta h1 { display: none; }
+  .liveroom.liveroom.liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
+  .liveroom.liveroom.liveroom .meta p span:nth-child(2) { display: none; }
+  .liveroom.liveroom.liveroom .room-h .acts { gap: 2px; }
+  .liveroom.liveroom.liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
+  .liveroom.liveroom.liveroom .follow { height: 32px; padding: 0 12px; }
+  .liveroom.liveroom.liveroom .cam img.feed { object-position: 50% 10%; }
+  .liveroom.liveroom.liveroom .tabs { height: 40px; }
+  .liveroom.liveroom.liveroom .tab { font-size: 13px; }
+  .liveroom.liveroom.liveroom .pane { padding: 8px; }
+  .liveroom.liveroom.liveroom .send { padding: 8px 8px 10px; }
+  .liveroom.liveroom.liveroom .dlg { width: min(300px, 100%); }
 }
-@media (prefers-reduced-motion: reduce) {.liveroom, .liveroom *, .liveroom *::before { animation: none !important; transition: none !important; }}
+@media (prefers-reduced-motion: reduce) {.liveroom.liveroom.liveroom, .liveroom.liveroom.liveroom *, .liveroom.liveroom.liveroom *::before { animation: none !important; transition: none !important; }}
   </style>
   <style id="evt-card-css">
 .evt-wrap {
@@ -5982,6 +6038,20 @@
       } catch (e) { return null; }
     }
     const LR_MENU_FALLBACK = { 礼物: [], 大航海: [], 数量档位: [1, 10, 66, 233], 醒目留言档位: [30, 50, 100], 资源域名: 'https://anchor.bolt.qzz.io' };
+
+    /* 图片地址过一遍素材缓存（外部部署/素材缓存脚本.js，挂在酒馆窗口上）。
+       命中返回 blob: 地址，等于这一张图不出网；没装那个脚本、或者这个源不许跨源
+       fetch（图床没给 ACAO）时原样返回远程地址，行为跟以前一样。
+       卡片每条消息重渲染一次，所以这层省下来的是每次重渲染的那一轮请求。 */
+    function assetUrl(remote) {
+      const raw = String(remote || '');
+      if (!raw) return raw;
+      try {
+        const win = window.parent || window;
+        const api = win.LinjiangAssets || window.LinjiangAssets;
+        return (api && typeof api.url === 'function') ? (api.url(raw) || raw) : raw;
+      } catch (e) { return raw; }
+    }
     function lrMenu() {
       const aux = lrAux();
       if (!aux) return LR_MENU_FALLBACK;
@@ -6181,10 +6251,14 @@
       return room;
     }
 
+    /* 礼物图标只有一个来源：辅助计算脚本 roomMenu().礼物[].图标（ART_HOST 拼出来的绝对地址）。
+       原来这里还调了个 lrGiftCdn 做备用域名兜底，那个函数在图标表合并进辅助脚本时就没了，
+       留在这儿等于每次画礼物按钮都抛 ReferenceError，整个 processTextContent 直接断掉。 */
     function lrImg(name) {
       const src = lrGiftSrc(name);
-      const cdn = lrGiftCdn(name);
-      return `<img src="${lrAttr(src)}" data-lr-cdn="${lrAttr(cdn)}" alt="" onerror="if(this.dataset.lrCdn&&this.src!==this.dataset.lrCdn){this.src=this.dataset.lrCdn;delete this.dataset.lrCdn}else this.style.display='none'">`;
+      // data-lr-far 留着远程地址：万一 blob: 地址在这个 iframe 里用不了，onerror 回退直连
+      return `<img src="${lrAttr(assetUrl(src))}" data-lr-far="${lrAttr(src)}" alt=""`
+        + ` onerror="if(this.dataset.lrFar&&this.src!==this.dataset.lrFar){this.src=this.dataset.lrFar;delete this.dataset.lrFar}else this.style.display='none'">`;
     }
 
     function renderLiveRoom(raw, idx) {
@@ -6348,8 +6422,14 @@
     function lrShowToast(state, item) {
       const toast = lrEl(state.root, 'toast');
       const img = toast.querySelector('img');
-      img.src = lrGiftSrc(item.gift);
-      img.dataset.lrCdn = lrGiftCdn(item.gift);
+      const far = lrGiftSrc(item.gift);
+      img.dataset.lrFar = far;
+      img.onerror = () => {
+        if (img.dataset.lrFar && img.src !== img.dataset.lrFar) { img.src = img.dataset.lrFar; delete img.dataset.lrFar; }
+        else img.style.display = 'none';
+      };
+      img.style.display = '';
+      img.src = assetUrl(far);
       toast.querySelector('b').textContent = item.user;
       toast.querySelector('span').textContent = item.line || (`投喂了 ${item.gift} x${item.n}`);
       toast.classList.add('show');
@@ -6365,11 +6445,50 @@
       el.className = 'fly ' + (self ? 'self' : (item.tier || (item.type === 'gift' ? 'gift' : '') || (item.host ? 'self' : '')));
       el.textContent = item.type === 'gift' ? `${item.gift} x${item.n}` : (item.text || '');
       if (!el.textContent) return;
-      el.style.top = `${4 + (state.lane % 9) * 10}%`;
-      el.style.animationDuration = `${5.5 + (state.lane % 4) * 0.7}s`;
-      state.lane += 1;
+      /* 轨道号按 3 跳着走：相邻两条不会贴在一起，看上去更像真的在飘。
+         速度从 5.5~7.6s 放慢到 10~13.5s ——原来一屏挤着十几条、还飘得快，
+         叠在主播脸上根本读不完一句。 */
+      const lane = state.lane % 9;
+      el.style.top = `${4 + lane * 10}%`;
+      el.style.animationDuration = `${9 + (state.lane % 7) * 0.5}s`;
+      state.lane = (state.lane + 4) % 72;
       lrEl(state.root, 'danmu').appendChild(el);
       el.addEventListener('animationend', () => el.remove());
+    }
+
+    /* 公屏喂完之后不能空着——真直播间不会突然一条弹幕都没有。
+       这里只往视频层补飞屏（从已经出现过的弹幕里随机挑），不往右侧公屏塞新行，
+       免得凭空造出 AI 没写过的发言。卡片被移出 DOM 就自己停。 */
+    function lrIdleFly(state) {
+      clearTimeout(state.idleTimer);
+      const pool = (state.parsed.弹幕 || []).filter((x) => x.type === 'chat' || x.type === 'gift');
+      if (!pool.length) return;
+      const tick = () => {
+        if (!state.root.isConnected) return;
+        const cam = lrEl(state.root, 'cam');
+        if (cam && !cam.classList.contains('quiet')) {
+          lrSpawnFly(state, pool[Math.floor(Math.random() * pool.length)]);
+        }
+        state.idleTimer = setTimeout(tick, 1600 + Math.random() * 2200);
+      };
+      state.idleTimer = setTimeout(tick, 1800);
+    }
+
+    /* 按真实节奏放弹幕：一条一条排队，每条间隔约 1~1.6s，20 条铺开半分钟左右。
+       间隔和飞屏时长（9~12s）配起来，屏上同时最多七八条、九条轨道各占其一，能读完再走。
+       原来是 i * 60，20 条 1.2 秒全喷完，公屏一次滚到底、飞屏一次全叠上，
+       之后再没有新东西——就是「一上来全飘完然后没东西看」。 */
+    function lrPlayQueue(state, list) {
+      clearTimeout(state.queueTimer);
+      const queue = (list || []).slice();
+      const step = () => {
+        if (!state.root.isConnected) return;
+        const item = queue.shift();
+        if (!item) { lrIdleFly(state); return; }
+        lrPush(state, item);
+        state.queueTimer = setTimeout(step, 980 + Math.random() * 620);
+      };
+      state.queueTimer = setTimeout(step, 240);
     }
 
     function lrPaintMoney(state) {
@@ -6592,6 +6711,7 @@
       const rankSrc = Array.isArray(room.高能榜) ? room.高能榜 : [];
       const state = {
         root, host, parsed, lane: 0, pending: null, toastTimer: 0, swipeMoved: 0,
+        queueTimer: 0, idleTimer: 0,
         money: (player.金钱 == null || player.金钱 === '') ? 286450 : lrParseNum(player.金钱),
         follow: lrIsTrue(fan.关注),
         tipped: lrParseNum(fan.累计打赏),
@@ -6704,7 +6824,7 @@
       if (state.parsed.主播说) {
         lrPush(state, { type: 'chat', user: state.host, text: state.parsed.主播说, host: true }, true);
       }
-      (state.parsed.弹幕 || []).forEach((item, i) => setTimeout(() => lrPush(state, item), i * 60));
+      lrPlayQueue(state, state.parsed.弹幕 || []);
     }
 
     function lrFromEvent(ev) {
@@ -6833,10 +6953,14 @@
       const rooms = document.querySelectorAll('.liveroom');
       if (!rooms.length) return;
       bindLiveRoomEvents();
-      rooms.forEach(mountLiveRoom);
+      // 单间挂载失败只丢那一张卡（多半是 AI 写出了脚本不认的字段），不影响其它卡和正文
+      rooms.forEach((room) => {
+        try { mountLiveRoom(room); }
+        catch (err) { console.error('[正文美化] 直播间挂载失败', err); }
+      });
     }
 
-    // ==================== 突发事件 <突发事件> ====================
+    // ==================== 突发事件 <SuddenEvent> ====================
     const EVT_IC = {
       mapPin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
       moon:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg>',
@@ -6859,7 +6983,12 @@
     };
     const EVT_CATS = ['纯爱', '日常', '生理窘迫', '调教', '睡奸', '催眠奸', '特殊H'];
     const EVT_PLATE_LOCAL = '../city/plate/';
-    const EVT_PLATE_CDN = 'https://anchor.bolt.qzz.io/' + encodeURIComponent('地图底板') + '/';
+    /* 兜底底图从图床换成 Pages。原来指的是 图床/地图底板/，那个目录不存在（404），
+       而 EVT_PLATE_LOCAL 是相对路径，在酒馆的 about:srcdoc 里没有 base 也解析不了 ——
+       两条路都断，突发事件卡片的头图一直是空的。
+       Pages 上这批文件是状态栏地图（city/plate_map.js 的 PLATES）自己在用的那一份，
+       同一个 URL，HTTP 缓存按顶层站点分区，状态栏拉过的底图这里直接命中。 */
+    const EVT_PLATE_CDN = 'https://tangquanghuy.github.io/linjiang-glass/city/plate/';
     const EVT_NODE_ART = {"byId":{"wx_home":{"file":"wuxi_night.webp","nx":0.205,"ny":0.288},"wx_dye":{"file":"wuxi_night.webp","nx":0.22,"ny":0.5},"wx_adult_shop":{"file":"wuxi_night.webp","nx":0.284,"ny":0.656},"wx_foot":{"file":"wuxi_night.webp","nx":0.32,"ny":0.54},"wx_teahouse":{"file":"wuxi_night.webp","nx":0.36,"ny":0.46},"wx_theme_hotel":{"file":"wuxi_night.webp","nx":0.42,"ny":0.5},"wx_script":{"file":"wuxi_night.webp","nx":0.46,"ny":0.4},"wx_story":{"file":"wuxi_night.webp","nx":0.52,"ny":0.46},"wx_mendong":{"file":"wuxi_night.webp","nx":0.5,"ny":0.58},"wx_arch":{"file":"wuxi_night.webp","nx":0.56,"ny":0.72},"wx_huafang":{"file":"wuxi_night.webp","nx":0.64,"ny":0.64},"wx_inn":{"file":"wuxi_night.webp","nx":0.7,"ny":0.56},"wx_bathhouse":{"file":"wuxi_night.webp","nx":0.868,"ny":0.672},"mh_yunque":{"file":"minghu_night.webp","nx":0.54,"ny":0.28},"mh_cinema":{"file":"minghu_night.webp","nx":0.4,"ny":0.34},"mh_hospital":{"file":"minghu_night.webp","nx":0.26,"ny":0.4},"mh_lake_island":{"file":"minghu_night.webp","nx":0.88,"ny":0.38},"mh_lake":{"file":"minghu_night.webp","nx":0.8,"ny":0.44},"mh_dept":{"file":"minghu_night.webp","nx":0.48,"ny":0.46},"mh_plaza":{"file":"minghu_night.webp","nx":0.32,"ny":0.48},"mh_underpass":{"file":"minghu_night.webp","nx":0.5,"ny":0.5},"mh_bank":{"file":"minghu_night.webp","nx":0.44,"ny":0.52},"mh_civic":{"file":"minghu_night.webp","nx":0.36,"ny":0.54},"mh_wedding":{"file":"minghu_night.webp","nx":0.58,"ny":0.56},"mh_pool":{"file":"minghu_night.webp","nx":0.28,"ny":0.62},"mh_mart":{"file":"minghu_night.webp","nx":0.4,"ny":0.64},"mh_gym":{"file":"minghu_night.webp","nx":0.34,"ny":0.7},"gl_florist":{"file":"guling_night.webp","nx":0.38,"ny":0.36},"gl_cross_books":{"file":"guling_night.webp","nx":0.56,"ny":0.38},"gl_boutique":{"file":"guling_night.webp","nx":0.4,"ny":0.4},"gl_darkroom":{"file":"guling_night.webp","nx":0.34,"ny":0.42},"gl_music":{"file":"guling_night.webp","nx":0.6,"ny":0.44},"gl_wutong":{"file":"guling_night.webp","nx":0.48,"ny":0.46},"gl_pharmacy":{"file":"guling_night.webp","nx":0.3,"ny":0.48},"gl_cafe":{"file":"guling_night.webp","nx":0.36,"ny":0.5},"gl_tailor":{"file":"guling_night.webp","nx":0.52,"ny":0.5},"gl_barber":{"file":"guling_night.webp","nx":0.32,"ny":0.54},"gl_pet":{"file":"guling_night.webp","nx":0.62,"ny":0.54},"gl_laundry":{"file":"guling_night.webp","nx":0.44,"ny":0.54},"gl_market":{"file":"guling_night.webp","nx":0.24,"ny":0.58},"gl_parcel":{"file":"guling_night.webp","nx":0.54,"ny":0.6},"gl_clinic":{"file":"guling_night.webp","nx":0.28,"ny":0.64},"gl_agency":{"file":"guling_night.webp","nx":0.66,"ny":0.66},"gl_yunting":{"file":"guling_night.webp","nx":0.7,"ny":0.74},"xz_jiangyan":{"file":"xizhou_night.webp","nx":0.74,"ny":0.2},"xz_refuge":{"file":"xizhou_night.webp","nx":0.26,"ny":0.26},"xz_run":{"file":"xizhou_night.webp","nx":0.72,"ny":0.32},"xz_theatre":{"file":"xizhou_night.webp","nx":0.4,"ny":0.36},"xz_yoga":{"file":"xizhou_night.webp","nx":0.56,"ny":0.4},"xz_jiayuan":{"file":"xizhou_night.webp","nx":0.22,"ny":0.42},"xz_yongchu":{"file":"xizhou_night.webp","nx":0.42,"ny":0.46},"xz_sound_studio":{"file":"xizhou_night.webp","nx":0.68,"ny":0.46},"xz_esports":{"file":"xizhou_night.webp","nx":0.62,"ny":0.5},"xz_zhoumen":{"file":"xizhou_night.webp","nx":0.5,"ny":0.54},"xz_livehouse":{"file":"xizhou_night.webp","nx":0.38,"ny":0.58},"xz_izakaya":{"file":"xizhou_night.webp","nx":0.46,"ny":0.62},"xz_sales":{"file":"xizhou_night.webp","nx":0.58,"ny":0.68},"xz_mech_garage":{"file":"xizhou_night.webp","nx":0.3,"ny":0.74},"xz_warehouse":{"file":"xizhou_night.webp","nx":0.16,"ny":0.78},"lx_lab":{"file":"luoxia_night.webp","nx":0.54,"ny":0.3},"lx_archive":{"file":"luoxia_night.webp","nx":0.48,"ny":0.36},"lx_dorm_roof":{"file":"luoxia_night.webp","nx":0.58,"ny":0.4},"lx_schoolclinic":{"file":"luoxia_night.webp","nx":0.46,"ny":0.4},"lx_library":{"file":"luoxia_night.webp","nx":0.42,"ny":0.46},"lx_canteen":{"file":"luoxia_night.webp","nx":0.4,"ny":0.5},"lx_gym":{"file":"luoxia_night.webp","nx":0.64,"ny":0.5},"lx_print":{"file":"luoxia_night.webp","nx":0.44,"ny":0.54},"lx_netcafe":{"file":"luoxia_night.webp","nx":0.52,"ny":0.56},"lx_backstreet":{"file":"luoxia_night.webp","nx":0.36,"ny":0.62},"lx_share":{"file":"luoxia_night.webp","nx":0.5,"ny":0.66},"lx_capsule":{"file":"luoxia_night.webp","nx":0.34,"ny":0.68},"lx_bus":{"file":"luoxia_night.webp","nx":0.3,"ny":0.74},"pj_apt":{"file":"pujiang_night.webp","nx":0.56,"ny":0.22},"pj_village":{"file":"pujiang_night.webp","nx":0.4,"ny":0.3},"ys_rdpark":{"file":"pujiang_night.webp","nx":0.64,"ny":0.34},"pj_morning":{"file":"pujiang_night.webp","nx":0.36,"ny":0.38},"pj_nightshift":{"file":"pujiang_night.webp","nx":0.48,"ny":0.72},"ys_container":{"file":"pujiang_night.webp","nx":0.58,"ny":0.8},"ys_reedbed":{"file":"yushi_night.webp","nx":0.8,"ny":0.36},"ys_station":{"file":"yushi_night.webp","nx":0.5,"ny":0.48},"ys_breakwater":{"file":"yushi_night.webp","nx":0.84,"ny":0.54},"ys_fishmkt":{"file":"yushi_night.webp","nx":0.32,"ny":0.56},"ys_ferry":{"file":"yushi_night.webp","nx":0.72,"ny":0.64},"ys_shipyard":{"file":"yushi_night.webp","nx":0.28,"ny":0.68},"ys_carferry":{"file":"yushi_night.webp","nx":0.68,"ny":0.72},"qp_observatory":{"file":"qingpingshan_night.webp","nx":0.52,"ny":0.16},"qp_glass":{"file":"qingpingshan_night.webp","nx":0.58,"ny":0.26},"qp_temple":{"file":"qingpingshan_night.webp","nx":0.44,"ny":0.34},"qp_villa":{"file":"qingpingshan_night.webp","nx":0.68,"ny":0.36},"qp_shade":{"file":"qingpingshan_night.webp","nx":0.18,"ny":0.38},"qp_teahouse":{"file":"qingpingshan_night.webp","nx":0.48,"ny":0.42},"qp_camp":{"file":"qingpingshan_night.webp","nx":0.62,"ny":0.48},"qp_main":{"file":"qingpingshan_night.webp","nx":0.22,"ny":0.5},"qp_fall":{"file":"qingpingshan_night.webp","nx":0.28,"ny":0.54},"qp_cycle":{"file":"qingpingshan_night.webp","nx":0.74,"ny":0.56},"qp_cable":{"file":"qingpingshan_night.webp","nx":0.34,"ny":0.62},"qp_farm":{"file":"qingpingshan_night.webp","nx":0.78,"ny":0.74},"qp_visitor":{"file":"qingpingshan_night.webp","nx":0.4,"ny":0.84},"dt_nursery":{"file":"dongtang_night.webp","nx":0.78,"ny":0.2},"dt_berry":{"file":"dongtang_night.webp","nx":0.74,"ny":0.26},"dt_onsen":{"file":"dongtang_night.webp","nx":0.16,"ny":0.28},"dt_park":{"file":"dongtang_night.webp","nx":0.36,"ny":0.32},"dt_reservoir":{"file":"dongtang_night.webp","nx":0.86,"ny":0.34},"dt_stay":{"file":"dongtang_night.webp","nx":0.18,"ny":0.4},"dt_airport":{"file":"dongtang_night.webp","nx":0.5,"ny":0.42},"dt_outlet":{"file":"dongtang_night.webp","nx":0.24,"ny":0.48},"dt_fish":{"file":"dongtang_night.webp","nx":0.82,"ny":0.48},"dt_kart":{"file":"dongtang_night.webp","nx":0.58,"ny":0.58},"dt_gas":{"file":"dongtang_night.webp","nx":0.3,"ny":0.64},"dt_drive":{"file":"dongtang_night.webp","nx":0.64,"ny":0.72},"dt_service":{"file":"dongtang_night.webp","nx":0.44,"ny":0.8},"dt_townhouse":{"file":"dongtang_night.webp","nx":0.4,"ny":0.88}},"byName":{"自宅":{"file":"wuxi_night.webp","nx":0.205,"ny":0.288},"乌溪染坊":{"file":"wuxi_night.webp","nx":0.22,"ny":0.5},"瓦房成人家居":{"file":"wuxi_night.webp","nx":0.284,"ny":0.656},"乌溪修脚店":{"file":"wuxi_night.webp","nx":0.32,"ny":0.54},"乌溪茶馆":{"file":"wuxi_night.webp","nx":0.36,"ny":0.46},"花牌楼主题酒店":{"file":"wuxi_night.webp","nx":0.42,"ny":0.5},"乌溪沉浸剧场":{"file":"wuxi_night.webp","nx":0.46,"ny":0.4},"乌溪书场":{"file":"wuxi_night.webp","nx":0.52,"ny":0.46},"乌溪门东":{"file":"wuxi_night.webp","nx":0.5,"ny":0.58},"乌溪石拱桥":{"file":"wuxi_night.webp","nx":0.56,"ny":0.72},"乌溪画舫":{"file":"wuxi_night.webp","nx":0.64,"ny":0.64},"乌溪河房客栈":{"file":"wuxi_night.webp","nx":0.7,"ny":0.56},"清河塘澡堂":{"file":"wuxi_night.webp","nx":0.868,"ny":0.672},"明湖云阙":{"file":"minghu_night.webp","nx":0.54,"ny":0.28},"明湖星河巨幕":{"file":"minghu_night.webp","nx":0.4,"ny":0.34},"明湖中心医院":{"file":"minghu_night.webp","nx":0.26,"ny":0.4},"明湖湖心岛":{"file":"minghu_night.webp","nx":0.88,"ny":0.38},"明湖环洲":{"file":"minghu_night.webp","nx":0.8,"ny":0.44},"德泰百货":{"file":"minghu_night.webp","nx":0.48,"ny":0.46},"明湖街心公园":{"file":"minghu_night.webp","nx":0.32,"ny":0.48},"明湖地下通道":{"file":"minghu_night.webp","nx":0.5,"ny":0.5},"明湖银行厅":{"file":"minghu_night.webp","nx":0.44,"ny":0.52},"明湖市民中心":{"file":"minghu_night.webp","nx":0.36,"ny":0.54},"明湖婚纱楼":{"file":"minghu_night.webp","nx":0.58,"ny":0.56},"明湖游泳馆":{"file":"minghu_night.webp","nx":0.28,"ny":0.62},"明湖通宵便利":{"file":"minghu_night.webp","nx":0.4,"ny":0.64},"明湖健身房":{"file":"minghu_night.webp","nx":0.34,"ny":0.7},"鼓岭花店":{"file":"guling_night.webp","nx":0.38,"ny":0.36},"鼓岭十字书店":{"file":"guling_night.webp","nx":0.56,"ny":0.38},"鼓岭买手店":{"file":"guling_night.webp","nx":0.4,"ny":0.4},"梧桐里照相馆":{"file":"guling_night.webp","nx":0.34,"ny":0.42},"鼓岭琴行":{"file":"guling_night.webp","nx":0.6,"ny":0.44},"梧桐里":{"file":"guling_night.webp","nx":0.48,"ny":0.46},"鼓岭药店":{"file":"guling_night.webp","nx":0.3,"ny":0.48},"鼓岭青砖咖啡":{"file":"guling_night.webp","nx":0.36,"ny":0.5},"梧桐里裁缝铺":{"file":"guling_night.webp","nx":0.52,"ny":0.5},"鼓岭理发店":{"file":"guling_night.webp","nx":0.32,"ny":0.54},"鼓岭爱宠诊疗所":{"file":"guling_night.webp","nx":0.62,"ny":0.54},"梧桐里洗衣房":{"file":"guling_night.webp","nx":0.44,"ny":0.54},"鼓岭菜场":{"file":"guling_night.webp","nx":0.24,"ny":0.58},"鼓岭快递驿站":{"file":"guling_night.webp","nx":0.54,"ny":0.6},"鼓岭社区卫生站":{"file":"guling_night.webp","nx":0.28,"ny":0.64},"鼓岭房产中介":{"file":"guling_night.webp","nx":0.66,"ny":0.66},"云庭公寓":{"file":"guling_night.webp","nx":0.7,"ny":0.74},"西洲江眼桥":{"file":"xizhou_night.webp","nx":0.74,"ny":0.2},"江厦塔避难层":{"file":"xizhou_night.webp","nx":0.26,"ny":0.26},"西洲滨江绿道":{"file":"xizhou_night.webp","nx":0.72,"ny":0.32},"西洲大剧院":{"file":"xizhou_night.webp","nx":0.4,"ny":0.36},"西洲瑜伽馆":{"file":"xizhou_night.webp","nx":0.56,"ny":0.4},"西洲嘉苑":{"file":"xizhou_night.webp","nx":0.22,"ny":0.42},"西洲永初里":{"file":"xizhou_night.webp","nx":0.42,"ny":0.46},"极光声学棚":{"file":"xizhou_night.webp","nx":0.68,"ny":0.46},"星芒电竞舱":{"file":"xizhou_night.webp","nx":0.62,"ny":0.5},"洲门站":{"file":"xizhou_night.webp","nx":0.5,"ny":0.54},"西洲岸声":{"file":"xizhou_night.webp","nx":0.38,"ny":0.58},"西洲地下居酒屋":{"file":"xizhou_night.webp","nx":0.46,"ny":0.62},"西洲售楼处":{"file":"xizhou_night.webp","nx":0.58,"ny":0.68},"江厦塔机械车库":{"file":"xizhou_night.webp","nx":0.3,"ny":0.74},"西洲仓储超市":{"file":"xizhou_night.webp","nx":0.16,"ny":0.78},"落霞实验楼":{"file":"luoxia_night.webp","nx":0.54,"ny":0.3},"落霞古籍文献馆":{"file":"luoxia_night.webp","nx":0.48,"ny":0.36},"学府七舍天台":{"file":"luoxia_night.webp","nx":0.58,"ny":0.4},"落霞校医院":{"file":"luoxia_night.webp","nx":0.46,"ny":0.4},"大学城自习室":{"file":"luoxia_night.webp","nx":0.42,"ny":0.46},"落霞食堂":{"file":"luoxia_night.webp","nx":0.4,"ny":0.5},"落霞体育馆":{"file":"luoxia_night.webp","nx":0.64,"ny":0.5},"落霞打印店":{"file":"luoxia_night.webp","nx":0.44,"ny":0.54},"落霞极速网咖":{"file":"luoxia_night.webp","nx":0.52,"ny":0.56},"落霞后街":{"file":"luoxia_night.webp","nx":0.36,"ny":0.62},"落霞合租屋":{"file":"luoxia_night.webp","nx":0.5,"ny":0.66},"落霞胶囊旅馆":{"file":"luoxia_night.webp","nx":0.34,"ny":0.68},"落霞公交总站":{"file":"luoxia_night.webp","nx":0.3,"ny":0.74},"浦江人才公寓":{"file":"pujiang_night.webp","nx":0.56,"ny":0.22},"浦江城中村":{"file":"pujiang_night.webp","nx":0.4,"ny":0.3},"浦江研创园":{"file":"pujiang_night.webp","nx":0.64,"ny":0.34},"浦江早市":{"file":"pujiang_night.webp","nx":0.36,"ny":0.38},"浦江夜班车间":{"file":"pujiang_night.webp","nx":0.48,"ny":0.72},"浦江集装箱堆场":{"file":"pujiang_night.webp","nx":0.58,"ny":0.8},"雨石芦荡":{"file":"yushi_night.webp","nx":0.8,"ny":0.36},"临江南站":{"file":"yushi_night.webp","nx":0.5,"ny":0.48},"雨石防波堤":{"file":"yushi_night.webp","nx":0.84,"ny":0.54},"雨石渔市":{"file":"yushi_night.webp","nx":0.32,"ny":0.56},"雨石码头":{"file":"yushi_night.webp","nx":0.72,"ny":0.64},"雨石修船坞":{"file":"yushi_night.webp","nx":0.28,"ny":0.68},"雨石跨江轮渡":{"file":"yushi_night.webp","nx":0.68,"ny":0.72},"青屏山古天文台":{"file":"qingpingshan_night.webp","nx":0.52,"ny":0.16},"青屏玻璃栈道":{"file":"qingpingshan_night.webp","nx":0.58,"ny":0.26},"青屏寺":{"file":"qingpingshan_night.webp","nx":0.44,"ny":0.34},"青屏半山别墅":{"file":"qingpingshan_night.webp","nx":0.68,"ny":0.36},"青屏山背阴谷":{"file":"qingpingshan_night.webp","nx":0.18,"ny":0.38},"青屏山半山茶社":{"file":"qingpingshan_night.webp","nx":0.48,"ny":0.42},"青屏山露营区":{"file":"qingpingshan_night.webp","nx":0.62,"ny":0.48},"青屏山密林":{"file":"qingpingshan_night.webp","nx":0.22,"ny":0.5},"青屏瀑布":{"file":"qingpingshan_night.webp","nx":0.28,"ny":0.54},"青屏骑行绿道":{"file":"qingpingshan_night.webp","nx":0.74,"ny":0.56},"青屏山索道":{"file":"qingpingshan_night.webp","nx":0.34,"ny":0.62},"青屏农家乐":{"file":"qingpingshan_night.webp","nx":0.78,"ny":0.74},"青屏山游客中心":{"file":"qingpingshan_night.webp","nx":0.4,"ny":0.84},"东塘苗圃":{"file":"dongtang_night.webp","nx":0.78,"ny":0.2},"东塘草莓园":{"file":"dongtang_night.webp","nx":0.74,"ny":0.26},"东塘私汤别苑":{"file":"dongtang_night.webp","nx":0.16,"ny":0.28},"东塘临江乐园":{"file":"dongtang_night.webp","nx":0.36,"ny":0.32},"东塘水库":{"file":"dongtang_night.webp","nx":0.86,"ny":0.34},"东塘民宿":{"file":"dongtang_night.webp","nx":0.18,"ny":0.4},"东塘空港":{"file":"dongtang_night.webp","nx":0.5,"ny":0.42},"东塘奥特莱斯":{"file":"dongtang_night.webp","nx":0.24,"ny":0.48},"东塘垂钓园":{"file":"dongtang_night.webp","nx":0.82,"ny":0.48},"东塘卡丁车场":{"file":"dongtang_night.webp","nx":0.58,"ny":0.58},"东塘加油站":{"file":"dongtang_night.webp","nx":0.3,"ny":0.64},"东塘驾校":{"file":"dongtang_night.webp","nx":0.64,"ny":0.72},"东塘服务区":{"file":"dongtang_night.webp","nx":0.44,"ny":0.8},"东塘联排":{"file":"dongtang_night.webp","nx":0.4,"ny":0.88}},"byArea":{"乌溪区·自宅":{"file":"wuxi_night.webp","nx":0.205,"ny":0.288},"乌溪区·乌溪染坊":{"file":"wuxi_night.webp","nx":0.22,"ny":0.5},"乌溪区·瓦房成人家居":{"file":"wuxi_night.webp","nx":0.284,"ny":0.656},"乌溪区·乌溪修脚店":{"file":"wuxi_night.webp","nx":0.32,"ny":0.54},"乌溪区·乌溪茶馆":{"file":"wuxi_night.webp","nx":0.36,"ny":0.46},"乌溪区·花牌楼主题酒店":{"file":"wuxi_night.webp","nx":0.42,"ny":0.5},"乌溪区·乌溪沉浸剧场":{"file":"wuxi_night.webp","nx":0.46,"ny":0.4},"乌溪区·乌溪书场":{"file":"wuxi_night.webp","nx":0.52,"ny":0.46},"乌溪区·乌溪门东":{"file":"wuxi_night.webp","nx":0.5,"ny":0.58},"乌溪区·乌溪石拱桥":{"file":"wuxi_night.webp","nx":0.56,"ny":0.72},"乌溪区·乌溪画舫":{"file":"wuxi_night.webp","nx":0.64,"ny":0.64},"乌溪区·乌溪河房客栈":{"file":"wuxi_night.webp","nx":0.7,"ny":0.56},"乌溪区·清河塘澡堂":{"file":"wuxi_night.webp","nx":0.868,"ny":0.672},"明湖区·明湖云阙":{"file":"minghu_night.webp","nx":0.54,"ny":0.28},"明湖区·明湖星河巨幕":{"file":"minghu_night.webp","nx":0.4,"ny":0.34},"明湖区·明湖中心医院":{"file":"minghu_night.webp","nx":0.26,"ny":0.4},"明湖区·明湖湖心岛":{"file":"minghu_night.webp","nx":0.88,"ny":0.38},"明湖区·明湖环洲":{"file":"minghu_night.webp","nx":0.8,"ny":0.44},"明湖区·德泰百货":{"file":"minghu_night.webp","nx":0.48,"ny":0.46},"明湖区·明湖街心公园":{"file":"minghu_night.webp","nx":0.32,"ny":0.48},"明湖区·明湖地下通道":{"file":"minghu_night.webp","nx":0.5,"ny":0.5},"明湖区·明湖银行厅":{"file":"minghu_night.webp","nx":0.44,"ny":0.52},"明湖区·明湖市民中心":{"file":"minghu_night.webp","nx":0.36,"ny":0.54},"明湖区·明湖婚纱楼":{"file":"minghu_night.webp","nx":0.58,"ny":0.56},"明湖区·明湖游泳馆":{"file":"minghu_night.webp","nx":0.28,"ny":0.62},"明湖区·明湖通宵便利":{"file":"minghu_night.webp","nx":0.4,"ny":0.64},"明湖区·明湖健身房":{"file":"minghu_night.webp","nx":0.34,"ny":0.7},"鼓岭区·鼓岭花店":{"file":"guling_night.webp","nx":0.38,"ny":0.36},"鼓岭区·鼓岭十字书店":{"file":"guling_night.webp","nx":0.56,"ny":0.38},"鼓岭区·鼓岭买手店":{"file":"guling_night.webp","nx":0.4,"ny":0.4},"鼓岭区·梧桐里照相馆":{"file":"guling_night.webp","nx":0.34,"ny":0.42},"鼓岭区·鼓岭琴行":{"file":"guling_night.webp","nx":0.6,"ny":0.44},"鼓岭区·梧桐里":{"file":"guling_night.webp","nx":0.48,"ny":0.46},"鼓岭区·鼓岭药店":{"file":"guling_night.webp","nx":0.3,"ny":0.48},"鼓岭区·鼓岭青砖咖啡":{"file":"guling_night.webp","nx":0.36,"ny":0.5},"鼓岭区·梧桐里裁缝铺":{"file":"guling_night.webp","nx":0.52,"ny":0.5},"鼓岭区·鼓岭理发店":{"file":"guling_night.webp","nx":0.32,"ny":0.54},"鼓岭区·鼓岭爱宠诊疗所":{"file":"guling_night.webp","nx":0.62,"ny":0.54},"鼓岭区·梧桐里洗衣房":{"file":"guling_night.webp","nx":0.44,"ny":0.54},"鼓岭区·鼓岭菜场":{"file":"guling_night.webp","nx":0.24,"ny":0.58},"鼓岭区·鼓岭快递驿站":{"file":"guling_night.webp","nx":0.54,"ny":0.6},"鼓岭区·鼓岭社区卫生站":{"file":"guling_night.webp","nx":0.28,"ny":0.64},"鼓岭区·鼓岭房产中介":{"file":"guling_night.webp","nx":0.66,"ny":0.66},"鼓岭区·云庭公寓":{"file":"guling_night.webp","nx":0.7,"ny":0.74},"西洲区·西洲江眼桥":{"file":"xizhou_night.webp","nx":0.74,"ny":0.2},"西洲区·江厦塔避难层":{"file":"xizhou_night.webp","nx":0.26,"ny":0.26},"西洲区·西洲滨江绿道":{"file":"xizhou_night.webp","nx":0.72,"ny":0.32},"西洲区·西洲大剧院":{"file":"xizhou_night.webp","nx":0.4,"ny":0.36},"西洲区·西洲瑜伽馆":{"file":"xizhou_night.webp","nx":0.56,"ny":0.4},"西洲区·西洲嘉苑":{"file":"xizhou_night.webp","nx":0.22,"ny":0.42},"西洲区·西洲永初里":{"file":"xizhou_night.webp","nx":0.42,"ny":0.46},"西洲区·极光声学棚":{"file":"xizhou_night.webp","nx":0.68,"ny":0.46},"西洲区·星芒电竞舱":{"file":"xizhou_night.webp","nx":0.62,"ny":0.5},"西洲区·洲门站":{"file":"xizhou_night.webp","nx":0.5,"ny":0.54},"西洲区·西洲岸声":{"file":"xizhou_night.webp","nx":0.38,"ny":0.58},"西洲区·西洲地下居酒屋":{"file":"xizhou_night.webp","nx":0.46,"ny":0.62},"西洲区·西洲售楼处":{"file":"xizhou_night.webp","nx":0.58,"ny":0.68},"西洲区·江厦塔机械车库":{"file":"xizhou_night.webp","nx":0.3,"ny":0.74},"西洲区·西洲仓储超市":{"file":"xizhou_night.webp","nx":0.16,"ny":0.78},"落霞区·落霞实验楼":{"file":"luoxia_night.webp","nx":0.54,"ny":0.3},"落霞区·落霞古籍文献馆":{"file":"luoxia_night.webp","nx":0.48,"ny":0.36},"落霞区·学府七舍天台":{"file":"luoxia_night.webp","nx":0.58,"ny":0.4},"落霞区·落霞校医院":{"file":"luoxia_night.webp","nx":0.46,"ny":0.4},"落霞区·大学城自习室":{"file":"luoxia_night.webp","nx":0.42,"ny":0.46},"落霞区·落霞食堂":{"file":"luoxia_night.webp","nx":0.4,"ny":0.5},"落霞区·落霞体育馆":{"file":"luoxia_night.webp","nx":0.64,"ny":0.5},"落霞区·落霞打印店":{"file":"luoxia_night.webp","nx":0.44,"ny":0.54},"落霞区·落霞极速网咖":{"file":"luoxia_night.webp","nx":0.52,"ny":0.56},"落霞区·落霞后街":{"file":"luoxia_night.webp","nx":0.36,"ny":0.62},"落霞区·落霞合租屋":{"file":"luoxia_night.webp","nx":0.5,"ny":0.66},"落霞区·落霞胶囊旅馆":{"file":"luoxia_night.webp","nx":0.34,"ny":0.68},"落霞区·落霞公交总站":{"file":"luoxia_night.webp","nx":0.3,"ny":0.74},"雨石与浦江区·浦江人才公寓":{"file":"pujiang_night.webp","nx":0.56,"ny":0.22},"雨石与浦江区·浦江城中村":{"file":"pujiang_night.webp","nx":0.4,"ny":0.3},"雨石与浦江区·浦江研创园":{"file":"pujiang_night.webp","nx":0.64,"ny":0.34},"雨石与浦江区·浦江早市":{"file":"pujiang_night.webp","nx":0.36,"ny":0.38},"雨石与浦江区·浦江夜班车间":{"file":"pujiang_night.webp","nx":0.48,"ny":0.72},"雨石与浦江区·浦江集装箱堆场":{"file":"pujiang_night.webp","nx":0.58,"ny":0.8},"雨石与浦江区·雨石芦荡":{"file":"yushi_night.webp","nx":0.8,"ny":0.36},"雨石与浦江区·临江南站":{"file":"yushi_night.webp","nx":0.5,"ny":0.48},"雨石与浦江区·雨石防波堤":{"file":"yushi_night.webp","nx":0.84,"ny":0.54},"雨石与浦江区·雨石渔市":{"file":"yushi_night.webp","nx":0.32,"ny":0.56},"雨石与浦江区·雨石码头":{"file":"yushi_night.webp","nx":0.72,"ny":0.64},"雨石与浦江区·雨石修船坞":{"file":"yushi_night.webp","nx":0.28,"ny":0.68},"雨石与浦江区·雨石跨江轮渡":{"file":"yushi_night.webp","nx":0.68,"ny":0.72},"青屏山风景区·青屏山古天文台":{"file":"qingpingshan_night.webp","nx":0.52,"ny":0.16},"青屏山风景区·青屏玻璃栈道":{"file":"qingpingshan_night.webp","nx":0.58,"ny":0.26},"青屏山风景区·青屏寺":{"file":"qingpingshan_night.webp","nx":0.44,"ny":0.34},"青屏山风景区·青屏半山别墅":{"file":"qingpingshan_night.webp","nx":0.68,"ny":0.36},"青屏山风景区·青屏山背阴谷":{"file":"qingpingshan_night.webp","nx":0.18,"ny":0.38},"青屏山风景区·青屏山半山茶社":{"file":"qingpingshan_night.webp","nx":0.48,"ny":0.42},"青屏山风景区·青屏山露营区":{"file":"qingpingshan_night.webp","nx":0.62,"ny":0.48},"青屏山风景区·青屏山密林":{"file":"qingpingshan_night.webp","nx":0.22,"ny":0.5},"青屏山风景区·青屏瀑布":{"file":"qingpingshan_night.webp","nx":0.28,"ny":0.54},"青屏山风景区·青屏骑行绿道":{"file":"qingpingshan_night.webp","nx":0.74,"ny":0.56},"青屏山风景区·青屏山索道":{"file":"qingpingshan_night.webp","nx":0.34,"ny":0.62},"青屏山风景区·青屏农家乐":{"file":"qingpingshan_night.webp","nx":0.78,"ny":0.74},"青屏山风景区·青屏山游客中心":{"file":"qingpingshan_night.webp","nx":0.4,"ny":0.84},"东塘区·东塘苗圃":{"file":"dongtang_night.webp","nx":0.78,"ny":0.2},"东塘区·东塘草莓园":{"file":"dongtang_night.webp","nx":0.74,"ny":0.26},"东塘区·东塘私汤别苑":{"file":"dongtang_night.webp","nx":0.16,"ny":0.28},"东塘区·东塘临江乐园":{"file":"dongtang_night.webp","nx":0.36,"ny":0.32},"东塘区·东塘水库":{"file":"dongtang_night.webp","nx":0.86,"ny":0.34},"东塘区·东塘民宿":{"file":"dongtang_night.webp","nx":0.18,"ny":0.4},"东塘区·东塘空港":{"file":"dongtang_night.webp","nx":0.5,"ny":0.42},"东塘区·东塘奥特莱斯":{"file":"dongtang_night.webp","nx":0.24,"ny":0.48},"东塘区·东塘垂钓园":{"file":"dongtang_night.webp","nx":0.82,"ny":0.48},"东塘区·东塘卡丁车场":{"file":"dongtang_night.webp","nx":0.58,"ny":0.58},"东塘区·东塘加油站":{"file":"dongtang_night.webp","nx":0.3,"ny":0.64},"东塘区·东塘驾校":{"file":"dongtang_night.webp","nx":0.64,"ny":0.72},"东塘区·东塘服务区":{"file":"dongtang_night.webp","nx":0.44,"ny":0.8},"东塘区·东塘联排":{"file":"dongtang_night.webp","nx":0.4,"ny":0.88}}};
     const EVT_DISTRICT_PLATES = [
       ['青屏山风景区', 'qingpingshan_night.webp'],
@@ -7187,7 +7316,17 @@
       }).join('') + '</ul>';
 
       const artFocus = evtArtFocus(plateHit);
-      const art = '<div class="evt-art"' + (artFocus ? ' style="' + artFocus + '"' : '') + '><img src="' + evtAttr(EVT_PLATE_LOCAL + plate) + '" data-evt-cdn="' + evtAttr(EVT_PLATE_CDN + plate) + '" alt="" loading="lazy" onerror="if(this.dataset.evtCdn&&this.src!==this.dataset.evtCdn){this.src=this.dataset.evtCdn;delete this.dataset.evtCdn}else this.remove()"></div>';
+      /* 主用 Pages 上那份底图（先过素材缓存，命中就是 blob: 不出网），
+         失败再退到仓库里的相对路径 —— 那条只在从仓库直接打开这页时有效，
+         酒馆的 about:srcdoc 没有 base URL，解析不出来。顺序反过来的话，
+         酒馆里每次渲染都要先浪费一次注定失败的请求。 */
+      const plateFar = EVT_PLATE_CDN + plate;
+      const art = '<div class="evt-art"' + (artFocus ? ' style="' + artFocus + '"' : '') + '><img src="' + evtAttr(assetUrl(plateFar))
+        + '" data-evt-far="' + evtAttr(plateFar) + '" data-evt-local="' + evtAttr(EVT_PLATE_LOCAL + plate)
+        + '" alt="" loading="lazy" onerror="'
+        + 'if(this.dataset.evtFar&&this.src!==this.dataset.evtFar){this.src=this.dataset.evtFar;delete this.dataset.evtFar}'
+        + 'else if(this.dataset.evtLocal){this.src=this.dataset.evtLocal;delete this.dataset.evtLocal}'
+        + 'else this.remove()"></div>';
 
       return '<div class="evt-wrap"><div class="evt evt-a" data-cat="' + evtAttr(mainCat) + '" data-evt-idx="' + (idx || 0) + '"><div class="evt-glass">'
         + '<div class="evt-edge"></div>'
@@ -8117,13 +8256,17 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       // 解码HTML实体，使转义标签（如 &lt;img&gt;）可被后续逻辑识别
       rawText = decodeHtmlEntities(rawText);
 
-      // 标签匹配：图片、直播间和突发事件标签
+      // 标签匹配：图片、直播间和突发事件标签。
+      // 卡片标签只认 ASCII 名（LiveRoom / SuddenEvent），大小写随意（正则带 i）：
+      // HTML 规范规定 `</` 后必须紧跟 ASCII 字母，否则整段按 bogus comment 吞掉，
+      // 所以 `</直播间>` 进 innerHTML 就变成 `<!--直播间-->`，闭合标签根本不存在，
+      // 中文标签在这条链路上不可能匹配到。中文名保留在开标签的兼容里没有意义，一并去掉。
       const tagPatterns = [
         { regex: /<Image>([\s\S]*?)<\/Image>/gi, type: 'image-tag' },
         { regex: /<pic>([\s\S]*?)<\/pic>/gi, type: 'image-tag' },
         { regex: /<img\b[^>]*>/gi, type: 'html-img' },
-        { regex: /<(LiveRoom|直播间)>([\s\S]*?)<\/(?:LiveRoom|直播间)>/gi, type: 'live-room' },
-        { regex: /<(突发事件|SuddenEvent)>([\s\S]*?)<\/(?:突发事件|SuddenEvent)>/gi, type: 'sudden-event' }
+        { regex: /<(LiveRoom)\s*>([\s\S]*?)<\/\s*LiveRoom\s*>/gi, type: 'live-room' },
+        { regex: /<(SuddenEvent)\s*>([\s\S]*?)<\/\s*SuddenEvent\s*>/gi, type: 'sudden-event' }
       ];
       const matches = [];
       tagPatterns.forEach(config => {
@@ -8135,9 +8278,9 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
           } else if (config.type === 'html-img') {
             matches.push({ index: match.index, length: match[0].length, content: match[0], type: 'html-img' });
           } else if (config.type === 'live-room') {
-            matches.push({ index: match.index, length: match[0].length, content: match[2], type: 'live-room' });
+            matches.push({ index: match.index, length: match[0].length, content: match[2], raw: match[2], type: 'live-room' });
           } else if (config.type === 'sudden-event') {
-            matches.push({ index: match.index, length: match[0].length, content: match[2], type: 'sudden-event' });
+            matches.push({ index: match.index, length: match[0].length, content: match[2], raw: match[2], type: 'sudden-event' });
           }
         }
       });
@@ -8155,18 +8298,24 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       // === Phase 2: 文本处理 - 只处理受支持标签，占位符原样保留 ===
       const htmlParts = [];
       let lastIndex = 0;
+      // 单张卡片渲染失败不能连坐：AI 写歪一个字段、或某个渲染函数自己抛了，
+      // 以前会顺着 forEach 冒到 processTextContent 外面，整篇正文都不写回 DOM，
+      // 页面直接白掉。现在每张卡片各自 try，出事只打日志，那一段退回纯文本排版。
+      const renderTag = (match) => {
+        try {
+          if (match.type === 'image-tag') return renderImageTag(match);
+          if (match.type === 'html-img') return createInteractiveImageContainer(match.content);
+          if (match.type === 'live-room') return renderLiveRoom(match.content, htmlParts.length);
+          if (match.type === 'sudden-event') return renderSuddenEvent(match.content, htmlParts.length);
+        } catch (err) {
+          console.error('[正文美化] 卡片渲染失败，已退回纯文本：' + match.type, err);
+        }
+        return processParagraphs(match.raw || match.content || '');
+      };
       matches.forEach(match => {
         const beforeText = rawText.substring(lastIndex, match.index);
         if (beforeText.trim()) htmlParts.push(processParagraphs(beforeText));
-        if (match.type === 'image-tag') {
-          htmlParts.push(renderImageTag(match));
-        } else if (match.type === 'html-img') {
-          htmlParts.push(createInteractiveImageContainer(match.content));
-        } else if (match.type === 'live-room') {
-          htmlParts.push(renderLiveRoom(match.content, htmlParts.length));
-        } else if (match.type === 'sudden-event') {
-          htmlParts.push(renderSuddenEvent(match.content, htmlParts.length));
-        }
+        htmlParts.push(renderTag(match));
         lastIndex = match.index + match.length;
       });
       const remainingText = rawText.substring(lastIndex);
@@ -8268,8 +8417,8 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
         });
       })();
 
-      initLiveRooms();
-      initEvtCards();
+      try { initLiveRooms(); } catch (err) { console.error('[正文美化] initLiveRooms 失败', err); }
+      try { initEvtCards(); } catch (err) { console.error('[正文美化] initEvtCards 失败', err); }
       } finally {
         contentDiv.removeAttribute('aria-busy');
       }
@@ -8802,34 +8951,50 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       initThemeSwitcher(true);
       initThemeCollapse();
       requestAnimationFrame(async () => {
-        // 初始化自定义角色：从MVU和缓存加载到CHARACTER_CONFIG
-        loadCustomCharsIntoConfig();
-        processTextContent();
-        initImageGenResponseListener();
-        initSettings();
-        initReadingWidth();
-        initAvatarUpload();
-        renderCustomCharList();
-        const savedReadingFontSize = localStorage.getItem('readingFontSize');
-        readingFontSize = savedReadingFontSize ? parseInt(savedReadingFontSize) : 18;
-        const readingContent = document.querySelector('.reading-content');
-        if (readingContent) readingContent.style.fontSize = readingFontSize + 'px';
-        const savedImageSize = localStorage.getItem('imageSize');
-        imageSize = savedImageSize !== null ? parseInt(savedImageSize) : 70; // 默认70%
-        applyImageSize();
-        
-        initAnimationObserver();
-        const fontKey = window.__initialReadingFontKey || localStorage.getItem('reading-font-family-v3') || 'theme-default';
-        if (fontKey === 'noto-serif') ensureGoogleReadingFonts();
+        /* 每一步各自兜住异常。正文渲染（processTextContent）以前是裸调的，
+           它一抛（比如某张卡片的渲染函数引用了不存在的变量），后面的 revealReading
+           就永远不会执行，body 卡在 render-pending 上——表现就是整页全白。
+           现在任何一步失败都只打日志，reveal 一定会跑到。 */
+        const step = (label, fn) => {
+          try { return fn(); }
+          catch (err) { console.error('[正文美化] 初始化步骤失败：' + label, err); }
+        };
         const revealReading = () => {
           document.body.classList.remove('render-pending', 'theme-preload');
           document.body.classList.add('render-ready');
         };
-        if (isReadingFontCached(fontKey)) {
-          requestAnimationFrame(revealReading);
-        } else {
+        try {
+          // 初始化自定义角色：从MVU和缓存加载到CHARACTER_CONFIG
+          step('loadCustomCharsIntoConfig', loadCustomCharsIntoConfig);
+          step('processTextContent', processTextContent);
+          step('initImageGenResponseListener', initImageGenResponseListener);
+          step('initSettings', initSettings);
+          step('initReadingWidth', initReadingWidth);
+          step('initAvatarUpload', initAvatarUpload);
+          step('renderCustomCharList', renderCustomCharList);
+          step('正文字号', () => {
+            const savedReadingFontSize = localStorage.getItem('readingFontSize');
+            readingFontSize = savedReadingFontSize ? parseInt(savedReadingFontSize) : 18;
+            const readingContent = document.querySelector('.reading-content');
+            if (readingContent) readingContent.style.fontSize = readingFontSize + 'px';
+          });
+          step('applyImageSize', () => {
+            const savedImageSize = localStorage.getItem('imageSize');
+            imageSize = savedImageSize !== null ? parseInt(savedImageSize) : 70; // 默认70%
+            applyImageSize();
+          });
+          step('initAnimationObserver', initAnimationObserver);
+          const fontKey = window.__initialReadingFontKey || localStorage.getItem('reading-font-family-v3') || 'theme-default';
+          if (fontKey === 'noto-serif') step('ensureGoogleReadingFonts', () => ensureGoogleReadingFonts());
+          if (step('isReadingFontCached', () => isReadingFontCached(fontKey))) {
+            requestAnimationFrame(revealReading);
+          } else {
+            revealReading();
+            step('waitForReadingFontReady', () => waitForReadingFontReady(fontKey));
+          }
+        } catch (err) {
+          console.error('[正文美化] 初始化异常，正文按原样显示', err);
           revealReading();
-          waitForReadingFontReady(fontKey);
         }
       });
     });
