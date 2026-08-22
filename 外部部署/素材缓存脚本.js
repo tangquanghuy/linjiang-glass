@@ -236,6 +236,15 @@
         cacheable
     };
 
+    /* 提示走酒馆的 toastr，跟 辅助计算脚本.js 那句「脚本已加载」一个路子。
+       toastr 不一定存在（比如在纯浏览器里打开测），所以整段包起来。 */
+    function toast(kind, text) {
+        console.info(TAG, text);
+        try {
+            if (typeof toastr !== 'undefined' && toastr[kind]) toastr[kind]('[素材缓存] ' + text);
+        } catch (_) { /* ignore */ }
+    }
+
     /* 礼物图标的地址不在这个文件里写死 —— 表在 辅助计算脚本.js，
        这里跟卡片一样从 roomMenu() 问。脚本还没加载就等一会儿再问，问不到就跳过。 */
     async function prefetchGifts(tries) {
@@ -245,14 +254,20 @@
             if ((tries || 0) < 10) {
                 setTimeout(() => prefetchGifts((tries || 0) + 1), 1500);
             } else {
-                console.info(TAG, '没等到辅助计算脚本，礼物图标改成用到再缓存');
+                toast('info', '没等到辅助计算脚本，礼物图标改成用到再缓存');
             }
             return;
         }
         const urls = [].concat(menu.礼物 || [], menu.大航海 || [])
             .map((g) => g && g.图标).filter(Boolean);
         const n = await api.warm(urls);
-        console.info(TAG, `礼物图标预取 ${n}/${urls.length}`, api.stats());
+        const s = api.stats();
+        if (n < urls.length) {
+            // 常见于新图还没随 Pages 发布上线：这时礼物按钮只有文字，不影响功能
+            toast('warning', `静态资源缓存 ${n}/${urls.length}，有 ${urls.length - n} 个没取到（共 ${s.条数} 项 / ${s.占用KB} KB）`);
+        } else {
+            toast('success', `静态资源已缓存 · ${s.条数} 项 / ${s.占用KB} KB`);
+        }
     }
 
     api.ready = (async () => {
@@ -262,13 +277,15 @@
             all.forEach(mount);
             console.info(TAG, '就绪', api.stats());
         } catch (err) {
-            console.warn(TAG, 'IndexedDB 打不开，缓存层停用，图片走直连', err && err.message);
+            console.warn(TAG, err);
+            toast('warning', 'IndexedDB 打不开，缓存层停用，图片走直连');
             api.url = (u) => String(u || '');
             api.warm = async () => 0;
+            api.broken = true;
         }
         return api;
     })();
 
     window.LinjiangAssets = api;
-    api.ready.then(() => prefetchGifts(0));
+    api.ready.then(() => { if (!api.broken) prefetchGifts(0); });
 })();
