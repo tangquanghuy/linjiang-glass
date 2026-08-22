@@ -9,10 +9,11 @@ import {
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
-import { openPhone, requestClockIn } from './bridge.js';
+import { openPhone, reportOverlay, requestClockIn } from './bridge.js';
 import { applyPrefClick, settingsBody } from './settings.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
+import { isCgOpen, mountCgOverlay } from './cg.js';
 import { insertSafeHTML, setSafeHTML } from './dom.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
@@ -731,11 +732,13 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   const viewport = stage.parentElement;
   let unmountMap = null;
   let unmountArcade = null;
+  let unmountCg = null;
   let dockName = null;
   let inventoryLeaf = 0;
   const has = (sel) => !!layer.querySelector(sel);
   const drop = (sel) => layer.querySelectorAll(sel).forEach((el) => el.remove());
-  const overlayOpen = () => !!unmountMap || !!unmountArcade || isMapOpen() || isArcadeOpen();
+  const overlayOpen = () => !!unmountMap || !!unmountArcade || !!unmountCg
+    || isMapOpen() || isArcadeOpen() || isCgOpen();
 
   const sync = () => {
     const dock = has('.dock-root');
@@ -750,6 +753,10 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     stage.classList.toggle('has-dock', dock);
     stage.classList.toggle('has-modal', modal || overlayOpen());
     stage.classList.toggle('has-sheet', sheet);
+    /* 覆盖层铺满视口的时候，壳层得把它那两颗浮层钮收起来，否则它们盖住地图/街机自己的
+       关闭钮。报在 sync 里而不是每个 open/close 各报一次：这里是所有开合的唯一汇合点，
+       bridge 侧也只在状态真变了才发消息。 */
+    reportOverlay(overlayOpen());
   };
 
   const closeMap = () => {
@@ -762,18 +769,26 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     unmountArcade = null;
   };
 
+  const closeCg = () => {
+    unmountCg?.();
+    unmountCg = null;
+  };
+
+  /* 三层覆盖层互斥，而且每个入口都得先把另外两层清掉 —— 以前是每处各写两行，
+     加第三层的时候就是三行乘六处。 */
+  const closeOverlays = () => { closeMap(); closeArcade(); closeCg(); };
+
   const closeNote = () => { drop('.dev-sheet, .dev-sheet-shade'); sync(); };
   const closePage = () => {
     closeNote();
-    closeMap();
-    closeArcade();
+    closeOverlays();
     drop('.page-shade, .page-modal');
     sync();
   };
   /* The gift tray and its card live outside this layer but are scoped to whoever the
      dock is showing, so whoever owns them has to hear that the dock changed -- see
      the wiring in content.js. */
-  const closeAll = () => { closeMap(); closeArcade(); layer.replaceChildren(); dockName = null; sync(); onDock?.(null); };
+  const closeAll = () => { closeOverlays(); layer.replaceChildren(); dockName = null; sync(); onDock?.(null); };
 
   /* Pages append after the dock rather than replacing the layer, so the dock keeps
      its DOM, its scroll and its already-built rim SVGs underneath. */
@@ -783,25 +798,19 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     sync();
   };
 
-  const openMap = () => {
+  const openOverlay = (mount) => {
     onOverlay?.();
     closeNote();
     drop('.page-shade, .page-modal');
-    closeMap();
-    closeArcade();
-    unmountMap = mountMapOverlay(viewport, { onClose: closePage });
+    closeOverlays();
+    const unmount = mount(viewport, { onClose: closePage });
     sync();
+    return unmount;
   };
 
-  const openArcade = () => {
-    onOverlay?.();
-    closeNote();
-    drop('.page-shade, .page-modal');
-    closeMap();
-    closeArcade();
-    unmountArcade = mountArcadeOverlay(viewport, { onClose: closePage });
-    sync();
-  };
+  const openMap = () => { unmountMap = openOverlay(mountMapOverlay); };
+  const openArcade = () => { unmountArcade = openOverlay(mountArcadeOverlay); };
+  const openCg = () => { unmountCg = openOverlay(mountCgOverlay); };
 
   const openCharacter = (name) => {
     const girl = girls.find((item) => item.name === name) || girls[0];
@@ -843,6 +852,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     }
     if (page === 'map') { openMap(); return; }
     if (page === 'arcade') { openArcade(); return; }
+    if (page === 'cg') { openCg(); return; }
     if (page === 'inventory') inventoryLeaf = 0;
     const build = PAGES[page];
     if (!build) return;

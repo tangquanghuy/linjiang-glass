@@ -28,6 +28,31 @@ if (typeof window !== 'undefined') {
     exposePhoneLauncher(window);
     exposePhoneLauncher(window.parent);
     exposePhoneLauncher(window.top);
+
+    /* 玻璃状态栏代替悬浮球唤起手机，而它跑在酒馆里另一个 iframe（外部部署/状态栏.html）。
+       上面那三次 exposePhoneLauncher 是「同源才成立」的路：只要本脚本所在的框架跟酒馆顶层
+       之间有一层跨源/沙箱，赋值就会抛异常被 catch 吞掉，壳层于是在 window / parent / top
+       上一个启动函数都找不到 —— 表现就是点了手机钮什么都不发生（HUD 那边 8 秒后一条
+       `bridge timeout: openPhone`）。
+
+       所以再留一条不依赖同源的路：postMessage。谁都能给我们发信，收到唤起请求就照常走
+       phoneLauncher（逻辑一点没改，跟当年悬浮球点下去是同一条），然后回一个 ack，让壳层
+       知道这次唤起有人接了、不用再报错。 */
+    const PHONE_CHANNEL = 'linjiang-phone';
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || data.channel !== PHONE_CHANNEL || data.type !== 'open') return;
+        try {
+            phoneLauncher();
+        } catch (e) {
+            console.warn('[手机界面] 唤起失败', e);
+            return;
+        }
+        try {
+            event.source?.postMessage({ channel: PHONE_CHANNEL, type: 'opened', id: data.id }, '*');
+        } catch (e) { }
+    });
+
     window.togglePin = togglePin;
 
     // 壁纸相关函数

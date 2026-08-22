@@ -974,32 +974,33 @@ export const tools = [
    44px 热区重叠得更厉害。见上面 tools 的注释。所以不是"要不要多几颗环"的问题，
    是这批去处从一开始就必须待在环之外。
 
-   `en` 喂那行小拉丁字，和这个界面别处的 CJK 配法一致；`soon` 让未完成的去处保持禁用。
+   `soon` 让未完成的去处保持禁用。曾经还有个 `en` 喂胶囊里那行小拉丁字（SCHEDULE /
+   ARCADE / …），已经撤掉：那行字不承载任何信息，中文标签旁边多一行大写拉丁只是装饰，
+   撤掉之后胶囊从 52 单位矮到 38（见 dest.css 与 content.js 的 DEST_RAIL）。
 
    `short` 是给竖屏那一格网用的：格子只有 176~190 单位宽，"开播日程表" 五个字在
-   --fs-caption 下正好顶满、会折成三行，而 "SCHEDULE" 加上字距要 190 多单位，直接溢出格子。
-   所以竖屏只画图标 + 这个两字缩写（完整名字仍在 aria-label 里），横向那排空间够，
-   照旧用完整的 label + en。
+   --fs-caption 下正好顶满、会折成三行。所以竖屏只画图标 + 这个两字缩写（完整名字仍在
+   aria-label 里），横向那排空间够，照旧用完整的 label。
 
    主角档案 和 羁绊总览 曾经也在这里，现在都不在，但两个页面都还活着 —— 删的是入口不是
    路由：两个构图的体力行上都有一颗人像钮直开 主角档案，竖屏的 主角档案 里有一行通到
    羁绊总览。PAGES / PORTRAIT_PAGES 里对应的条目都得留着，否则那几颗按钮指向空路由。 */
 export const destinations = [
   {
-    icon: 'calendar', label: '开播日程表', short: '日程', en: 'Schedule', page: 'schedule',
+    icon: 'calendar', label: '开播日程表', short: '日程', page: 'schedule',
     note: '本周谁在哪个时段开播',
   },
   {
-    icon: 'arcade', label: '幸运街机', short: '街机', en: 'Arcade', page: 'arcade',
+    icon: 'arcade', label: '幸运街机', short: '街机', page: 'arcade',
     note: '刮刮乐、老虎机、钓鱼、祈愿',
   },
   {
-    icon: 'gallery', label: 'CG 鉴赏', short: 'CG', en: 'Gallery', page: 'cg', soon: true,
+    icon: 'gallery', label: 'CG 鉴赏', short: 'CG', page: 'cg',
     note: '已解锁的场景回看',
   },
   /* 排最后，而且是唯一一个不是"游戏里的去处"的条目：这一颗是这台机器本身的开关。 */
   {
-    icon: 'gear', label: '全局设置', short: '设置', en: 'Settings', page: 'settings',
+    icon: 'gear', label: '全局设置', short: '设置', page: 'settings',
     note: '默认停靠方式、背包按钮行为',
   },
 ];

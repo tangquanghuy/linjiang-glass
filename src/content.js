@@ -357,8 +357,12 @@ function toolPod() {
    四颗算下来到不了 700。
 
    坐标写成字面量而不是进 geo.regions：geometry.json 是 tools/geometry.py 从原型量出来
-   再生成的，手写条目会在下次重新生成时消失。caption() 用的是同一种写法。 */
-const DEST_RAIL = { x: 23, y: 326 };
+   再生成的，手写条目会在下次重新生成时消失。caption() 用的是同一种写法。
+
+   y 是从下沿倒推的：胶囊里现在只有中文一行（那行小拉丁字撤了，理由见 destinations），
+   高度从 52 降到 38，于是 y = 390 - 12 - 38 = 340 —— 仍然是"贴着标题耳上方留 12 单位缝"，
+   改高度的时候这条式子要跟着算，不然按钮会压到玻璃壳的上沿里去。 */
+const DEST_RAIL = { x: 23, y: 340 };
 
 function destRail() {
   const items = destinations.map((d) => {
@@ -370,7 +374,7 @@ function destRail() {
     <button class="dest-btn${soon}" type="button" aria-label="${d.label}"
       title="${d.note}"${attrs}>
       ${ic(d.icon)}
-      <span><b>${d.label}</b><em>${d.en}</em></span>
+      <b>${d.label}</b>
       ${d.soon ? '<i class="dest-soon">筹备</i>' : ''}
     </button>`;
   }).join('');

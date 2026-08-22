@@ -21,6 +21,13 @@ function copyArcade(destRoot) {
   cpSync('arcade', join(destRoot, 'arcade'), { recursive: true });
 }
 
+/* CG 鉴赏和街机同样是"整目录搬过去"的独立页面：里面是原生脚本（cg-app.js 是从
+   phone/src/ 拼出来的产物，见 scripts/build-cg-page.mjs），不进 vite 的模块图。 */
+function copyCg(destRoot) {
+  if (!existsSync('cg')) return;
+  cpSync('cg', join(destRoot, 'cg'), { recursive: true });
+}
+
 function copyOpening(destRoot) {
   for (const file of ['opening.html', 'opening.css', 'opening.js']) {
     if (existsSync(file)) cpSync(file, join(destRoot, file));
@@ -37,6 +44,7 @@ export default defineConfig({
     closeBundle() {
       copyCityMap('dist');
       copyArcade('dist');
+      copyCg('dist');
       copyOpening('dist');
     },
   }],

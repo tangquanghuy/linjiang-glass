@@ -34,6 +34,8 @@
     "split": "node scripts/check-split.mjs",
     "phone:build": "node phone/build.mjs",
     "phone:check": "node phone/build.mjs --check",
+    "cg:build": "node scripts/build-cg-page.mjs",
+    "cg:check": "node scripts/build-cg-page.mjs --check",
     "phone:shot": "node tools/shot_phone.mjs",
     "assets": "python tools/export_assets.py && python tools/make_bg_plate.py && python tools/export_item_icons.py && python tools/export_gift_icons.py",
     "tavern:double": "node scripts/check-double-status.mjs",

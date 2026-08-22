@@ -224,6 +224,23 @@ export function reportPortraitPage(open) {
   postEvent('portraitPage', { open: !!open });
 }
 
+/* 横向构图开了铺满视口的覆盖层（地图 / 街机 / CG）。
+   ------------------------------------------------------------------
+   壳层那两颗浮层钮（全屏、收回嵌入框）是注入到**酒馆顶层文档**里的，全屏时 z-index
+   高到 2147483646 —— HUD 内部的层级管不到它们，于是它们压在覆盖层自己右上角的关闭钮
+   上面，地图关不掉。竖屏早就有这条通报（reportPortraitPage → layoutPortraitPage →
+   hideChromeButtons），横向一直没有，这一个就是补上它。
+
+   只报开合，不带尺寸：横向的排版跟覆盖层无关，壳层要做的只是把两颗钮收起来。 */
+let lastOverlay = null;
+export function reportOverlay(open) {
+  if (!isEmbedded()) return;
+  const next = !!open;
+  if (next === lastOverlay) return;
+  lastOverlay = next;
+  postEvent('overlay', { open: next });
+}
+
 /* 默认停靠方式住在 HUD 这边的 localStorage 里，而决定停靠的代码在壳层
    （外部部署/状态栏.html）。两边不同源，壳层读不到，所以只能由 HUD 通报。
 

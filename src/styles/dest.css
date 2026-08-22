@@ -16,11 +16,13 @@
 
 .dest-btn {
   position: relative;
-  height: 52px;
+  /* 38 = 中文一行 13 + 上下各 12.5 的呼吸。以前是 52，因为里面还叠着一行小拉丁字；
+     那行撤掉之后 52 会让胶囊显得空。高度改了要回头调 content.js 的 DEST_RAIL.y。 */
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px 0 13px;
+  gap: 9px;
+  padding: 0 15px 0 12px;
   border: 1px solid rgba(255, 255, 255, .34);
   border-radius: 15px;
   /* 薄白填充 + brightness 压暗透过来的背景：照片在这一带是亮的花枝和湖面，
@@ -42,22 +44,11 @@
   flex: none;
   filter: drop-shadow(0 1px 4px rgba(6, 8, 22, .6));
 }
-.dest-btn > span {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: left;
-}
+/* 只剩中文一行，所以不再需要那层竖排的 <span>：图标和标签直接做这颗胶囊的 flex 行。 */
 .dest-btn b {
   font: 600 13px/1 'Noto Sans SC', sans-serif;
   letter-spacing: .02em;
-}
-.dest-btn em {
-  font: 400 9px/1 'Outfit', sans-serif;
-  font-style: normal;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, .62);
+  white-space: nowrap;
 }
 
 @media (hover: hover) {

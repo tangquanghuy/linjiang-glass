@@ -45,7 +45,7 @@ $env:PHONE_MOBILE='1'; npm run phone:shot                # 390×844 移动视口
 | `12-phone-controls` | 开关手机、置顶、拖动手机、App 面板开关（App 标题在这里） |
 | `13-message-sender` | `MessageSender` 类 + `window.messageSender` |
 | `14-chat-panel` / `15-images` / `16-chat-extract` / `17-messages-panel` | 聊天相关；`17` 里还有共用的 `renderPhoneAvatar` / `renderAffection` |
-| `18-cg-data` / `19-cg-gallery` / `29-cg-fullscreen` | CG 图鉴 |
+| `18-cg-data` / `19-cg-gallery` / `29-cg-fullscreen` | CG 图鉴（同时被拆成独立页面，见下） |
 | `20-friends-panel` | 好友列表与详情 |
 | `21-forum-post-detail` / `22-api-config` / `23-forum-manager` / `24-forum-panel` | 论坛与独立 API 配置 |
 | `25-calendar` / `26-settings-panel` / `27-phone-size` / `28-wallpaper` | 日历、设置、尺寸、壁纸 |
@@ -78,6 +78,19 @@ $env:PHONE_MOBILE='1'; npm run phone:shot                # 390×844 移动视口
 | `ph-btn--filled` / `--plain` / `--danger` | 主操作按钮 |
 
 新写面板请优先用这些类，不要再往模板字符串里堆内联样式。
+
+### CG 图鉴有第二个去处
+
+`18-cg-data` / `19-cg-gallery` / `29-cg-fullscreen` 这三片同时供着 HUD 的「CG 鉴赏」——
+那是一页独立页面 `cg/index.html`，由 `scripts/build-cg-page.mjs` 把这三片**原文**拼成
+`cg/cg-app.js`，外壳（jQuery、返回栈、全屏看图、好感度来源）在手写的 `cg/cg-shell.js`。
+
+所以改这三片之后要多跑一步：
+
+```bash
+npm run cg:build    # 重新拼出 cg/cg-app.js
+npm run cg:check    # 校验产物是否与 phone/src/ 同步（提交前跑）
+```
 
 ## 改动须知
 

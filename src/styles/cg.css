@@ -1,0 +1,56 @@
+/* CG 鉴赏覆盖层。和 arcade.css 同一套（同样的层级、同样的关闭钮），因为它们是同一种
+   东西：一层铺在 .viewport 上、装着独立页面的 iframe。底色跟着 CG 页自己的浅色走，
+   否则加载那一瞬间会先闪一块深色。 */
+
+.cg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #eef2f7;
+}
+
+.cg-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #eef2f7;
+}
+
+.cg-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 81;
+  pointer-events: none;
+}
+
+/* 位置和地图、街机那两颗完全一致（右上角、36×36、同样的圆角），只是配色跟着这页的
+   浅底走。CG 页的头部条右侧特意留了一格空位给它，所以两者不会叠在一起。 */
+.cg-close {
+  pointer-events: auto;
+  position: absolute;
+  top: max(13px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 11px;
+  font: 300 24px/1 'Outfit', sans-serif;
+  color: rgba(15, 23, 42, .7);
+  background: rgba(255, 255, 255, .86);
+  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, .35), inset 0 1px 0 rgba(255, 255, 255, .8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .cg-close:hover { color: #0f172a; border-color: rgba(15, 23, 42, .28); }
+}
+
+html.has-cg,
+html.has-cg body {
+  overflow: hidden !important;
+  height: 100% !important;
+}

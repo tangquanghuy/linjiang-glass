@@ -39,6 +39,7 @@ import { openPhone, requestClockIn, sendChat, reportPortraitPage } from '../brid
 import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
+import { mountCgOverlay } from '../cg.js';
 
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
 import { applyPrefClick } from '../settings.js';
@@ -354,9 +355,20 @@ export function mountPortraitContent(stage, { onPage } = {}) {
      appended to it. */
   let workspace = null;
   let workspaceArg = null;
-  let unmountMap = null;
-  let unmountArcade = null;
-  /* Whether the map/arcade overlay was launched over a page rather than over the base
+  /* 铺满视口的那几层：地图、街机、CG 鉴赏。三者互斥，所以一个卸载句柄就够 ——
+     以前是每层一个变量，而每处又都要把另外几个一起关掉。名字同时充当路由表，
+     closePage 靠它判断"刚才那层是覆盖层还是页面"。 */
+  const OVERLAYS = {
+    map: mountMapOverlay,
+    arcade: mountArcadeOverlay,
+    cg: mountCgOverlay,
+  };
+  let unmountOverlay = null;
+  const closeOverlay = () => {
+    unmountOverlay?.();
+    unmountOverlay = null;
+  };
+  /* Whether the overlay was launched over a page rather than over the base
      column -- 更多工具条 lists 街机, so this is now reachable.  It decides whether closing
      the overlay has anything to repaint; see closePage. */
   let overlayOverPage = false;
@@ -407,12 +419,12 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     wireRail({ restoreScroll });
   };
 
-  const openOverlay = (name, mount) => {
+  const openOverlay = (name) => {
     /* An overlay can now be launched from a page -- 更多工具条 lists 街机 -- and the column
        under it still holds that page's DOM.  `workspace` is about to be overwritten, so
        record that fact for closePage, which otherwise returns early on the way out of an
        overlay and would leave the page standing with the state saying otherwise. */
-    overlayOverPage = !!workspace && workspace !== 'map' && workspace !== 'arcade';
+    overlayOverPage = !!workspace && !OVERLAYS[workspace];
     if (!workspace) {
       railScroll = rail()?.scrollLeft ?? railScroll;
       baseScrollY = scrollY;
@@ -421,13 +433,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     workspaceArg = null;
     document.documentElement.classList.add('is-page-open');
     reportPortraitPage(true);
-    unmountMap?.();
-    unmountMap = null;
-    unmountArcade?.();
-    unmountArcade = null;
-    const layer = mount(document.querySelector('.viewport'), { onClose: closePage });
-    if (name === 'map') unmountMap = layer;
-    else unmountArcade = layer;
+    closeOverlay();
+    unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage });
   };
 
   const openPage = (page, arg) => {
@@ -436,17 +443,13 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       openPhone().catch((err) => console.warn('[phone]', err));
       return;
     }
-    if (page === 'map') { openOverlay('map', mountMapOverlay); return; }
-    if (page === 'arcade') { openOverlay('arcade', mountArcadeOverlay); return; }
+    if (OVERLAYS[page]) { openOverlay(page); return; }
     const build = PORTRAIT_PAGES[page];
     /* Anything unrouted falls through to the caller rather than opening an empty
        panel -- so an unknown name is visible as a no-op with a warning, not as a blank
        screen. */
     if (!build) { onPage?.(page, arg); return; }
-    unmountMap?.();
-    unmountMap = null;
-    unmountArcade?.();
-    unmountArcade = null;
+    closeOverlay();
     /* Remember the rail before it is thrown away, and the document position, so both
        come back on close.  Only on the way *in*: a page opening another page (羁绊总览
        into a 档案) must not overwrite where the base column was. */
@@ -467,11 +470,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
 
   const closePage = () => {
     if (!workspace) return;
-    unmountMap?.();
-    unmountMap = null;
-    unmountArcade?.();
-    unmountArcade = null;
-    const wasOverlay = workspace === 'map' || workspace === 'arcade';
+    closeOverlay();
+    const wasOverlay = !!OVERLAYS[workspace];
     const overPage = overlayOverPage;
     overlayOverPage = false;
     workspace = null;

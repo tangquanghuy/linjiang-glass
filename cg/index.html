@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>临江 · CG 鉴赏</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%96%BC%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+<link rel="stylesheet" href="./cg-shell.css">
+</head>
+<body>
+<!-- 外壳：一条头部 + 一个滚动容器。容器的 id 沿用小手机的 #phone-app-body / #phone-app-title，
+     因为 CG 那三片代码全部往这两个 id 上渲染 —— 换名字就等于改它们的逻辑，正是这次不想做的事。 -->
+<div class="cg-app">
+  <!-- 右边那格是空的，它给 HUD 那颗浮在右上角的关闭钮留位子：关掉整页是 HUD 的事
+       （它要拆覆盖层、还要让壳层把全屏/缩小两颗钮放回来），这页不自己长一颗。 -->
+  <header class="cg-app-bar">
+    <span class="cg-bar-slot">
+      <button id="cg-back-btn" type="button" class="cg-bar-btn" hidden aria-label="返回">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+    </span>
+    <div id="phone-app-title" class="cg-app-title">CG收集</div>
+    <span class="cg-bar-slot"></span>
+  </header>
+  <div id="phone-app-body" class="cg-app-body"></div>
+</div>
+
+<!-- 全屏看图。这一块原本属于小手机外壳（壁纸查看器），CG 的 showCGFullscreen 直接操作它的
+     几个 id，所以照搬过来。少了一颗「设为壁纸」钮：这里没有壁纸这回事，而 29-cg-fullscreen.js
+     对它的两次操作都是 jQuery 空集合上的空操作，不会报错。 -->
+<div class="wallpaper-fullscreen-viewer" id="wallpaper-fullscreen-viewer">
+  <button class="wallpaper-close-btn" id="wallpaper-close-btn" type="button" aria-label="关闭大图">
+    <i class="fas fa-times"></i>
+  </button>
+  <div class="cg-index-display" id="cg-index-display"></div>
+  <div class="cg-nav-controls" id="cg-nav-controls">
+    <button class="cg-nav-btn" id="cg-prev-btn" type="button" aria-label="上一张">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+    <button class="cg-nav-btn" id="cg-next-btn" type="button" aria-label="下一张">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  </div>
+  <img id="wallpaper-fullscreen-img" src="" alt="CG 大图">
+</div>
+
+<div id="cg-toast-host" class="cg-toast-host" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="./cg-shell.js"></script>
+<script src="./cg-app.js"></script>
+<script>CGShell.boot();</script>
+</body>
+</html>

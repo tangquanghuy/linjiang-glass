@@ -283,24 +283,91 @@
     postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', context: manager.context(), payload: { stat_data: stat } });
   };
 
-  const openPhonePanel = () => {
-    const candidates = [];
-    const add = (win) => { if (win && candidates.indexOf(win) === -1) candidates.push(win); };
-    try { add(tavernWin()); } catch (e) {}
-    try { add(window.top); } catch (e) {}
-    try { add(window.parent); } catch (e) {}
-    add(window);
+  /* 唤起外部部署的小手机。
+     ------------------------------------------------------------------
+     本页不含任何小手机代码，只是替掉它原来的悬浮球：小手机脚本自己在酒馆里跑，
+     我们只负责按下那颗钮。
 
-    for (const win of candidates) {
+     以前这里只在 top / parent / 自己身上找 __linjiangOpenMobilePhone，前提是小手机脚本
+     能把函数挂到酒馆顶层。那一步只在同源时成立，而小手机通常跑在酒馆助手的脚本框架里，
+     一旦中间有一层跨源/沙箱，赋值就静默失败，这边一个候选都命中不了 —— 于是点了没反应。
+
+     现在两条路依次试：先把整棵框架树都翻一遍找同源的启动函数（indexed frame 访问和
+     length 跨源也读得到，所以这棵树能完整走完，只是跨源的那些取不到属性）；再不行就往
+     每个框架广播一条 postMessage，由小手机脚本自己应答（见 phone/src/31-global-exports.js）。 */
+  const PHONE_CHANNEL = 'linjiang-phone';
+  const PHONE_ACK_MS = 1500;
+  let phoneSeq = 0;
+  const phoneAcks = new Map();
+
+  const frameTree = (root) => {
+    const out = [];
+    const walk = (win) => {
+      if (!win || out.indexOf(win) !== -1) return;
+      out.push(win);
+      let count = 0;
+      try { count = win.frames.length || 0; } catch (e) { count = 0; }
+      for (let i = 0; i < count; i++) {
+        let child = null;
+        try { child = win.frames[i]; } catch (e) { child = null; }
+        if (child) walk(child);
+      }
+    };
+    try { walk(root); } catch (e) {}
+    return out;
+  };
+
+  const phoneWindows = () => {
+    const wins = frameTree(tavernWin());
+    [window.top, window.parent, window].forEach((win) => {
+      try { if (win && wins.indexOf(win) === -1) wins.push(win); } catch (e) {}
+    });
+    return wins;
+  };
+
+  const findPhoneLauncher = () => {
+    for (const win of phoneWindows()) {
       try {
         const launch = win.__linjiangOpenMobilePhone || win.openMobilePhone;
-        if (typeof launch === 'function') {
-          launch();
-          return true;
-        }
+        if (typeof launch === 'function') return launch;
       } catch (e) {}
     }
-    throw new Error('Phone panel is not initialized');
+    return null;
+  };
+
+  const askPhoneByMessage = () => new Promise((resolve) => {
+    const id = 'phone-' + (++phoneSeq) + '-' + Date.now();
+    const timer = setTimeout(() => {
+      phoneAcks.delete(id);
+      resolve(false);
+    }, PHONE_ACK_MS);
+    phoneAcks.set(id, () => {
+      clearTimeout(timer);
+      phoneAcks.delete(id);
+      resolve(true);
+    });
+    const payload = { channel: PHONE_CHANNEL, type: 'open', id };
+    phoneWindows().forEach((win) => {
+      if (win === window) return;
+      try { win.postMessage(payload, '*'); } catch (e) {}
+    });
+  });
+
+  const onPhoneAck = (event) => {
+    const data = event.data;
+    if (!data || data.channel !== PHONE_CHANNEL || data.type !== 'opened') return;
+    const done = phoneAcks.get(data.id);
+    if (done) done();
+  };
+
+  const openPhonePanel = async () => {
+    const launch = findPhoneLauncher();
+    if (launch) {
+      launch();
+      return true;
+    }
+    if (await askPhoneByMessage()) return true;
+    throw new Error('没找到小手机脚本，请确认它已在酒馆里启用');
   };
 
   const handleRequest = (action, payload) => {
@@ -402,6 +469,10 @@
   let shrinkTouched = false;
   let uninstalled = false;
   let portraitPageOpen = false;
+  /* 横向构图里 HUD 开了铺满视口的覆盖层（地图 / 街机 / CG）。见 bridge.js 的 reportOverlay：
+     那两颗浮层钮住在酒馆顶层文档、层级压过 HUD 内部的一切，不收起来就挡着覆盖层自己的
+     关闭钮。竖屏走的是 portraitPageOpen，那条路早就在做同一件事。 */
+  let overlayOpen = false;
   let slotObserver = null;
   let frameObserver = null;
   let active = false;
@@ -760,6 +831,9 @@
   };
 
   const placeFsButton = () => {
+    /* 覆盖层期间一律收起：placeFsButton 的调用点很多（重排、跟随滚动、补正），
+       在这里挡一次比在每个调用点各判一次可靠。 */
+    if (overlayOpen) { hideChromeButtons(); return; }
     const tavern = tavernWin();
     const btn = tavern.document.getElementById(HUD_FS_ID);
     if (!btn || !hudFrame || !hudFrame.parentNode) return;
@@ -1664,10 +1738,24 @@
     const data = event.data;
     if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event') return;
     if (event.source !== hudFrame.contentWindow) return;
-    if (data.type !== 'portraitSize' && data.type !== 'portraitPage' && data.type !== 'dockDefault') return;
+    if (data.type !== 'portraitSize' && data.type !== 'portraitPage'
+        && data.type !== 'dockDefault' && data.type !== 'overlay') return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
     if (data.type === 'dockDefault') {
       try { applyDockDefault(data.payload || {}); } catch (e) {}
+      return;
+    }
+    if (data.type === 'overlay') {
+      const next = !!data.payload?.open;
+      if (next === overlayOpen) return;
+      overlayOpen = next;
+      /* 开的时候只需要收钮，不用重排（覆盖层是 HUD 内部的事）；关的时候按当前布局
+         把钮放回去 —— 走 placeFsButton 而不是 fitParentFrame，省掉一次无谓的重排。 */
+      if (overlayOpen) { try { hideChromeButtons(); } catch (e) {} }
+      else if (!portraitPageOpen && hudFrame._linjiangAlign !== 'slot'
+               && hudFrame.style.visibility !== 'hidden') {
+        try { placeFsButton(); } catch (e) {}
+      }
       return;
     }
     if (data.type === 'portraitSize') {
@@ -1706,6 +1794,9 @@
     listen(win, 'message', onHudWheel);
     listen(win, 'message', onHudAutoscroll);
     listen(win, 'message', onHudLayout);
+    /* 小手机的 ack 回到发信的那个窗口（也就是本页），但顺手也在酒馆窗口上听一份：
+       多绑一次没有副作用，phoneAcks 认 id，先到的那条把它取走。 */
+    listen(win, 'message', onPhoneAck);
   };
 
   const clearHostListeners = () => {
@@ -1814,6 +1905,8 @@
     if (destroyed) return;
     active = true;
     uninstalled = false;
+    /* 新接手的 HUD 身上没有覆盖层；上一任留下的标记不能带过来，否则两颗钮再也不出现。 */
+    overlayOpen = false;
     hudFrame = manager.ensureHudFrame();
     hudFrame.dataset.linjiangOwner = INSTANCE_ID;
     try { localHudFrame.remove(); } catch (e) {}
