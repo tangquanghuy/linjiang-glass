@@ -93,18 +93,23 @@ console.log('  八发火箭  =', JSON.stringify(aux.danmuHeat(
   Array.from({ length: 8 }, () => ({ 类型: '礼物', 礼物: '火箭', 数量: 1 })), base)));
 console.log('  醒目留言100 =', JSON.stringify(aux.danmuHeat([{ 类型: '醒目留言', 金额: 100 }], base)));
 
-console.log('\n=== 环境流量：没人看的东雪莲，推 12 拍时钟 ===');
-const clocks = ['21:30', '22:00', '22:10', '22:20', '22:30', '22:40', '22:50', '23:00', '23:05', '23:10', '23:15', '23:20'];
+console.log('\n=== 环境流量：没人看的东雪莲，推 60 拍时钟看收敛 ===');
 chatText = '（这一轮正文里没有直播间卡片）';
-clocks.forEach((c, i) => {
-  const before = JSON.parse(JSON.stringify(S()));
-  S().世界信息.时间.时钟 = c;
-  aux.handleVariableUpdate({ stat_data: S() }, { stat_data: before });
-  if (i % 2 === 1 || i === 0) show(`第 ${i + 1} 拍 ${c}`, '东雪莲');
-});
 const b = room('东雪莲').底盘热度;
-console.log(`  收敛位置：本场 ${room('东雪莲').本场热度} ≈ 底盘的 ${(room('东雪莲').本场热度 / b * 100).toFixed(0)}%`
-  + `，总热度 ${live('东雪莲').热度} ≈ 底盘的 ${(live('东雪莲').热度 / b).toFixed(2)} 倍`);
+const series = [];
+for (let i = 0; i < 60; i += 1) {
+  const before = JSON.parse(JSON.stringify(S()));
+  S().世界信息.时间.时钟 = `${21 + Math.floor(i / 12)}:${String((i % 12) * 5).padStart(2, '0')}`;
+  live('东雪莲').开播 = true;           // 档期只到 00:30，这里按「一直在播」压着测
+  aux.handleVariableUpdate({ stat_data: S() }, { stat_data: before });
+  series.push(Number(room('东雪莲').本场热度) || 0);
+  if (i === 0 || i === 4 || i === 11 || i === 29 || i === 59) show(`第 ${i + 1} 拍`, '东雪莲');
+}
+const tail = series.slice(-30);
+const avg = tail.reduce((x, y) => x + y, 0) / tail.length;
+console.log(`  尾 30 拍本场热度均值 ${avg.toFixed(0)} = 底盘 ${b} 的 ${(avg / b * 100).toFixed(0)}%`
+  + `，总热度约 ${(1 + avg / b).toFixed(2)} 倍底盘`);
+console.log('  （每拍 +底盘×[0,6%]、每拍 ×0.9 衰减，理论稳态 = 3%/10% = 底盘的 30%）');
 
 console.log('\n=== 下播：本场热度和结算标记都清掉 ===');
 live('塔菲').开播 = false;
