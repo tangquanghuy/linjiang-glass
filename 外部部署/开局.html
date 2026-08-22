@@ -4,45 +4,198 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>临江 · 开局配置</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; background: transparent; }
+  /* 视觉沿用开局页 opening.css 的那套令牌，卡片就是那块玻璃壳的一小段截面。 */
+  :root {
+    --ink: rgba(240, 242, 255, .94);
+    --mute: rgba(226, 229, 250, .66);
+    --faint: rgba(221, 225, 248, .42);
+    --line: rgba(228, 233, 255, .16);
+    --pink: #ff78b0;
+    --blue: #83c9ff;
+    --ok: #8ce1c4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; }
+  body {
+    padding: 2px;
+    color: var(--ink);
+    font-family: 'Noto Sans SC', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
   #launch {
-    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px 24px;
+    padding: 20px 24px;
+    border: 1px solid rgba(238, 241, 255, .34);
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(50, 59, 105, .5), rgba(17, 22, 51, .58) 48%, rgba(51, 36, 74, .46));
+    box-shadow: 0 22px 60px rgba(3, 5, 18, .42), inset 0 1px rgba(255, 255, 255, .18), inset 0 -1px rgba(255, 168, 204, .16);
+    backdrop-filter: blur(26px) saturate(1.2);
+    -webkit-backdrop-filter: blur(26px) saturate(1.2);
+  }
+  #launch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(56% 120% at 8% 0%, rgba(255, 139, 185, .2), transparent 70%),
+      radial-gradient(48% 130% at 96% 4%, rgba(112, 154, 255, .2), transparent 72%),
+      linear-gradient(110deg, rgba(255, 255, 255, .07), transparent 30%, transparent 72%, rgba(255, 164, 205, .08));
+  }
+  #launch > * { position: relative; }
+
+  .brand { display: flex; align-items: center; gap: 15px; min-width: 0; }
+  .mark {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(239, 242, 255, .28);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .28), rgba(109, 126, 200, .12));
+    box-shadow: 0 0 26px rgba(255, 125, 177, .16);
+  }
+  .mark img { width: 23px; height: 23px; object-fit: contain; }
+  .script {
+    flex: 0 0 auto;
+    font: 400 30px/1 'Pinyon Script', cursive;
+    color: #f9e7d9;
+    text-shadow: 0 2px 12px rgba(255, 177, 204, .25);
+  }
+  .copy { min-width: 0; }
+  .copy .eyebrow {
+    color: var(--faint);
+    font: 400 10px/1.4 'Outfit', 'Noto Sans SC', sans-serif;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+  .copy h1 { margin-top: 4px; font-size: 17px; font-weight: 500; letter-spacing: .1em; }
+  .copy p { margin-top: 5px; color: var(--mute); font-size: 12px; line-height: 1.5; }
+
+  #open {
+    position: relative;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 24px;
+    border: 1px solid rgba(255, 197, 226, .58);
+    border-radius: 999px;
+    background: linear-gradient(120deg, rgba(255, 143, 195, .42), rgba(126, 150, 255, .42));
+    box-shadow: 0 10px 26px rgba(255, 120, 176, .18), inset 0 1px rgba(255, 255, 255, .3);
+    color: #fff;
+    font: 500 14px/1 'Noto Sans SC', system-ui, sans-serif;
+    letter-spacing: .1em;
+    cursor: pointer;
+    transition: border-color .18s, box-shadow .18s, transform .18s;
+  }
+  #open i {
+    font-style: normal;
+    font-family: 'Outfit', sans-serif;
+    opacity: .8;
+    transition: transform .18s;
+  }
+  #open:hover {
+    border-color: rgba(255, 255, 255, .86);
+    box-shadow: 0 14px 32px rgba(255, 120, 176, .28), inset 0 1px rgba(255, 255, 255, .42);
+  }
+  #open:hover i { transform: translateX(3px); }
+  #open:active { transform: translateY(1px); }
+
+  .steps {
+    grid-column: 1 / -1;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 14px;
-    padding: 14px 16px;
-    border: 1px solid rgba(232, 236, 255, .28);
-    border-radius: 14px;
-    background: rgba(18, 20, 42, .78);
-    backdrop-filter: blur(14px) saturate(1.2);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    box-shadow: 0 8px 24px rgba(7, 8, 27, .32), inset 0 1px 0 rgba(255, 255, 255, .18);
-    color: #e6e9f7;
-    font: 400 13px/1.5 "Noto Sans SC", system-ui, sans-serif;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
   }
-  #launch .copy { flex: 1 1 180px; min-width: 0; }
-  #launch b { display: block; font-size: 15px; font-weight: 600; letter-spacing: .04em; }
-  #launch small { display: block; margin-top: 3px; color: rgba(214, 220, 244, .66); font-size: 12px; }
-  #open {
-    flex: 0 0 auto;
-    padding: 9px 18px;
-    border: 1px solid rgba(255, 190, 226, .5);
+  .steps span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 6px 13px;
+    border: 1px solid var(--line);
     border-radius: 999px;
-    background: linear-gradient(135deg, rgba(255, 150, 205, .34), rgba(120, 140, 255, .34));
-    color: #fff;
-    font: 600 13px/1 "Noto Sans SC", system-ui, sans-serif;
-    cursor: pointer;
+    background: rgba(10, 15, 38, .28);
+    color: var(--mute);
+    font-size: 12px;
   }
-  #open:hover { border-color: rgba(255, 255, 255, .82); filter: brightness(1.1); }
-  #status { flex: 1 1 100%; color: rgba(255, 214, 236, .88); font-size: 12px; min-height: 1em; }
+  .steps span em {
+    font: 400 10px/1 'Outfit', sans-serif;
+    font-style: normal;
+    letter-spacing: .12em;
+    color: var(--faint);
+  }
+
+  #status {
+    grid-column: 1 / -1;
+    display: none;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(10, 15, 38, .34);
+    color: var(--mute);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  #status.on { display: flex; }
+  #status::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--blue);
+    box-shadow: 0 0 12px var(--blue);
+  }
+  #status.ok { color: rgba(214, 245, 233, .9); }
+  #status.ok::before { background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+  #status.warn { color: rgba(255, 214, 236, .9); }
+  #status.warn::before { background: var(--pink); box-shadow: 0 0 12px var(--pink); }
+
+  @media (max-width: 520px) {
+    #launch { grid-template-columns: minmax(0, 1fr); gap: 13px; padding: 18px; border-radius: 18px; }
+    .brand { gap: 12px; align-items: flex-start; }
+    .script { display: none; }
+    .copy h1 { font-size: 16px; }
+    #open { width: 100%; justify-content: center; padding: 11px 18px; }
+    .steps { gap: 6px; padding-top: 13px; }
+    .steps span { padding: 5px 11px; font-size: 11px; }
+  }
 </style>
 </head>
 <body>
 <div id="launch">
-  <div class="copy"><b>临江 · 开局配置</b><small>填写玩家资料、住所与工作、自定义主播，完成后写回 MVU 与世界书。</small></div>
-  <button id="open" type="button">开始配置</button>
+  <div class="brand">
+    <div class="mark"><img src="https://tangquanghuy.github.io/linjiang-glass/assets/mark-sakura.png" alt=""></div>
+    <div class="script">Linjiang</div>
+    <div class="copy">
+      <div class="eyebrow">Opening Profile · 2026</div>
+      <h1>在临江开始生活</h1>
+      <p>四步定下玩家资料、住所与工作、自定义主播；确认后写回 MVU 与世界书。</p>
+    </div>
+  </div>
+  <button id="open" type="button">开始配置 <i>&rarr;</i></button>
+  <div class="steps">
+    <span><em>01</em>关于你</span>
+    <span><em>02</em>住所与工作</span>
+    <span><em>03</em>自定义主播</span>
+    <span><em>04</em>确认</span>
+  </div>
   <div id="status"></div>
 </div>
 <script>
@@ -66,7 +219,10 @@
   })();
   let frame = null;
 
-  const say = (text) => { statusBox.textContent = text || ''; };
+  const say = (text, tone) => {
+    statusBox.textContent = text || '';
+    statusBox.className = text ? ('on' + (tone ? ' ' + tone : '')) : '';
+  };
 
   const tavernWin = () => {
     try { if (window.top && window.top !== window) return window.top; } catch (e) {}
@@ -156,7 +312,8 @@
     doc.body.appendChild(box);
     frame = inner;
     try { win.addEventListener('keydown', onKey); } catch (e) {}
-    say(getMvu() ? '开局页已打开；完成后点「确认」写回。' : '开局页已打开；未检测到 MVU，写回会失败。');
+    if (getMvu()) say('开局页已打开；完成后点「确认」写回。');
+    else say('开局页已打开，但没检测到 MVU，写回会失败。', 'warn');
   };
 
   /* ---------- 人设生成：代跑酒馆的模型 ---------- */
@@ -324,7 +481,7 @@
       writeMvu(payload && payload.mvu);
       notes.push('开局数据已写入 MVU');
     } catch (error) {
-      say('写回失败：' + (error && error.message ? error.message : error));
+      say('写回失败：' + (error && error.message ? error.message : error), 'warn');
       return;
     }
     if (payload && payload.worldbook) {
@@ -335,7 +492,7 @@
       else if (stashWorldbookText(payload.worldbook)) notes.push('世界书写入不可用，人设正文已放进输入框');
       else notes.push('世界书写入不可用，请从开局页复制人设正文');
     }
-    say(notes.join('；') + '。');
+    say(notes.join('；') + '。', 'ok');
     closeOverlay();
   };
 
@@ -354,12 +511,12 @@
         say('正在用酒馆当前模型生成人设…');
         const payload = await generateStreamerProfile(data.payload || {});
         event.source.postMessage(Object.assign({ ok: true, payload }, reply), event.origin);
-        say('人设已由酒馆模型生成。');
+        say('人设已由酒馆模型生成。', 'ok');
       } catch (error) {
         event.source.postMessage(Object.assign({
           ok: false, error: error && error.message ? error.message : String(error),
         }, reply), event.origin);
-        say('模型生成失败，开局页已用本地模板兜底。');
+        say('模型生成失败，开局页已用本地模板兜底。', 'warn');
       }
       return;
     }
@@ -376,7 +533,7 @@
   bind(window);
   if (tavernWin() !== window) bind(tavernWin());
   openBtn.addEventListener('click', openOverlay);
-  say(getMvu() ? '' : '未检测到 MVU，先让状态栏跑起来再开局。');
+  if (!getMvu()) say('未检测到 MVU，先让状态栏跑起来再开局。', 'warn');
 })();
 </script>
 </body></html>
