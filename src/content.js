@@ -3,7 +3,7 @@ import spritesRaw from './sprites.json';
 import { rebaseRecord } from './asset.js';
 import { pinImg } from './pin-art.js';
 import {
-  characterDetails, girls, homeState, menuBadge, onLive, player, protagonist, tools, workBadge, workState, world,
+  characterDetails, destinations, girls, homeState, onLive, player, protagonist, tools, workBadge, workState, world,
 } from './data.js';
 import { mountPages } from './pages.js';
 import { mountDrawer } from './drawer.js';
@@ -11,7 +11,6 @@ import { mountGifts } from './gifts.js';
 import { onPref, pref } from './prefs.js';
 import { icons } from './icons.js';
 import { sendChat } from './bridge.js';
-import { moreTrayMarkup, wireMoreTray } from './more-tray.js';
 import { safeFirstElement, setSafeHTML } from './dom.js';
 
 const sprites = rebaseRecord(spritesRaw);
@@ -335,18 +334,48 @@ function girlsPane() {
 }
 
 /* --------------------------------------------------------------- tool pod */
+/* 四颗全是直达去处了 —— 第四颗以前是 更多 发射钮，带一条悬浮托盘，现在没有托盘，
+   也就没有 data-more-trigger 这条分支。 */
 function toolPod() {
-  const buttons = tools.map((t) => {
-    const dot = t.badge || (t.page === 'menu' && menuBadge());
-    const route = t.page === 'menu'
-      ? ' data-more-trigger aria-expanded="false"'
-      : ` data-page="${t.page || ''}"`;
+  const buttons = tools.map((t) => `
+  <button class="tool-btn" type="button" aria-label="${t.label}" data-page="${t.page || ''}">
+    ${ic(t.icon)}${t.badge ? '<span class="dot"></span>' : ''}
+  </button>`).join('');
+  return region('pod', 'pane-pod', buttons);
+}
+
+/* ------------------------------------------------------------- 去处一条轨 */
+/* 带标签的去处横向铺一排，位置在主角面板上沿之上。
+   ------------------------------------------------------------------
+   这里要说清一件容易踩的事：**这一排不在玻璃里**。玻璃壳体的上沿是 y=411
+   （左上标题耳升到 390，右上 pod 升到 350，见 geometry.json 的 shell），再往上就是
+   背景照片本身。所以这排按钮不能像面板内的控件那样"借"底下的玻璃，每颗得自带一片
+   薄玻璃底 —— 样式见 dest.css，配方和地图图例那类浮在画面上的小片一致。
+
+   y=326 是这么定的：主角面板的标题耳顶在 390，往上留 12 单位缝，按钮高 52，
+   326 + 52 = 378 < 390。x 跟面板左沿对齐（23），右边界不会碰到 pod（1430）——
+   四颗算下来到不了 700。
+
+   坐标写成字面量而不是进 geo.regions：geometry.json 是 tools/geometry.py 从原型量出来
+   再生成的，手写条目会在下次重新生成时消失。caption() 用的是同一种写法。 */
+const DEST_RAIL = { x: 23, y: 326 };
+
+function destRail() {
+  const items = destinations.map((d) => {
+    const soon = d.soon ? ' is-soon' : '';
+    const attrs = d.soon
+      ? ' disabled aria-disabled="true"'
+      : ` data-page="${d.page}"`;
     return `
-  <button class="tool-btn" type="button" aria-label="${t.label}"${route}>
-    ${ic(t.icon)}${dot ? '<span class="dot"></span>' : ''}
-  </button>`;
+    <button class="dest-btn${soon}" type="button" aria-label="${d.label}"
+      title="${d.note}"${attrs}>
+      ${ic(d.icon)}
+      <span><b>${d.label}</b><em>${d.en}</em></span>
+      ${d.soon ? '<i class="dest-soon">筹备</i>' : ''}
+    </button>`;
   }).join('');
-  return region('pod', 'pane-pod', buttons + moreTrayMarkup());
+  return `<nav class="dest-rail" aria-label="去处"
+    style="left:${DEST_RAIL.x}px; top:${DEST_RAIL.y}px">${items}</nav>`;
 }
 
 function placeRailNext(stage, onNext) {
@@ -374,7 +403,7 @@ export function renderContent(root) {
   root.innerHTML = sprite('statusTitle') + sprite('girlsTitle')
     + caption(172, 434, '主角状态')
     + caption(668, 436, '女主角状态')
-    + statusPane() + girlsPane() + toolPod();
+    + statusPane() + girlsPane() + toolPod() + destRail();
   placeBlossom(root.parentElement);
   /* 送礼 and 背包 both live in the bottom band, so they are mutually exclusive: one
      opens, the other closes.  The tray is also scoped to whoever the dock is showing,
@@ -405,14 +434,14 @@ export function renderContent(root) {
   const drawer = mountDrawer(root.parentElement, {
     onItem: () => pages.open('inventory'),
   });
-  wireMoreTray(root, {
-    hostSelector: '.pane-pod',
-    onOpen: () => { gifts.close(); drawer.close(); },
-    onSelect: (page) => {
-      gifts.close();
-      drawer.close();
-      pages.open(page);
-    },
+  /* 去处轨。和 pod 里的环走同一套逻辑：礼物盘和抽屉都占底部那条带，所以任何去处开之前
+     先把它们清掉 —— 以前这件事是托盘的 onOpen 在做。 */
+  root.querySelector('.dest-rail')?.addEventListener('click', (event) => {
+    const button = event.target.closest('.dest-btn[data-page]');
+    if (!button || button.disabled) return;
+    gifts.close();
+    drawer.close();
+    pages.open(button.dataset.page);
   });
   /* Switching to 'page' while the drawer is standing would leave it open with nothing
      that can reach it: the button that toggles it now does something else. */
@@ -439,8 +468,7 @@ export function renderContent(root) {
     root.querySelector('.btn-ghost')?.addEventListener('click', () => pages.open('profile'));
   };
   wireProfile();
-  /* Three buttons route directly. The fourth is owned by the compact tray above,
-     so it deliberately has no data-page attribute and never opens a full sheet. */
+  /* 四颗现在全都直达 —— 第四颗以前是托盘的发射钮，没有 data-page，也不开任何页。 */
   root.querySelectorAll('.pane-pod .tool-btn[data-page]').forEach((button) => {
     button.addEventListener('click', () => {
       const toDrawer = button.dataset.page === 'inventory' && pref('inventoryOpen') === 'drawer';

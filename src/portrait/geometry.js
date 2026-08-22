@@ -76,8 +76,10 @@ export const POD = { width: 356, r: 46 };
    ear's -- so the fifth does not fit even after spending all of it.  Shrinking the
    ring to make five fit is worse than tight: the 44px hit areas already overlap at
    this pitch (3.8 real px at a 430-wide container, 12.2 at 320), and a 58-unit ring
-   would put that overlap past half the button.  So the fourth ring is 更多, and new
-   destinations are entries in `menuGroups` (src/data.js) rather than new rings. */
+   would put that overlap past half the button.  So the pod holds only the four rings the
+   player presses without reading them, and every other destination is an entry in
+   `destinations` (src/data.js), drawn as a labelled cell in the panel body -- see
+   portraitDestGrid in portrait/content.js.  New destinations go there, not here. */
 export const TOOL = { d: 76, gap: 12, count: 4 };
 
 /** One seam width, used for every gap between stacked panels. */

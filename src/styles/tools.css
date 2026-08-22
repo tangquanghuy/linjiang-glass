@@ -11,8 +11,10 @@
    not help either: the 44px hit areas the ::after in base.css draws are already
    wider than the ring pitch, and on a phone held sideways -- where these draw at
    20 real px -- neighbours overlap by 17.8px, so a fifth ring makes taps *less*
-   reliable rather than merely tighter.  That is why the fourth ring is 更多 and the
-   destinations live in the compact tray (src/styles/menu.css, `menuGroups` in data.js). */
+   reliable rather than merely tighter.  That is why the pod carries only the four
+   rings the player presses without reading them; every other destination is a labelled
+   button in the rail above the Status pane (src/styles/dest.css, `destinations` in
+   data.js), which is outside the glass and so has room to spell itself out. */
 
 .pane-pod {
   display: flex;

@@ -217,15 +217,16 @@
     <div class="copy">
       <div class="eyebrow">Opening Profile · 2026</div>
       <h1>在临江开始生活</h1>
-      <p>四步定下玩家资料、住所与工作、自定义主播；确认后写回 MVU 与世界书。</p>
+      <p>定下玩家资料、住所与工作、我推的主播；确认后写回 MVU 与世界书。</p>
     </div>
   </div>
   <button id="open" type="button">开始配置 <i>&rarr;</i></button>
   <div class="steps">
     <span><em>01</em>关于你</span>
     <span><em>02</em>住所与工作</span>
-    <span><em>03</em>自定义主播</span>
-    <span><em>04</em>确认</span>
+    <span><em>03</em>我推的主播</span>
+    <span><em>04</em>自定义主播（可选）</span>
+    <span><em>05</em>确认</span>
   </div>
   <div id="status"></div>
 </div>
@@ -470,8 +471,16 @@
     return null;
   };
 
-  const writeWorldbook = async (book) => {
-    if (!book || !book.content) return false;
+  /* 开局页可能一次给两条：「玩家的我推」和自定义主播人设。旧版只认单条 payload.worldbook，
+     这里同时接受 worldbooks 数组，两边都兼容。 */
+  const bookList = (payload) => {
+    const list = Array.isArray(payload && payload.worldbooks) ? payload.worldbooks.slice() : [];
+    if (!list.length && payload && payload.worldbook) list.push(payload.worldbook);
+    return list.filter((book) => book && book.content);
+  };
+
+  const writeWorldbooks = async (books) => {
+    if (!books.length) return false;
     const helper = getHelper();
     if (!helper) return false;
     const name = await targetBookName(helper);
@@ -479,7 +488,7 @@
     for (const fn of ['createWorldbookEntries', 'createLorebookEntries']) {
       try {
         if (typeof helper[fn] === 'function') {
-          await helper[fn](name, [worldbookEntry(book)]);
+          await helper[fn](name, books.map(worldbookEntry));
           return name;
         }
       } catch (e) {
@@ -489,16 +498,17 @@
     return false;
   };
 
-  const stashWorldbookText = (book) => {
-    if (!book || !book.content) return false;
+  const stashWorldbookText = (books) => {
+    const text = books.map((book) => book.content).join('\n\n');
+    if (!text) return false;
     try {
       const win = getCoreWindow();
       const doc = (win && win.document) ? win.document : document;
       const area = doc.getElementById('send_textarea');
       if (!area) return false;
       const current = String(area.value || '').trim();
-      if (current.indexOf(book.content) === -1) {
-        area.value = current ? (current + '\n\n' + book.content) : book.content;
+      if (current.indexOf(text) === -1) {
+        area.value = current ? (current + '\n\n' + text) : text;
         area.dispatchEvent(new Event('input', { bubbles: true }));
         area.dispatchEvent(new Event('change', { bubbles: true }));
       }
@@ -515,12 +525,17 @@
       say('写回失败：' + (error && error.message ? error.message : error), 'warn');
       return;
     }
-    if (payload && payload.worldbook) {
+    const oshi = (payload && Array.isArray(payload.oshi)) ? payload.oshi : [];
+    if (oshi.length) {
+      notes.push('我推 ' + oshi.map((x) => x.name).join('、') + ' 已关注并写好牌子');
+    }
+    const books = bookList(payload);
+    if (books.length) {
       let book = false;
-      try { book = await writeWorldbook(payload.worldbook); }
+      try { book = await writeWorldbooks(books); }
       catch (e) { book = false; }
-      if (book) notes.push('人设已写入世界书《' + book + '》');
-      else if (stashWorldbookText(payload.worldbook)) notes.push('世界书写入不可用，人设正文已放进输入框');
+      if (book) notes.push(books.length + ' 条人设已写入世界书《' + book + '》');
+      else if (stashWorldbookText(books)) notes.push('世界书写入不可用，人设正文已放进输入框');
       else notes.push('世界书写入不可用，请从开局页复制人设正文');
     }
     say(notes.join('；') + '。', 'ok');

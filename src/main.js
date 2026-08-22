@@ -13,8 +13,11 @@ import './styles/drawer.css';
    overrides have to land on top of the cell rules they narrow. */
 import './styles/gifts.css';
 import './styles/portrait.css';
-/* The compact more tray serves both compositions, so its stylesheet lands after both. */
-import './styles/menu.css';
+/* 带标签的去处，两个构图各一套，所以排在两边的样式之后。 */
+import './styles/dest.css';
+/* Same reason as dest.css: the settings page shares its rows between the two
+   compositions, so it lands after both page stylesheets. */
+import './styles/settings.css';
 import './styles/perf.css';
 
 import { cssUrl } from './asset.js';

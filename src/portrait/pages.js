@@ -29,6 +29,7 @@ import {
   homeState, inventoryRail, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
 import { head, ic, meter, pct, section } from './parts.js';
+import { settingsBody } from '../settings.js';
 
 /* The one-line reminder of what a bucket's numbers mean, the same wording the
    landscape page uses. */
@@ -599,9 +600,11 @@ export function profilePage() {
     </summary>
     <div class="pfans">${fans}</div>
   </details>
-  <!-- 查看开播日程 was the second button in this row; 更多工具条 reaches 开播日程表 directly
-       now, so the page no longer offers its own route to it.  See the note in the
-       landscape profilePage for why, and menuGroups for where its live hint went.
+  <!-- 查看开播日程 was the second button in this row; the destination grid at the foot of
+       the Status panel reaches 开播日程表 directly now, so the page no longer offers its own
+       route to it.  See the landscape profilePage for why, and the destinations list in
+       data.js for where its live hint went.  (No backticks in here: this comment lives
+       inside a template literal.)
        羁绊总览 stays: it is reached from a character's 档案 as well, and this row is the
        only route out of 主角档案 that does not go back through the pod. -->
   <div class="pprofile-routes">
@@ -609,6 +612,23 @@ export function profilePage() {
       <b>查看羁绊总览</b>${ic('arrowRight')}
     </button>
   </div>
+</section>`;
+}
+
+/* ---------------------------------------------------------------- settings */
+
+/* 唯一一个和横向构图共用内容的页面。别的页面共用不了是因为它们的信息密度得跟着构图
+   重排（见文件头的说明），而这一页只有几行"说明 + 一组互斥按钮"，本来就是纵向堆叠的
+   列表——横竖两版真正的差别只有字号和触摸目标大小，那是 CSS 的事。 */
+export function settingsPage() {
+  return `
+<section class="ppanel is-page psettings-page" data-panel="page" role="dialog" aria-label="全局设置">
+  ${head('Settings', '全局设置')}
+  <button class="pclose" type="button" data-page-close aria-label="返回">&times;</button>
+  <!-- 标题栏那三段字要挤在 795 单位里（见 portrait.css 的 .ppage-head 注释），所以
+       note 只能是三四个字，"换聊天不会重置"这类限制条件交给每一行自己的 set-hint。 -->
+  ${section('界面偏好', '存在本机')}
+  <div class="settings-board">${settingsBody()}</div>
 </section>`;
 }
 
@@ -621,4 +641,5 @@ export const PORTRAIT_PAGES = {
   relations: relationsPage,
   profile: profilePage,
   schedule: schedulePage,
+  settings: settingsPage,
 };

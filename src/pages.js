@@ -10,6 +10,7 @@ import {
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
 import { openPhone, requestClockIn } from './bridge.js';
+import { applyPrefClick, settingsBody } from './settings.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 import { insertSafeHTML, setSafeHTML } from './dom.js';
@@ -599,13 +600,13 @@ function profilePage() {
   })}
     </div>
 
-    <!-- 查看开播日程 used to sit under the roster here.  It is gone because 更多工具条 now
-         reaches 开播日程表 in one press from the pod, and a second route to it from inside
-         another page made this column the place people learned to look for it -- which is
-         the habit the directory exists to replace.  Its live hint line was the one thing
-         the link carried that the directory did not, so that moved to the tile's note
-         (see menuGroups in data.js) rather than being lost.  The roster takes the freed
-         height: .profile-fans is grid-auto-rows:1fr, so the rows simply breathe. -->
+    <!-- 查看开播日程 used to sit under the roster here.  It is gone because 开播日程表 is
+         one press away in the destination rail above the Status pane, and a second route
+         to it from inside another page made this column the place people learned to look
+         for it.  Its live hint line was the one thing the link carried that the rail does
+         not, so that moved to the entry's note field (see the destinations list in
+         data.js) rather than being lost.  The roster takes the freed height:
+         .profile-fans is grid-auto-rows:1fr, so the rows simply breathe. -->
     <aside class="profile-fans-col">
       <div class="archive-head">${mark()}<b>粉丝身份</b><span>${fanHint}</span><i></i></div>
       <div class="profile-fans">${fans}</div>
@@ -693,20 +694,15 @@ function inventoryPage(leaf = 0) {
   `, 'inventory-page');
 }
 
-function relationsPage() {
-  const rows = [...girls].sort((a, b) => b.metric.value - a.metric.value).map((girl) => {
-    const { bond, physiology } = characterDetails[girl.name];
-    const tail = physiology.statuses.length ? physiology.statuses.join('、') : NO_STATUS;
-    return `
-      <button class="relation-row" type="button" data-open-character="${girl.name}">
-        <img src="${girl.art}" alt="" draggable="false">
-        <span><b>${girl.name}</b><small>${bond.mood} · ${tail}</small></span>
-        <i style="--pct:${bond.favor / 10}%"><u></u></i>
-        <em>${bond.favor}<small>/1000</small></em>
-        ${ic('arrowRight')}
-      </button>`;
-  }).join('');
-  return pageShell('Relationship Index', '羁绊总览', `<div class="relation-list">${rows}</div>`, 'relations-page');
+/* 横向的 羁绊总览 删掉了。它唯一的入口是 更多 托盘里那颗按钮，按钮一撤这页就再也走不到，
+   而横向本来就把 羁绊 画在 dock 上（见 characterDock 的 dock-bond），这一页是同一批数字
+   的第二个说法。竖屏的 relationsPage 留着：那边 dock 不存在，主角档案 里有一行通到它。 */
+
+/* 全局设置。行数据和标记都在 settings.js —— 这一页两个构图都有，内容只该有一份。
+   这是唯一一个内容与存档无关的页面：它写的是 localStorage 里的界面偏好，翻聊天、
+   换角色卡都不影响它，所以它也是唯一一个不需要订阅 onLive 的页面。 */
+function settingsPage() {
+  return pageShell('Settings', '全局设置', `<div class="settings-board">${settingsBody()}</div>`, 'settings-page');
 }
 
 /* Three stacked layers, not one slot.
@@ -834,9 +830,9 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   const PAGES = {
     events: eventsPage,
     inventory: () => inventoryPage(inventoryLeaf),
-    relations: relationsPage,
     profile: profilePage,
     schedule: schedulePage,
+    settings: settingsPage,
   };
 
   const open = (page) => {
@@ -867,6 +863,8 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   layer.addEventListener('click', (event) => {
     const gift = event.target.closest('[data-gift-open]');
     if (gift) { onGift?.(gift.dataset.giftOpen); return; }
+    /* 设置页的互斥按钮自己就地改样式，不重建页面 —— 见 settings.js。 */
+    if (applyPrefClick(event.target)) return;
     const page = event.target.closest('[data-page]');
     if (page) { open(page.dataset.page); return; }
     const invTurn = event.target.closest('[data-inv-step]');

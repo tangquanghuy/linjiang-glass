@@ -948,75 +948,61 @@ export function streamSchedule() {
    and 17.8px on a phone held sideways where the rings draw at 20px.  Shrinking the rings
    to make room makes that worse, not better.
 
-   So the fourth slot is a compact launcher rather than a destination: `menuGroups` below
-   supplies its satellite buttons. Promoting one to the pod means moving an entry, not
-   adding a ring. */
+   四颗曾经是"三个去处 + 一颗叫更多的发射钮"，更多点开是一条悬浮托盘。托盘撤掉了：
+   它是个要精准点的小浮层，而且任何去处都得两步才到。现在环里四颗全是直达去处，
+   托盘那批改成 `destinations` 里带文字的按钮，各构图放在自己有空间的地方。
+
+   留在环里的判断标准是"看着场景顺手按的"：事件、背包、地图、手机。它们没有文字标签，
+   靠图形认——所以只适合这种按熟了的高频项。需要读一下名字才知道是什么的去处，
+   都在 destinations 里带着标签。 */
 export const tools = [
   { icon: 'mail', label: '当日事件', page: 'events', badge: true },
   { icon: 'memo', label: '背包', page: 'inventory' },
   { icon: 'mapPin', label: '地图', page: 'map' },
-  { icon: 'grid', label: '更多', page: 'menu' },
+  /* 从托盘提上来的：手机是这批里唯一"随时会摸一下"的，其余三个是特意去一趟的。 */
+  { icon: 'phone', label: '随身手机', page: 'phone' },
 ];
 
-/* 更多功能 -- everything the pod cannot hold, and the registry a new feature is added to.
+/* 带标签的去处 —— pod 装不下的那些，也是加新功能时要动的注册表。
    ------------------------------------------------------------------
-   Grouped rather than one flat grid, because the entries are not peers: three are
-   records the player reads, two are things to do, one is a device.  `en` feeds the small
-   latin line the rest of this interface pairs its CJK with; `note` is what the tile says
-   instead of making the icon carry the whole meaning, which is the thing four unlabelled
-   rings cannot do.
-   `soon` keeps unfinished destinations disabled. The phone entry is live and delegates
-   to the external phone panel through the HUD bridge; CG remains staged. */
-export const menuGroups = [
+   这批以前藏在 更多 托盘里。托盘的问题不是装不下，是它把每个去处都变成两步，而且那些
+   46 单位的小格子在手机上要瞄准点。现在它们是一排（横向）或一格网（竖屏）带文字的按钮，
+   一步直达，触摸目标是原来的两倍多。
+
+   为什么不干脆全塞进 pod：pod 是画在玻璃轮廓里的凸起，宽度是量出来的死数
+   （横向 218、竖屏 356），第五颗环分别需要 232 和 428 单位，都放不下，而且缩小环会让
+   44px 热区重叠得更厉害。见上面 tools 的注释。所以不是"要不要多几颗环"的问题，
+   是这批去处从一开始就必须待在环之外。
+
+   `en` 喂那行小拉丁字，和这个界面别处的 CJK 配法一致；`soon` 让未完成的去处保持禁用。
+
+   `short` 是给竖屏那一格网用的：格子只有 176~190 单位宽，"开播日程表" 五个字在
+   --fs-caption 下正好顶满、会折成三行，而 "SCHEDULE" 加上字距要 190 多单位，直接溢出格子。
+   所以竖屏只画图标 + 这个两字缩写（完整名字仍在 aria-label 里），横向那排空间够，
+   照旧用完整的 label + en。
+
+   主角档案 和 羁绊总览 曾经也在这里，现在都不在，但两个页面都还活着 —— 删的是入口不是
+   路由：两个构图的体力行上都有一颗人像钮直开 主角档案，竖屏的 主角档案 里有一行通到
+   羁绊总览。PAGES / PORTRAIT_PAGES 里对应的条目都得留着，否则那几颗按钮指向空路由。 */
+export const destinations = [
   {
-    heading: '记录', note: '主角与她们',
-    items: [
-      {
-        icon: 'person', label: '主角档案', en: 'Profile', page: 'profile',
-        note: '资金、工作、住所、粉丝身份',
-      },
-      {
-        icon: 'calendar', label: '开播日程表', en: 'Schedule', page: 'schedule',
-        note: '本周谁在哪个时段开播',
-      },
-      {
-        icon: 'heartOutline', label: '羁绊总览', en: 'Bonds', page: 'relations',
-        note: '好感、心情与异常状态',
-      },
-    ],
+    icon: 'calendar', label: '开播日程表', short: '日程', en: 'Schedule', page: 'schedule',
+    note: '本周谁在哪个时段开播',
   },
   {
-    heading: '消磨', note: '不推进剧情的去处',
-    items: [
-      {
-        icon: 'arcade', label: '幸运街机', en: 'Arcade', page: 'arcade',
-        note: '刮刮乐、老虎机、钓鱼、祈愿',
-      },
-      {
-        icon: 'gallery', label: 'CG 鉴赏', en: 'Gallery', page: 'cg', soon: true,
-        note: '已解锁的场景回看',
-      },
-    ],
+    icon: 'arcade', label: '幸运街机', short: '街机', en: 'Arcade', page: 'arcade',
+    note: '刮刮乐、老虎机、钓鱼、祈愿',
   },
   {
-    heading: '随身', note: '不在这个界面里的东西',
-    items: [
-      {
-        icon: 'phone', label: '随身手机', en: 'Phone', page: 'phone',
-        note: '消息、通话与应用',
-      },
-    ],
+    icon: 'gallery', label: 'CG 鉴赏', short: 'CG', en: 'Gallery', page: 'cg', soon: true,
+    note: '已解锁的场景回看',
+  },
+  /* 排最后，而且是唯一一个不是"游戏里的去处"的条目：这一颗是这台机器本身的开关。 */
+  {
+    icon: 'gear', label: '全局设置', short: '设置', en: 'Settings', page: 'settings',
+    note: '默认停靠方式、背包按钮行为',
   },
 ];
-
-/* One dot on 更多 when anything behind it wants attention -- otherwise moving a badge
-   into the directory would silently retire it. */
-export const menuBadge = () =>
-  menuGroups.some((g) => g.items.some((it) => it.badge && !it.soon));
-
-/* Notes are plain strings.  There was a `menuNote` resolver here for a moment, to let one
-   entry carry a live line; that line was a statistic and is gone, so the flexibility went
-   with it rather than sitting around waiting for a second use. */
 
 /* ------------------------------------------------------------------- 送礼 */
 /* Two scenes, and they are not one screen with two skins.

@@ -1,0 +1,83 @@
+/* 全局设置 —— 界面偏好的那一页。
+   ------------------------------------------------------------------
+   为什么是共享模块而不是各写一遍：这一页两个构图（landscape / portrait）都要有，
+   而它的内容不是排版，是"有哪些选项、每个选项有哪些值、选中的是哪个"。这部分一旦
+   抄成两份，加一个选项就得改两处，而漏掉一处的表现是"手机上没有这个开关"——
+   一种很难被发现的 bug。所以这里出的是行数据和一段行标记，两边的页面各自套自己的
+   外壳（landscape 的 pageShell、portrait 的 .ppanel），差异交给 CSS。
+
+   prefs.js 已经存着值和枚举了，这里只补两样它没有的东西：给人读的标题/说明，
+   以及"改完之后除了写 store 还要做什么"。 */
+
+import { PREF_CHOICES, pref, setPref } from './prefs.js';
+import { reportDockDefault } from './bridge.js';
+
+/* 说明文字比标签长得多，是故意的。这两个选项的差别都不在字面上——"适配宽度"和
+   "收进嵌入框"单看名字看不出哪个是哪个，得说清楚它们在屏幕上分别长什么样。
+   `hint` 留给限制条件：能生效的前提，而不是它做什么。 */
+export const SETTINGS_ROWS = [
+  {
+    name: 'dockDefault',
+    en: 'Default docking',
+    label: 'HUD 默认停靠',
+    note: '打开聊天时状态栏怎么摆。适配宽度会让它脱开消息栏、按视口宽度铺开；收进嵌入框则一开始就待在消息楼层里，等于开局替你按了一次缩小钮。',
+    hint: '仅桌面宽度生效 · 缩小钮随时可临时切换',
+  },
+  {
+    name: 'inventoryOpen',
+    en: 'Bag button',
+    label: '背包按钮',
+    note: '点背包是先拉出底部抽屉（不挡住画面，适合只是确认带了什么），还是直接进整页背包。',
+    hint: '仅横向构图生效 · 竖屏没有底部抽屉',
+  },
+];
+
+/* 一行 = 说明 + 一组互斥按钮。用 role=radiogroup / role=radio 而不是一堆普通按钮：
+   这确实是"从几个里选一个"，读屏器需要知道当前选中的是哪个，光靠 is-on 的样式说不出来。 */
+export function settingsBody() {
+  return SETTINGS_ROWS.map((row) => {
+    const choices = PREF_CHOICES[row.name] || [];
+    const current = pref(row.name);
+    const options = choices.map(([value, label]) => {
+      const on = value === current;
+      return `<button class="set-opt${on ? ' is-on' : ''}" type="button" role="radio"
+          aria-checked="${on ? 'true' : 'false'}" data-pref-set="${row.name}"
+          data-pref-value="${value}">${label}</button>`;
+    }).join('');
+    return `
+      <div class="set-row">
+        <div class="set-copy">
+          <span>${row.en}</span>
+          <b>${row.label}</b>
+          <p>${row.note}</p>
+        </div>
+        <div class="set-side">
+          <div class="set-seg" role="radiogroup" aria-label="${row.label}">${options}</div>
+          <em class="set-hint">${row.hint}</em>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* 点一下只改一个值，所以不重建整页：把 is-on 和 aria-checked 挪到被点的那颗上就够了。
+   重建的代价是白丢一次滚动位置和焦点，而这一页的其他内容一个字都不会因为这次点击而变。
+
+   返回值告诉调用方"这次点击已经被消化掉了"，好让两个构图各自的事件委托能照它们
+   既有的写法 early-return，而不是在这里反过来了解页面结构。 */
+export function applyPrefClick(target) {
+  const opt = target?.closest?.('[data-pref-set]');
+  if (!opt) return false;
+  const name = opt.dataset.prefSet;
+  const value = opt.dataset.prefValue;
+  setPref(name, value);
+  opt.closest('.set-seg')?.querySelectorAll('[data-pref-set]').forEach((btn) => {
+    const on = btn === opt;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  /* 停靠方式要立刻推给壳层。注意这里不走 onPref 订阅：点已经选中的那颗时 setPref
+     不会触发任何监听（值没变），但这一下仍然应该生效——用户可能先用缩小钮临时切过，
+     现在点回来就是想把它掰回默认值。所以通报是无条件的。 */
+  if (name === 'dockDefault') reportDockDefault(value, { apply: true });
+  return true;
+}

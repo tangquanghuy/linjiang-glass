@@ -522,3 +522,136 @@ textarea.control{background:rgba(24,20,52,.12);backdrop-filter:blur(4px) brightn
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
 }
+
+/* ============================================================
+   第三步：我推的主播 + 可选的自定义主播
+   ------------------------------------------------------------
+   步骤从四步变五步，所以 .steps 那条写死的 repeat(4) 得换成自动列——
+   以后再插一步也不用回来改。
+   固定主播是"挑封面"，不是"填表格"：立绘占卡片的大半，文字只够交代
+   牌子名、直播档和一句话，剩下的留给世界书。
+   ============================================================ */
+.steps{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+/* 被跳过的那一步不是"不可点"，点了会切回来，所以只压暗、不做 disabled 的手势 */
+.step-tab.skipped{opacity:.42}
+.step-tab.skipped b{text-decoration:line-through;text-decoration-thickness:1px}
+/* 人就站在这一格上的时候别再划掉它——那格是唯一能把开关打开的地方 */
+.step-tab.skipped.active{opacity:1}
+.step-tab.skipped.active b{text-decoration:none}
+
+.oshi-counter{flex:0 0 auto;display:flex;align-items:baseline;gap:7px;padding:9px 15px;border:1px solid rgba(255,255,255,.30);border-radius:999px;background:rgba(255,255,255,.08);white-space:nowrap}
+.oshi-counter span{color:var(--faint);font-size:11px}
+.oshi-counter b{color:#ffd0e4;font:600 20px/1 'Outfit'}
+.oshi-counter i{color:var(--faint);font:400 12px/1 'Outfit';font-style:normal}
+
+.oshi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.oshi-card{
+  position:relative;display:flex;flex-direction:column;overflow:hidden;text-align:left;
+  border:1px solid rgba(255,255,255,.30);border-radius:19px;
+  background:linear-gradient(158deg,rgba(255,255,255,.11),rgba(255,255,255,.035));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.44),0 16px 36px -28px rgba(22,16,50,.55);
+  backdrop-filter:blur(4px) saturate(1.18) brightness(.84);
+  -webkit-backdrop-filter:blur(4px) saturate(1.18) brightness(.84);
+  cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s,opacity .18s;
+}
+.oshi-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.56)}
+/* 选中态用粉边 + 内侧竖线，跟第二步地图那两张卡是同一套记号 */
+.oshi-card.on{
+  border-color:rgba(255,132,183,.72);
+  background:linear-gradient(158deg,rgba(255,168,205,.20),rgba(255,255,255,.05));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.58),inset 3px 0 0 var(--pink),0 18px 40px -24px rgba(255,114,174,.4);
+}
+/* 已经推满三个：剩下的压暗，但仍然可点——点了会给一句提示，比死掉的按钮好懂 */
+.oshi-card.full{opacity:.46}
+.oshi-card.full:hover{opacity:.72;transform:none}
+
+.oshi-art{position:relative;display:block;height:250px;overflow:hidden;background:linear-gradient(150deg,rgba(255,255,255,.14),rgba(255,255,255,.04))}
+/* 立绘用绝对定位铺满，不用 height:100%——窄屏那版把卡片改成左图右字之后，
+   图片容器的高度是被右边文字撑出来的，height:100% 在不定高的父级上会塌成 0，
+   结果整列立绘全消失。absolute + inset:0 对定高和不定高都成立。 */
+.oshi-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 16%;display:block}
+.oshi-art:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 52%,rgba(24,20,52,.86));pointer-events:none}
+.oshi-check{
+  position:absolute;z-index:2;right:11px;top:11px;
+  width:28px;height:28px;display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.62);border-radius:50%;
+  background:rgba(24,20,52,.42);color:rgba(255,255,255,.42);
+  font:600 14px/1 'Outfit';font-style:normal;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.oshi-card.on .oshi-check{color:#3a2a45;border-color:transparent;background:linear-gradient(135deg,#ffd0e4,#cfe6ff);box-shadow:0 0 18px rgba(255,163,201,.7)}
+
+.oshi-body{display:flex;flex-direction:column;gap:7px;padding:14px 15px 15px}
+.oshi-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.oshi-top b{color:#fff;font-size:17px;font-weight:600;letter-spacing:.04em}
+.oshi-top i{
+  flex:0 0 auto;padding:3px 8px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.30);background:rgba(255,255,255,.09);
+  color:rgba(255,255,255,.84);font-size:10px;font-style:normal;letter-spacing:.04em;
+}
+.oshi-slot{color:var(--blue);font:600 10px/1.4 'Outfit','Noto Sans SC';letter-spacing:.08em}
+.oshi-scale{color:#ffd0e4;font:600 10px/1.4 'Outfit','Noto Sans SC';letter-spacing:.06em}
+.oshi-blurb{color:rgba(255,255,255,.74);font-size:11.5px;line-height:1.65}
+.oshi-tags{display:flex;flex-wrap:wrap;gap:5px}
+.oshi-tags em{padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.09);color:rgba(255,255,255,.72);font-size:10px;font-style:normal}
+.oshi-gain{
+  margin-top:3px;padding-top:9px;border-top:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.50);font-size:10.5px;line-height:1.5;
+}
+.oshi-card.on .oshi-gain{color:#ffd7e7}
+
+.oshi-note{margin-top:14px}
+.oshi-note-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.oshi-note-grid>div{padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.06)}
+.oshi-note-grid span{display:block;color:#ffd0e4;font:600 10px/1 'Outfit','Noto Sans SC';letter-spacing:.1em}
+.oshi-note-grid b{display:block;margin-top:7px;color:rgba(255,255,255,.80);font-size:11px;font-weight:400;line-height:1.6}
+
+/* 第四步的开关放在标题行右侧，跟第一步的性别 segment 同一个控件 */
+.optional-toggle{flex:0 0 auto;width:max-content;min-height:44px}
+.optional-toggle button{min-width:92px;padding:0 15px;font-size:12px}
+.custom-skip-note{max-width:640px}
+.custom-skip-note p{color:rgba(255,255,255,.74);font-size:12px;line-height:1.75}
+
+/* 热度：左边一个拉杆，右边三个只读读数。读数不是输入框，别做成凹槽 */
+.tier-panel{display:grid;grid-template-columns:minmax(200px,.8fr) minmax(0,1.6fr);gap:11px}
+.tier-dial{display:flex;flex-direction:column;justify-content:center}
+.tier-dial small{margin-top:9px;color:#ffd0e4;font-size:11px;letter-spacing:.06em}
+.tier-out{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.tier-metric{
+  min-width:0;padding:11px 12px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.20);
+  background:linear-gradient(150deg,rgba(255,255,255,.11),rgba(255,255,255,.04));
+}
+.tier-metric span{display:block;color:var(--faint);font-size:10px;line-height:1.2}
+.tier-metric b{display:block;margin-top:6px;color:#fff;font:600 19px/1 'Outfit'}
+.tier-metric small{display:block;margin-top:6px;color:rgba(255,255,255,.46);font-size:9.5px;line-height:1.4}
+.tier-hint{display:block;margin-top:9px;color:rgba(255,255,255,.52);font-size:10.5px;line-height:1.6}
+
+@media(max-width:1280px){
+  .oshi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .oshi-note-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:1050px){
+  .steps{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-columns:auto}
+  .oshi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .oshi-art{height:230px}
+  .tier-panel{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  /* 五步在窄屏排三列：3 + 2 两行，比两列的 2+2+1 少一行 */
+  .steps{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .oshi-counter{margin-top:13px;align-self:flex-start}
+  .oshi-grid{grid-template-columns:1fr;gap:11px}
+  /* 单列的时候立绘竖着排会把一屏吃光，改成左图右字 */
+  .oshi-card{flex-direction:row}
+  .oshi-art{flex:0 0 132px;height:auto;min-height:190px}
+  .oshi-art:after{background:linear-gradient(90deg,transparent 40%,rgba(24,20,52,.5))}
+  .oshi-body{flex:1;min-width:0;padding:13px 14px}
+  .oshi-note-grid{grid-template-columns:1fr}
+  .optional-toggle{width:100%;margin-top:13px}
+  .optional-toggle button{flex:1;min-width:0}
+  .tier-out{grid-template-columns:1fr}
+  .tier-metric{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .tier-metric b{margin:0}
+  .tier-metric small{display:none}
+}

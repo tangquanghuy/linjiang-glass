@@ -1,5 +1,6 @@
 /* Cross-origin bridge between the HUD and the same-origin tavern deployment shell. */
 import { applyStatData, applyMoney } from './data.js';
+import { pref } from './prefs.js';
 
 export const CHANNEL = 'linjiang-hud';
 const pending = new Map();
@@ -212,6 +213,20 @@ export function reportPortraitPage(open) {
   postEvent('portraitPage', { open: !!open });
 }
 
+/* 默认停靠方式住在 HUD 这边的 localStorage 里，而决定停靠的代码在壳层
+   （外部部署/状态栏.html）。两边不同源，壳层读不到，所以只能由 HUD 通报。
+
+   `apply` 区分的是两种完全不同的意图，壳层也据此分别处理：
+     false —— 开机通报。壳层只在本会话还没被手动干预时采纳，采纳一次就不再听。
+     true  —— 用户刚在设置里改的。立即生效，包括把手动切换过的状态掰回来。 */
+export function reportDockDefault(mode, { apply = false } = {}) {
+  if (!isEmbedded()) return;
+  postEvent('dockDefault', {
+    mode: mode === 'embedded' ? 'embedded' : 'page',
+    apply: !!apply,
+  });
+}
+
 export function startBridge() {
   if (started) return;
   started = true;
@@ -269,6 +284,10 @@ export function startBridge() {
 
   rpc('handshake').then((hello) => {
     if (hello?.context) resetContext(hello.context);
+    /* 握手之后立刻通报默认停靠方式：壳层已经按它自己的默认排过一次版了，这一步
+       是把 HUD 侧的偏好补上。放在 getSnapshot 之前，好让重排和首帧数据一起落地，
+       而不是先画好再跳一次。 */
+    reportDockDefault(pref('dockDefault'));
     return rpc('getSnapshot');
   }).then((payload) => applyStatData(payload?.stat_data)).catch((err) => {
     console.warn('[hud] bridge', err);

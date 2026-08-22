@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -50,8 +50,31 @@
   </div>
 </section>
 <section class="panel" data-panel="3">
-  <div class="section-head"><div><div class="eyebrow">03 / Streamer</div><h2>追加一名自定义主播</h2></div></div>
-  <div class="stream-layout">
+  <div class="section-head">
+    <div><div class="eyebrow">03 / Oshi</div><h2>挑出你推的主播</h2><p>临江这七位是已经在播的人。选中的会成为你开局就在追的主播：已关注、好感 +300、在她直播间已经养出一块 8 级牌子。最多选三个，也可以一个都不选。</p></div>
+    <div class="oshi-counter"><span>已选</span><b id="oshi-count">0</b><i>/ 3</i></div>
+  </div>
+  <div class="oshi-grid" id="oshi-grid"></div>
+  <div class="card oshi-note card-pad">
+    <div class="card-title"><b>选中之后会发生什么</b><small>WHAT YOU GET</small></div>
+    <div class="oshi-note-grid">
+      <div><span>关注</span><b>直播间列表里默认能看到她，开播会有提醒</b></div>
+      <div><span>好感 +300</span><b>不是恋爱线的起点，只是"看了很久"的熟脸</b></div>
+      <div><span>牌子 8 级</span><b>累计打赏约 ￥8,100 换来的粉丝勋章，弹幕里带等级</b></div>
+      <div><span>没选的人</span><b>照旧存在、照旧开播，只是你还没进过她的直播间</b></div>
+    </div>
+  </div>
+</section>
+<section class="panel" data-panel="4">
+  <div class="section-head">
+    <div><div class="eyebrow">04 / Streamer</div><h2>追加一名自定义主播</h2><p>这一步是可选的。选「跳过」就直接进确认页，世界里只有上面那七位。</p></div>
+    <div class="segment optional-toggle" id="custom-toggle"><button class="on" data-value="off">跳过</button><button data-value="on">要追加</button></div>
+  </div>
+  <div class="card custom-skip-note card-pad" id="custom-skip-note">
+    <div class="card-title"><b>已跳过自定义主播</b><small>SKIPPED</small></div>
+    <p>确认页不会写入任何自定义人设，世界书也不会新增条目。想加的话，点上面的「要追加」。</p>
+  </div>
+  <div class="stream-layout" id="stream-layout">
     <div class="card art-card"><div class="art-preview" id="art-preview"><div class="art-monogram" id="art-monogram">S</div><img id="art-img" alt=""><div class="art-caption"><b id="art-name">新主播</b><span id="art-handle">STREAMER</span></div></div><div class="art-tools">
       <input class="control" id="art-url" placeholder="网络立绘链接 https://..."><div class="file-row"><button class="secondary" id="apply-art-url" type="button">引用链接</button><label class="file-pick">上传本地立绘<input type="file" id="art-file" accept="image/*"></label></div><small>&#x652F;&#x6301;&#x7F51;&#x7EDC;&#x56FE;&#x7247;&#x6216;&#x672C;&#x5730;&#x4E0A;&#x4F20;&#x3002;</small>
     </div></div>
@@ -59,15 +82,23 @@
       <div class="field"><label>姓名</label><input class="control" id="streamer-name" placeholder="例如：沈遥"></div><div class="field"><label>主播网名</label><input class="control" id="streamer-handle" placeholder="例如：遥夜"></div>
       <div class="field"><label>年龄</label><input class="control" id="streamer-age" type="number" min="18" max="99" value="23"></div><div class="field"><label>住所</label><button class="control select-control" type="button" data-open-map="streamer" id="streamer-home">从地图选择住所</button></div>
       <div class="field wide"><label>主播分类</label><div class="tags" id="category-tags"></div></div>
-      <div class="field wide"><div class="stats-grid"><div class="range-box"><label><span>热度</span><b id="heat-value">42</b></label><input id="streamer-heat" type="range" min="0" max="100" value="42"></div><div class="field"><label>粉丝数</label><input class="control" id="streamer-followers" type="number" min="0" value="68000"></div><div class="field"><label>舰长数</label><input class="control" id="streamer-captains" type="number" min="0" value="96"></div></div></div>
+      <div class="field wide"><label>体量：拉一个档位就行，粉丝数／底盘热度／大航海自动算</label><div class="tier-panel">
+        <div class="range-box tier-dial"><label><span>体量档位</span><b id="tier-value">42</b></label><input id="streamer-tier" type="range" min="0" max="100" value="42"><small id="tier-label">稳定主播</small></div>
+        <div class="tier-out">
+          <div class="tier-metric"><span>粉丝数</span><b id="tier-followers">—</b><small>关注她的账号总数</small></div>
+          <div class="tier-metric"><span>底盘热度</span><b id="tier-base">—</b><small>常态热度，礼物虚火加在它上面</small></div>
+          <div class="tier-metric"><span>大航海</span><b id="tier-guards">—</b><small>舰长为主，提督总督很稀</small></div>
+        </div>
+      </div><small class="tier-hint">档位是唯一的手动刻度，曲线对齐正在播的那七位：38 约等于时雨羽衣，71 约等于塔菲。直播间显示的是热度，没有人数；开局未开播，热度写 0。</small></div>
       <div class="field"><label>&#x6C14;&#x8D28;&#x5173;&#x952E;&#x8BCD;&#xFF08;&#x9009;&#x586B;&#xFF09;</label><input class="control" id="streamer-tone" placeholder="例如：慢热、生活感强"></div>
       <div class="field"><label>&#x5E38;&#x7528;&#x76F4;&#x64AD;&#x65F6;&#x95F4;&#xFF08;&#x9009;&#x586B;&#xFF09;</label><input class="control" id="streamer-hours" placeholder="&#x4F8B;&#x5982;&#xFF1A;20:00 - 24:00"></div>
+      <div class="field"><label>粉丝牌子名（选填）</label><input class="control" id="streamer-medal" placeholder="例如：遥夜众。弹幕里会带等级显示"></div>
       <div class="field wide"><label>玩家提供的人设素材</label><textarea class="control" id="streamer-seed" placeholder="写几条已经确定的事实、气质、说话习惯或直播特点。"></textarea></div>
     </div><div class="generate-row"><button class="primary" id="generate-profile" type="button">生成人设档案</button><span id="generate-status">&#x751F;&#x6210;&#x540E;&#x53EF;&#x7EE7;&#x7EED;&#x7F16;&#x8F91;</span></div><div class="generated" id="generated"><div class="generated-head"><b>世界书人设草稿</b><span>PROFILE DRAFT</span></div><div class="profile-grid" id="profile-grid"></div></div></div>
   </div>
 </section>
-<section class="panel" data-panel="4">
-  <div class="section-head"><div><div class="eyebrow">04 / Finish</div><h2>&#x4ECE;&#x8FD9;&#x91CC;&#x5F00;&#x59CB;</h2></div></div>
+<section class="panel" data-panel="5">
+  <div class="section-head"><div><div class="eyebrow">05 / Finish</div><h2>&#x4ECE;&#x8FD9;&#x91CC;&#x5F00;&#x59CB;</h2></div></div>
   <div class="confirm-grid">
     <div class="card identity-card">
       <div class="confirm-scene"><div class="confirm-title"><em>Ready</em><h3 id="confirm-player">&#x672A;&#x547D;&#x540D;&#x73A9;&#x5BB6;</h3></div></div>
@@ -75,7 +106,7 @@
     </div>
     <div class="card book-preview">
       <div class="card-title"><b>&#x4E16;&#x754C;&#x4E66;&#x9884;&#x89C8;</b><small id="book-name">&#x5C1A;&#x672A;&#x751F;&#x6210;</small></div>
-      <p>&#x786E;&#x8BA4;&#x73A9;&#x5BB6;&#x8D44;&#x6599;&#x3001;&#x521D;&#x59CB;&#x4F4F;&#x6240;&#x548C;&#x5DE5;&#x4F5C;&#xFF1B;&#x82E5;&#x5DF2;&#x521B;&#x5EFA;&#x81EA;&#x5B9A;&#x4E49;&#x4E3B;&#x64AD;&#xFF0C;&#x4E0B;&#x65B9;&#x4F1A;&#x663E;&#x793A;&#x5C06;&#x5199;&#x5165;&#x7684;&#x4EBA;&#x8BBE;&#x5185;&#x5BB9;&#x3002;</p>
+      <p>左边是要写回 MVU 的开局数据。下方是要新增到世界书的条目：选了我推就有一条《玩家的我推》，追加了自定义主播就再多一条人设。两条都可以往下滚着看。</p>
       <div class="book-entry"><pre id="book-content">&#x586B;&#x5199;&#x4E3B;&#x64AD;&#x8D44;&#x6599;&#x5E76;&#x751F;&#x6210;&#x4EBA;&#x8BBE;&#x6863;&#x6848;&#x540E;&#xFF0C;&#x8FD9;&#x91CC;&#x4F1A;&#x663E;&#x793A;&#x4E16;&#x754C;&#x4E66;&#x6B63;&#x6587;&#x9884;&#x89C8;&#x3002;</pre></div>
     </div>
   </div>

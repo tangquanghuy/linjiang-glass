@@ -270,6 +270,85 @@
         return Math.min(20, Math.floor(20 * (x / 200000) ** (1 / 3.5)));
     }
 
+    // ==========================================
+    // 主播体量：粉丝数 / 底盘热度 / 大航海
+    // ==========================================
+
+    /**
+     * 一个主播有多大，只由「体量档位」这一个 0–100 的刻度决定，其余全是它的函数。
+     * 这里是唯一的定义处：开局页那根滑杆、以后 HUD 和直播间状态机都走这两个函数，
+     * 不要在别的文件里再存一张"这间房多大"的表——之前 STREAM_HABITS.viewers 和
+     * 正文美化.html 的 LR_HOSTS.pop 各存一份，结果七个人的大小排序在玩家眼前是反的。
+     *
+     * 底盘热度取 50 × 8^(档位/25)，每 25 档翻 8 倍。系数是拿 LR_HOSTS.pop 里那七个
+     * 已定稿的值反解定标的：时雨羽衣 1200 → 38、红蔷薇 2800 → 48、斯黛拉 3100 → 49、
+     * 沙花叉 3600 → 51、东雪莲 4200 → 53、璃亚梦 6310 → 58、塔菲 18240 → 71，
+     * 跟她们各自在世界里的位置一一对得上。
+     *
+     * 粉丝／热度比随体量下降（小主播 60 倍、头部 18 倍）：小直播间靠路人堆关注数，
+     * 大直播间本来就留得住人。大航海按粉丝的 0.12% → 0.5%，随体量上升。
+     *
+     * 注意区分两个"热度"：
+     *   底盘热度 —— 常态值，只跟体量有关，下播后回落到它附近；
+     *   本场热度 —— 这一场靠礼物堆上去的虚火，下播清零。
+     * 玩家在直播间看到的 对象信息.X.直播.热度 = 底盘热度 + 本场热度残留。
+     *
+     * 只做换算，不写回变量。
+     */
+    const TIER_LABELS = [
+        [20, '小透明'], [40, '小有关注'], [60, '稳定主播'],
+        [80, '热门主播'], [95, '头部主播'], [Infinity, '现象级'],
+    ];
+
+    function roundNice(n) {
+        const x = Math.max(0, Math.round(Number(n) || 0));
+        if (x >= 100000) return Math.round(x / 1000) * 1000;
+        if (x >= 10000) return Math.round(x / 100) * 100;
+        if (x >= 1000) return Math.round(x / 10) * 10;
+        return x;
+    }
+
+    function tierLabel(tier) {
+        return (TIER_LABELS.find(([max]) => tier < max) || TIER_LABELS[TIER_LABELS.length - 1])[1];
+    }
+
+    /** 体量档位 → 这个主播的全套规模数字。 */
+    function streamScale(tier) {
+        const t = Math.max(0, Math.min(100, Math.round(Number(tier) || 0)));
+        const base = 50 * 8 ** (t / 25);
+        const followers = base * (60 - 0.42 * t);
+        const guards = followers * (0.0012 + 0.000038 * t);
+        return {
+            档位: t,
+            档位名: tierLabel(t),
+            粉丝数: roundNice(followers),
+            底盘热度: roundNice(base),
+            舰长数: roundNice(guards),
+            /* 提督（1998/月）和总督（19998/月）是稀的，而且要能干净地归零——
+               减去一个门槛再除，小房两档都是 0，符合草稿「小房经常是 0」。
+               比值上比草稿更保守：草稿头牌是 舰长:提督 ≈ 15:1、舰长:总督 ≈ 60:1，
+               这里是 24:1 和 260:1。 */
+            提督数: Math.max(0, Math.floor((guards - 40) / 24)),
+            总督数: Math.max(0, Math.floor((guards - 300) / 260)),
+        };
+    }
+
+    /**
+     * 粉丝数 → 体量档位。粉丝数是存进 MVU 的那个权威值（AI 也看得到），
+     * 底盘热度和大航海要能从它一致地反推出来，否则改一个忘一个就会漂。
+     * 曲线单调，直接扫一遍 0–100 取最近的整数档，比解析求逆好读也够准。
+     */
+    function tierOfFollowers(followers) {
+        const target = Math.max(0, Number(followers) || 0);
+        let best = 0;
+        let bestGap = Infinity;
+        for (let t = 0; t <= 100; t += 1) {
+            const gap = Math.abs(streamScale(t).粉丝数 - target);
+            if (gap < bestGap) { bestGap = gap; best = t; }
+        }
+        return best;
+    }
+
     function normalizeArea(area) {
         return String(area || '').replace(/\s*·\s*/g, ' · ').trim();
     }
@@ -667,6 +746,8 @@
         dateDisplayOf,
         periodFromClock,
         badgeLevel,
+        streamScale,
+        tierOfFollowers,
         privacyOf,
         streamDecision,
         handleVariableUpdate,

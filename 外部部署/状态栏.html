@@ -379,9 +379,27 @@
   const HUD_FS_STYLE_ID = 'linjiang-hud-fs-style';
   const HUD_AUTOSCROLL_ID = 'linjiang-hud-autoscroll';
   let expanded = false;
-  /* Session-only: park the HUD back in the status iframe instead of the
-     90vw overlay.  Cleared on reload; not written to storage. */
+  /* Session-only: shrink the HUD from the 90vw overlay down to the status slot's own
+     width.  Cleared on reload; not written to storage.
+
+     注意它并不是真的把 HUD 放回状态栏 iframe 里 —— 名字和下面那个从未被调用的
+     parkHudInside 都容易让人这么以为。实际做法见 layoutCompact：HUD 始终是挂在酒馆
+     文档上的 position:fixed 浮层，compacted 只是把它的宽度收到楼层栏位那么宽、并让
+     它跟着栏位的位置走（align 'slot'），跟竖屏和手机是同一套机制。 */
   let compacted = false;
+  /* 这个会话的初始 compacted 由 HUD 的全局设置决定，但那个值存在 HUD origin 的
+     localStorage 里，这边跨域读不到——只能等 HUD 开机后 postMessage 过来
+     （bridge.js 的 reportDockDefault → 下面的 applyDockDefault）。
+
+     于是有个先后问题：壳层排第一次版的时候还不知道用户的偏好，所以偏好到达时是一次
+     "补正"，而不是初始值。两个标记就是为了让这次补正不越界：
+       dockDefaultApplied —— 开机通报只认第一次。HUD 会因为横竖屏切换而重新加载并
+         重新握手，那时候不该把用户中途的手动状态冲掉。
+       shrinkTouched —— 用户只要手动点过一次缩小钮，本会话就完全不再听开机通报。
+         手动操作盖过偏好，不是反过来。
+     两个标记都不管 apply=true 的通报：那是用户正在设置页里改，必须当场生效。 */
+  let dockDefaultApplied = false;
+  let shrinkTouched = false;
   let uninstalled = false;
   let portraitPageOpen = false;
   let slotObserver = null;
@@ -782,7 +800,29 @@
     if (!isOwner()) return;
     try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
     if (uninstalled) return;
+    /* 手动切过之后，本会话不再接受 HUD 的开机默认值。 */
+    shrinkTouched = true;
     compacted = !compacted;
+    if (compacted) expanded = false;
+    const tavern = tavernWin();
+    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
+    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
+    fitParentFrame();
+  };
+
+  /* HUD 通报的默认停靠方式。见 compacted 上方关于两个标记的说明。
+     注意 compacted 只在桌面宽度分得出差别（fitParentFrame 里那条 isDesktop() 条件），
+     所以在手机上这次补正会照常记账、但排版上看不出变化——这是对的，设置页也这么写着。 */
+  const applyDockDefault = (payload) => {
+    if (uninstalled) return;
+    const embedded = payload?.mode === 'embedded';
+    const forced = !!payload?.apply;
+    if (!forced) {
+      if (dockDefaultApplied || shrinkTouched) return;
+      dockDefaultApplied = true;
+    }
+    if (compacted === embedded) return;
+    compacted = embedded;
     if (compacted) expanded = false;
     const tavern = tavernWin();
     try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
@@ -1026,18 +1066,22 @@
 
   const followHud = () => {
     if (expanded || portraitPageOpen) return;
-    if (compacted) {
-      const box = hudScreenRect();
-      const vh = tavernWin().innerHeight || 0;
-      if (!box.height || box.top + box.height < 8 || box.top > vh - 8) hideChromeButtons();
-      else placeFsButton();
-      return;
-    }
     const frame = window.frameElement;
     const box = hudFrame._linjiangBox;
     if (!frame || !box || hudFrame.parentNode !== tavernWin().document.body) return;
     if (hudFrame._linjiangAlign === 'page') return;
+    /* compacted 以前在这里单独走一条分支，只挪角上那两颗钮就 return 了 —— 于是收回
+       嵌入框之后 HUD 再也不跟着栏位走：它是 position:fixed 的，不 moveHud 就等于钉死
+       在屏幕上，滚动时脱离原位，而且 applySlotVisibility 不再重跑，连"滚出阅读区就
+       该藏起来"的裁剪也停了，所以会一直盖在别的界面上。
+
+       compacted 和竖屏/手机是同一种排版（align 'slot'，浮层跟着栏位走），本来就该走
+       同一条跟随路径，唯一的差别在下面那三行。 */
     moveHud(viewportPoint(frame), box);
+    /* moveHud 对 align 'slot' 一律收掉全屏/缩小钮 —— 竖屏用不到它们。但"收回嵌入框"
+       恰恰必须留着缩小钮，否则没有任何入口能再展开回去。所以这里补放一次，
+       并且只在 applySlotVisibility 判定 HUD 还看得见时补：滚出阅读区时保持藏起来。 */
+    if (compacted && hudFrame.style.visibility !== 'hidden') placeFsButton();
   };
 
   const layoutPortrait = () => {
@@ -1620,8 +1664,12 @@
     const data = event.data;
     if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event') return;
     if (event.source !== hudFrame.contentWindow) return;
-    if (data.type !== 'portraitSize' && data.type !== 'portraitPage') return;
+    if (data.type !== 'portraitSize' && data.type !== 'portraitPage' && data.type !== 'dockDefault') return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    if (data.type === 'dockDefault') {
+      try { applyDockDefault(data.payload || {}); } catch (e) {}
+      return;
+    }
     if (data.type === 'portraitSize') {
       const h = Math.round(Number(data.payload?.height) || 0);
       if (h <= 1 || portraitPageOpen) return;

@@ -1,0 +1,130 @@
+/* 全局设置页。
+   ------------------------------------------------------------------
+   一行两栏：左边是说明，右边是那组互斥按钮。不做成"标签 + 右侧控件"的窄行，是因为
+   这两个选项的说明都得写两句才说得清（选项名本身分不出哪个是哪个），窄行会把说明挤成
+   一列细面条。
+
+   两个构图共用类名，差异只有尺度：portrait 的一切都在 941 单位的画布里被缩放，所以
+   那边的字号和间距要按画布单位放大，缩完才回到和横向差不多的观感。 */
+
+.settings-board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 22px;
+  padding: 16px 18px;
+  border: 1px solid rgba(228, 232, 255, .16);
+  border-radius: 16px;
+  background: rgba(151, 158, 207, .07);
+}
+
+.set-copy span {
+  display: block;
+  font: 500 9px/1 'Outfit', sans-serif;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(233, 232, 255, .48);
+}
+.set-copy b {
+  display: block;
+  margin-top: 6px;
+  font: 600 15px/1.2 'Noto Sans SC', sans-serif;
+  color: rgba(255, 255, 255, .94);
+}
+.set-copy p {
+  margin: 8px 0 0;
+  font: 400 11px/1.75 'Noto Sans SC', sans-serif;
+  color: rgba(233, 236, 255, .64);
+}
+
+.set-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* 一个凹槽里两颗按钮，选中的那颗是亮片 —— 和 segment / map-mode-tabs 同一套语言，
+   这样"这是从两个里选一个"不用读文字就看得出来。 */
+.set-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(228, 232, 255, .20);
+  border-radius: 13px;
+  background: rgba(12, 14, 34, .28);
+}
+
+.set-opt {
+  min-width: 84px;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(240, 242, 255, .72);
+  font: 500 11.5px/1 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.set-opt.is-on {
+  color: #2b2440;
+  background: linear-gradient(180deg, #fff, #ecd9f2);
+  box-shadow: 0 5px 14px -7px rgba(10, 8, 28, .6), inset 0 1px 0 #fff;
+  font-weight: 600;
+}
+
+.set-hint {
+  font: 400 9.5px/1.5 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(226, 224, 255, .42);
+  text-align: right;
+}
+
+@media (hover: hover) {
+  .set-opt:not(.is-on):hover {
+    background: rgba(187, 180, 222, .20);
+    color: #fff;
+  }
+}
+
+/* ---------------------------------------------------------------- portrait */
+/* 一栏堆叠：竖屏里 941 单位的画布宽度换算下来放不下"说明 + 右侧控件"两栏，
+   硬塞的结果是控件被压到只剩一个字宽。 */
+.psettings-page .settings-board { gap: 22px; }
+.psettings-page .set-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 26px 28px;
+  border-width: 2px;
+  border-radius: 28px;
+}
+.psettings-page .set-copy span { font-size: var(--fs-micro); letter-spacing: .16em; }
+.psettings-page .set-copy b { margin-top: 10px; font-size: var(--fs-lead); }
+.psettings-page .set-copy p { margin-top: 12px; font-size: var(--fs-caption); line-height: 1.8; }
+.psettings-page .set-side { align-items: stretch; gap: 14px; }
+.psettings-page .set-seg {
+  gap: 8px;
+  padding: 8px;
+  border-width: 2px;
+  border-radius: 24px;
+}
+/* 等分而不是 min-width：竖屏一行只有两颗，各占一半比"按内容宽度靠右挤"更好点。 */
+.psettings-page .set-opt {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 72px;
+  border-radius: 18px;
+  font-size: var(--fs-body);
+}
+.psettings-page .set-hint {
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  text-align: left;
+}

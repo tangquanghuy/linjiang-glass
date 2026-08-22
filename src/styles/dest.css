@@ -1,0 +1,149 @@
+/* 带标签的去处。取代了原来的 更多 托盘（menu.css）。
+   ------------------------------------------------------------------
+   两个构图放在不同地方，因为两边的空闲空间不在同一个方向：
+     横向 —— 主角面板上沿之上有一整条空带，但那里**在玻璃之外**（壳体上沿 y=411），
+       所以每颗按钮自带一片薄玻璃底，配方跟浮在画面上的小片一致（薄白填充 + 亮边 +
+       低模糊压暗），而不是面板内控件那种"借"底下玻璃的写法。
+     竖屏 —— 横向没有余量，纵向有（列本身可滚），所以铺在面板正文里，四列一格网。 */
+
+/* ------------------------------------------------------------------ 横向 */
+.dest-rail {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  gap: 10px;
+}
+
+.dest-btn {
+  position: relative;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 0 13px;
+  border: 1px solid rgba(255, 255, 255, .34);
+  border-radius: 15px;
+  /* 薄白填充 + brightness 压暗透过来的背景：照片在这一带是亮的花枝和湖面，
+     不压暗白字站不住；压暗而不是加厚，是为了让它还看得出是玻璃。 */
+  background: linear-gradient(155deg, rgba(255, 255, 255, .13), rgba(255, 255, 255, .05));
+  -webkit-backdrop-filter: blur(7px) saturate(1.3) brightness(.72);
+  backdrop-filter: blur(7px) saturate(1.3) brightness(.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .48),
+    0 12px 28px -18px rgba(10, 8, 28, .7);
+  color: #fff;
+  cursor: pointer;
+  text-shadow: 0 1px 3px rgba(18, 14, 44, .6);
+  transition: background .18s, border-color .18s, transform .18s;
+}
+
+.dest-btn .ic {
+  font-size: 21px;
+  flex: none;
+  filter: drop-shadow(0 1px 4px rgba(6, 8, 22, .6));
+}
+.dest-btn > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+.dest-btn b {
+  font: 600 13px/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .02em;
+}
+.dest-btn em {
+  font: 400 9px/1 'Outfit', sans-serif;
+  font-style: normal;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .62);
+}
+
+@media (hover: hover) {
+  .dest-btn:not(.is-soon):hover {
+    background: linear-gradient(155deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .10));
+    border-color: rgba(255, 247, 255, .7);
+    transform: translateY(-1px);
+  }
+}
+
+.dest-btn.is-soon {
+  opacity: .5;
+  cursor: default;
+  filter: grayscale(.5);
+}
+/* 角标而不是行内一段：行内会把这颗胶囊撑宽，四颗并排时就只有它比别人长一截。 */
+.dest-soon {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  padding: 2px 5px 3px;
+  border-radius: 7px;
+  background: rgba(76, 77, 109, .82);
+  color: rgba(240, 240, 252, .78);
+  font: 500 8px/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+}
+
+/* ------------------------------------------------------------------ 竖屏 */
+/* 单位全是竖屏画布单位；整块画布再被 k 缩到视口里。 */
+.pdest {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pdest-btn {
+  position: relative;
+  /* overflow 是护栏：格子随画布收窄，任何一天标签变长都该被切掉而不是溢到邻居身上。 */
+  overflow: hidden;
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 8px;
+  border: 2px solid rgba(226, 230, 252, .26);
+  border-radius: 26px;
+  background: rgba(150, 160, 210, .08);
+  color: #fff;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+
+.pdest-btn .ic {
+  font-size: 46px;
+  flex: none;
+  filter: drop-shadow(0 2px 6px rgba(6, 8, 22, .55));
+}
+.pdest-btn b {
+  font: 600 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  white-space: nowrap;
+}
+
+.pdest-btn.is-soon {
+  opacity: .42;
+  cursor: default;
+  filter: grayscale(.6);
+}
+/* 竖屏这颗是**排在流里**的，不是角标。格子只有 176~190 单位宽，角标压在居中的图标上
+   会糊成一团（横向那排的胶囊够宽，角标不碰字，所以那边仍是绝对定位）。
+   竖排算得开：图标 46 + 缝 12 + 标签 38 + 缝 6 + 这颗 30 = 132，正好是 min-height。 */
+.pdest-soon {
+  margin-top: -6px;
+  padding: 3px 8px 4px;
+  border-radius: 10px;
+  background: rgba(76, 77, 109, .94);
+  color: rgba(235, 235, 248, .72);
+  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+}
+
+@media (hover: hover) {
+  .pdest-btn:not(.is-soon):hover {
+    background: rgba(187, 180, 222, .2);
+    border-color: rgba(255, 247, 255, .56);
+  }
+}

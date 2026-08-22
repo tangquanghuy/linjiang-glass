@@ -34,13 +34,14 @@ import { isPinned, orderedGirls, placeCardArts, togglePin } from '../content.js'
 import { CARD, TOOL } from './geometry.js';
 import { PORTRAIT_PAGES } from './pages.js';
 import { head, ic, meter, pct } from './parts.js';
-import { menuBadge, onLive } from '../data.js';
+import { destinations, onLive } from '../data.js';
 import { openPhone, requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
 import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
-import { moreTrayMarkup, wireMoreTray } from '../more-tray.js';
+
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
+import { applyPrefClick } from '../settings.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -118,19 +119,13 @@ function statusPanel() {
   return `
 <section class="ppanel" data-panel="status" data-pod>
   ${head('Status', '主角状态')}
-  <!-- The fourth ring opens a compact tray in place instead of replacing the column. -->
+  <!-- 四颗环全是直达去处。第四颗以前是 更多 发射钮，点开一条悬浮托盘；托盘撤了，
+       那批去处改成面板底部 pdest 那一格网带文字的按钮。 -->
   <div class="ptools">
-    ${tools.map((t) => {
-    const dot = t.badge || (t.page === 'menu' && menuBadge());
-    const route = t.page === 'menu'
-      ? ' data-more-trigger aria-expanded="false"'
-      : ` data-page="${t.page}"`;
-    return `
-    <button class="ptool" type="button"${route} aria-label="${t.label}">
-      ${ic(t.icon)}${dot ? '<span class="pdot"></span>' : ''}
-    </button>`;
-  }).join('')}
-    ${moreTrayMarkup()}
+    ${tools.map((t) => `
+    <button class="ptool" type="button" data-page="${t.page}" aria-label="${t.label}">
+      ${ic(t.icon)}${t.badge ? '<span class="pdot"></span>' : ''}
+    </button>`).join('')}
   </div>
 
   <div class="pworld">
@@ -164,7 +159,37 @@ function statusPanel() {
   </div>
 
   ${portraitLifeRows()}
+
+  ${portraitDestGrid()}
 </section>`;
+}
+
+/* 带标签的去处，四列一行铺在主角面板底部。
+   ------------------------------------------------------------------
+   竖屏真正缺的是横向空间，不是纵向 —— 这一列本来就能滚。所以这批去处在这里比在 pod 里
+   宽裕得多：面板正文宽 795 单位（PW 941 减两边 --pad-x 73），四列减去 3 道 12 的缝，
+   每格 189.75 单位，在 390 宽的容器上是 78.6 真实像素。pod 里的环只有 76 单位 ≈
+   31.5 真实像素，靠 ::after 撑到 44 才够摸 —— 也就是说这些格子的触摸目标是环的两倍多，
+   还带文字标签。窄到 320 宽时画布本身会收成 886 单位，每格 176 单位 ≈ 63.6 真实像素，
+   仍然远在 44 以上。
+
+   格子里只有图标 + 两字缩写，没有那行拉丁字：190 单位塞不下 "SCHEDULE" 加字距，
+   完整的 "开播日程表" 也会折成三行。完整名字挂在 aria-label 上，读屏和长按提示都还在。
+   横向那一排空间够，用的是完整 label + en。 */
+function portraitDestGrid() {
+  const cells = destinations.map((d) => {
+    const attrs = d.soon ? ' disabled aria-disabled="true"' : ` data-page="${d.page}"`;
+    return `
+    <button class="pdest-btn${d.soon ? ' is-soon' : ''}" type="button"
+      aria-label="${d.label}"${attrs}>
+      ${ic(d.icon)}
+      <b>${d.short || d.label}</b>
+      ${d.soon ? '<i class="pdest-soon">筹备</i>' : ''}
+    </button>`;
+  }).join('');
+  return `
+  <hr class="prule">
+  <nav class="pdest" aria-label="去处">${cells}</nav>`;
 }
 
 /* ------------------------------------------------------------------- girls */
@@ -572,14 +597,15 @@ export function mountPortraitContent(stage, { onPage } = {}) {
 
   paintBase({ restoreScroll: false });
 
-  wireMoreTray(content, {
-    hostSelector: '[data-pod]',
-    onSelect: (page) => openPage(page),
-  });
+  /* 去处网格不需要单独接线：它的按钮带 data-page，下面那条委托里已有的
+     [data-page] 分支会接住。 */
 
   content.addEventListener('click', (event) => {
     if (event.target.closest('[data-page-close]')) { closePage(); return; }
     if (event.target.closest('[data-preview-close]')) { close(); return; }
+    /* 同 landscape：设置页的互斥按钮就地改样式。这里尤其不能重建——portrait 的页面
+       重建走 setSafeHTML(content, ...)，会把整列扔掉重画并滚回顶部。 */
+    if (applyPrefClick(event.target)) return;
 
     /* 评语 opens inside its own tile rather than in a sheet, so it is a class toggle and
        not a re-render: the reader keeps their place in a page that may be several

@@ -635,21 +635,8 @@
   pointer-events: none;
 }
 
-/* relationships */
-.relation-list { display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; }
-.relation-row { height:77px; display:grid; grid-template-columns:54px 175px 1fr 85px 20px; gap:14px; align-items:center; padding:10px 17px 10px 10px; border:1px solid rgba(226,230,255,.13); border-radius:19px; background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(24,30,64,.14) 46%, rgba(24,30,64,.12)); box-shadow:inset 0 1px 0 rgba(255,255,255,.10); color:#fff; text-align:left; cursor:pointer; }
-@media (hover: hover) {
-  .relation-row:hover { border-color:rgba(245,226,245,.42); background:rgba(70,73,123,.3); }
-}
-.relation-row img { width:54px; height:54px; object-fit:cover; object-position:center top; border-radius:14px; border:1px solid rgba(255,255,255,.24); }
-.relation-row > span { display:flex; flex-direction:column; gap:7px; }
-.relation-row > span b { font-size:14px; }
-.relation-row > span small { font-size:10px; color:rgba(226,226,242,.44); }
-.relation-row > i { height:8px; overflow:hidden; border-radius:4px; background:rgba(10,13,35,.48); }
-.relation-row > i u { display:block; width:var(--pct); height:100%; background:linear-gradient(90deg,#ff89bf,#d78ce8,#83b8ff); }
-.relation-row > em { font:500 20px/1 'Outfit'; text-align:right; }
-.relation-row > em small { margin-left:3px; font-size:10px; color:rgba(225,225,242,.4); }
-.relation-row > .ic { color:rgba(240,236,250,.52); }
+/* 羁绊总览 的样式随页面一起删了（见 pages.js 里那条注释）。竖屏那版用的是 .prel-*，
+   定义在 portrait.css，不受影响。 */
 
 /* 主角档案.
    ------------------------------------------------------------------
