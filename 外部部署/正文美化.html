@@ -6558,7 +6558,23 @@
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         sendBtn.click();
         return true;
-      } catch (e) { return false; }
+      } catch (e) {
+        console.warn('[正文美化] 发送到酒馆聊天失败', e);
+        return false;
+      }
+    }
+
+    function lrToast(state, message) {
+      const text = String(message || '').trim();
+      if (!text || !state) return;
+      // 复用直播间已有的提示条，余额不足、MVU 未就绪等失败不会再静默。
+      lrShowToast(state, { user: '提示', gift: '干杯', n: 1, line: text });
+    }
+
+    function lrSendRoomChat(state, text) {
+      const ok = lrSendToChat(text);
+      if (!ok) lrToast(state, '发送失败：未找到酒馆聊天输入框');
+      return ok;
     }
 
     /* 所有写入都交给辅助计算脚本，这里只负责把结果画上去。
@@ -6656,11 +6672,14 @@
     }
 
     function lrSendGift(state, name, qty) {
-      // 花多少、加多少人气全由脚本算，这里不再自己乘价格
+      // 花多少、加多少人气全由脚本算，这里不再自己乘价格。
+      const item = lrGiftItem(name);
+      if (!item) return;
       if (!lrDoAction(state, '礼物', { 礼物: name, 数量: qty })) return;
       lrPush(state, { type: 'gift', user: '你', gift: name, n: qty }, true);
-      const item = lrGiftItem(name);
-      if (item && item.price) lrSendToChat(`（直播间）送给${state.host} ${name} x${qty}`);
+      const count = Math.max(1, Number(qty) || 1);
+      const cost = (Number(item.price) || 0) * count;
+      lrSendRoomChat(state, `消费${cost}，送出${count}个${name}`);
     }
     function lrOpenGift(state, name) {
       const gift = lrGiftItem(name);
@@ -6683,8 +6702,14 @@
       const pending = state.pending;
       if (!pending) return;
       const cost = lrCostOf(pending);
-      if (state.money < cost) return;
-      if (pending.mode === 'sc' && !String(pending.text || '').trim()) return;
+      if (state.money < cost) {
+        lrToast(state, '余额不足');
+        return;
+      }
+      if (pending.mode === 'sc' && !String(pending.text || '').trim()) {
+        lrToast(state, '请输入醒目留言内容');
+        return;
+      }
       if (pending.mode === 'gift') {
         lrSendGift(state, pending.name, pending.qty);
       } else if (pending.mode === 'guard') {
@@ -6693,13 +6718,13 @@
         lrShowToast(state, { user: '你', gift: pending.name, line: `开通了 ${pending.name} ${pending.days} 天` });
         lrPush(state, { type: 'sys', text: `你成为了${state.host}的${pending.name}（${pending.days} 天）` }, true);
         lrSpawnFly(state, { type: 'gift', gift: pending.name, n: 1 }, true);
-        lrSendToChat(`（直播间）开通${state.host}的${pending.name}`);
+        lrSendRoomChat(state, `消费${pending.price}，开通${state.host}的${pending.name}`);
       } else {
         const text = pending.text.trim();
         if (!lrDoAction(state, '醒目留言', { 金额: pending.amount, 内容: text })) return;
         lrPush(state, { type: 'sc', user: '你', amount: pending.amount, text }, true);
         lrEl(state.root, 'say').value = '';
-        lrSendToChat(`（直播间）醒目留言 ￥${pending.amount}：${text}`);
+        lrSendRoomChat(state, `消费${pending.amount}，发送价值${pending.amount}的SC：${text}`);
       }
       lrCloseDlg(state);
     }
@@ -6920,6 +6945,7 @@
         const input = lrEl(state.root, 'say');
         const text = (input.value || '').trim();
         if (!text) return;
+        if (!lrSendRoomChat(state, `发送弹幕：${text}`)) return;
         lrPush(state, { type: 'chat', user: '你', tier: lrPlayerTier(state), medal: lrPlayerMedal(state), text }, true);
         input.value = '';
       });
@@ -7254,6 +7280,41 @@
       }).join('');
     }
 
+    function evtChoicePayload(option) {
+      const gainText = (option.结算 || []).map(([k, v]) => {
+        const value = String(v || '');
+        return /^[+\-]\d/.test(value) || value === '重置' || value === '归零'
+          ? `${k}${value}`
+          : `${k}→${value}`;
+      }).join('，');
+      return encodeURIComponent(JSON.stringify({
+        选项: option.选项 || '',
+        结算: gainText
+      }));
+    }
+
+    function bindSuddenEventEvents() {
+      if (window.__suddenEventChoicesBound) return;
+      window.__suddenEventChoicesBound = true;
+      document.addEventListener('click', (ev) => {
+        const button = ev.target.closest && ev.target.closest('.evt-opt[data-evt-choice]');
+        if (!button || button.disabled) return;
+        let payload = null;
+        try {
+          payload = JSON.parse(decodeURIComponent(button.dataset.evtChoice || ''));
+        } catch (err) {
+          console.warn('[正文美化] 突发事件选项解析失败', err);
+        }
+        if (!payload || !String(payload.选项 || '').trim()) return;
+        ev.preventDefault();
+        const gains = String(payload.结算 || '').trim();
+        const message = `选择突发事件选项：${payload.选项}${gains ? `；结算：${gains}` : ''}`;
+        if (!lrSendToChat(message)) {
+          console.warn('[正文美化] 突发事件选项发送失败');
+        }
+      });
+    }
+
     function evtPips(n) {
       const x = Math.max(0, Math.min(5, Number(n) || 0));
       let h = '';
@@ -7316,7 +7377,7 @@
         const req = o.门槛
           ? '<span class="evt-req' + (o.达成 ? ' met' : '') + '">' + evtIc(o.达成 ? 'check' : 'lock') + evtEsc(o.门槛) + '</span>'
           : '';
-        return '<li><button class="evt-opt' + (locked ? ' locked' : '') + '" data-cat="' + evtAttr(o.分类) + '" type="button"' + (locked ? ' disabled aria-disabled="true"' : '') + '>'
+        return '<li><button class="evt-opt' + (locked ? ' locked' : '') + '" data-cat="' + evtAttr(o.分类) + '" data-evt-choice="' + evtAttr(evtChoicePayload(o)) + '" type="button"' + (locked ? ' disabled aria-disabled="true"' : '') + '>'
           + '<span class="bar"></span><span class="evt-cat">' + evtEsc(o.分类) + '</span>'
           + '<span class="col"><span class="act">' + evtEsc(o.选项) + '</span>'
           + '<span class="sub">' + req + (locked ? '' : evtGainsHtml(o.结算)) + '</span></span>'
@@ -7358,6 +7419,7 @@
     }
 
     function initEvtCards() {
+      bindSuddenEventEvents();
       const content = document.getElementById('readingContent');
       const raw = content && (content.textContent || '');
       const slotOpen = ENABLE_DEMO_CONTENT && (location.protocol === 'file:' || (typeof ST_UNREPLACED !== 'undefined' && raw && raw.indexOf(ST_UNREPLACED) !== -1));

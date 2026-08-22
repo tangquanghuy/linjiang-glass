@@ -79,21 +79,22 @@ await page.waitForTimeout(260);
 check(await page.locator('.gift-qty').count() === 1, '打赏 card carries the qty stepper');
 check(await page.locator('.gift-remark').count() === 0, '打赏 card has no 附言 field');
 let preview = await page.locator('.gift-preview code').innerText();
-check(preview.includes('火箭 ×1') && preview.includes('￥1,288'),
+check(preview.includes('消费1288') && preview.includes('送出1个火箭'),
   `preview line is right (${preview})`);
 await page.screenshot({ path: 'artifacts/gift_card_stream.png' });
 
 await page.locator('[data-gift-qty="10"]').click();
 await page.waitForTimeout(200);
 preview = await page.locator('.gift-preview code').innerText();
-check(preview.includes('×10') && preview.includes('￥12,880'),
+check(preview.includes('消费12880') && preview.includes('送出10个火箭'),
   `stepper recomputes the total (${preview})`);
 
 await page.locator('[data-gift-send]').click();
 await page.waitForSelector('.gift-toast', { timeout: 3000 });
 check(await page.locator('.gift-confirm').count() === 0, 'send closes the card');
-check(sent.some((line) => line.includes('直播打赏') && line.includes('×10')),
-  'the stream line reached the send callback');
+const streamSent = await page.locator('.gift-toast code').innerText();
+check(streamSent.includes('消费12880') && streamSent.includes('送出10个火箭'),
+  `the stream line was sent (${streamSent})`);
 await page.waitForTimeout(240);
 await page.screenshot({ path: 'artifacts/gift_toast.png' });
 
@@ -162,6 +163,8 @@ await page.waitForTimeout(200);
 const withRemark = await page.locator('.gift-preview code').innerText();
 check(withRemark.includes('今晚别熬太晚') && withRemark.includes('递给了东雪莲'),
   `附言 lands in the outgoing line (${withRemark})`);
+check(withRemark.includes('数量-1'),
+  `private send includes the inventory decrement (${withRemark})`);
 await page.screenshot({ path: 'artifacts/gift_card_remark.png' });
 
 await page.locator('[data-gift-send]').click();

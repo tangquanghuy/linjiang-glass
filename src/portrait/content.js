@@ -355,6 +355,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
      appended to it. */
   let workspace = null;
   let workspaceArg = null;
+  const inventorySelection = new Map();
+  let inventoryNotice = '';
   /* 铺满视口的那几层：地图、街机、CG 鉴赏。三者互斥，所以一个卸载句柄就够 ——
      以前是每层一个变量，而每处又都要把另外几个一起关掉。名字同时充当路由表，
      closePage 靠它判断"刚才那层是覆盖层还是页面"。 */
@@ -461,7 +463,14 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     workspaceArg = arg ?? null;
     document.documentElement.classList.add('is-page-open');
     reportPortraitPage(true);
-    setSafeHTML(content, build(arg));
+    if (page === 'inventory') {
+      inventorySelection.clear();
+      inventoryNotice = '';
+    }
+    const buildArg = page === 'inventory'
+      ? { selected: inventorySelection, notice: inventoryNotice }
+      : arg;
+    setSafeHTML(content, build(buildArg));
     sync();
     /* A page is a new view, not a continuation of the one underneath: start it at the
        top even if the reader had scrolled the column. */
@@ -514,8 +523,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
           row.classList.remove('is-confirming');
           row.querySelector('.pgift-confirm')?.remove();
           insertSafeHTML(row, 'beforeend', `
-      <span class="pgift-done"><b>${ok ? '已写入输入框' : '已生成消息'}</b><code>${built.message}</code>
-        <em>${ok ? '请在酒馆发送' : '独立预览，未接入酒馆'}</em></span>`);
+      <span class="pgift-done"><b>${ok ? '已发送到酒馆' : '已生成消息'}</b><code>${built.message}</code>
+        <em>${ok ? 'HUD 未直接扣除金钱或道具库存' : '独立预览，未接入酒馆'}</em></span>`);
           sync();
         }).catch((err) => console.warn('[gift]', err));
       }
@@ -540,6 +549,59 @@ export function mountPortraitContent(stage, { onPage } = {}) {
         <span class="pgift-again">再按一次确认送出</span>
       </span>`);
     sync();
+  };
+
+  const updateInventorySelectionUI = () => {
+    const activeGroup = content.querySelector('[data-inventory-page-panel]:not([hidden])') || content;
+    const checks = [...activeGroup.querySelectorAll('[data-inv-select]')];
+    const all = content.querySelector('[data-inv-select-all]');
+    const count = content.querySelector('[data-inv-selected-count]');
+    const destroy = content.querySelector('[data-inv-destroy]');
+    const selectedOnPage = checks.filter((input) => input.checked).length;
+    if (all) {
+      all.checked = checks.length > 0 && selectedOnPage === checks.length;
+      all.indeterminate = selectedOnPage > 0 && selectedOnPage < checks.length;
+    }
+    if (count) count.textContent = `已选 ${inventorySelection.size} 项`;
+    if (destroy) destroy.disabled = inventorySelection.size === 0;
+  };
+
+  const parseInventorySelection = (input) => {
+    try {
+      const payload = JSON.parse(decodeURIComponent(input.dataset.invSelect || ''));
+      if (!payload?.name || !payload?.kind) return null;
+      return {
+        key: `${payload.kind}:${payload.name}`,
+        kind: payload.kind,
+        name: payload.name,
+        quantity: Math.max(1, Number(payload.quantity) || 1),
+      };
+    } catch (err) {
+      console.warn('[inventory] selection parse failed', err);
+      return null;
+    }
+  };
+
+  const destroySelectedInventory = async () => {
+    if (!inventorySelection.size) return;
+    const rows = [...inventorySelection.values()];
+    const message = ['批量销毁道具：', ...rows.map((row) => `${row.name}数量-${row.quantity}`)].join('\n');
+    const status = content.querySelector('[data-inv-status]');
+    const button = content.querySelector('[data-inv-destroy]');
+    if (button) button.disabled = true;
+    try {
+      const ok = await sendChat(message);
+      inventorySelection.clear();
+      inventoryNotice = ok ? '销毁请求已发送' : '已生成销毁请求';
+      content.querySelectorAll('[data-inv-select]').forEach((input) => { input.checked = false; });
+      if (status) status.textContent = inventoryNotice;
+      updateInventorySelectionUI();
+    } catch (err) {
+      inventoryNotice = '销毁请求发送失败';
+      if (status) status.textContent = inventoryNotice;
+      updateInventorySelectionUI();
+      console.warn('[inventory] destroy request failed', err);
+    }
   };
 
   let tick = 0;
@@ -630,6 +692,12 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       return;
     }
 
+    const destroy = event.target.closest('[data-inv-destroy]');
+    if (destroy) {
+      destroySelectedInventory();
+      return;
+    }
+
     const inventoryPage = event.target.closest('[data-inventory-page]');
     if (inventoryPage) {
       const index = Number(inventoryPage.dataset.inventoryPage) || 0;
@@ -645,6 +713,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       });
       const current = content.querySelector('[data-inventory-page-current]');
       if (current) current.textContent = String(index + 1);
+      updateInventorySelectionUI();
       sync();
       requestAnimationFrame(() => {
         const body = document.body;
@@ -683,6 +752,29 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     if (hit) {
       openPreview(hit.dataset.name);
     }
+  });
+
+  content.addEventListener('change', (event) => {
+    const input = event.target.closest('[data-inv-select]');
+    if (input) {
+      const row = parseInventorySelection(input);
+      if (!row) return;
+      if (input.checked) inventorySelection.set(row.key, row);
+      else inventorySelection.delete(row.key);
+      updateInventorySelectionUI();
+      return;
+    }
+    const all = event.target.closest('[data-inv-select-all]');
+    if (!all) return;
+    const activeGroup = content.querySelector('[data-inventory-page-panel]:not([hidden])') || content;
+    activeGroup.querySelectorAll('[data-inv-select]').forEach((checkbox) => {
+      const row = parseInventorySelection(checkbox);
+      if (!row) return;
+      checkbox.checked = all.checked;
+      if (all.checked) inventorySelection.set(row.key, row);
+      else inventorySelection.delete(row.key);
+    });
+    updateInventorySelectionUI();
   });
 
   content.addEventListener('keydown', (event) => {

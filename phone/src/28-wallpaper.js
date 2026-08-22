@@ -89,7 +89,7 @@ function setWallpaper(imageUrl) {
 // 恢复壁纸
 function restoreWallpaper() {
     try {
-        const defaultWallpaper = 'https://rpg.bolt.qzz.io/%E5%B0%81%E9%9D%A2/%E6%B3%95%E9%9C%B2%E7%89%B9.webp';
+        const defaultWallpaper = 'https://anchor.bolt.qzz.io/NSFW/%E7%BA%A2%E8%94%B7%E8%96%87/%E8%B6%B3%E4%BA%A42.webp';
         let savedWallpaper = localStorage.getItem('dnf-phone-wallpaper');
 
         // 验证保存的壁纸URL是否有效（不为空且包含http）
@@ -181,7 +181,7 @@ function uploadCustomWallpaper(file) {
 // 重置为默认壁纸
 function resetWallpaper() {
 
-    const defaultWallpaper = 'https://rpg.bolt.qzz.io/%E5%B0%81%E9%9D%A2/%E6%B3%95%E9%9C%B2%E7%89%B9.webp';
+    const defaultWallpaper = 'https://anchor.bolt.qzz.io/NSFW/%E7%BA%A2%E8%94%B7%E8%96%87/%E8%B6%B3%E4%BA%A42.webp';
 
     const $screen = $('#mobile-phone-overlay .mobile-phone-screen');
 

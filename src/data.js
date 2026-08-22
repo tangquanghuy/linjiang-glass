@@ -1194,10 +1194,10 @@ export function giftMessage(scene, target, gift, { qty = 1, remark = '' } = {}) 
   }
   if (scene === 'stream') {
     const cost = gift.price * qty;
-    return `[直播打赏] 你向${target}送出 ${gift.name} ×${qty}（￥${cost.toLocaleString('en-US')}）。`;
+    return `消费${cost}，送出${qty}个${gift.name}`;
   }
   const tail = remark ? `，并说：「${remark}」` : '。';
-  return `你把「${gift.name}」递给了${target}${tail}`;
+  return `${gift.name}数量-${qty}\n你把「${gift.name}」递给了${target}${tail}`;
 }
 
 /* Facts only.  No 契合度, no expected 好感度 -- see the note above giftMessage for why

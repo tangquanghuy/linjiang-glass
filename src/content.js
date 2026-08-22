@@ -423,7 +423,10 @@ export function renderContent(root) {
   const gifts = mountGifts(root.parentElement, {
     onSend: ({ message, payload }) => {
       console.info('[gift] payload', payload);
-      sendChat(message).catch((err) => console.warn('[gift]', err));
+      return sendChat(message).catch((err) => {
+        console.warn('[gift]', err);
+        return false;
+      });
     },
   });
   /* 背包 opens the drawer by default and a cell in the drawer opens the full page: the

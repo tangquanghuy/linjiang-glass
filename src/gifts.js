@@ -291,28 +291,26 @@ export function mountGifts(stage, { onSend } = {}) {
     paintCard();
   }
 
-  const send = () => {
+  const send = async () => {
     if (!state) return;
     const { scene, gift, qty, remark } = state;
     const message = giftMessage(scene, target, gift, { qty, remark });
     const payload = giftPayload(scene, target, gift, { qty, remark });
-    /* No transport exists yet -- no chat bridge and no MVU writer anywhere in src
-       (see the note in data.js).  So the pair is handed to the caller and the button
-       says so rather than pretending: an inventory that visibly fails to decrement
-       would be a worse lie than a labelled stub.  This is also why nothing here
-       mutates player.inventory. */
-    onSend?.({ message, payload });
+    /* The HUD sends the instruction to Tavern, but deliberately does not mutate
+       money or inventory here.  The resulting chat message is the single source of
+       truth for the model-side variable update. */
+    const sent = await Promise.resolve(onSend?.({ message, payload }));
     dropCard();
-    toast(message);
+    toast(message, sent !== false);
   };
 
-  function toast(text) {
+  function toast(text, sent = true) {
     const host = layer();
     if (!host) return;
     host.querySelector('.gift-toast')?.remove();
     insertSafeHTML(host, 'beforeend', `
 <div class="gift-toast" role="status">
-  <b>已生成消息</b><code>${esc(text)}</code><em>尚未接入发送，也未扣除库存</em>
+  <b>${sent ? '已发送到酒馆' : '已生成消息'}</b><code>${esc(text)}</code><em>HUD 未直接扣除金钱或道具库存</em>
 </div>`);
     const el = host.querySelector('.gift-toast');
     setTimeout(() => el?.remove(), 4200);

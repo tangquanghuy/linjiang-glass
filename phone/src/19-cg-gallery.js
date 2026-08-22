@@ -49,8 +49,14 @@ function getSortedCGCharacters() {
     });
 }
 
+const CG_COVER_NAME_MAP = {
+    // The image host stores this cover under the character's full display name.
+    '璃亚梦': '梦见璃亚梦',
+};
+
 function getCGCharacterCover(characterName) {
-    return `${CG_BASE_URL}%E5%B0%81%E9%9D%A2/${encodeURIComponent(characterName)}.webp`;
+    const coverName = CG_COVER_NAME_MAP[characterName] || characterName;
+    return `${CG_BASE_URL}%E5%B0%81%E9%9D%A2/${encodeURIComponent(coverName)}.webp`;
 }
 
 /**

@@ -72,34 +72,41 @@ function cell(item) {
 /* A row rather than a grid tile.  The elastic canvas has height to spend and 795 units
    of usable width, which is enough to show the 描述 -- and the 描述 is the reason to
    open this page at all, since the drawer and the rail can only ever show an icon. */
-function row(item) {
+function row(item, selected = new Map()) {
+  const key = `${item.bucket}:${item.name}`;
+  const payload = encodeURIComponent(JSON.stringify({
+    kind: item.bucket,
+    name: item.name,
+    quantity: item.quantity,
+  }));
   return `
-  <button class="pinv-row b-${item.bucket}${item.worn ? ' is-worn' : ''}" type="button"
+  <label class="pinv-row b-${item.bucket}${item.worn ? ' is-worn' : ''}"
     data-item="${item.name}" data-set="${item.icon.set}" data-placing="${item.icon.placing}"
     style="--hue:${item.icon.hue}; --tilt:${item.icon.tilt}deg; --scale:${item.icon.scale}${
       item.bucket === 'consumable' ? `; --potency:${item.potency}` : ''}"
     aria-label="${item.icon.label} · ${item.name}，数量 ${item.quantity}">
+    <span class="pinv-select"><input type="checkbox" data-inv-select="${payload}" ${selected.has(key) ? 'checked' : ''} aria-label="选择销毁 ${item.name}"><i></i></span>
     ${cell(item)}
     <span class="pinv-copy">
       <b>${item.name}</b>
       <span class="pinv-tags">${tags(item)}</span>
       <p>${item.description}</p>
     </span>
-  </button>`;
+  </label>`;
 }
 
-function group(g, index) {
+function group(g, index, selected = new Map()) {
   return `
   <section class="pinv-group${index === 0 ? ' is-active' : ''}" data-inventory-page-panel="${index}"${index === 0 ? '' : ' hidden'}>
     <div class="pinv-head">
       <b>${g.label}</b><span>${BUCKET_NOTE[g.bucket]}</span><i></i><em>${g.items.length}</em>
     </div>
-    ${g.items.map(row).join('')}
+    ${g.items.map((item) => row(item, selected)).join('')}
   </section>`;
 }
 
 /* One named category per page keeps the full-screen mobile bag bounded even as the AI adds items. */
-export function inventoryPage() {
+export function inventoryPage({ selected = new Map(), notice = '' } = {}) {
   const groups = inventoryRail();
   const total = groups.reduce((n, g) => n + g.items.length, 0);
 
@@ -116,6 +123,13 @@ export function inventoryPage() {
     </div>
   </div>
 
+  <div class="pinv-tools">
+    <label><input type="checkbox" data-inv-select-all>全选当前分类</label>
+    <span data-inv-selected-count>已选 ${selected.size} 项</span>
+    <button type="button" data-inv-destroy ${selected.size ? '' : 'disabled'}>批量销毁</button>
+    <em data-inv-status>${notice}</em>
+  </div>
+
   <hr class="prule">
 
   ${groups.length ? `
@@ -126,7 +140,7 @@ export function inventoryPage() {
     </button>`).join('')}
   </div>
   <p class="pinv-page-note"><b data-inventory-page-current>1</b><span>/ ${groups.length}</span></p>
-  ${groups.map(group).join('')}` : '<div class="pinv-empty">背包是空的</div>'}
+  ${groups.map((bucket, index) => group(bucket, index, selected)).join('')}` : '<div class="pinv-empty">背包是空的</div>'}
 </section>`;
 }
 

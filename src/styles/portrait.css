@@ -1217,6 +1217,31 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 .pbar.is-stamina > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
 .pinv-stamina .pbar > i { background: linear-gradient(90deg, #76c9ff, #a89aff); box-shadow: 0 0 18px rgba(120, 190, 255, .5); }
 
+.pinv-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  color: rgba(226, 228, 248, .58);
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+}
+.pinv-tools label { display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; user-select: none; }
+.pinv-tools input,
+.pinv-select input { width: 18px; height: 18px; margin: 0; accent-color: #c99cdf; cursor: pointer; }
+.pinv-tools [data-inv-selected-count] { margin-right: auto; }
+.pinv-tools button {
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 2px solid rgba(255, 184, 208, .34);
+  border-radius: 18px;
+  background: rgba(190, 93, 137, .16);
+  color: rgba(255, 231, 240, .84);
+  font: inherit;
+  cursor: pointer;
+}
+.pinv-tools button:disabled { opacity: .35; cursor: default; }
+.pinv-tools [data-inv-status] { color: rgba(190, 224, 255, .72); }
+
 .pinv-pager {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1280,6 +1305,7 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 /* A row, not a tile.  795 units of usable width is enough to carry the 描述, and the
    描述 is the reason this page exists at all -- an icon rail can never show it. */
 .pinv-row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--sp-4);
@@ -1299,6 +1325,19 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
   border-color: rgba(255, 214, 236, .42);
   box-shadow: 0 0 22px rgba(255, 140, 200, .12), inset 0 2px rgba(255, 255, 255, .12);
 }
+.pinv-select {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(8, 12, 32, .38);
+}
+.pinv-select i { display: none; }
 
 .pinv-copy { flex: 1; min-width: 0; padding-top: 5px; }
 .pinv-copy > b {

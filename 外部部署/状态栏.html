@@ -148,12 +148,11 @@
     const doc = (win && win.document) ? win.document : document;
     const textarea = doc.getElementById('send_textarea');
     if (!textarea) throw new Error('未找到聊天输入框');
-    const current = String(textarea.value || '').trim();
-    if (current !== next && current.indexOf(next) === -1) {
-      textarea.value = current ? (current + '\n' + next) : next;
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    const sendButton = doc.getElementById('send_but');
+    textarea.value = next;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    if (sendButton) sendButton.click();
     try { textarea.focus(); } catch (e) {}
     return true;
   };
@@ -1271,7 +1270,7 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body22');
+      url.searchParams.set('v', 'body23');
       return url.toString();
     } catch (e) {
       return HUD_URL;

@@ -9,7 +9,7 @@ import {
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
-import { openPhone, reportOverlay, requestClockIn } from './bridge.js';
+import { openPhone, reportOverlay, requestClockIn, sendChat } from './bridge.js';
 import { applyPrefClick, settingsBody } from './settings.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
@@ -619,7 +619,7 @@ function profilePage() {
 /* Three kinds now, and they behave differently: 素材 are spent on crafting, 消耗品
    are spent on use and carry a universal 强度 1~5, 用品 are durable and instead
    carry 佩戴 -- so the meta line differs per kind rather than being one field. */
-function itemCard(item, kind) {
+function itemCard(item, kind, selected = new Map()) {
   const meta = kind === 'material' ? item.source
     : kind === 'consumable' ? `强度 ${item.potency} / 5`
       : (item.worn ? '佩戴中' : '未佩戴');
@@ -628,10 +628,16 @@ function itemCard(item, kind) {
      absent.  This page used to draw only the gem, which meant the one place with room to
      show an item properly was the one place not showing its art. */
   const icon = itemIcon(kind, item);
+  const key = `${kind}:${item.name}`;
+  const payload = encodeURIComponent(JSON.stringify({ kind, name: item.name, quantity: item.quantity }));
   return `
     <article class="item-card b-${kind}${kind === 'goods' && item.worn ? ' is-worn' : ''}"
       style="--hue:${icon.hue}; --tilt:${icon.tilt}deg; --scale:${icon.scale}${
         kind === 'consumable' ? `; --potency:${item.potency}` : ''}">
+      <label class="item-select" title="选择销毁">
+        <input type="checkbox" data-inv-select="${payload}" ${selected.has(key) ? 'checked' : ''} aria-label="选择销毁 ${item.name}">
+        <span></span>
+      </label>
       <div class="item-cell">
         ${itemIconTag(icon, 'item-icon')}
         <span class="item-gem ${kind}"></span>
@@ -655,7 +661,7 @@ function inventoryEntries() {
   return INVENTORY_KINDS.flatMap(({ kind, take }) => take().map((item) => ({ item, kind })));
 }
 
-function inventoryBoard(leaf = 0) {
+function inventoryBoard(leaf = 0, selected = new Map()) {
   const all = inventoryEntries();
   const pages = Math.max(1, Math.ceil(all.length / INVENTORY_LEAF));
   const cur = Math.max(0, Math.min(leaf, pages - 1));
@@ -667,7 +673,7 @@ function inventoryBoard(leaf = 0) {
     ? groups.map((group) => `
         <section>
           <header><h3>${group.title}</h3><span>${group.note}</span></header>
-          <div class="item-grid">${group.items.map((item) => itemCard(item, group.kind)).join('')}</div>
+          <div class="item-grid">${group.items.map((item) => itemCard(item, group.kind, selected)).join('')}</div>
         </section>`).join('')
     : '<div class="inventory-empty">背包是空的</div>';
   const turns = pages > 1 ? `
@@ -679,7 +685,7 @@ function inventoryBoard(leaf = 0) {
   return `<div class="inventory-content">${body}</div>${turns}`;
 }
 
-function inventoryPage(leaf = 0) {
+function inventoryPage(leaf = 0, selected = new Map(), notice = '') {
   const { materials, consumables, goods } = player.inventory;
   return pageShell('Inventory', '背包与道具', `
     <div class="inventory-layout">
@@ -690,7 +696,15 @@ function inventoryPage(leaf = 0) {
         <span>用品 <b>${goods.length}</b></span>
         <div class="stamina-card"><small>当前体力</small><b>${player.stamina}<em>/100</em></b><i><u style="--pct:${player.stamina}%"></u></i></div>
       </aside>
-      <div class="inventory-board">${inventoryBoard(leaf)}</div>
+      <div class="inventory-board">
+        <div class="inventory-toolbar">
+          <label class="inventory-select-all"><input type="checkbox" data-inv-select-all>全选当前页</label>
+          <span data-inv-selected-count>已选 ${selected.size} 项</span>
+          <button type="button" class="inventory-destroy" data-inv-destroy ${selected.size ? '' : 'disabled'}>销毁选中</button>
+          <em data-inv-status>${notice}</em>
+        </div>
+        ${inventoryBoard(leaf, selected)}
+      </div>
     </div>
   `, 'inventory-page');
 }
@@ -735,6 +749,8 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   let unmountCg = null;
   let dockName = null;
   let inventoryLeaf = 0;
+  const inventorySelection = new Map();
+  let inventoryNotice = '';
   const has = (sel) => !!layer.querySelector(sel);
   const drop = (sel) => layer.querySelectorAll(sel).forEach((el) => el.remove());
   const overlayOpen = () => !!unmountMap || !!unmountArcade || !!unmountCg
@@ -833,12 +849,65 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     const next = Math.max(0, Math.min(pages - 1, inventoryLeaf + delta));
     if (next === inventoryLeaf) return;
     inventoryLeaf = next;
-    setSafeHTML(board, inventoryBoard(inventoryLeaf));
+    setSafeHTML(board.querySelector('.inventory-content') || board, inventoryBoard(inventoryLeaf, inventorySelection));
+    updateInventorySelectionUI();
+  };
+
+  const updateInventorySelectionUI = () => {
+    const checks = [...layer.querySelectorAll('[data-inv-select]')];
+    const all = layer.querySelector('[data-inv-select-all]');
+    const count = layer.querySelector('[data-inv-selected-count]');
+    const destroy = layer.querySelector('[data-inv-destroy]');
+    const selectedOnPage = checks.filter((input) => input.checked).length;
+    if (all) {
+      all.checked = checks.length > 0 && selectedOnPage === checks.length;
+      all.indeterminate = selectedOnPage > 0 && selectedOnPage < checks.length;
+    }
+    if (count) count.textContent = `已选 ${inventorySelection.size} 项`;
+    if (destroy) destroy.disabled = inventorySelection.size === 0;
+  };
+
+  const parseInventorySelection = (input) => {
+    try {
+      const payload = JSON.parse(decodeURIComponent(input.dataset.invSelect || ''));
+      if (!payload?.name || !payload?.kind) return null;
+      return {
+        key: `${payload.kind}:${payload.name}`,
+        kind: payload.kind,
+        name: payload.name,
+        quantity: Math.max(1, Number(payload.quantity) || 1),
+      };
+    } catch (err) {
+      console.warn('[inventory] selection parse failed', err);
+      return null;
+    }
+  };
+
+  const destroySelectedInventory = async () => {
+    if (!inventorySelection.size) return;
+    const rows = [...inventorySelection.values()];
+    const message = ['批量销毁道具：', ...rows.map((row) => `${row.name}数量-${row.quantity}`)].join('\n');
+    const status = layer.querySelector('[data-inv-status]');
+    const button = layer.querySelector('[data-inv-destroy]');
+    if (button) button.disabled = true;
+    try {
+      const ok = await sendChat(message);
+      inventorySelection.clear();
+      inventoryNotice = ok ? '销毁请求已发送' : '已生成销毁请求';
+      layer.querySelectorAll('[data-inv-select]').forEach((input) => { input.checked = false; });
+      if (status) status.textContent = inventoryNotice;
+      updateInventorySelectionUI();
+    } catch (err) {
+      inventoryNotice = '销毁请求发送失败';
+      if (status) status.textContent = inventoryNotice;
+      updateInventorySelectionUI();
+      console.warn('[inventory] destroy request failed', err);
+    }
   };
 
   const PAGES = {
     events: eventsPage,
-    inventory: () => inventoryPage(inventoryLeaf),
+    inventory: () => inventoryPage(inventoryLeaf, inventorySelection, inventoryNotice),
     profile: profilePage,
     schedule: schedulePage,
     settings: settingsPage,
@@ -853,7 +922,11 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     if (page === 'map') { openMap(); return; }
     if (page === 'arcade') { openArcade(); return; }
     if (page === 'cg') { openCg(); return; }
-    if (page === 'inventory') inventoryLeaf = 0;
+    if (page === 'inventory') {
+      inventoryLeaf = 0;
+      inventorySelection.clear();
+      inventoryNotice = '';
+    }
     const build = PAGES[page];
     if (!build) return;
     openPage(build());
@@ -882,6 +955,11 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
       paintInventoryLeaf(Number(invTurn.dataset.invStep) || 0);
       return;
     }
+    const destroy = event.target.closest('[data-inv-destroy]');
+    if (destroy) {
+      destroySelectedInventory();
+      return;
+    }
     if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
     const tile = event.target.closest('[data-dev-part]');
     if (tile) { openNote(tile.dataset.devName, tile.dataset.devPart); return; }
@@ -896,6 +974,28 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     if (full) { openPage(characterFull(full.dataset.characterFull)); return; }
     const relation = event.target.closest('[data-open-character]');
     if (relation) openCharacter(relation.dataset.openCharacter);
+  });
+
+  layer.addEventListener('change', (event) => {
+    const input = event.target.closest('[data-inv-select]');
+    if (input) {
+      const row = parseInventorySelection(input);
+      if (!row) return;
+      if (input.checked) inventorySelection.set(row.key, row);
+      else inventorySelection.delete(row.key);
+      updateInventorySelectionUI();
+      return;
+    }
+    const all = event.target.closest('[data-inv-select-all]');
+    if (!all) return;
+    layer.querySelectorAll('[data-inv-select]').forEach((checkbox) => {
+      const row = parseInventorySelection(checkbox);
+      if (!row) return;
+      checkbox.checked = all.checked;
+      if (all.checked) inventorySelection.set(row.key, row);
+      else inventorySelection.delete(row.key);
+    });
+    updateInventorySelectionUI();
   });
 
   if (!stage.dataset.pageEscapeBound) {
