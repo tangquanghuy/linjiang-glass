@@ -19,8 +19,19 @@ export function isEmbedded() {
   catch { return false; }
 }
 
+/* 谁算"壳层"。
+   ------------------------------------------------------------------
+   以前这里要求 event.source === window.parent，那是壳层还把 HUD iframe 放在自己文档里
+   时候的写法。现在 外部部署/状态栏.html 的 manager 把 HUD iframe 挂到酒馆文档上（这样
+   楼层交接不会重载 HUD），于是我们的 window.parent 是酒馆顶层窗口，而说话的脚本仍然跑在
+   楼层里那个状态栏 iframe 里 —— postMessage 的 source 是"调用它的那个窗口"，也就是状态栏
+   iframe，既不是 parent 也不是 top。结果握手回包和 snapshot 全被丢掉，HUD 一直画 data.js
+   里的样本数据。
+
+   所以身份改由 origin + channel 认：壳层和酒馆同源，能拿到我们 contentWindow 的也只有那一
+   棵框架树。只把自己发的消息排除掉。 */
 function validParentMessage(event) {
-  if (!isEmbedded() || event.source !== window.parent) return false;
+  if (!isEmbedded() || !event.source || event.source === window) return false;
   return parentOrigin === '*' || event.origin === parentOrigin;
 }
 

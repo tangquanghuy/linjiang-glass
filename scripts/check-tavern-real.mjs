@@ -104,6 +104,8 @@ for (const preset of geometryPresets) {
     check(preset.id, !m.portraitDom, `${expectedMode} unexpectedly uses portrait DOM`);
   }
   check(preset.id, m.helperHeightSamples.length <= 12, `helper height oscillated ${m.helperHeightSamples.length} times: ${m.helperHeightSamples.join(',')}`);
+  /* 桥有没有真的把 MVU 快照送到 HUD：夹具的 金钱 是 512300，data.js 的样本是 286450。 */
+  check(preset.id, m.hudMoney.includes('512,300'), `HUD money reads ${m.hudMoney || '(empty)'}, expected the MVU snapshot 512,300`);
 
   console.log(
     `  ${fails.some((failure) => failure.startsWith(`${preset.id}:`)) ? 'FAIL' : 'ok  '}  `

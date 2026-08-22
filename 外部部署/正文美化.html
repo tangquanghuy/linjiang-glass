@@ -6179,7 +6179,15 @@
       return live || fromTag || hosts[0] || '塔菲';
     }
 
+    /* 弹幕的语法层（一行 → 字段表）由 辅助计算脚本.js 持有：那边要拿同一份语法
+       数弹幕算热度，两边各写一个正则迟早会漂。下面这段是它的兜底实现，只在
+       拿不到脚本时用（file:// 直接打开的 demo 就走这条）。
+       字段表 → 渲染结构的映射仍然在本文件的 lrParseDanmuLine 里，那是显示层。 */
     function lrSplitLineFields(line) {
+      const aux = lrAux();
+      if (aux && typeof aux.parseRoomLine === 'function') {
+        try { return aux.parseRoomLine(line); } catch (e) { /* 掉回本地实现 */ }
+      }
       const text = String(line || '');
       const re = /(类型|名字|礼物|数量|金额|内容|牌子)\s*[:：]/g;
       const hits = [];

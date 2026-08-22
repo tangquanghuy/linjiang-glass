@@ -19,9 +19,40 @@ const chatEl = document.getElementById('chat');
 if (headless) document.body.classList.add('fixture-headless');
 
 /* The production shell looks for Mvu on parent/top.  This keeps the same API
-   shape while leaving the fixture deterministic and independent of chat data. */
+   shape while leaving the fixture deterministic and independent of chat data.
+
+   形状必须是真的 MVU 形状（酒馆变量/变量初始化 的顶层键）。以前这里是 `世界:{日期,时间,地点}`
+   —— 谁都不认的三个字段，于是壳层的 pushSnapshot 判定"等待 MVU 数据"直接不发，HUD 一路画
+   data.js 的样本值，整套夹具从来没走过一次数据通路。src/bridge.js 里丢掉全部壳层消息的那个
+   bug 就是这么漏过去的。
+
+   同行 / 所在直播间 故意填了人：竖屏那几条断言要看 同行、在看 两个字段真的渲染出来。 */
 const fixtureStatData = {
-  世界: { 日期: '4月17日', 时间: '20:45', 地点: '鼓岭区・云庭公寓' },
+  世界信息: {
+    年历: '2026年4月17日',
+    日期显示: { 星期: '周五', 季节: '春季', 年内周次: 16 },
+    时间: { 时钟: '20:45', 时段: '夜' },
+    位置: { 区域: '鼓岭区 · 云庭公寓', 场所: '客厅', 私密度: 5 },
+    事件池: { 当日事件: {} },
+  },
+  玩家信息: {
+    体力: 74,
+    金钱: 512300,
+    同行: '东雪莲',
+    工作: { 职业: '便利店店员', 地点: '鼓岭区 · 梧桐里', 日收入: 215, 今日已上班: false },
+    居住地: '鼓岭区 · 云庭公寓',
+    房产: {},
+    所在直播间: '璃亚梦',
+    粉丝身份: {},
+    背包: { 素材: {}, 消耗品: {}, 用品: {} },
+  },
+  对象信息: {
+    东雪莲: {
+      羁绊: { 好感度: 640, 顺从度: 210, 心情: '害羞' },
+      位置: { 区域: '鼓岭区 · 云庭公寓', 场所: '客厅', 私密度: 5 },
+      生理: { 性欲度: 12, 体力: 80, 尿意: 20, 异常状态: [] },
+    },
+  },
 };
 window.Mvu = {
   events: { VARIABLE_UPDATE_ENDED: 'variable_update_ended' },
@@ -291,6 +322,10 @@ function measure() {
       timeMeta: hudDoc.querySelector('.pmeta')?.textContent.replace(/\s+/g, ' ').trim() || '',
     } : null,
     hudOverflowX: hudDoc?.documentElement ? hudDoc.documentElement.scrollWidth - hudDoc.documentElement.clientWidth : null,
+    /* 资金那一行，两套排版各一个选择器。它是"壳层的 MVU 快照到底有没有落到 HUD 上"的探针：
+       样本数据是 ￥286,450，夹具的快照是 ￥512,300。 */
+    hudMoney: (hudDoc?.querySelector('.money-line .num') || hudDoc?.querySelector('.pmoney b'))
+      ?.textContent.replace(/\s+/g, '').trim() || '',
     helperHeightSamples: [...helperHeightSamples],
     liveHudCount: document.querySelectorAll('#linjiang-hud-live').length
       + (statusFrame?.contentDocument?.getElementById('hud') ? 1 : 0),

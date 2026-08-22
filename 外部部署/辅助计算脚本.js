@@ -614,6 +614,35 @@
     /* 没有新礼物时，本场热度每拍衰减一成。 */
     const SESSION_DECAY = 0.9;
 
+    /* ===== 观众带来的热度 =====
+       原来 本场热度 只有玩家掏钱才会动：玩家全程只看不花钱，一整场热度就钉在
+       底盘 × pulse 上不动，等于"热度只反映玩家投入"。观众送的礼、公屏的人气
+       一点都不算，这不合理。补两条：
+
+       一、正文里那段 <LiveRoom> 的弹幕，按内容结算（只有玩家在看的房间有）。
+           这段文本是 AI 必须按 世界书/直播间卡片规则 输出的结构化格式，
+           字段固定、礼物名取自白名单，所以能直接当输入用，不必让 AI 另写热度。
+           热度是 底盘+本场 的派生量，交给 AI 写必然和底盘/本场那条分界打架，
+           而且 变量更新规则 里 直播.热度 本来就在 脚本只读 名单上。
+
+       二、所有在播的房间，每拍加一点环境流量（跟玩家在不在看无关）。
+           路人进出本来就该有起伏，代码算这个没成本。
+
+       发言按底盘的比例折算、礼物按 GIFTS 表的绝对点数：绝对值在塔菲（底盘
+       18200）和璃亚梦（1390）之间差十三倍，一条发言写死几点对小房是洪水、
+       对塔菲是噪音；而一发火箭在小房掀翻天，那是应该的。 */
+
+    /** 每条发言（普通/舰长/提督/总督）折算成底盘的多少。一轮 20 条约 3%。 */
+    const CHAT_HEAT_RATE = 0.0015;
+    /** 观众送礼的点数打折：玩家自己送的火箭要比路人的更有分量。 */
+    const NPC_GIFT_WEIGHT = 0.6;
+    /** 一轮最多计入几条礼物弹幕。防 AI 一口气写六个火箭，卡条数比卡点数直观。 */
+    const NPC_GIFT_LINES_MAX = 6;
+    /** 一轮弹幕结算的总增量上限，按底盘的倍数。 */
+    const ROUND_GAIN_CAP_RATE = 1.5;
+    /** 环境流量：每拍最多加底盘的百分之几。配 0.9 衰减，收敛在底盘的 1.3 倍附近。 */
+    const AMBIENT_MAX_RATE = 0.06;
+
     /**
      * 连送递减，两层一起算：
      *   1) 单笔内部——一次送 n 个，第 2 个起就开始打折，刷 233 个辣条不等于 233 倍人气；
@@ -621,17 +650,24 @@
      * 不按世界时钟算：时钟只有 AI 推进时才动，整场直播可能一直停在同一分钟，
      * 按分钟算会把「辣条→干杯→情书→火箭」这条正常消费链也当成连刷全部打到下限。
      */
-    function comboPop(room, giftName, unitPop, qty) {
-        const combo = ensureObj(room, '连送');
-        let step = combo.礼物 === giftName ? (Number(combo.次数) || 0) : 0;
+    /** 从第 startStep 连击开始，送 qty 个的递减总点数。观众送礼也用这条，只是不记连击状态。 */
+    function decayedPop(unitPop, qty, startStep) {
+        let step = Math.max(0, Number(startStep) || 0);
         let total = 0;
         for (let i = 0; i < qty; i += 1) {
             total += unitPop * COMBO_DECAY[Math.min(step, COMBO_DECAY.length - 1)];
             step += 1;
         }
+        return { total: Math.round(total), step };
+    }
+
+    function comboPop(room, giftName, unitPop, qty) {
+        const combo = ensureObj(room, '连送');
+        const start = combo.礼物 === giftName ? (Number(combo.次数) || 0) : 0;
+        const { total, step } = decayedPop(unitPop, qty, start);
         combo.礼物 = giftName;
         combo.次数 = step;
-        return Math.round(total);
+        return total;
     }
 
     function resetCombo(room) {
@@ -741,6 +777,190 @@
         if (girl.直播.开播 !== true) return;
         const total = (Number(room.底盘热度) || 0) + (Number(room.本场热度) || 0);
         writeIfChanged(girl.直播, '热度', roundNice(total));
+    }
+
+    // ==========================================
+    // <LiveRoom> 弹幕的语法层
+    // 只把「一行 → 字段表」这件事做掉，不管显示。正文美化.html 的
+    // lrParseDanmuLine 负责把字段映射成渲染用的结构，那一层留在卡片里。
+    // 语法只有这一份：两边各写一个迟早会漂，这仓库里已经吃过好几次这种亏。
+    // ==========================================
+
+    const ROOM_FIELD_KEYS = ['类型', '名字', '礼物', '数量', '金额', '内容', '牌子'];
+
+    /** 一行弹幕 → { 类型, 名字, 礼物, 数量, 金额, 内容, 牌子 }。认不出来返回 null。 */
+    function parseRoomLine(rawLine) {
+        const text = String(rawLine || '').replace(/^[-•]\s+/, '').trim();
+        if (!text) return null;
+        const re = new RegExp('(' + ROOM_FIELD_KEYS.join('|') + ')\\s*[:：]', 'g');
+        const hits = [];
+        let m;
+        while ((m = re.exec(text))) hits.push({ key: m[1], at: m.index, end: m.index + m[0].length });
+        if (!hits.length) return null;
+        const fields = {};
+        for (let i = 0; i < hits.length; i += 1) {
+            const to = i + 1 < hits.length ? hits[i + 1].at : text.length;
+            fields[hits[i].key] = text.slice(hits[i].end, to).trim();
+        }
+        return fields;
+    }
+
+    /** 整段 <LiveRoom> 正文 → { 主播, 主播说, 弹幕: [字段表] }。 */
+    function parseRoomText(raw) {
+        const room = { 主播: '', 主播说: '', 弹幕: [] };
+        let inDanmu = false;
+        String(raw || '').split(/\r?\n/).forEach((line) => {
+            const t = line.trim();
+            if (!t) return;
+            if (/^弹幕\s*[:：]/.test(t)) { inDanmu = true; return; }
+            if (/^主播说\s*[:：]/.test(t)) { inDanmu = false; room.主播说 = t.replace(/^主播说\s*[:：]\s*/, ''); return; }
+            if (/^主播\s*[:：]/.test(t)) { inDanmu = false; room.主播 = t.replace(/^主播\s*[:：]\s*/, '').trim(); return; }
+            if (/^[-•]\s+/.test(t) || inDanmu) {
+                const fields = parseRoomLine(t);
+                if (fields && fields.类型) room.弹幕.push(fields);
+            }
+        });
+        return room;
+    }
+
+    /** 从整条消息里挑出所有 <LiveRoom> 段。闭合标签只认 ASCII 名，见 世界书/直播间卡片规则。 */
+    function extractRoomBlocks(text) {
+        const out = [];
+        const re = /<LiveRoom\s*>([\s\S]*?)<\/\s*LiveRoom\s*>/gi;
+        let m;
+        while ((m = re.exec(String(text || '')))) out.push(m[1]);
+        return out;
+    }
+
+    /** 字符串指纹。用来判断这段弹幕是不是已经结算过。 */
+    function textFingerprint(text) {
+        const s = String(text || '');
+        let h = 5381;
+        for (let i = 0; i < s.length; i += 1) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+        return (h >>> 0).toString(36) + '-' + s.length;
+    }
+
+    /**
+     * 一段弹幕值多少热度。
+     * 发言按底盘比例，礼物按表里的点数（打 NPC_GIFT_WEIGHT 折、数量走递减），
+     * 醒目留言按 金额 × 4，跟玩家那条路一致。
+     * 只算不写，方便干跑测试。
+     */
+    function danmuHeat(lines, baseHeat) {
+        let chat = 0;
+        let giftLines = 0;
+        let pop = 0;
+        (lines || []).forEach((f) => {
+            const kind = String(f.类型 || '').trim();
+            if (kind === '普通' || kind === '舰长' || kind === '提督' || kind === '总督') {
+                chat += 1;
+                pop += baseHeat * CHAT_HEAT_RATE;
+                return;
+            }
+            if (kind === '礼物') {
+                if (giftLines >= NPC_GIFT_LINES_MAX) return;   // 超出的整条忽略
+                const gift = giftOf(f.礼物);
+                if (!gift) return;                              // 白名单外的礼物不算
+                const qty = Math.max(1, Math.min(999, parseInt(f.数量, 10) || 1));
+                giftLines += 1;
+                pop += decayedPop(gift.pop, qty, 0).total * NPC_GIFT_WEIGHT;
+                return;
+            }
+            if (kind === '醒目留言') {
+                const amount = Math.max(0, parseInt(f.金额, 10) || 0);
+                pop += amount * 4 * NPC_GIFT_WEIGHT;
+            }
+            // 进入 / 系统 不计：那是平台提示，不是人气
+        });
+        const cap = Math.round(baseHeat * ROUND_GAIN_CAP_RATE);
+        return {
+            人气: Math.min(Math.round(pop), cap),
+            发言条数: chat,
+            礼物条数: giftLines,
+            触顶: Math.round(pop) > cap
+        };
+    }
+
+    /** 最新一条 AI 楼层。取不到聊天上下文就返回 null（比如干跑测试）。 */
+    function latestMessage() {
+        try {
+            const win = (typeof window !== 'undefined' && (window.parent || window)) || null;
+            const st = win && win.SillyTavern;
+            const ctx = st && typeof st.getContext === 'function' ? st.getContext() : null;
+            const chat = ctx && Array.isArray(ctx.chat) ? ctx.chat : null;
+            if (!chat || !chat.length) return null;
+            for (let i = chat.length - 1; i >= 0; i -= 1) {
+                const msg = chat[i];
+                if (!msg || msg.is_user || msg.is_system) continue;
+                return { 楼层: i, 文本: String(msg.mes || '') };
+            }
+        } catch (_) { /* 读不到就当没有 */ }
+        return null;
+    }
+
+    /**
+     * 按正文里的弹幕给房间加热度。
+     *
+     * 幂等靠标记，不能只靠 isProcessing —— 那个防的是脚本自己改完变量又被 schema
+     * reconciliation 二次唤起的递归，同一条消息在别的场合还是会再过一遍：
+     * swipe、重 roll、手动编辑楼层、切聊天重进都会让 VARIABLE_UPDATE_ENDED 再来一次。
+     * 本文件其余的写入都是"按状态重算"（热度 = 底盘+本场、牌子等级 = f(累计打赏)），
+     * 重算多少次结果都一样；而"数弹幕再累加"是纯增量，多跑一次就多加一次。
+     * 所以在房间上记 楼层:指纹，两者都对得上就跳过。swipe 换了内容指纹就变，
+     * 会重新结算一次 —— 那是另一个分支的剧情，应该重算。
+     */
+    function settleRoomsFromText(statData, text, floor) {
+        const blocks = extractRoomBlocks(text);
+        if (!blocks.length) return [];
+        const done = [];
+        blocks.forEach((block) => {
+            const parsed = parseRoomText(block);
+            const host = canonGirlName(parsed.主播);
+            const girl = girlOf(statData, host);
+            if (!girl || !girl.直播) return;
+            if (girl.直播.开播 !== true) return;          // 没开播的房间不结算
+            if (!parsed.弹幕.length) return;
+
+            const room = roomOf(statData, host);
+            const mark = `${floor == null ? '-' : floor}:${textFingerprint(block)}`;
+            if (room.本场结算 === mark) return;            // 这段已经算过
+
+            const base = Number(room.底盘热度) || 0;
+            const gain = danmuHeat(parsed.弹幕, base);
+            room.本场结算 = mark;
+            if (gain.人气 <= 0) return;
+            room.本场热度 = (Number(room.本场热度) || 0) + gain.人气;
+            repaintHeat(statData, host);
+            done.push({ 主播: host, ...gain });
+            console.log(TAG, `弹幕结算: ${host} +${gain.人气}（发言 ${gain.发言条数} / 礼物 ${gain.礼物条数}${gain.触顶 ? ' / 触顶' : ''}）`);
+        });
+        return done;
+    }
+
+    /**
+     * 环境流量：所有在播的房间每拍加一点，跟玩家在不在看无关。
+     * 抖动用 (种子|时钟) 做哈希，同一拍算出来是同一个值。
+     * 只在时钟真往前走了那一拍调用，和 decaySessionHeat 共用那道门。
+     * 每拍 +底盘×(0~6%)、每拍 ×0.9 衰减，本场热度收敛在底盘的三成左右，
+     * 也就是总热度在底盘的 1.3 倍附近浮动。
+     */
+    function ambientHeat(statData) {
+        const rooms = statData?.系统配置?.直播间;
+        if (!rooms || typeof rooms !== 'object') return;
+        const clock = String(statData?.世界信息?.时间?.时钟 || '');
+        Object.keys(rooms).forEach((name) => {
+            const room = rooms[name];
+            if (!room || typeof room !== 'object') return;
+            const girl = girlOf(statData, name);
+            if (girl?.直播?.开播 !== true) return;
+            const base = Number(room.底盘热度) || 0;
+            if (base <= 0) return;
+            const r = streamHashUnit(`${room.种子 || name}|ambient|${clock}`) * AMBIENT_MAX_RATE;
+            const add = Math.round(base * r);
+            if (add <= 0) return;
+            room.本场热度 = (Number(room.本场热度) || 0) + add;
+            repaintHeat(statData, name);
+        });
     }
 
     /** 没有新礼物的那一拍：本场热度衰减一成，掉到底盘的 1% 以下就归零。 */
@@ -1073,11 +1293,20 @@
 
     function syncStreams(statData, before) {
         driveStreams(statData, before);
-        /* 时钟往前走了一拍就衰减一次本场热度。放在 driveStreams 之后：
-           那边刚决定了谁在播，这里只处理已经在播的房间。 */
+        /* 时钟往前走了一拍：先衰减，再补环境流量。放在 driveStreams 之后，
+           那边刚决定了谁在播，这两步只处理已经在播的房间。
+           顺序是「先衰减后加」——反过来的话新加的那一份当拍就被削掉一成。
+           这道门本身也是幂等的：同一轮里 before 和 after 的时钟一样就整段跳过。 */
         const nowClock = String(statData?.世界信息?.时间?.时钟 || '');
         const wasClock = String(before?.世界信息?.时间?.时钟 || '');
-        if (before && nowClock && nowClock !== wasClock) decaySessionHeat(statData);
+        if (before && nowClock && nowClock !== wasClock) {
+            decaySessionHeat(statData);
+            ambientHeat(statData);
+        }
+
+        /* 正文里的 <LiveRoom> 弹幕结算。放在衰减之后，这一轮加的不当拍被削。 */
+        const msg = latestMessage();
+        if (msg) settleRoomsFromText(statData, msg.文本, msg.楼层);
         const girls = statData.对象信息;
         if (!girls || typeof girls !== 'object') return;
 
@@ -1095,7 +1324,11 @@
                 writeIfChanged(stream, '标题', '');
                 writeIfChanged(stream, '热度', 0);
                 const room = statData.系统配置?.直播间?.[name];
-                if (room) writeIfChanged(room, '本场热度', 0);
+                if (room) {
+                    writeIfChanged(room, '本场热度', 0);
+                    // 结算标记跟着本场一起清：下一场重新开始，不会因为标记还在而漏算
+                    if (room.本场结算) writeIfChanged(room, '本场结算', '');
+                }
                 if (watching === name) stillWatching = null;
             } else {
                 /* 给 AI 看的热度收成约数：底账留在 系统配置，模型看到的是"大概一万八" */
@@ -1228,6 +1461,13 @@
         roomMenu,
         roomView,
         roomAction,
+        // 弹幕语法层：卡片的 lrSplitLineFields 走这里，语法只留一份
+        parseRoomLine,
+        parseRoomText,
+        // 热度结算，导出主要是给 scripts/check-live-room.cjs 干跑
+        danmuHeat,
+        settleRoomsFromText,
+        ambientHeat,
         privacyOf,
         streamDecision,
         handleVariableUpdate,
