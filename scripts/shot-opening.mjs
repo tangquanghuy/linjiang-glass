@@ -139,9 +139,14 @@ for (let t = 0; t <= 100; t++) {
   }
 }
 console.log(drift ? `\n两处曲线有 ${drift} 档不一致` : '\n两处曲线逐档一致（0–100 全比过）');
-// 扫完把滑杆放回 64，否则后面 dump 出来的 payload 是 100 档的
-await page.fill('#streamer-tier', '64');
-await page.dispatchEvent('#streamer-tier', 'input');
+/* 扫完把滑杆放回 64，否则 dump 出来的 payload 是 100 档的。
+   此时人已经在第 05 步，滑杆所在的第 04 面板是隐藏的，用 fill 会等可见性等到超时，
+   所以走 evaluate 直接改值再派事件。 */
+await page.evaluate(() => {
+  const el = document.querySelector('#streamer-tier');
+  el.value = 64;
+  el.dispatchEvent(new Event('input'));
+});
 await page.waitForTimeout(200);
 
 // 七位已定稿主播：底盘热度 → 档位的反解
@@ -170,10 +175,22 @@ const payloadJson = await page.evaluate(() => {
 writeFileSync(`${OUT}/payload.json`, payloadJson, 'utf8');
 const parsed = JSON.parse(payloadJson);
 console.log('\npayload 落盘 ->', `${OUT}/payload.json`);
+console.log('  对象信息.沈遥 的块:', Object.keys(parsed.mvu.对象信息.沈遥).join(' / '));
 console.log('  对象信息.沈遥.直播 =', JSON.stringify(parsed.mvu.对象信息.沈遥.直播));
+console.log('  对象信息.沈遥.位置 =', JSON.stringify(parsed.mvu.对象信息.沈遥.位置));
 console.log('  系统配置.直播间.沈遥 =', JSON.stringify(parsed.mvu.系统配置.直播间.沈遥));
+/* 拿 变量初始化 里塔菲的形状当基准，比一遍新主播缺不缺块 */
+const canonShape = ['羁绊', '位置', '性经历', '开发度', '生理', '直播'];
+const missing = canonShape.filter(k => !parsed.mvu.对象信息.沈遥[k]);
+console.log('  跟七位主播比缺的块:', missing.length ? missing.join(',') : '无');
+const dev = parsed.mvu.对象信息.沈遥.开发度;
+console.log('  开发度四个部位齐全:', ['口腔', '胸', '小穴', '肛门'].every(k => dev[k] && typeof dev[k].档位 === 'number'));
+console.log('  性经历条目数:', Object.keys(parsed.mvu.对象信息.沈遥.性经历).length, '（应为 13）');
 console.log('  有没有残留的「人数」:', payloadJson.includes('人数') ? '有，得清掉' : '没有');
-console.log('  worldbooks:', parsed.worldbooks.map(b => b.name).join(' + '));
+const book = parsed.worldbooks[0];
+console.log('  世界书条目: 角色详情：' + (book ? book.sourceName : '(无)'), '/ keys:', book ? book.keys.join(',') : '-');
+console.log('  正文是 角色详情 YAML:', !!book && /^---[\s\S]*角色详情:/.test(book.content));
+if (book) writeFileSync(`${OUT}/profile.yaml`, book.content, 'utf8');
 
 // 手机窄屏：我推那一格单列会变左图右字，热度读数会折成三行
 const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });

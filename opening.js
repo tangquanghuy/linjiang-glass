@@ -7,16 +7,24 @@ const LAST_STEP=STEPS.length;
 const ART_HOST='https://anchor.bolt.qzz.io';
 const art=(folder,file)=>ART_HOST+'/'+encodeURIComponent(folder)+'/'+encodeURIComponent(file)+'.webp';
 /* 固定主播池。名字／牌子名／直播档／封面文件名对齐 外部部署/正文美化.html 的
-   LR_HOSTS，住所对齐 酒馆变量/变量初始化，tier 是按下面那条体量曲线反解出来的
-   参考值（只用于卡片上给玩家一个量级感，不写回 MVU）。 */
+   LR_HOSTS，住所对齐 酒馆变量/变量初始化。
+
+   followers 是唯一的作者定值，底盘热度和大航海全部由它反解出来（tierOfFollowers
+   → streamScale），跟自定义主播走同一条曲线、同一套换算。这里不再单独存热度：
+   存两份就一定会漂，而且哪份是准的没人说得清。
+
+   顺带作废：正文美化.html 里的 LR_HOSTS.pop 是旧的一张手写热度表，跟这里推出来的
+   对不上（璃亚梦 6310 vs 1390、红蔷薇 2800 vs 12400），要换成从粉丝数推的值。
+
+   这七位的 粉丝数 最终该由 酒馆变量/变量初始化 写进 MVU，这一页只负责显示和挑选。 */
 const OSHI=[
-{name:'塔菲',cover:'塔菲',medal:'雏草姬',slot:'晚间主档 20:00–23:30',area:'西洲区 · 云庭公寓',tags:['杂谈','游戏'],tier:71,blurb:'抽象系头部主播，夹子音开麦、满嘴贴吧黑话，弹幕节奏最快的那一间。'},
-{name:'东雪莲',cover:'东雪莲',medal:'棺人痴',slot:'深夜杂谈 21:30–00:30',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],tier:53,blurb:'做原创音乐的深夜档，脾气直，跟黑粉对线从不含糊。'},
-{name:'沙花叉',cover:'沙花叉',medal:'饲养员',slot:'历史常用晚间档 21:00–00:30',area:'明湖区 · 明湖云阙',tags:['杂谈','唱歌','游戏'],tier:51,blurb:'慵懒声线的清扫屋，开播随缘，来了就是一整晚。'},
-{name:'时雨羽衣',cover:'时雨羽衣',medal:'雨户',slot:'周更型 22:00–00:30',area:'鼓岭区 · 梧桐里',tags:['绘画','杂谈'],tier:38,blurb:'画师主播，一周只播两三次，播了就是长夜画稿加碎嘴。'},
-{name:'红蔷薇',cover:'红蔷薇',medal:'亲爱的',slot:'黄昏音乐台 19:00–22:00',area:'西洲区 · 西洲永初里',tags:['唱歌','舞蹈','杂谈'],tier:48,blurb:'不死鸟剧院的舞者，兼职开播，说话像在台上念独白。'},
-{name:'斯黛拉',cover:'斯黛拉',medal:'小猪',slot:'傍晚电台 18:30–21:30',area:'落霞区 · 学府七舍天台',tags:['ASMR','杂谈'],tier:49,blurb:'声音又轻又小的女学生，凌晨那段哄睡 ASMR 是招牌。'},
-{name:'璃亚梦',cover:'梦见璃亚梦',medal:'病友',slot:'深夜互动 23:00–02:00',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],tier:58,blurb:'炎上体质的偶像兼主播，深夜小作文和突发开播都是常事。'}];
+{name:'塔菲',cover:'塔菲',medal:'雏草姬',slot:'晚间主档 20:00–23:30',area:'西洲区 · 云庭公寓',tags:['杂谈','游戏'],followers:550000,blurb:'抽象系头部主播，夹子音开麦、满嘴贴吧黑话，弹幕节奏最快的那一间。'},
+{name:'红蔷薇',cover:'红蔷薇',medal:'亲爱的',slot:'黄昏音乐台 19:00–22:00',area:'西洲区 · 西洲永初里',tags:['唱歌','舞蹈','杂谈'],followers:400000,blurb:'不死鸟剧院的舞者，兼职开播，说话像在台上念独白。'},
+{name:'东雪莲',cover:'东雪莲',medal:'棺人痴',slot:'深夜杂谈 21:30–00:30',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],followers:300000,blurb:'做原创音乐的深夜档，脾气直，跟黑粉对线从不含糊。'},
+{name:'沙花叉',cover:'沙花叉',medal:'饲养员',slot:'历史常用晚间档 21:00–00:30',area:'明湖区 · 明湖云阙',tags:['杂谈','唱歌','游戏'],followers:150000,blurb:'慵懒声线的清扫屋，开播随缘，来了就是一整晚。'},
+{name:'时雨羽衣',cover:'时雨羽衣',medal:'雨户',slot:'周更型 22:00–00:30',area:'鼓岭区 · 梧桐里',tags:['绘画','杂谈'],followers:130000,blurb:'画师主播，一周只播两三次，播了就是长夜画稿加碎嘴。'},
+{name:'斯黛拉',cover:'斯黛拉',medal:'小猪',slot:'傍晚电台 18:30–21:30',area:'落霞区 · 学府七舍天台',tags:['ASMR','杂谈'],followers:90000,blurb:'声音又轻又小的女学生，凌晨那段哄睡 ASMR 是招牌。'},
+{name:'璃亚梦',cover:'梦见璃亚梦',medal:'病友',slot:'深夜互动 23:00–02:00',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],followers:60000,blurb:'炎上体质的偶像兼主播，深夜小作文和突发开播都是常事。'}];
 const OSHI_MAX=3;
 const OSHI_FAVOR=300;    // 选中即加的好感，叠在 变量初始化 给的 80 上
 const OSHI_BADGE=8;      // 目标牌子等级
@@ -50,8 +58,9 @@ const JOBS=[
 {name:'研创园行政助理',place:'雨石与浦江区 / 浦江研创园',node:'ys_rdpark',monthly:6200,daily:280,hours:'09:30-18:30',kind:'office'},
 {name:'扎染作坊学徒',place:'乌溪区 / 乌溪扎染作坊',node:'wx_dye',monthly:4200,daily:190,hours:'10:00-19:00',kind:'craft'}];
 const CATEGORIES=['杂谈','游戏','唱歌','ASMR','绘画','舞蹈','户外','美食','虚拟主播','综合内容'];
-const PROFILE_FIELDS=['一句话定位','外貌','公开形象','真实性格','说话方式','直播风格','兴趣与擅长','生活习惯','喜恶与雷区','个人经历','对观众的态度','线上线下差异'];
-const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],wantCustom:false,categories:new Set(['杂谈']),profile:null,art:{type:'',src:''},streamerHome:null};
+/* 人设不再是一组固定字段，而是一整段「角色详情」YAML —— 跟 世界书/红蔷薇、斯黛拉、
+   璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
+const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],wantCustom:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const value=id=>$(id).value.trim();
@@ -72,13 +81,20 @@ function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('
    注意「热度」有两个：底盘热度是常态值；本场热度是这场靠礼物堆的虚火，下播清零。
    玩家在直播间看到的 直播.热度 = 底盘热度 + 本场热度残留，开局未开播所以是 0。
    ------------------------------------------------------------------------ */
-function clampTier(t){t=Math.round(+t||0);return Math.max(0,Math.min(100,t))}
+/* 不取整：滑杆给的是整数，但 tierOfFollowers 反解出来的是 0.1 精度的小数档 */
+function clampTier(t){t=+t||0;return Math.max(0,Math.min(100,t))}
 function tierLabel(t){return t<20?'小透明':t<40?'小有关注':t<60?'稳定主播':t<80?'热门主播':t<95?'头部主播':'现象级'}
 function roundNice(n){n=Math.max(0,Math.round(+n||0));if(n>=100000)return Math.round(n/1000)*1000;if(n>=10000)return Math.round(n/100)*100;if(n>=1000)return Math.round(n/10)*10;return n}
 function streamScale(t){t=clampTier(t);var base=50*Math.pow(8,t/25),followers=base*(60-0.42*t),guards=followers*(0.0012+0.000038*t);
   /* 提督、总督减去门槛再除，小房两档干净归零；比值比草稿更保守（24:1 / 260:1） */
   return{tier:t,label:tierLabel(t),followers:roundNice(followers),base:roundNice(base),guards:roundNice(guards),
     admirals:Math.max(0,Math.floor((guards-40)/24)),governors:Math.max(0,Math.floor((guards-300)/260))}}
+/* 粉丝数 → 档位。七位已定稿主播存的是粉丝数（作者给的权威值），底盘热度和大航海
+   要能从它一致地推回来。曲线单调，扫 0–100 取最近的 0.1 档就够，比解析求逆好读。 */
+function tierOfFollowers(followers){var target=Math.max(0,+followers||0),best=0,gap=Infinity;
+  for(var t=0;t<=100;t+=0.1){var d=Math.abs(streamScale(t).followers-target);if(d<gap){gap=d;best=t}}
+  return Math.round(best*10)/10}
+function scaleOfFollowers(followers){return streamScale(tierOfFollowers(followers))}
 function bigNum(n){n=Math.max(0,Math.round(+n||0));return n>=10000?(Math.round(n/1000)/10).toFixed(1).replace(/\.0$/,'')+'万':n.toLocaleString('en-US')}
 function renderSteps(){document.querySelector('#steps').innerHTML=STEPS.map(function(step,i){var n=i+1;return '<button class="step-tab '+(state.step===n?'active ':'')+(state.step>n?'done ':'')+(skipStep(n)?'skipped':'')+'" data-step="'+n+'"><span>0'+n+'</span><b>'+step+'</b></button>'}).join('');document.querySelectorAll('.step-tab').forEach(function(b){b.onclick=function(){go(+b.dataset.step,true)}})}
 function homeCostText(h){return h&&h.cost||'费用待确认'}
@@ -110,8 +126,8 @@ function renderOshi(){var grid=document.querySelector('#oshi-grid');if(!grid)ret
       +'<span class="oshi-body">'
       +'<span class="oshi-top"><b>'+esc(o.name)+'</b><i>'+esc(o.medal)+'</i></span>'
       +'<span class="oshi-slot">'+esc(o.slot)+'</span>'
-      /* 七个人的体量用跟自定义主播同一根尺子标出来，玩家才知道"头部"和"周更"差多少 */
-      +'<span class="oshi-scale">'+esc(streamScale(o.tier).label)+' · 粉丝 '+bigNum(streamScale(o.tier).followers)+'</span>'
+      /* 粉丝数是存的，热度和大航海是推的——跟自定义主播同一条曲线 */
+      +'<span class="oshi-scale">'+esc(scaleOfFollowers(o.followers).label)+' · 粉丝 '+bigNum(o.followers)+' · 热度 '+bigNum(scaleOfFollowers(o.followers).base)+'</span>'
       +'<span class="oshi-blurb">'+esc(o.blurb)+'</span>'
       +'<span class="oshi-tags">'+o.tags.map(function(t){return '<em>'+esc(t)+'</em>'}).join('')+'</span>'
       +'<span class="oshi-gain">好感 +'+OSHI_FAVOR+' · 已关注 · '+esc(o.medal)+' Lv.'+OSHI_BADGE+'</span>'
@@ -129,7 +145,7 @@ function setWantCustom(on){state.wantCustom=!!on;
   var layout=document.querySelector('#stream-layout'),note=document.querySelector('#custom-skip-note');
   if(layout)layout.classList.toggle('hidden',!state.wantCustom);
   if(note)note.classList.toggle('hidden',state.wantCustom);
-  if(!state.wantCustom)state.profile=null;
+  if(!state.wantCustom)state.yaml='';
   renderSteps();updateBookPreview()}
 function guardText(s){var extra=[];if(s.admirals)extra.push('提督 '+s.admirals);if(s.governors)extra.push('总督 '+s.governors);
   return s.guards.toLocaleString('en-US')+(extra.length?'（+'+extra.join(' / ')+'）':'')}
@@ -152,47 +168,106 @@ function openMap(target){if(target==='player'||target==='work'){setOpeningTarget
 function handleMapPick(node){if(!node||!node.id)return;var knownHome=HOMES.find(function(h){return h.id===node.id});if(state.mapTarget==='player'){if(knownHome)return setHome(Object.assign({},knownHome,{name:node.name,fullName:node.fullName||knownHome.fullName,district:node.district||knownHome.district}));toast('请点击地图上的粉色住宅节点');return}if(state.mapTarget==='work'){var knownJob=JOBS.find(function(j){return j.node===node.id});if(knownJob)return setJob(knownJob);toast('请选择已加入开局岗位池的工作节点');return}if(state.mapTarget==='streamer'&&node.archetype==='living')return setHome({id:node.id,name:node.name,fullName:node.fullName||node.district+' / '+node.name,district:node.district,tenure:'租住',note:node.draw||'从地图选择的居住地点',rent:0,deposit:0,cost:'费用由开局后设定'},'streamer');toast('请选择住所类地点')}
 function updateArt(src,type){state.art={src,type};const box=$('#art-preview'),img=$('#art-img');if(src){img.src=src;box.classList.add('has')}else{img.removeAttribute('src');box.classList.remove('has')}}
 function streamerInput(){const s=streamScale($('#streamer-tier').value);return{name:value('#streamer-name'),handle:value('#streamer-handle'),age:+value('#streamer-age')||23,home:state.streamerHome?.fullName||'',categories:[...state.categories],scale:s,hours:value('#streamer-hours'),tone:value('#streamer-tone'),seed:value('#streamer-seed'),medal:value('#streamer-medal')}}
-function localProfile(d){const focus=d.categories.join('、'),seed=d.seed||'她有完整的工作与私人生活，不会只围绕某个观众行动。';return{
-'一句话定位':`${d.handle||d.name}是一名以${focus}为主的主播，体量属于${d.scale.label}（粉丝约${bigNum(d.scale.followers)}、舰长约${d.scale.guards}），镜头前有稳定辨识度，线下仍过着具体而普通的城市生活。`,
-'外貌':'外貌以玩家提供的立绘为准；日常穿着重视舒适与镜头效果，离开直播环境后会明显放松。',
-'公开形象':`直播中保持清晰的内容节奏，擅长把零散话题接成自然的节目效果。${d.tone?`整体气质偏${d.tone}。`:''}`,
-'真实性格':'有自己的判断、情绪和生活安排。对熟人会逐渐放松，对越界要求会直接拉开距离。',
-'说话方式':'语气自然，回应会结合正在进行的内容；不会因为单条弹幕就停下整场直播。',
-'直播风格':`常用内容为${focus}，常用直播时间${d.hours||'不固定'}。热度与观众规模会影响弹幕密度和被注意到的概率。`,
-'兴趣与擅长':`围绕${focus}积累了稳定经验，也会在直播外保留不公开的私人爱好。`,
-'生活习惯':`${d.home?`目前居住在${d.home}。`:''}开播前会做基础准备，下播后通常先处理设备、消息和第二天安排。`,
-'喜恶与雷区':'重视个人隐私与现实边界；不喜欢观众以打赏为理由干涉私人生活。',
-'个人经历':seed,
-'对观众的态度':'会记住长期出现、发言有辨识度的观众，但公开直播中仍需平衡整个直播间。',
-'线上线下差异':'镜头前更善于维持情绪和节奏；线下表达更直接，也有疲惫、走神和不想社交的时候。'}}function renderProfile(){const d=streamerInput();$('#generated').classList.toggle('on',!!state.profile);if(!state.profile)return;$('#profile-grid').innerHTML=PROFILE_FIELDS.map(k=>`<div class="field ${['一句话定位','个人经历'].includes(k)?'wide':''}"><label>${k}</label><textarea class="control" data-profile="${k}">${esc(state.profile[k]||'')}</textarea></div>`).join('');document.querySelectorAll('[data-profile]').forEach(t=>t.oninput=()=>{state.profile[t.dataset.profile]=t.value;updateBookPreview()});updateBookPreview()}
-function requestHostGeneration(payload){if(window.parent===window)return Promise.resolve(null);return new Promise(resolve=>{const id='profile-'+Date.now(),timer=setTimeout(()=>{removeEventListener('message',on);resolve(null)},12000);function on(e){const d=e.data;if(d?.channel==='linjiang-opening'&&d.kind==='response'&&d.id===id){clearTimeout(timer);removeEventListener('message',on);resolve(d.ok?d.payload?.profile:null)}}addEventListener('message',on);parent.postMessage({channel:'linjiang-opening',kind:'request',id,action:'generateStreamerProfile',payload},'*')})}
-async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){toast('先填写主播姓名和网名');return}const btn=$('#generate-profile'),status=$('#generate-status');btn.disabled=true;btn.textContent='生成中…';status.textContent='\u6b63\u5728\u751f\u6210\u6863\u6848';let external=null;try{external=await requestHostGeneration(d)}catch(_){}state.profile=external||localProfile(d);setTimeout(()=>{renderProfile();btn.disabled=false;btn.textContent='重新生成人设档案';status.textContent=external?'\u5df2\u751f\u6210':'\u5df2\u751f\u6210'},450)}
-function worldbookText(){if(!state.wantCustom||!state.profile)return'';const d=streamerInput();return `<自定义主播：${d.name}／${d.handle}>\n\n基础资料:\n  姓名: ${d.name}\n  主播网名: ${d.handle}\n  年龄: ${d.age}\n  住所: ${d.home||'未设置'}\n  直播分类: [${d.categories.join(', ')}]\n  粉丝牌子名: ${d.medal||d.handle||d.name}\n  体量: ${d.scale.label}\n  粉丝数: ${d.scale.followers}\n  常态热度: ${d.scale.base}\n  大航海: 舰长 ${d.scale.guards} / 提督 ${d.scale.admirals} / 总督 ${d.scale.governors}\n  常用直播时间: ${d.hours||'不固定'}\n\n人设档案:\n${PROFILE_FIELDS.map(k=>`  ${k}: ${state.profile[k]||''}`).join('\n')}\n\n约束:\n  - 她拥有独立生活、工作、人际关系和判断，不围绕玩家单独存在\n  - 打赏、关注和舰长身份不直接换算为私人好感\n  - 当前所在位置、直播开关、好感和生理状态以MVU动态数据为准\n\n</自定义主播：${d.name}／${d.handle}>`}
-function oshiWorldbookText(){var picked=oshiPicked();if(!picked.length)return'';
-  return '<玩家的我推>\n\n'
-    +'玩家开局就已经是下列主播的老观众。这不是恋爱关系，只是"看了很久、脸熟、有牌子"的粉丝身份。\n\n'
-    +picked.map(function(o){return `${o.name}:\n  牌子: ${o.medal} ${OSHI_BADGE}级（累计打赏约 ￥${OSHI_TIPPED.toLocaleString('en-US')}）\n  关注: 已关注，开播会收到提醒\n  熟悉度: 好感 +${OSHI_FAVOR}，属于她认得出ID的常驻观众`}).join('\n\n')
-    +'\n\n约束:\n'
-    +'  - 牌子等级只说明玩家花过多少钱、看过多久，不代表私下认识或有过线下接触\n'
-    +'  - 她仍然要平衡整个直播间，不会因为玩家有牌子就单独偏心，详见<真实直播规则>\n'
-    +'  - 未列出的主播玩家还没进过她的直播间，不要写成旧识\n'
-    +'  - 关注、牌子等级、累计打赏和好感的当前值以MVU动态数据为准\n\n'
-    +'</玩家的我推>'}
-function updateBookPreview(){const d=streamerInput(),custom=worldbookText(),oshi=oshiWorldbookText();
-  const parts=[oshi,custom].filter(Boolean);
-  const tag=custom?`自定义主播｜${d.name}／${d.handle}`+(oshi?' + 我推':''):(oshi?'玩家的我推':'尚未生成');
-  $('#book-name').textContent=tag;
-  $('#book-content').textContent=parts.join('\n\n\n')||'挑几个我推、或者追加一名自定义主播，这里会显示要写进世界书的正文。'}
+/* 模型不可用时的兜底草稿。格式和字段跟 世界书/红蔷薇 那几条一致（也就是
+   参考/底部状态栏.html 的 角色详情 YAML），只是内容是模板化的、等玩家自己改。
+   「直播设定」只放质性的东西：网名、分类、常用时间、直播风格、对观众的态度。
+   粉丝数、热度、大航海、牌子名不写在这里——那些进 MVU。 */
+function yamlLine(text){return String(text==null?'':text).replace(/\r?\n/g,' ').trim()}
+function localYaml(d){const focus=d.categories.join('、'),s=d.scale;
+  return ['---',
+'角色详情:',
+'  '+yamlLine(d.name)+':',
+'    线上常用名/主播网名: '+yamlLine(d.handle||d.name),
+'    gender: 女',
+'    age: '+d.age+'岁',
+'    identity:',
+'      public: 临江市的'+focus+'类主播',
+'      hidden: 待补充——写一条只有她自己知道的处境或动机',
+'    current_state:',
+'      - '+(d.home?('居住在'+yamlLine(d.home)+'，开播和日常都在这里'):'住处待定'),
+'      - 常用直播时间 '+yamlLine(d.hours||'不固定')+'，内容以'+focus+'为主',
+'      - '+yamlLine(d.seed||'有完整的工作与私人生活，不会只围绕某个观众行动'),
+'',
+'    直播设定:',
+'      平台网名: '+yamlLine(d.handle||d.name),
+'      直播分类: ['+d.categories.join(', ')+']',
+'      常用直播时间: '+yamlLine(d.hours||'不固定'),
+'      直播风格: 常用内容为'+focus+'；节奏由她自己控，不追着单条弹幕走',
+'      对观众的态度: 记得住长期发言的ID，但公开场合一律平等对待，不给单人特殊待遇',
+'      线上线下差异: 镜头前更善于维持情绪和节奏；线下表达更直接，也有疲惫和不想社交的时候',
+'',
+'    social_connection:',
+'      观众:',
+'        relationship: 待补充——她把直播间当成什么，观众大致是哪一类人',
+'',
+'    appearance:',
+'      overview: 外貌以玩家提供的立绘为准，这里补充身形、发色瞳色和辨识特征',
+'      attire:',
+'        daily: 待补充',
+'        直播: 待补充',
+'      feature:',
+'        - 待补充——一到三条一眼能记住的特征',
+'',
+'    对白风格:',
+'      描述: '+yamlLine(d.tone?('整体气质偏'+d.tone+'；'):'')+'语气自然，回应会接住上一句的内容，不是各说各话',
+'      禁止写法:',
+'        - 禁止写成随时随地照顾玩家情绪的角色：她开播是工作，下播有自己的事',
+'        - 禁止把打赏、关注或牌子等级写成能换取私人关系',
+'',
+'    内部描述:',
+'      爱好:',
+'        - 待补充',
+'      个人特长: 待补充',
+'      本职: '+focus+'类主播'+(d.home?'':'（另有本职待补充）'),
+'',
+'    角色细节:',
+'      日常: 开播前做基础准备；下播后先处理设备、消息和第二天的安排',
+'      社交: 对熟人放松得慢，对越界要求会直接把话说明白',
+'      复杂反差: 待补充',
+'',
+'    行为指导:',
+'      行为红线禁令:',
+'        - 不把她写成只围绕玩家存在的人',
+'        - 当前所在位置、直播开关、好感和生理状态一律以MVU动态数据为准'].join('\n')}
+function renderProfile(){var on=!!(state.wantCustom&&state.yaml);$('#generated').classList.toggle('on',on);
+  if(on){var box=$('#profile-yaml');if(box.value!==state.yaml)box.value=state.yaml;
+    $('#generated-meta').textContent='ENTRY · 角色详情：'+(value('#streamer-name')||'—')}
+  updateBookPreview()}
+function requestHostGeneration(payload){if(window.parent===window)return Promise.resolve(null);return new Promise(resolve=>{const id='profile-'+Date.now(),timer=setTimeout(()=>{removeEventListener('message',on);resolve(null)},12000);function on(e){const d=e.data;if(d?.channel==='linjiang-opening'&&d.kind==='response'&&d.id===id){clearTimeout(timer);removeEventListener('message',on);resolve(d.ok?d.payload?.yaml:null)}}addEventListener('message',on);parent.postMessage({channel:'linjiang-opening',kind:'request',id,action:'generateStreamerProfile',payload},'*')})}
+async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){toast('先填写主播姓名和网名');return}
+  const btn=$('#generate-profile'),status=$('#generate-status');btn.disabled=true;btn.textContent='生成中…';status.textContent='正在用酒馆当前模型生成';
+  let external=null;try{external=await requestHostGeneration(d)}catch(_){}
+  state.yaml=external||localYaml(d);
+  setTimeout(()=>{renderProfile();btn.disabled=false;btn.textContent='重新生成';status.textContent=external?'已由酒馆模型生成，可直接改':'模型不可用，这是本地模板，需要自己补'},450)}
+/* 世界书正文就是那段 YAML 本身，不再套一层我自己发明的 <自定义主播：…> 外壳：
+   格式得跟 世界书/红蔷薇 那几条一致，才能被同一套读法认出来。 */
+function worldbookText(){return state.wantCustom&&state.yaml?String(state.yaml).trim():''}
+/* 我推那三样（关注／牌子等级／好感）只写 MVU，不写世界书。
+   它们是会变的运行时数值：牌子等级由 累计打赏 重算、好感随剧情涨落。抄进世界书那份
+   不会跟着变，第一次打赏之后就开始说谎，而且同一份数据两个出处，AI 不知道该信哪个。
+   要给 AI 交代"有牌子不等于旧识"这类约束，该写在 世界书/真实直播规则 里，一次写死，
+   不是每次开局生成一条。 */
+function updateBookPreview(){const d=streamerInput(),custom=worldbookText();
+  $('#book-name').textContent=custom?'角色详情：'+(d.name||'—'):'未追加自定义主播';
+  $('#book-content').textContent=custom||'我推的关注、牌子和好感直接写进 MVU，不进世界书。\n只有追加自定义主播时，这里才会显示要写进世界书的 角色详情 YAML。'}
 function syncInputs(){const n=value('#streamer-name'),h=value('#streamer-handle');$('#art-name').textContent=n||'新主播';$('#art-handle').textContent=(h||'STREAMER').toUpperCase();$('#art-monogram').textContent=(n||h||'S').slice(0,1)}
-function validate(step){if(step===1&&!value('#player-name')){toast('请填写玩家姓名或常用称呼');return false}if(step===2&&!state.home){toast('请先从地图选择初始住所');return false}if(step===4&&state.wantCustom&&!state.profile&&(value('#streamer-name')||value('#streamer-handle'))){toast('自定义主播还没生成人设档案；不想加就切到「跳过」');return false}return true}
-function renderConfirm(){var player=value('#player-name')||'未命名玩家',handle=value('#player-handle')||'未设置网名',job=state.job,home=state.home;document.querySelector('#confirm-player').textContent=player;document.querySelector('#confirm-lines').innerHTML=[['玩家档案',player+' / '+state.gender+' / '+(value('#player-age')||24)+'岁'],['直播网名',handle],['初始住所',home?home.fullName+' / '+homeCostText(home):'未选择'],['初始工作',job.name],['收入与时间',job.monthly?'月薪约 RMB '+job.monthly.toLocaleString()+' / '+job.hours:'无固定收入'],['通勤估算',job.monthly?jobCommuteText(job):'无需通勤'],['我推的主播',oshiPicked().length?oshiPicked().map(function(o){return o.name+'（'+o.medal+' Lv.'+OSHI_BADGE+'）'}).join('、'):'一个都没选'],['开局粉丝身份',oshiPicked().length?'已关注 '+oshiPicked().length+' 人 / 各 好感 +'+OSHI_FAVOR+' / 累计打赏 ￥'+OSHI_TIPPED.toLocaleString('en-US'):'还不是任何人的粉丝'],['自定义主播',state.wantCustom&&state.profile?value('#streamer-name')+' / '+value('#streamer-handle')+' / '+streamerInput().scale.label+' / 粉丝 '+bigNum(streamerInput().scale.followers):'未追加']].map(function(row){return '<div class="confirm-line"><span>'+row[0]+'</span><b>'+esc(row[1])+'</b></div>'}).join('');updateBookPreview()}
+function validate(step){if(step===1&&!value('#player-name')){toast('请填写玩家姓名或常用称呼');return false}if(step===2&&!state.home){toast('请先从地图选择初始住所');return false}if(step===4&&state.wantCustom&&!state.yaml&&(value('#streamer-name')||value('#streamer-handle'))){toast('自定义主播还没生成人设档案；不想加就切到「跳过」');return false}return true}
+function renderConfirm(){var player=value('#player-name')||'未命名玩家',handle=value('#player-handle')||'未设置网名',job=state.job,home=state.home;document.querySelector('#confirm-player').textContent=player;document.querySelector('#confirm-lines').innerHTML=[['玩家档案',player+' / '+state.gender+' / '+(value('#player-age')||24)+'岁'],['直播网名',handle],['初始住所',home?home.fullName+' / '+homeCostText(home):'未选择'],['初始工作',job.name],['收入与时间',job.monthly?'月薪约 RMB '+job.monthly.toLocaleString()+' / '+job.hours:'无固定收入'],['通勤估算',job.monthly?jobCommuteText(job):'无需通勤'],['我推的主播',oshiPicked().length?oshiPicked().map(function(o){return o.name+'（'+o.medal+' Lv.'+OSHI_BADGE+'）'}).join('、'):'一个都没选'],['开局粉丝身份',oshiPicked().length?'已关注 '+oshiPicked().length+' 人 / 各 好感 +'+OSHI_FAVOR+' / 累计打赏 ￥'+OSHI_TIPPED.toLocaleString('en-US'):'还不是任何人的粉丝'],['自定义主播',state.wantCustom&&state.yaml?value('#streamer-name')+' / '+value('#streamer-handle')+' / '+streamerInput().scale.label+' / 粉丝 '+bigNum(streamerInput().scale.followers):'未追加']].map(function(row){return '<div class="confirm-line"><span>'+row[0]+'</span><b>'+esc(row[1])+'</b></div>'}).join('');updateBookPreview()}
 /* 第 4 步（自定义主播）是可选的：切到「跳过」时前后翻页都直接越过它。 */
 function skipStep(step){return step===4&&!state.wantCustom}
 function nextStep(from){var s=from+1;while(s<LAST_STEP&&skipStep(s))s+=1;return Math.min(LAST_STEP,s)}
 function prevStep(from){var s=from-1;while(s>1&&skipStep(s))s-=1;return Math.max(1,s)}
 /* direct=true 是"玩家点了步骤条上那一格"：这时候不许再跳过，
    否则第 4 步被跳过之后，那个「要追加」的开关就永远够不着了。 */
-function go(step,direct){if(step>state.step&&!validate(state.step))return;step=Math.max(1,Math.min(LAST_STEP,step));if(!direct&&skipStep(step))step=step>state.step?nextStep(step):prevStep(step);state.step=step;document.body.classList.toggle('life-map-step',state.step===2);document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'生成开局配置':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2)setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80);scrollTo({top:0,behavior:'smooth'})}
+function go(step,direct){if(step>state.step&&!validate(state.step))return;step=Math.max(1,Math.min(LAST_STEP,step));if(!direct&&skipStep(step))step=step>state.step?nextStep(step):prevStep(step);state.step=step;document.body.classList.toggle('life-map-step',state.step===2);
+  /* 02/03/04 三步内容最多，之前在 1440×900 上分别要多滚 524 / 676 / 948 px。
+     这个类把外框（header / steps / footer / 留白）压薄、把主体改成横排，
+     让这三步在常见 PC 屏幕上直接装下，具体规则见 opening.css 末尾那一节。 */
+  document.body.classList.toggle('compact-step',state.step>=2);
+  /* 05 跟 02 一样要"撑满一屏"：左边档案、右边世界书正文各自内部滚，
+     而不是让整页跟着最长的那一列长。 */
+  document.body.classList.toggle('confirm-step',state.step===LAST_STEP);
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'生成开局配置':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2)setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80);scrollTo({top:0,behavior:'smooth'})}
 function emptyExperience(){return{近期性经验次数:0,露出经验:0,自慰经验:0,排泄调教经验:0,道具调教经验:0,凌辱调教经验:0,隐奸经验:0,青奸经验:0,睡奸经验:0,催眠奸经验:0,情趣扮演经验:0,盗摄经验:0,性直播经验:0}}
 function emptyDevelopment(){return{口腔:{档位:0,评语:''},胸:{档位:0,评语:''},小穴:{档位:0,评语:''},肛门:{档位:0,评语:''}}}
 function commuteForCurrentJob(){return state.job&&state.job.node?quoteFor(state.job):null}
@@ -200,23 +275,46 @@ function commuteForCurrentJob(){return state.job&&state.job.node?quoteFor(state.
    少写的键会被补默认值，所以这里一次写全。牌子等级由 累计打赏 决定（见 OSHI_TIPPED），
    牌子档位是"大航海"那条线、跟等级无关，开局不给。 */
 function fanRecord(){return{'关注':true,'累计打赏':OSHI_TIPPED,'牌子等级':OSHI_BADGE,'牌子档位':'无','牌子剩余天数':0,'房管':false,'禁言中':false,'禁言剩余天数':0}}
-function openingPayload(){var d=streamerInput(),pname=value('#player-name'),job=state.job,commute=commuteForCurrentJob(),picked=oshiPicked(),hasCustom=!!(state.wantCustom&&state.profile),mvu={'世界信息':{'年历':'2026年4月1日','时间':{'时钟':'08:00','时段':'朝'},'位置':{'区域':state.home.fullName,'场所':'家中'}},'玩家信息':{'档案':{'姓名':pname,'性别':state.gender,'年龄':+value('#player-age')||24,'网名':value('#player-handle'),'补充设定':value('#player-note')},'体力':100,'金钱':20000,'工作':{'职业':job.place?job.name:null,'地点':job.place,'日收入':job.daily,'工作时间':job.place?job.hours:null,'今日已上班':false,'通勤':commute?{'方式':'公交优先','分钟':commute.min,'距离公里':commute.km,'费用':commute.yuan}:null},'居住地':state.home.fullName,'房产':{[state.home.name]:{'名称':state.home.name,'区域':state.home.fullName,'产权':state.home.tenure,'描述':state.home.note,'月租':state.home.rent||0,'押金':state.home.deposit||0,'售价':state.home.sale||0,'费用说明':homeCostText(state.home)}},'粉丝身份':{}}};
+function openingPayload(){var d=streamerInput(),pname=value('#player-name'),job=state.job,commute=commuteForCurrentJob(),picked=oshiPicked(),hasCustom=!!(state.wantCustom&&state.yaml),mvu={'世界信息':{'年历':'2026年4月1日','时间':{'时钟':'08:00','时段':'朝'},'位置':{'区域':state.home.fullName,'场所':'家中'}},'玩家信息':{'档案':{'姓名':pname,'性别':state.gender,'年龄':+value('#player-age')||24,'网名':value('#player-handle'),'补充设定':value('#player-note')},'体力':100,'金钱':20000,'工作':{'职业':job.place?job.name:null,'地点':job.place,'日收入':job.daily,'工作时间':job.place?job.hours:null,'今日已上班':false,'通勤':commute?{'方式':'公交优先','分钟':commute.min,'距离公里':commute.km,'费用':commute.yuan}:null},'居住地':state.home.fullName,'房产':{[state.home.name]:{'名称':state.home.name,'区域':state.home.fullName,'产权':state.home.tenure,'描述':state.home.note,'月租':state.home.rent||0,'押金':state.home.deposit||0,'售价':state.home.sale||0,'费用说明':homeCostText(state.home)}},'粉丝身份':{}}};
   var girls={};
   /* 固定主播：只改动开局要动的两处——好感和粉丝身份。其余字段留给 变量初始化。
      好感是绝对值，不是增量：初始 80 + OSHI_FAVOR。 */
   picked.forEach(function(o){mvu['玩家信息']['粉丝身份'][o.name]=fanRecord();girls[o.name]={'羁绊':{'好感度':80+OSHI_FAVOR}}});
   if(hasCustom){
-    /* 直播间没有人数，只有热度。粉丝数是主播的公开事实，AI 该知道，所以跟
-       开播/标题/热度一起放在 对象信息.<名>.直播；开局未开播，热度写 0。 */
-    girls[d.name]={'羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home,'场所':'家中'},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':[]},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};
-    /* 底盘热度、本场虚火、高能榜、大航海是后台账，只进 系统配置.直播间.<名>，
-       不摊给模型。键名跟 正文美化.html 的 lrRoomCfg 读的是同一处。 */
-    mvu['系统配置']={'直播间':{[d.name]:{'牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}}}};
+    /* 对象信息.<名> 要按 mvuzod.js 的 girlSchema 一次写全六块（羁绊/位置/性经历/
+       开发度/生理/直播），跟 变量初始化 给那七位的形状一致——少写的键 Schema 会补默认值，
+       但那样 HUD 和状态栏读到的就是一堆 0 和空串，看不出是"新人"还是"没初始化"。
+       只有开发度的评语留空：那是要按角色写的文字，交给后续剧情或世界书。
+
+       直播间没有人数，只有热度。粉丝数是公开事实、AI 该知道，所以跟 开播/标题/热度
+       一起放在 直播 里；开局未开播，热度写 0。 */
+    girls[d.name]={
+      '羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},
+      // 场所写"家中"，所以私密度按自宅给 5；之后由辅助计算脚本按区域和场所重算
+      '位置':{'区域':d.home||'','场所':'家中','私密度':5},
+      '性经历':emptyExperience(),
+      '开发度':emptyDevelopment(),
+      '生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':[]},
+      '直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}
+    };
+    /* 档期、牌子名、底盘热度、大航海是后台账，只进 系统配置.直播间.<名>，不摊给模型。
+       种子、还手预算、连送不在这里给：玩家第一次进这间房时由辅助计算脚本的
+       seedRoom 生成，那时候才知道要抽哪几个 NPC。 */
+    mvu['系统配置']={'直播间':{[d.name]:{
+      '档期':d.hours||'不固定',
+      '牌子名':d.medal||d.handle||d.name,
+      '体量档位':d.scale.tier,
+      '底盘热度':d.scale.base,
+      '本场热度':0,
+      '高能榜':[],
+      '大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}
+    }}};
   }
   if(Object.keys(girls).length)mvu['对象信息']=girls;
   var books=[];
-  if(picked.length)books.push({name:'玩家的我推',keys:picked.map(function(o){return o.name}).concat(['我推','牌子','粉丝身份']),content:oshiWorldbookText()});
-  if(hasCustom)books.push({name:'自定义主播 / '+d.name+' / '+d.handle,keys:[d.name,d.handle],content:worldbookText()});
+  /* sourceName 是 upsert 的依据：开局.html 用它拼「角色详情：<名>」并在世界书里查重，
+     所以给的是主播本名，不是带斜杠的展示标题。 */
+  if(hasCustom)books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:worldbookText()});
   return{mvu:mvu,oshi:picked.map(function(o){return{name:o.name,medal:o.medal,badge:OSHI_BADGE,favor:80+OSHI_FAVOR,tipped:OSHI_TIPPED}}),worldbook:books[books.length-1]||null,worldbooks:books,ui:hasCustom?{name:d.name,handle:d.handle,art:state.art}:null}}
 function finish(){const payload=openingPayload();if(window.parent!==window)parent.postMessage({channel:'linjiang-opening',kind:'event',type:'commitPreview',payload},'*');navigator.clipboard?.writeText(JSON.stringify(payload,null,2)).catch(()=>{});console.log('[临江开局配置]',payload);toast('开局配置已生成，并已尝试复制到剪贴板')}
 renderSteps();renderMapInspector();renderOshi();renderTags();setWantCustom(false);renderScale();go(1);var initialMap=document.querySelector('#opening-map-iframe');if(initialMap&&!initialMap.getAttribute('src')){initialMap.src=MAP_URL+'&target=home';initialMap.addEventListener('load',function(){setTimeout(bindOpeningFrame,200)})}
@@ -228,6 +326,7 @@ $('#map-iframe').addEventListener('load',()=>setTimeout(bindFrame,350));document
 addEventListener('message',e=>{const d=e.data;if(d?.channel==='linjiang-map'&&d.type==='pick')handleMapPick(d.payload)});
 $('#streamer-tier').oninput=renderScale;
 $('#custom-toggle').onclick=e=>{const b=e.target.closest('button');if(!b)return;setWantCustom(b.dataset.value==='on')};
+$('#profile-yaml').addEventListener('input',e=>{state.yaml=e.target.value;updateBookPreview()});
 ['#streamer-name','#streamer-handle'].forEach(id=>$(id).addEventListener('input',syncInputs));
 $('#apply-art-url').onclick=()=>{const u=value('#art-url');if(!u)return toast('先填写网络立绘链接');updateArt(u,'url')};
 $('#art-file').onchange=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>updateArt(r.result,'upload-preview');r.readAsDataURL(f)};

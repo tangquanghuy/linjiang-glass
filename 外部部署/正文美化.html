@@ -5970,42 +5970,36 @@
     };
 
     // ==================== 直播间 <LiveRoom> ====================
-    const LR_HOST_ALIAS = { '永雏塔菲': '塔菲', '沙花叉克萝伊': '沙花叉', '梦见璃亚梦': '璃亚梦', '伊贺栖寅': '斯黛拉', '斯黛拉（伊贺栖寅）': '斯黛拉' };
-    const LR_HOSTS = {
-      '东雪莲': { cover: '东雪莲', slot: '深夜杂谈 21:30–00:30', pop: 4200, medal: '棺人痴' },
-      '塔菲': { cover: '塔菲', slot: '晚间主档 20:00–23:30', pop: 18240, medal: '雏草姬' },
-      '沙花叉': { cover: '沙花叉', slot: '历史常用晚间档 21:00–00:30', pop: 3600, medal: '饲养员' },
-      '时雨羽衣': { cover: '时雨羽衣', slot: '周更型 22:00–00:30', pop: 1200, medal: '雨户' },
-      '红蔷薇': { cover: '红蔷薇', slot: '黄昏音乐台 19:00–22:00', pop: 2800, medal: '亲爱的' },
-      '斯黛拉': { cover: '斯黛拉', slot: '傍晚电台 18:30–21:30', pop: 3100, medal: '小猪' },
-      '璃亚梦': { cover: '梦见璃亚梦', slot: '深夜互动 23:00–02:00', pop: 6310, medal: '病友' }
-    };
+    /* 直播间的表和算法都在 外部部署/辅助计算脚本.js（parent.LinjiangAux）：
+       礼物价格与人气点数、大航海档位、数量档位、牌子等级公式、名字折叠、以及一切写入。
+       本文件同源，直接调，不用 postMessage。
+       拿不到脚本时退化成只读展示——按钮会提示"辅助计算脚本没跑起来"，而不是自己算一套。 */
+    function lrAux() {
+      try {
+        const win = window.parent || window;
+        const api = win.LinjiangAux || window.LinjiangAux;
+        return (api && api.roomAction) ? api : null;
+      } catch (e) { return null; }
+    }
+    const LR_MENU_FALLBACK = { 礼物: [], 大航海: [], 数量档位: [1, 10, 66, 233], 醒目留言档位: [30, 50, 100], 资源域名: 'https://anchor.bolt.qzz.io' };
+    function lrMenu() {
+      const aux = lrAux();
+      if (!aux) return LR_MENU_FALLBACK;
+      try { return aux.roomMenu() || LR_MENU_FALLBACK; } catch (e) { return LR_MENU_FALLBACK; }
+    }
+    /* 这里原来有一张 LR_HOSTS：每个主播的封面文件名、档期、人气、牌子名。已经删掉——
+       本文件只负责展示，不存表也不存数值。现在：
+         档期 / 牌子名 / 底盘热度 / 大航海  → 读 MVU 的 系统配置.直播间.<名>
+         热度                              → 读 MVU 的 对象信息.<名>.直播.热度
+         封面                              → 有插画的角色随机取一张 SFW 通用图；
+                                             自定义主播取开局页存进 localStorage 的那张
+       主播名单也不再由这张表决定，改成看 对象信息 里有谁。 */
     const LR_TIER = { jian: '舰长', ti: '提督', du: '总督' };
     const LR_TIER_KEY = { '舰长': 'jian', '提督': 'ti', '总督': 'du' };
     const LR_TYPE_KEY = { '普通': 'chat', '舰长': 'chat', '提督': 'chat', '总督': 'chat', '礼物': 'gift', '醒目留言': 'sc', '进入': 'enter', '系统': 'sys' };
-    const LR_QTY_STEPS = [1, 10, 66, 233];
-    const LR_SC_STEPS = [30, 50, 100];
-    const LR_ART_HOST = 'https://anchor.bolt.qzz.io';
-    const LR_GIFT_FILE = {
-      '小心心': 'gift-heart.png', '辣条': 'gift-snack.png', '干杯': 'gift-cheers.png',
-      '心愿盲盒': 'gift-blindbox.png', '情书': 'gift-letter.png', '小飞机': 'gift-plane.png',
-      '摩天大楼': 'gift-tower.png', '火箭': 'gift-rocket.png',
-      '舰长': 'gift-guard-1.png', '提督': 'gift-guard-2.png', '总督': 'gift-guard-3.png'
-    };
-    const LR_GIFTS = [
-      { name: '小心心', price: 0 }, { name: '辣条', price: 1 }, { name: '干杯', price: 20 },
-      { name: '心愿盲盒', price: 50 }, { name: '情书', price: 100 }, { name: '小飞机', price: 200 },
-      { name: '摩天大楼', price: 520 }, { name: '火箭', price: 1288 }
-    ];
-    const LR_GUARD_BUY = [
-      { name: '舰长', price: 138, tier: 'jian', days: 30 },
-      { name: '提督', price: 1998, tier: 'ti', days: 30 },
-      { name: '总督', price: 19998, tier: 'du', days: 30 }
-    ];
-    const LR_POP_PTS = {
-      '小心心': 2, '辣条': 8, '干杯': 70, '心愿盲盒': 150, '情书': 400,
-      '小飞机': 900, '摩天大楼': 2200, '火箭': 8000, '舰长': 500, '提督': 9000, '总督': 40000
-    };
+    /* 这里原来有六张表：礼物价格、人气点数、礼物图标、大航海档位、数量档位、醒目留言档位。
+       全部搬到 辅助计算脚本.js，改从 lrMenu() 取。同一件礼物的价格/点数/图标原来分在
+       三张表里，现在是一行。 */
     const LR_DEMO = `主播: 塔菲
 主播说: 辛苦了。今晚先把加班那条醒目留言念了。
 弹幕:
@@ -6018,22 +6012,24 @@
 - 类型: 进入 名字: 湖滨卡座
 - 类型: 系统 内容: 匿名棺 已被禁言`;
 
+    /* 名字折叠（永雏塔菲→塔菲）也归辅助脚本，跟 mvuzod.js 的 GIRL_NAME_ALIAS 同一份。
+       脚本没跑起来时原样返回，不在本文件里再存一张别名表。 */
     function lrCanonHost(name) {
+      const aux = lrAux();
       const key = String(name || '').trim();
-      return LR_HOST_ALIAS[key] || key;
+      if (!aux || !aux.canonName) return key;
+      try { return aux.canonName(key) || key; } catch (e) { return key; }
     }
     function lrArt(folder, file) {
-      return LR_ART_HOST + '/' + encodeURIComponent(folder) + '/' + encodeURIComponent(file) + '.webp';
+      return lrMenu().资源域名 + '/' + encodeURIComponent(folder) + '/' + encodeURIComponent(file) + '.webp';
+    }
+    function lrGiftItem(name) {
+      const menu = lrMenu();
+      return menu.礼物.find((g) => g.name === name) || menu.大航海.find((g) => g.name === name) || null;
     }
     function lrGiftSrc(name) {
-      const file = LR_GIFT_FILE[name];
-      if (!file) return '';
-      return '../dist/assets/gifts/' + file;
-    }
-    function lrGiftCdn(name) {
-      const file = LR_GIFT_FILE[name];
-      if (!file) return '';
-      return LR_ART_HOST + '/' + encodeURIComponent('礼物') + '/' + file;
+      const item = lrGiftItem(name);
+      return item ? item.图标 : '';
     }
     function lrEsc(s) { return escapeHtmlText(s); }
     function lrAttr(s) { return escapeHtmlAttr(s); }
@@ -6045,18 +6041,9 @@
       if (x >= 1000) return String(Math.round(x / 100) * 100);
       return String(x);
     }
-    function lrRoundViewers(n) {
-      const x = Math.max(0, Math.floor(Number(n) || 0));
-      if (x >= 10000) return Math.round(x / 1000) * 1000;
-      if (x >= 100) return Math.round(x / 100) * 100;
-      return x;
-    }
-    function lrBadgeLevel(tipped) {
-      const x = Math.max(0, Number(tipped) || 0);
-      if (x <= 0) return 0;
-      if (x >= 200000) return 20;
-      return Math.min(20, Math.floor(20 * Math.pow(x / 200000, 1 / 3.5)));
-    }
+    /* 原来这里有 lrRoundViewers 和 lrBadgeLevel 两个算法，跟 辅助计算脚本.js 里的
+       roundNice / badgeLevel 是同一段公式写了两遍。已删——牌子等级现在从
+       roomView() 的快照里读，取整由脚本在写回时负责。 */
     function lrParseNum(v) {
       const n = Number(String(v == null ? '' : v).replace(/,/g, ''));
       return Number.isFinite(n) ? n : 0;
@@ -6077,17 +6064,49 @@
     function lrPlayer(stat) { return (stat && stat.玩家信息) || {}; }
     function lrGirl(stat, name) { return ((stat && stat.对象信息) || {})[name] || {}; }
     function lrFan(stat, name) { return (lrPlayer(stat).粉丝身份 || {})[name] || {}; }
+    /* 直播间封面。
+       有插画的角色（IMAGE_LISTS.SFW 里有条目）随机取一张「通用N」——SFW 索引用的是短名，
+       所以不需要那个 璃亚梦→梦见璃亚梦 的文件名映射了。
+       自定义主播没有插画，取开局页写进 localStorage 的封面（键沿用自定义角色那套
+       custom_char_cover_<名>），再退到头像。图片地址一律不进 MVU，太占地方。 */
+    const LR_COVER_PREFIX = 'custom_char_cover_';
+    function lrPickSfwCover(host) {
+      const entry = findImageListEntry('SFW', host, '通用');
+      if (!entry || !entry.numbers.length) return '';
+      const n = entry.numbers[Math.floor(Math.random() * entry.numbers.length)];
+      return lrMenu().资源域名 + '/SFW/' + encodeURIComponent(entry.characterKey) + '/'
+        + encodeURIComponent(entry.sceneKey + n) + '.webp';
+    }
+    function lrCoverSrc(host) {
+      const sfw = lrPickSfwCover(host);
+      if (sfw) return sfw;
+      try {
+        const saved = localStorage.getItem(LR_COVER_PREFIX + host);
+        if (saved) return saved;
+      } catch (e) { /* 隐身模式读不到就退头像 */ }
+      const avatar = getAvatarFromCache(host);
+      if (avatar) return avatar;
+      return lrArt('头像', host);
+    }
     function lrRoomCfg(stat, name) { return (((stat && stat.系统配置) || {}).直播间 || {})[name] || {}; }
 
-    function lrPickHost(parsed) {
-      const fromTag = lrCanonHost(parsed.主播);
-      if (LR_HOSTS[fromTag]) return fromTag;
-      const stat = lrReadStat();
-      const watching = lrCanonHost(lrPlayer(stat).所在直播间);
-      if (LR_HOSTS[watching]) return watching;
+    /* 主播名单以 MVU 的 对象信息 为准，不再看本文件里的写死表——
+       这样开局页新建的自定义主播自动就认得。 */
+    function lrKnownHosts(stat) {
       const girls = (stat && stat.对象信息) || {};
-      const live = Object.keys(LR_HOSTS).find((n) => lrIsTrue((girls[n] || {}).直播 && girls[n].直播.开播));
-      return live || '塔菲';
+      return Object.keys(girls).filter((n) => girls[n] && girls[n].直播);
+    }
+    function lrPickHost(parsed) {
+      const stat = lrReadStat();
+      const hosts = lrKnownHosts(stat);
+      const has = (n) => !!n && hosts.indexOf(n) >= 0;
+      const fromTag = lrCanonHost(parsed.主播);
+      if (has(fromTag)) return fromTag;
+      const watching = lrCanonHost(lrPlayer(stat).所在直播间);
+      if (has(watching)) return watching;
+      const girls = (stat && stat.对象信息) || {};
+      const live = hosts.find((n) => lrIsTrue(girls[n].直播.开播));
+      return live || fromTag || hosts[0] || '塔菲';
     }
 
     function lrSplitLineFields(line) {
@@ -6248,10 +6267,10 @@
     }
 
     function lrPlayerMedal(state) {
-      const meta = LR_HOSTS[state.host] || LR_HOSTS['塔菲'];
       const lv = state.badge || 0;
       if (!lv) return '';
-      return meta.medal + ' ' + lv;
+      // 牌子名来自 MVU 的 系统配置.直播间.<名>.牌子名，本文件不存
+      return (state.medal || state.host) + ' ' + lv;
     }
     function lrPlayerTier(state) {
       return LR_TIER_KEY[state.tier] || '';
@@ -6362,7 +6381,8 @@
       btn.textContent = state.follow ? '已关注' : '+ 关注';
     }
     function lrPaintPop(state) {
-      lrEl(state.root, 'pop').textContent = '人气 ' + lrFormatPop(state.pop);
+      // 直播间没有人数，顶栏显示的是热度
+      lrEl(state.root, 'pop').textContent = '热度 ' + lrFormatPop(state.heat);
     }
     function lrPaintLive(state) {
       lrEl(state.root, 'live').style.display = state.onAir ? '' : 'none';
@@ -6376,7 +6396,7 @@
       lrEl(state.root, 'navy').innerHTML = list.map((g) =>
         `<div class="guard"><span>${lrPrefix(g)}<span class="name ${g.tier || ''}">${lrEsc(g.user)}</span></span><span class="hint" style="padding:0">剩余 ${g.days} 天</span></div>`
       ).join('') + `<div class="join"><p class="hint" style="padding:0 2px 4px">开通大航海：弹幕优先被看见，ID 会被记住。</p>${
-        LR_GUARD_BUY.map((g) =>
+        (lrMenu().大航海 || []).map((g) =>
           `<button class="join-btn" type="button" data-lr-act="guard" data-guard="${lrAttr(g.name)}">${lrImg(g.name)}<span>${lrEsc(g.name)} ${g.days} 天</span><em>${lrPriceTag(g.price)}</em></button>`
         ).join('')
       }</div>`;
@@ -6414,70 +6434,45 @@
       } catch (e) { return false; }
     }
 
-    function lrWriteSpend(state, cost, extra) {
-      extra = extra || {};
-      const stat = lrReadStat();
-      const name = state.host;
-      const player = lrPlayer(stat);
-      const fan = lrFan(stat, name);
-      const room = lrRoomCfg(stat, name);
-      const moneyNow = (player.金钱 == null || player.金钱 === '') ? state.money : lrParseNum(player.金钱);
-      const money = Math.max(0, moneyNow - cost);
-      const tipped = lrParseNum(fan.累计打赏) + (extra.tipped || 0);
-      const patches = [
-        { op: 'replace', path: '/玩家信息/金钱', value: money },
-        { op: 'replace', path: '/玩家信息/所在直播间', value: name }
-      ];
-      if (extra.tipped) {
-        patches.push({ op: 'replace', path: `/玩家信息/粉丝身份/${name}/累计打赏`, value: tipped });
-        patches.push({ op: 'replace', path: `/玩家信息/粉丝身份/${name}/牌子等级`, value: lrBadgeLevel(tipped) });
-      }
-      if (extra.follow != null) {
-        patches.push({ op: 'replace', path: `/玩家信息/粉丝身份/${name}/关注`, value: !!extra.follow });
-      }
-      if (extra.guard) {
-        patches.push({ op: 'replace', path: `/玩家信息/粉丝身份/${name}/牌子档位`, value: extra.guard });
-        patches.push({ op: 'replace', path: `/玩家信息/粉丝身份/${name}/牌子剩余天数`, value: extra.days || 30 });
-      }
-      const popAdd = extra.pop || 0;
-      if (popAdd || extra.tipped) {
-        const pop = lrParseNum(room.人气 || state.pop) + popAdd;
-        const heat = lrParseNum(room.本场热度) + popAdd;
-        patches.push({ op: 'replace', path: `/系统配置/直播间/${name}/人气`, value: pop });
-        patches.push({ op: 'replace', path: `/系统配置/直播间/${name}/本场热度`, value: heat });
-        patches.push({ op: 'replace', path: `/对象信息/${name}/直播/人数`, value: lrRoundViewers(pop) });
-        state.pop = pop;
-      }
-      if (extra.tipped) {
-        const board = Array.isArray(room.高能榜) ? room.高能榜.slice() : (state.rank || []).map((r) => ({ 名字: r.user, 本场消费: r.score }));
-        const hit = board.find((r) => r.名字 === '你');
-        if (hit) hit.本场消费 = lrParseNum(hit.本场消费) + extra.tipped;
-        else board.push({ 名字: '你', 本场消费: extra.tipped });
-        patches.push({ op: 'replace', path: `/系统配置/直播间/${name}/高能榜`, value: board });
-      }
-      if (extra.guard) {
-        const navy = room.大航海 && typeof room.大航海 === 'object' ? room.大航海 : { 舰长: 0, 提督: 0, 总督: 0, 名单: [] };
-        const names = Array.isArray(navy.名单) ? navy.名单.slice() : [];
-        const mine = names.find((x) => x.名字 === '你');
-        if (mine) { mine.档位 = extra.guard; mine.天数 = extra.days || 30; }
-        else names.unshift({ 名字: '你', 档位: extra.guard, 天数: extra.days || 30 });
-        navy.名单 = names;
-        if (extra.guard === '舰长') navy.舰长 = lrParseNum(navy.舰长) + 1;
-        if (extra.guard === '提督') navy.提督 = lrParseNum(navy.提督) + 1;
-        if (extra.guard === '总督') navy.总督 = lrParseNum(navy.总督) + 1;
-        patches.push({ op: 'replace', path: `/系统配置/直播间/${name}/大航海`, value: navy });
-      }
-      const ok = applyMvuPatches(patches);
-      state.money = money;
-      if (extra.tipped) {
-        state.tipped = tipped;
-        state.badge = lrBadgeLevel(tipped);
-      }
-      if (extra.follow != null) state.follow = !!extra.follow;
-      if (extra.guard) { state.tier = extra.guard; state.days = extra.days || 30; }
+    /* 所有写入都交给辅助计算脚本，这里只负责把结果画上去。
+       原来这个函数自己拼 10 条 MVU 补丁（钱、所在直播间、累计打赏、牌子等级、关注、
+       牌子档位、本场热度、直播热度、高能榜、大航海），跟辅助脚本抢同一批字段。
+       现在一次 roomAction 换回一份快照，连送递减、榜一还手、热度换算都在脚本那边算好。 */
+    function lrApplySnapshot(state, snap) {
+      if (!snap) return;
+      state.money = snap.金钱;
+      state.follow = snap.关注;
+      state.tipped = snap.累计打赏;
+      state.badge = snap.牌子等级;
+      state.tier = snap.牌子档位 || '';
+      state.days = snap.牌子剩余天数;
+      state.heat = snap.热度;
+      state.base = snap.底盘热度;
+      state.medal = snap.牌子名 || state.medal;
+      state.rank = (snap.高能榜 || []).map((r) => ({ user: r.名字, score: r.本场消费 }));
+      state.navy = (snap.大航海.名单 || []).map((x) => ({ user: x.名字, tier: LR_TIER_KEY[x.档位] || '', days: x.天数 }));
       lrPaintMoney(state);
       lrPaintPop(state);
-      return ok;
+      lrPaintFollow(state);
+      lrPaintNavy(state);
+      lrPaintRank(state);
+    }
+
+    /* 返回 false 表示没写成（钱不够、脚本没跑起来），调用方不要再往弹幕里推那一条。 */
+    function lrDoAction(state, action, extra) {
+      const aux = lrAux();
+      if (!aux) { lrToast(state, '辅助计算脚本没跑起来，直播间暂时只能看'); return false; }
+      let res = null;
+      try { res = aux.roomAction(Object.assign({ 主播: state.host, 动作: action }, extra || {})); }
+      catch (e) { console.warn('[正文美化] roomAction', e); }
+      if (!res || !res.ok) { lrToast(state, (res && res.提示) || '操作没能完成'); return false; }
+      lrApplySnapshot(state, res.快照);
+      /* 榜一还手是脚本掷骰的结果，卡片只负责把它演出来 */
+      if (res.还手) {
+        lrPush(state, { type: 'gift', user: res.还手.名字, gift: '情书', n: 1 }, true);
+        lrToast(state, res.还手.名字 + ' 反手把榜一抢回去了');
+      }
+      return res;
     }
 
     function lrCostOf(pending) {
@@ -6509,14 +6504,14 @@
       if (pending.mode === 'gift') {
         dlg.innerHTML = `<div class="dlg-top"><div class="dlg-ico">${lrImg(pending.name)}</div><div class="dlg-meta"><h3>${lrEsc(pending.name)}</h3><p class="price">${lrPriceTag(pending.price)} / 个</p></div></div>
           <div class="qty-row"><span>数量</span><button type="button" data-step="-1">−</button><input data-qty value="${pending.qty}" inputmode="numeric" maxlength="4" aria-label="赠送数量"><button type="button" data-step="1">+</button></div>
-          <div class="chips">${LR_QTY_STEPS.map((n) => `<button type="button" data-setqty="${n}">${n}</button>`).join('')}</div>
+          <div class="chips">${(lrMenu().数量档位 || []).map((n) => `<button type="button" data-setqty="${n}">${n}</button>`).join('')}</div>
           <div class="dlg-foot"><span class="dlg-sum" data-sum></span><button type="button" class="cancel" data-cancel>取消</button><button type="button" class="ok" data-ok>赠送</button></div>`;
       } else if (pending.mode === 'guard') {
         dlg.innerHTML = `<div class="dlg-top"><div class="dlg-ico">${lrImg(pending.name)}</div><div class="dlg-meta"><h3>${lrEsc(pending.name)}</h3><p class="price">${pending.days} 天 · ${lrPriceTag(pending.price)}</p></div></div>
           <div class="dlg-foot"><span class="dlg-sum" data-sum></span><button type="button" class="cancel" data-cancel>取消</button><button type="button" class="ok" data-ok>开通</button></div>`;
       } else {
         dlg.innerHTML = `<div class="dlg-top"><div class="dlg-meta"><h3>醒目留言</h3></div></div>
-          <div class="chips">${LR_SC_STEPS.map((n) => `<button type="button" data-setamt="${n}">¥${n}</button>`).join('')}</div>
+          <div class="chips">${(lrMenu().醒目留言档位 || []).map((n) => `<button type="button" data-setamt="${n}">¥${n}</button>`).join('')}</div>
           <div class="dlg-sc"><textarea data-sc-text maxlength="40" placeholder="说点什么">${lrEsc(pending.text || '')}</textarea></div>
           <div class="dlg-foot"><span class="dlg-sum" data-sum></span><button type="button" class="cancel" data-cancel>取消</button><button type="button" class="ok hot" data-ok>发送</button></div>`;
       }
@@ -6534,26 +6529,23 @@
     }
 
     function lrSendGift(state, name, qty) {
-      const gift = LR_GIFTS.find((g) => g.name === name);
-      if (!gift) return;
-      const cost = gift.price * qty;
-      if (state.money < cost) return;
-      lrWriteSpend(state, cost, { tipped: cost, pop: (LR_POP_PTS[name] || 0) * qty });
+      // 花多少、加多少人气全由脚本算，这里不再自己乘价格
+      if (!lrDoAction(state, '礼物', { 礼物: name, 数量: qty })) return;
       lrPush(state, { type: 'gift', user: '你', gift: name, n: qty }, true);
-      lrAddRank(state, '你', cost);
-      if (cost > 0) lrSendToChat(`（直播间）送给${state.host} ${name} x${qty}`);
+      const item = lrGiftItem(name);
+      if (item && item.price) lrSendToChat(`（直播间）送给${state.host} ${name} x${qty}`);
     }
     function lrOpenGift(state, name) {
-      const gift = LR_GIFTS.find((g) => g.name === name);
+      const gift = lrGiftItem(name);
       if (!gift) return;
       if (!gift.price) { lrSendGift(state, name, 1); return; }
       state.pending = { mode: 'gift', ...gift, qty: 1 };
       lrOpenDlg(state);
     }
     function lrOpenGuard(state, name) {
-      const card = LR_GUARD_BUY.find((g) => g.name === name);
+      const card = (lrMenu().大航海 || []).find((g) => g.name === name);
       if (!card) return;
-      state.pending = { mode: 'guard', ...card };
+      state.pending = { mode: 'guard', ...card, tier: LR_TIER_KEY[card.name] || '' };
       lrOpenDlg(state);
     }
     function lrOpenSc(state) {
@@ -6569,25 +6561,17 @@
       if (pending.mode === 'gift') {
         lrSendGift(state, pending.name, pending.qty);
       } else if (pending.mode === 'guard') {
-        lrWriteSpend(state, cost, { tipped: cost, pop: LR_POP_PTS[pending.name] || 0, guard: pending.name, days: pending.days });
-        const me = (state.navy || []).find((g) => g.user === '你');
-        if (me) { me.tier = pending.tier; me.days = pending.days; }
-        else {
-          if (!state.navy) state.navy = [];
-          state.navy.unshift({ user: '你', tier: pending.tier, days: pending.days });
-        }
-        lrPaintNavy(state);
+        // 大航海计数、名单、榜都在脚本那边写，快照回来直接重画
+        if (!lrDoAction(state, '大航海', { 礼物: pending.name })) return;
         lrShowToast(state, { user: '你', gift: pending.name, line: `开通了 ${pending.name} ${pending.days} 天` });
         lrPush(state, { type: 'sys', text: `你成为了${state.host}的${pending.name}（${pending.days} 天）` }, true);
         lrSpawnFly(state, { type: 'gift', gift: pending.name, n: 1 }, true);
-        lrAddRank(state, '你', cost);
         lrSendToChat(`（直播间）开通${state.host}的${pending.name}`);
       } else {
         const text = pending.text.trim();
-        lrWriteSpend(state, cost, { tipped: cost });
+        if (!lrDoAction(state, '醒目留言', { 金额: pending.amount, 内容: text })) return;
         lrPush(state, { type: 'sc', user: '你', amount: pending.amount, text }, true);
         lrEl(state.root, 'say').value = '';
-        lrAddRank(state, '你', cost);
         lrSendToChat(`（直播间）醒目留言 ￥${pending.amount}：${text}`);
       }
       lrCloseDlg(state);
@@ -6599,7 +6583,6 @@
       try { parsed = JSON.parse(decodeURIComponent(root.getAttribute('data-lr-payload') || '') || '{}'); }
       catch (e) { }
       const host = lrPickHost(parsed);
-      const meta = LR_HOSTS[host] || LR_HOSTS['塔菲'];
       const stat = lrReadStat();
       const player = lrPlayer(stat);
       const live = (lrGirl(stat, host).直播) || {};
@@ -6612,16 +6595,22 @@
         money: (player.金钱 == null || player.金钱 === '') ? 286450 : lrParseNum(player.金钱),
         follow: lrIsTrue(fan.关注),
         tipped: lrParseNum(fan.累计打赏),
-        badge: lrParseNum(fan.牌子等级) || lrBadgeLevel(lrParseNum(fan.累计打赏)),
+        badge: lrParseNum(fan.牌子等级),
         tier: fan.牌子档位 && fan.牌子档位 !== '无' ? fan.牌子档位 : '',
         days: lrParseNum(fan.牌子剩余天数),
-        pop: lrParseNum(room.人气) || lrParseNum(live.人数) || meta.pop,
+        /* 全部读 MVU，没有本地兜底数值。热度 = 底盘 + 本场虚火，由辅助计算脚本写；
+           这里只在两者都为空时退回底盘，避免顶栏显示 0。 */
+        medal: room.牌子名 || '',
+        slot: room.档期 || '',
+        base: lrParseNum(room.底盘热度),
+        heat: lrParseNum(live.热度) || lrParseNum(room.底盘热度),
+        fans: lrParseNum(live.粉丝数),
         onAir: live.开播 == null ? true : lrIsTrue(live.开播),
         title: live.标题 || '',
         navy: navySrc.map((x) => ({ user: x.名字, tier: LR_TIER_KEY[x.档位] || '', days: lrParseNum(x.天数) })),
         rank: rankSrc.map((x) => ({ user: x.名字, score: lrParseNum(x.本场消费) }))
       };
-      if (!state.title) state.title = live.标题 || (host === '塔菲' ? '王牌级杂谈：读SC与整活' : host + '的直播间');
+      if (!state.title) state.title = host + '的直播间';
       if (state.tier && !(state.navy || []).some((g) => g.user === '你')) {
         state.navy = [{ user: '你', tier: LR_TIER_KEY[state.tier], days: state.days || 30 }].concat(state.navy || []);
       }
@@ -6686,16 +6675,15 @@
       if (root.dataset.lrReady) return;
       root.dataset.lrReady = '1';
       const state = lrHydrate(root);
-      const meta = LR_HOSTS[state.host] || LR_HOSTS['塔菲'];
       const avatar = lrEl(root, 'avatar');
       const feed = lrEl(root, 'feed');
       avatar.src = lrArt('头像', state.host);
       avatar.alt = state.host;
-      feed.src = lrArt('封面', meta.cover);
+      feed.src = lrCoverSrc(state.host);
       feed.alt = state.host + '立绘';
       lrEl(root, 'title').textContent = state.title;
       lrEl(root, 'name').textContent = state.host;
-      lrEl(root, 'slot').textContent = meta.slot;
+      lrEl(root, 'slot').textContent = state.slot;
       lrPaintPop(state);
       lrPaintLive(state);
       lrPaintMoney(state);
@@ -6703,9 +6691,9 @@
       lrPaintNavy(state);
       lrPaintRank(state);
       const giftsEl = lrEl(root, 'gifts');
-      giftsEl.innerHTML = LR_GIFTS.map((g) =>
+      giftsEl.innerHTML = (lrMenu().礼物 || []).map((g) =>
         `<button class="pill" type="button" data-kind="gift" data-gift="${lrAttr(g.name)}">${lrImg(g.name)}<b>${lrEsc(g.name)}</b><em>${lrPriceTag(g.price)}</em></button>`
-      ).join('') + LR_GUARD_BUY.map((g) =>
+      ).join('') + (lrMenu().大航海 || []).map((g) =>
         `<button class="pill" type="button" data-kind="guard" data-gift="${lrAttr(g.name)}">${lrImg(g.name)}<b>${lrEsc(g.name)}</b><em>${lrPriceTag(g.price)}</em></button>`
       ).join('');
       lrBindRail(state);
@@ -6781,7 +6769,7 @@
           const quiet = lrEl(state.root, 'cam').classList.toggle('quiet');
           act.textContent = quiet ? '弹幕 关' : '弹幕 开';
         } else if (kind === 'follow') {
-          lrWriteSpend(state, 0, { follow: !state.follow });
+          lrDoAction(state, '关注', { 关注: !state.follow });
           lrPaintFollow(state);
         } else if (kind === 'sc') {
           ev.preventDefault();

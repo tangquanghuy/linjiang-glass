@@ -25,6 +25,23 @@
     ];
     const TIER_RANK = { 无: 0, 办卡: 1, 舰长: 2, 提督: 3, 总督: 4 };
 
+    /* 世界书全名 → HUD 短名。跟 酒馆变量/mvuzod.js 的 GIRL_NAME_ALIAS 是同一份，
+       正文美化.html 原来也自己存了一份（LR_HOST_ALIAS），已经改成走这里。
+       AI 写 `主播: 永雏塔菲` 的时候要能折回 塔菲。 */
+    const GIRL_NAME_ALIAS = {
+        永雏塔菲: '塔菲',
+        沙花叉克萝伊: '沙花叉',
+        梦见璃亚梦: '璃亚梦',
+        伊贺栖寅: '斯黛拉',
+        '斯黛拉（伊贺栖寅）': '斯黛拉',
+    };
+
+    function canonGirlName(name) {
+        if (name == null) return '';
+        const key = String(name).trim();
+        return GIRL_NAME_ALIAS[key] || key;
+    }
+
 
     /* 直播习惯是稳定底盘，当天是否准时、休播或临时开播由日期种子决定。
        同一游戏日反复刷新得到同一结果，换日才会重新投骰；这比 Math.random()
@@ -32,37 +49,37 @@
     const STREAM_HABITS = {
         '塔菲': {
             days: ['周一', '周二', '周四', '周五', '周六', '周日'], start: '20:00', end: '23:30',
-            reliability: 0.88, surprise: 0.06, viewers: [9000, 24000],
+            reliability: 0.88, surprise: 0.06,
             titles: ['晚间杂谈与SC回', '联机游戏回', '新衣装与观众问答'],
         },
         '东雪莲': {
             days: ['周一', '周二', '周三', '周四', '周五', '周六'], start: '21:30', end: '00:30',
-            reliability: 0.82, surprise: 0.10, viewers: [1200, 6200],
+            reliability: 0.82, surprise: 0.10,
             titles: ['深夜杂谈', '游戏联机回', '观众点歌与聊天'],
         },
         '时雨羽衣': {
             days: ['周三', '周日'], start: '22:00', end: '00:30',
-            reliability: 0.76, surprise: 0.04, viewers: [18000, 68000],
+            reliability: 0.76, surprise: 0.04,
             titles: ['绘画杂谈', '游戏实况', '近况报告与告知'],
         },
         '沙花叉': {
             days: ['周一', '周二', '周四', '周五', '周日'], start: '21:00', end: '00:30',
-            reliability: 0.80, surprise: 0.08, viewers: [12000, 48000],
+            reliability: 0.80, surprise: 0.08,
             titles: ['晚间杂谈', '歌回', '挑战类游戏回'],
         },
         '红蔷薇': {
             days: ['周一', '周二', '周四', '周五', '周日'], start: '19:00', end: '22:00',
-            reliability: 0.84, surprise: 0.07, viewers: [1800, 9000],
+            reliability: 0.84, surprise: 0.07,
             titles: ['黄昏音乐电台', '情感来信杂谈', '夜景歌回'],
         },
         '斯黛拉': {
             days: ['周二', '周三', '周四', '周五', '周六', '周日'], start: '18:30', end: '21:30',
-            reliability: 0.86, surprise: 0.05, viewers: [2200, 11000],
+            reliability: 0.86, surprise: 0.05,
             titles: ['傍晚电台', '声音练习与点歌', '工作室杂谈'],
         },
         '璃亚梦': {
             days: ['周一', '周三', '周四', '周五', '周六', '周日'], start: '23:00', end: '02:00',
-            reliability: 0.78, surprise: 0.16, viewers: [2600, 12000],
+            reliability: 0.78, surprise: 0.16,
             titles: ['深夜emo小作文', '观众投票杂谈', '突发游戏回'],
         },
     };
@@ -184,6 +201,190 @@
         '洲门站': 0,
         '自宅': 5,
     };
+
+    // ------------------------------------------
+    // 卡片和脚本之间的三个口子
+    // ------------------------------------------
+
+    const MVU_SCOPE = { type: 'message', message_id: 'latest' };
+
+    function readBundle() {
+        try {
+            if (typeof Mvu === 'undefined') return null;
+            const data = Mvu.getMvuData(MVU_SCOPE);
+            if (!data || !data.stat_data) return null;
+            return { data, stat: data.stat_data };
+        } catch (err) {
+            console.error(TAG, err);
+            return null;
+        }
+    }
+
+    function commitBundle(bundle) {
+        try {
+            Mvu.replaceMvuData(bundle.data, MVU_SCOPE);
+            return true;
+        } catch (err) {
+            console.error(TAG, err);
+            return false;
+        }
+    }
+
+    /** 礼物栏要画的东西。价格、点数、图标 URL 都从这里拿，卡片不自己存。 */
+    function roomMenu() {
+        const icon = file => `${ART_HOST}/${encodeURIComponent('礼物')}/${file}`;
+        return {
+            礼物: GIFTS.map(g => ({ ...g, 图标: icon(g.file) })),
+            大航海: GUARD_BUY.map(g => ({ ...g, 图标: icon(g.file) })),
+            数量档位: QTY_STEPS.slice(),
+            醒目留言档位: SC_STEPS.slice(),
+            资源域名: ART_HOST,
+        };
+    }
+
+    /** 卡片挂载时读一次的快照。顺手把这间房的对手种上（第一次进房才会生成）。 */
+    function roomView(name) {
+        const host = canonGirlName(name);
+        const bundle = readBundle();
+        if (!bundle) return null;
+        const room = seedRoom(bundle.stat, host);
+        if (!room) return null;
+        repaintHeat(bundle.stat, host);
+        commitBundle(bundle);
+
+        const stat = bundle.stat;
+        const girl = girlOf(stat, host) || {};
+        const live = girl.直播 || {};
+        const player = stat.玩家信息 || {};
+        const fan = player.粉丝身份?.[host] || {};
+        const navy = room.大航海 || {};
+        return {
+            主播: host,
+            牌子名: room.牌子名 || host,
+            档期: room.档期 || '',
+            开播: live.开播 === true,
+            标题: live.标题 || '',
+            热度: (Number(room.底盘热度) || 0) + (Number(room.本场热度) || 0),
+            底盘热度: Number(room.底盘热度) || 0,
+            粉丝数: Number(live.粉丝数) || 0,
+            金钱: Number(player.金钱) || 0,
+            关注: fan.关注 === true,
+            累计打赏: Number(fan.累计打赏) || 0,
+            牌子等级: badgeLevel(fan.累计打赏),
+            牌子档位: fan.牌子档位 && fan.牌子档位 !== '无' ? fan.牌子档位 : '',
+            牌子剩余天数: Number(fan.牌子剩余天数) || 0,
+            高能榜: (Array.isArray(room.高能榜) ? room.高能榜 : []).map(r => ({ 名字: r.名字, 本场消费: Number(r.本场消费) || 0 })),
+            大航海: {
+                舰长: Number(navy.舰长) || 0,
+                提督: Number(navy.提督) || 0,
+                总督: Number(navy.总督) || 0,
+                名单: Array.isArray(navy.名单) ? navy.名单.slice() : [],
+            },
+        };
+    }
+
+    /**
+     * 玩家在直播间做的每一件事都走这一个入口，卡片不再自己拼 MVU 补丁。
+     * 入参：{ 主播, 动作: '礼物'|'大航海'|'醒目留言'|'关注'|'进房', 礼物, 数量, 金额, 内容, 关注 }
+     * 返回：{ ok, 花费, 人气, 还手, 提示, 快照 }；钱不够或名字不认识就 ok:false，什么都不写。
+     */
+    function roomAction(input) {
+        const req = input || {};
+        const host = canonGirlName(req.主播);
+        const bundle = readBundle();
+        if (!bundle) return { ok: false, 提示: 'MVU 未就绪' };
+        const stat = bundle.stat;
+        if (!girlOf(stat, host)) return { ok: false, 提示: `没有这个主播: ${host}` };
+
+        const room = seedRoom(stat, host);
+        const player = ensureObj(stat, '玩家信息');
+        const fan = ensureObj(ensureObj(player, '粉丝身份'), host);
+        const action = String(req.动作 || '').trim();
+
+        if (action === '进房') {
+            player.所在直播间 = host;
+            repaintHeat(stat, host);
+            commitBundle(bundle);
+            return { ok: true, 花费: 0, 快照: roomView(host) };
+        }
+        if (action === '关注') {
+            fan.关注 = req.关注 !== false;
+            commitBundle(bundle);
+            return { ok: true, 花费: 0, 快照: roomView(host) };
+        }
+
+        // 以下都要花钱
+        let cost = 0;
+        let popAdd = 0;
+        let guard = null;
+        let qty = 1;
+        if (action === '礼物') {
+            const gift = giftOf(req.礼物);
+            if (!gift) return { ok: false, 提示: `没有这件礼物: ${req.礼物}` };
+            qty = Math.max(1, Math.floor(Number(req.数量) || 1));
+            cost = gift.price * qty;
+            // 先算钱够不够，再动 combo：拒绝掉的那一笔不该留下连送痕迹
+            if (cost > (Number(player.金钱) || 0)) return { ok: false, 提示: '余额不足' };
+            popAdd = comboPop(room, gift.name, gift.pop, qty);
+        } else if (action === '大航海') {
+            guard = guardOf(req.礼物 || req.档位);
+            if (!guard) return { ok: false, 提示: `没有这个档位: ${req.礼物 || req.档位}` };
+            cost = guard.price;
+            if (cost > (Number(player.金钱) || 0)) return { ok: false, 提示: '余额不足' };
+            popAdd = guard.pop;
+            resetCombo(room);
+        } else if (action === '醒目留言') {
+            cost = Math.max(0, Math.floor(Number(req.金额) || 0));
+            if (!cost) return { ok: false, 提示: '醒目留言金额为空' };
+            if (cost > (Number(player.金钱) || 0)) return { ok: false, 提示: '余额不足' };
+            popAdd = Math.round(cost * 4);
+            resetCombo(room);
+        } else {
+            return { ok: false, 提示: `未知动作: ${action}` };
+        }
+
+        const money = Number(player.金钱) || 0;
+        player.金钱 = money - cost;
+        player.所在直播间 = host;
+        if (cost > 0) {
+            fan.关注 = true;
+            fan.累计打赏 = (Number(fan.累计打赏) || 0) + cost;
+            fan.牌子等级 = badgeLevel(fan.累计打赏);
+        }
+        if (guard) {
+            fan.牌子档位 = guard.name;
+            fan.牌子剩余天数 = guard.days;
+            const navy = ensureObj(room, '大航海');
+            navy[guard.name] = (Number(navy[guard.name]) || 0) + 1;
+            if (!Array.isArray(navy.名单)) navy.名单 = [];
+            const mine = navy.名单.find(x => x.名字 === '你');
+            if (mine) { mine.档位 = guard.name; mine.天数 = guard.days; }
+            else navy.名单.unshift({ 名字: '你', 档位: guard.name, 天数: guard.days });
+        }
+
+        room.本场热度 = (Number(room.本场热度) || 0) + popAdd;
+
+        if (cost > 0) {
+            if (!Array.isArray(room.高能榜)) room.高能榜 = [];
+            const mine = room.高能榜.find(r => r.名字 === '你');
+            if (mine) mine.本场消费 = (Number(mine.本场消费) || 0) + cost;
+            else room.高能榜.push({ 名字: '你', 本场消费: cost });
+            room.高能榜.sort((a, b) => Number(b.本场消费) - Number(a.本场消费));
+        }
+
+        repaintHeat(stat, host);
+        // 单笔 ≥100 才可能招来还手；小额刷榜不惊动榜一
+        const strike = cost >= 100 ? rivalStrikeBack(stat, host) : null;
+        commitBundle(bundle);
+
+        return {
+            ok: true,
+            花费: cost,
+            人气: popAdd,
+            还手: strike,
+            快照: roomView(host),
+        };
+    }
 
     // ==========================================
     // 工具
@@ -314,7 +515,7 @@
 
     /** 体量档位 → 这个主播的全套规模数字。 */
     function streamScale(tier) {
-        const t = Math.max(0, Math.min(100, Math.round(Number(tier) || 0)));
+        const t = Math.max(0, Math.min(100, Number(tier) || 0));
         const base = 50 * 8 ** (t / 25);
         const followers = base * (60 - 0.42 * t);
         const guards = followers * (0.0012 + 0.000038 * t);
@@ -342,11 +543,240 @@
         const target = Math.max(0, Number(followers) || 0);
         let best = 0;
         let bestGap = Infinity;
-        for (let t = 0; t <= 100; t += 1) {
+        for (let t = 0; t <= 100; t += 0.1) {
             const gap = Math.abs(streamScale(t).粉丝数 - target);
             if (gap < bestGap) { bestGap = gap; best = t; }
         }
-        return best;
+        return Math.round(best * 10) / 10;
+    }
+
+    /** 粉丝数 → 全套规模数字。七位已定稿主播存粉丝数，其余都从这里推。 */
+    function scaleOfFollowers(followers) {
+        return streamScale(tierOfFollowers(followers));
+    }
+
+    // ==========================================
+    // 直播间状态机
+    // ==========================================
+
+    /* 对照 草稿/直播间状态机.md。本文件是直播间所有数值的唯一出处：礼物表、人气点数、
+       NPC 对手、热度涨落、榜与大航海的写入都在这里。正文美化.html 只负责画，
+       不存表、不算数、不写 MVU——它通过 LinjiangAux.roomMenu/roomView/roomAction 说话。
+
+       两个"热度"始终分开：
+         底盘热度 —— 常态值，由粉丝数反解，礼物不动它；
+         本场热度 —— 这一场靠礼物堆的虚火，没有新礼物就按拍衰减，下播清零。
+       给 AI 看的 对象信息.<名>.直播.热度 = 底盘 + 本场，收成约数。 */
+
+    // 一件东西一行：价格、人气点数、图标文件。以前价格/点数/图标分在三张表里。
+    const GIFTS = [
+        { name: '小心心', price: 0, pop: 2, file: 'gift-heart.png' },
+        { name: '辣条', price: 1, pop: 8, file: 'gift-snack.png' },
+        { name: '干杯', price: 20, pop: 70, file: 'gift-cheers.png' },
+        { name: '心愿盲盒', price: 50, pop: 150, file: 'gift-blindbox.png' },
+        { name: '情书', price: 100, pop: 400, file: 'gift-letter.png' },
+        { name: '小飞机', price: 200, pop: 900, file: 'gift-plane.png' },
+        { name: '摩天大楼', price: 520, pop: 2200, file: 'gift-tower.png' },
+        { name: '火箭', price: 1288, pop: 8000, file: 'gift-rocket.png' },
+    ];
+    const GUARD_BUY = [
+        { name: '舰长', price: 138, pop: 500, days: 30, file: 'gift-guard-1.png' },
+        { name: '提督', price: 1998, pop: 9000, days: 30, file: 'gift-guard-2.png' },
+        { name: '总督', price: 19998, pop: 40000, days: 30, file: 'gift-guard-3.png' },
+    ];
+    const QTY_STEPS = [1, 10, 66, 233];
+    const SC_STEPS = [30, 50, 100];
+    const ART_HOST = 'https://anchor.bolt.qzz.io';
+
+    /* NPC 名字池：临江本地网名的调子（地名 + 生活状态），不要平台网名腔。 */
+    const NPC_NAMES = [
+        '云庭7楼', '湖滨卡座', '鼓岭晚风', '西洲加班人', '梧桐里租客', '落霞后街',
+        '明湖环洲', '洲门站末班', '雨石轮渡', '青屏山雾', '东塘镇口', '乌溪门东',
+        '浦江夜班', '学府七舍', '德泰三楼', '江厦塔停车场', '清河塘常客', '夜巷拐角',
+        '永初里二单元', '星芒3号舱',
+    ];
+
+    /* 连送递减，下限 40%。刷辣条不能把房间刷成火箭场。 */
+    const COMBO_DECAY = [1, 0.85, 0.7, 0.55, 0.4];
+    /* 没有新礼物时，本场热度每拍衰减一成。 */
+    const SESSION_DECAY = 0.9;
+
+    /**
+     * 连送递减，两层一起算：
+     *   1) 单笔内部——一次送 n 个，第 2 个起就开始打折，刷 233 个辣条不等于 233 倍人气；
+     *   2) 跨笔——连续送同一件礼物才累计，换一件就重置。
+     * 不按世界时钟算：时钟只有 AI 推进时才动，整场直播可能一直停在同一分钟，
+     * 按分钟算会把「辣条→干杯→情书→火箭」这条正常消费链也当成连刷全部打到下限。
+     */
+    function comboPop(room, giftName, unitPop, qty) {
+        const combo = ensureObj(room, '连送');
+        let step = combo.礼物 === giftName ? (Number(combo.次数) || 0) : 0;
+        let total = 0;
+        for (let i = 0; i < qty; i += 1) {
+            total += unitPop * COMBO_DECAY[Math.min(step, COMBO_DECAY.length - 1)];
+            step += 1;
+        }
+        combo.礼物 = giftName;
+        combo.次数 = step;
+        return Math.round(total);
+    }
+
+    function resetCombo(room) {
+        const combo = ensureObj(room, '连送');
+        combo.礼物 = '';
+        combo.次数 = 0;
+    }
+
+    function giftOf(name) {
+        const key = String(name || '').trim();
+        return GIFTS.find(g => g.name === key) || GUARD_BUY.find(g => g.name === key) || null;
+    }
+
+    function guardOf(name) {
+        const key = String(name || '').trim();
+        return GUARD_BUY.find(g => g.name === key) || null;
+    }
+
+    function roomOf(statData, name) {
+        const sys = ensureObj(statData, '系统配置');
+        return ensureObj(ensureObj(sys, '直播间'), name);
+    }
+
+    function girlOf(statData, name) {
+        const girls = statData?.对象信息;
+        return (girls && girls[name]) || null;
+    }
+
+    /** 榜一 NPC 的开工消费：按底盘热度定档。塔菲那档约 730，小房约 50~150。 */
+    function rivalSeedSpend(baseHeat) {
+        return Math.max(40, Math.min(900, Math.round(baseHeat * 0.04)));
+    }
+
+    /**
+     * 第一次进这间房（或本聊天第一次开播）时生成对手，之后只更新、不重抽。
+     * 种子存进 系统配置.直播间.<名>.种子，所以重进房间还是那几个人。
+     */
+    function seedRoom(statData, name) {
+        const room = roomOf(statData, name);
+        const girl = girlOf(statData, name);
+        if (!girl || !girl.直播) return null;
+
+        // 底盘热度和大航海人数缺了就从粉丝数补——开局页没写过的自定义主播会走到这里
+        const followers = Number(girl.直播.粉丝数) || 0;
+        const scale = followers > 0 ? scaleOfFollowers(followers) : null;
+        if (!(Number(room.底盘热度) > 0) && scale) room.底盘热度 = scale.底盘热度;
+        if (typeof room.本场热度 !== 'number') room.本场热度 = 0;
+        const navy = ensureObj(room, '大航海');
+        if (!(Number(navy.舰长) > 0) && scale) {
+            navy.舰长 = scale.舰长数;
+            navy.提督 = scale.提督数;
+            navy.总督 = scale.总督数;
+        }
+        if (!Array.isArray(navy.名单)) navy.名单 = [];
+
+        if (room.种子) return room;
+
+        const seed = `${name}|${statData.世界信息?.年历 || ''}|${Date.now().toString(36)}`;
+        room.种子 = seed;
+
+        const base = Number(room.底盘热度) || 0;
+        const top = rivalSeedSpend(base);
+        const count = 4 + Math.floor(streamHashUnit(`${seed}|count`) * 4); // 4~7 个
+        const pool = NPC_NAMES.slice();
+        const board = [];
+        for (let i = 0; i < count; i += 1) {
+            const pick = Math.floor(streamHashUnit(`${seed}|name|${i}`) * pool.length);
+            const who = pool.splice(pick, 1)[0] || ('观众' + (i + 1));
+            /* 榜一拿满额，往下按 0.62^i 递减再抖一点：榜首和榜二要有明显差距，
+               不然玩家一笔就能连超三个人。 */
+            const share = top * (0.62 ** i) * (0.8 + streamHashUnit(`${seed}|spend|${i}`) * 0.4);
+            board.push({ 名字: who, 本场消费: Math.max(1, Math.round(share)) });
+        }
+        board.sort((a, b) => b.本场消费 - a.本场消费);
+        room.高能榜 = board;
+
+        // 大航海名单里放几个常客具名位，人数仍以三档计数为准
+        const named = Math.min(Number(navy.舰长) || 0, 1 + Math.floor(streamHashUnit(`${seed}|navy`) * 3));
+        const navyList = [];
+        for (let i = 0; i < named; i += 1) {
+            const pick = Math.floor(streamHashUnit(`${seed}|navyname|${i}`) * pool.length);
+            const who = pool.splice(pick, 1)[0] || ('舰长' + (i + 1));
+            navyList.push({ 名字: who, 档位: '舰长', 天数: 1 + Math.floor(streamHashUnit(`${seed}|navyday|${i}`) * 30) });
+        }
+        if ((Number(navy.提督) || 0) > 0 && pool.length) {
+            const who = pool.splice(Math.floor(streamHashUnit(`${seed}|ti`) * pool.length), 1)[0];
+            navyList.push({ 名字: who, 档位: '提督', 天数: 1 + Math.floor(streamHashUnit(`${seed}|tiday`) * 30) });
+        }
+        if ((Number(navy.总督) || 0) > 0 && pool.length) {
+            const who = pool.splice(Math.floor(streamHashUnit(`${seed}|du`) * pool.length), 1)[0];
+            navyList.push({ 名字: who, 档位: '总督', 天数: 1 + Math.floor(streamHashUnit(`${seed}|duday`) * 30) });
+        }
+        navy.名单 = navyList;
+
+        // 榜一还手的本场预算，用尽就认输，防止 NPC 钱包无限
+        room.还手预算 = Math.round(top * (2 + streamHashUnit(`${seed}|budget`) * 2));
+        room.连送 = { 礼物: '', 次数: 0 };
+        console.log(TAG, `直播间对手已生成: ${name} / ${count} 人 / 榜一 ${board[0]?.本场消费}`);
+        return room;
+    }
+
+    /** 给 AI 看的 直播.热度 = 底盘 + 本场，收成约数。 */
+    function repaintHeat(statData, name) {
+        const room = roomOf(statData, name);
+        const girl = girlOf(statData, name);
+        if (!girl?.直播) return;
+        if (girl.直播.开播 !== true) return;
+        const total = (Number(room.底盘热度) || 0) + (Number(room.本场热度) || 0);
+        writeIfChanged(girl.直播, '热度', roundNice(total));
+    }
+
+    /** 没有新礼物的那一拍：本场热度衰减一成，掉到底盘的 1% 以下就归零。 */
+    function decaySessionHeat(statData) {
+        const rooms = statData?.系统配置?.直播间;
+        if (!rooms || typeof rooms !== 'object') return;
+        Object.entries(rooms).forEach(([name, room]) => {
+            if (!room || typeof room !== 'object') return;
+            const girl = girlOf(statData, name);
+            if (girl?.直播?.开播 !== true) return;
+            const session = Number(room.本场热度) || 0;
+            if (session <= 0) return;
+            const next = Math.floor(session * SESSION_DECAY);
+            room.本场热度 = next <= (Number(room.底盘热度) || 0) * 0.01 ? 0 : next;
+            repaintHeat(statData, name);
+        });
+    }
+
+    /**
+     * 榜一 NPC 还手。玩家用单笔 ≥100 抢走榜一之后，有约三成机会在下一拍回一笔，
+     * 量级在干杯~情书之间，且吃本场预算。总督级还手禁止。
+     */
+    function rivalStrikeBack(statData, name) {
+        const room = roomOf(statData, name);
+        const board = Array.isArray(room.高能榜) ? room.高能榜 : [];
+        if (!board.length) return null;
+        const budget = Number(room.还手预算) || 0;
+        if (budget <= 0) return null;
+        const sorted = board.slice().sort((a, b) => Number(b.本场消费) - Number(a.本场消费));
+        if (sorted[0]?.名字 !== '你') return null;
+        const rival = sorted.find(r => r.名字 !== '你');
+        if (!rival) return null;
+
+        /* 掷骰的种子要带上「这是第几次还手」。只用时钟不行：世界时钟只有 AI 推进时才动，
+           玩家在同一分钟里连抢几次榜一，同一个种子会算出同一个结果——要么每次都还手，
+           要么一次都不还。带上次数之后每次是独立的一掷。 */
+        const times = Number(room.还手次数) || 0;
+        const seed = `${room.种子}|strike|${statData.世界信息?.时间?.时钟 || ''}|${times}`;
+        room.还手次数 = times + 1;
+        if (streamHashUnit(seed) > 0.3) return null;
+
+        const need = Number(sorted[0].本场消费) - Number(rival.本场消费) + 1;
+        const spend = Math.min(budget, Math.max(20, Math.min(need, 100 + Math.floor(streamHashUnit(seed + '|amt') * 200))));
+        rival.本场消费 = Number(rival.本场消费) + spend;
+        room.还手预算 = budget - spend;
+        room.本场热度 = (Number(room.本场热度) || 0) + Math.round(spend * 3.5);
+        repaintHeat(statData, name);
+        console.log(TAG, `榜一还手: ${name} / ${rival.名字} +${spend}`);
+        return { 名字: rival.名字, 金额: spend };
     }
 
     function normalizeArea(area) {
@@ -530,8 +960,9 @@
         const live = happens && streamInWindow(now, (start + 1440) % 1440, (end + 1440) % 1440);
         const titles = habit.titles || ['临时杂谈'];
         const title = titles[Math.floor(streamHashUnit(`${seed}|title`) * titles.length)];
-        const [viewerMin, viewerMax] = habit.viewers || [500, 3000];
-        const base = viewerMin + streamHashUnit(`${seed}|viewers`) * Math.max(0, viewerMax - viewerMin);
+        /* 规模不在这里定。pulse 只是当刻的抖动系数（0.86~1.14），乘在由 粉丝数 反解出的
+           底盘热度上。原来这里有一张 habit.viewers 规模表，跟粉丝数推出来的量级对不上
+           （时雨羽衣被写成比塔菲还热），已经删掉。 */
         const pulse = 0.86 + streamHashUnit(`${seed}|pulse|${Math.floor(now / 30)}`) * 0.28;
 
         return {
@@ -542,7 +973,9 @@
             start: streamClock(start),
             end: streamClock(end),
             title,
-            viewers: Math.max(0, Math.round(base * pulse)),
+            /* pulse 是当日/当刻的抖动系数（0.86~1.14），乘在底盘热度上。
+               规模本身由 粉丝数 → 底盘热度 决定，不在这里另存一份。 */
+            pulse,
         };
     }
 
@@ -550,7 +983,19 @@
         if (!stream || !previous) return false;
         return stream.开播 !== previous.开播
             || stream.标题 !== previous.标题
-            || stream.人数 !== previous.人数;
+            || stream.热度 !== previous.热度;
+    }
+
+    /**
+     * 这间房的底盘热度。优先读 系统配置.直播间.<名>.底盘热度（变量初始化写的），
+     * 读不到就从 直播.粉丝数 现场反解——两条路走的是同一条曲线，不会有第二套数。
+     */
+    function roomBaseHeat(statData, name, stream) {
+        const room = statData?.系统配置?.直播间?.[name];
+        const stored = Number(room?.底盘热度);
+        if (Number.isFinite(stored) && stored > 0) return stored;
+        const followers = Number(stream?.粉丝数) || 0;
+        return followers > 0 ? scaleOfFollowers(followers).底盘热度 : 0;
     }
 
     function observeManualStreamWrites(statData, before) {
@@ -593,23 +1038,33 @@
             const decision = streamDecision(name, habit, moment);
             const oldLive = stream.开播 === true;
             const oldTitle = stream.标题;
-            const oldViewers = Number(stream.人数) || 0;
+            const oldHeat = Number(stream.热度) || 0;
 
             writeIfChanged(stream, '开播', decision.live);
             if (decision.live) {
                 if (!stream.标题) writeIfChanged(stream, '标题', decision.title);
-                if (!(Number(stream.人数) > 0)) writeIfChanged(stream, '人数', decision.viewers);
+                /* 开播热度取底盘（由粉丝数反解），再乘一点当日抖动。
+                   以前这里用的是 STREAM_HABITS.viewers，那是第二张手写的规模表，
+                   跟粉丝数推出来的量级对不上——时雨羽衣被写成比塔菲还热。删了。 */
+                if (!(Number(stream.热度) > 0)) {
+                    writeIfChanged(stream, '热度', roomBaseHeat(statData, name, stream) * decision.pulse);
+                }
             }
 
             const changed = oldLive !== (stream.开播 === true)
                 || oldTitle !== stream.标题
-                || oldViewers !== (Number(stream.人数) || 0);
+                || oldHeat !== (Number(stream.热度) || 0);
             if (changed) streamAutoWrites.set(name, { date: moment.date, live: stream.开播 === true });
         });
     }
 
     function syncStreams(statData, before) {
         driveStreams(statData, before);
+        /* 时钟往前走了一拍就衰减一次本场热度。放在 driveStreams 之后：
+           那边刚决定了谁在播，这里只处理已经在播的房间。 */
+        const nowClock = String(statData?.世界信息?.时间?.时钟 || '');
+        const wasClock = String(before?.世界信息?.时间?.时钟 || '');
+        if (before && nowClock && nowClock !== wasClock) decaySessionHeat(statData);
         const girls = statData.对象信息;
         if (!girls || typeof girls !== 'object') return;
 
@@ -623,13 +1078,19 @@
 
             const live = stream.开播 === true;
             if (!live) {
+                /* 下播清标题和热度，粉丝数是常驻的、不清 */
                 writeIfChanged(stream, '标题', '');
-                writeIfChanged(stream, '人数', 0);
+                writeIfChanged(stream, '热度', 0);
+                const room = statData.系统配置?.直播间?.[name];
+                if (room) writeIfChanged(room, '本场热度', 0);
                 if (watching === name) stillWatching = null;
             } else {
-                const viewers = Math.max(0, Math.floor(Number(stream.人数) || 0));
-                if (stream.人数 !== viewers) stream.人数 = viewers;
+                /* 给 AI 看的热度收成约数：底账留在 系统配置，模型看到的是"大概一万八" */
+                const heat = roundNice(Number(stream.热度) || 0);
+                if (stream.热度 !== heat) stream.热度 = heat;
             }
+            const fans = Math.max(0, Math.floor(Number(stream.粉丝数) || 0));
+            if (stream.粉丝数 !== fans) stream.粉丝数 = fans;
 
             const fan = statData.玩家信息?.粉丝身份?.[name];
             const wasLive = before?.对象信息?.[name]?.直播?.开播 === true;
@@ -748,6 +1209,12 @@
         badgeLevel,
         streamScale,
         tierOfFollowers,
+        scaleOfFollowers,
+        // 直播间：卡片只用这几个，不要自己读写 MVU、也不要自己存表
+        canonName: canonGirlName,
+        roomMenu,
+        roomView,
+        roomAction,
         privacyOf,
         streamDecision,
         handleVariableUpdate,

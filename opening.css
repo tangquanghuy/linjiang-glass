@@ -655,3 +655,292 @@ textarea.control{background:rgba(24,20,52,.12);backdrop-filter:blur(4px) brightn
   .tier-metric b{margin:0}
   .tier-metric small{display:none}
 }
+
+/* 人设改成整段 角色详情 YAML（跟 世界书/红蔷薇 同格式），不再是十二个分字段文本框。
+   YAML 要逐行读、按缩进看层级，所以等宽字体 + 不折行 + 保留空白。 */
+/* 选择器得带上 textarea：前面那条 textarea.control{min-height:112px} 权重更高，
+   只写 .yaml-editor 会被它压回四行高。 */
+textarea.yaml-editor{
+  min-height:430px;resize:vertical;
+  white-space:pre;overflow:auto;tab-size:2;
+  font:400 12px/1.72 ui-monospace,'SFMono-Regular','Cascadia Mono',Consolas,'Noto Sans SC',monospace;
+}
+.yaml-hint{display:block;margin-top:9px;color:rgba(255,255,255,.52);font-size:10.5px;line-height:1.6}
+#generated-meta{font-family:'Outfit','Noto Sans SC',sans-serif}
+@media(max-width:700px){textarea.yaml-editor{min-height:340px;font-size:11px}}
+
+/* ============================================================
+   紧凑排布：02 / 03 / 04 三步在常见 PC 屏幕上直接装下
+   ------------------------------------------------------------
+   收之前在 1440×900 下量到的溢出：02 +524px、03 +676px、04 +948px。
+   滚动本身不致命，但这三步都是"看着全局做选择"的页面——地图被切一半、
+   七张封面只露一行，最要紧的横向对比就做不成了。
+
+   收的手段按收益排三层：
+     1. 外框先让路。header + steps + footer 在 900px 高的屏上吃掉 246px
+        （27%），这三步一律压薄，.app 的上下留白也从 60 收到 24。
+     2. 竖着排的改横排。02 的侧栏从地图下面挪到右边，03 的卡片从竖版
+        （图上字下）换成横版（图左字右），各少掉一整行。
+     3. 剩下的高度全给主体。02 的地图视口不再写死 clamp()，改成 flex
+        撑满剩余高度：屏幕多高地图就多高，且永远不会把页面顶出滚动条。
+
+   全部包在 min-width:1051px 里——1050 以下是已经调过的窄屏/手机版，
+   那边一列一列往下排本来就该滚，不要动。
+   ============================================================ */
+@media(min-width:1051px){
+
+/* ---- 第一层：外框压薄 ---------------------------------------------- */
+/* 外框留白抽成一个变量：下面 .app 的 padding、.shell 的 min-height（03/04）和
+   height（02/05 要撑满）三处都从它算，矮屏那一档只改这一个值就够，
+   不会出现 padding 收了、shell 高度没跟着收、底下空出一条的情况。 */
+body.compact-step{--frame:12px}
+body.compact-step .app{width:min(1880px,calc(100% - 24px));padding:var(--frame) 0}
+/* .shell 是四行 auto 的 grid，min-height 撑起来之后多出来的高度会平均摊给四行——
+   于是内容一短，header / steps / footer 三条横带就各自胖 28px（03 步实测 86px，
+   比不收之前的 90px 还差不多），步骤条还会在翻页时上下跳。
+   把中间那行改成 1fr，多出来的高度全给 .main，三条横带才真的是收薄了的固定高度。 */
+body.compact-step .shell{min-height:calc(100vh - var(--frame)*2);border-radius:24px;grid-template-rows:auto auto minmax(0,1fr) auto}
+/* 02（地图）和 05（确认）里有要"撑满剩余高度"的块，得先给 .shell 一个确定高度，
+   .main 才有东西可分；overflow:auto 是保险丝：窗口特别矮时宁可块内滚，也别裁掉内容。 */
+body.compact-step.life-map-step .shell,body.compact-step.confirm-step .shell{height:calc(100vh - var(--frame)*2)}
+body.compact-step.life-map-step .main,body.compact-step.confirm-step .main{min-height:0;overflow:auto}
+
+body.compact-step .header{padding:10px 26px 9px}
+body.compact-step .brand{gap:13px}
+body.compact-step .brand-mark{width:34px;height:34px}
+body.compact-step .brand-mark img{width:19px;height:19px}
+body.compact-step .brand-script{font-size:26px}
+body.compact-step .brand-copy h1{font-size:15px}
+body.compact-step .brand-copy p{margin-top:3px;font-size:10px}
+
+body.compact-step .steps{padding:0 22px;gap:6px}
+body.compact-step .step-tab{margin:5px 0;padding:7px 8px 8px;border-radius:11px}
+body.compact-step .step-tab span{font-size:9px}
+body.compact-step .step-tab b{margin-top:4px;font-size:12px}
+
+body.compact-step .main{padding:16px 24px 18px}
+body.compact-step .section-head{margin-bottom:12px}
+body.compact-step .section-head h2{margin-top:5px;font-size:22px}
+body.compact-step .section-head p{margin-top:4px;max-width:none;font-size:11.5px;line-height:1.55}
+
+body.compact-step .footer{padding:9px 26px 10px}
+body.compact-step .footer .primary,body.compact-step .footer .secondary{min-height:38px;padding:0 16px}
+}
+
+@media(min-width:1051px){
+/* ---- 第二层：02 步改成"地图左 + 侧栏右"，地图吃掉剩余高度 ------------
+   .shell 从 min-height 换成定高 + 中间那行 minmax(0,1fr)，main 才有一个
+   确定的高度可以往下分；地图视口去掉 clamp()、改 flex:1，这样 900 高的屏
+   和 1440 高的屏都是"正好一屏"，而不是各自差一截。
+   main 留 overflow:auto 是保险丝：窗口特别矮的时候宁可侧栏内部滚，
+   也不要直接把内容裁掉。 */
+body.life-map-step .main{padding:14px 24px 16px}
+body.life-map-step .panel[data-panel="2"].active{display:flex;flex-direction:column;height:100%;min-height:0}
+
+body.life-map-step .life-map-layout{
+  flex:1 1 auto;min-height:0;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,368px);gap:12px;align-items:stretch;
+}
+body.life-map-step .opening-map-card{display:flex;flex-direction:column;min-height:0;padding:10px}
+body.life-map-step .opening-map-head{padding:3px 4px 9px;gap:14px}
+body.life-map-step .opening-map-head b{font-size:16px}
+body.life-map-step .map-fullscreen-btn,body.life-map-step .map-mode-tabs button{height:auto;padding:8px 13px}
+body.life-map-step .opening-map-viewport{flex:1 1 auto;height:auto;min-height:260px}
+
+/* 侧栏变成一根竖条：三张卡竖着排，第三张（怎么看）吃掉剩余高度 */
+body.life-map-step .life-inspector{
+  grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);
+  gap:10px;min-height:0;
+}
+body.life-map-step .life-selection-card{padding:14px 16px}
+body.life-map-step .life-selection-card h3{margin-top:7px;font-size:17px}
+body.life-map-step .life-selection-card p{margin-top:5px;font-size:11px;line-height:1.5}
+body.life-map-step .selection-cost{margin-top:9px;padding:8px 10px;font-size:11.5px}
+body.life-map-step .inspector-action{margin-top:9px;min-height:34px;font-size:11px}
+body.life-map-step .commute-card{margin-top:9px;padding:9px 10px}
+body.life-map-step .commute-head{padding-bottom:7px}
+/* 单程通勤那五格在 368px 的窄栏里排五列会挤成竖排的单字，改三列两行 */
+body.life-map-step .work-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+body.life-map-step .work-metric{padding:6px 8px}
+body.life-map-step .work-metric small{display:none}
+body.life-map-step .life-tip-card{padding:13px 16px}
+body.life-map-step .life-tip-card p{margin-top:6px;font-size:10.5px;line-height:1.6}
+}
+
+@media(min-width:1051px){
+/* ---- 第三层：03 步的封面卡改横版 --------------------------------------
+   竖版（图上字下）四列两行是 2 × 450px，光卡片就 913px。换成横版
+   （图左字右）之后一张 ~190px，两行连注释卡一起 500px 出头就够。
+   立绘从"主视觉"退成"辨认用的头像条"，但这一步要做的事是横向比七个人，
+   七张脸能同时看见比每张脸更大更重要。 */
+body.compact-step .oshi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+body.compact-step .oshi-card{flex-direction:row}
+/* height:auto 让图跟着右边文字撑高，参照窄屏那版的做法 */
+body.compact-step .oshi-art{flex:0 0 122px;height:auto;min-height:0}
+body.compact-step .oshi-art img{object-position:50% 12%}
+body.compact-step .oshi-art:after{background:linear-gradient(90deg,transparent 44%,rgba(24,20,52,.52))}
+body.compact-step .oshi-check{right:8px;top:8px;width:24px;height:24px;font-size:12px}
+body.compact-step .oshi-body{flex:1 1 auto;min-width:0;gap:4px;padding:11px 13px 12px}
+body.compact-step .oshi-top b{font-size:15px}
+body.compact-step .oshi-blurb{font-size:11px;line-height:1.55}
+body.compact-step .oshi-gain{margin-top:2px;padding-top:7px;font-size:10px}
+
+body.compact-step .oshi-counter{padding:7px 13px}
+body.compact-step .oshi-counter b{font-size:17px}
+
+body.compact-step .oshi-note{margin-top:10px}
+body.compact-step .oshi-note.card-pad{padding:14px 16px}
+body.compact-step .oshi-note .card-title{margin-bottom:10px}
+body.compact-step .oshi-note .card-title b{font-size:14px}
+body.compact-step .oshi-note-grid{gap:9px}
+body.compact-step .oshi-note-grid>div{padding:9px 11px}
+body.compact-step .oshi-note-grid b{margin-top:5px;font-size:10.5px;line-height:1.5}
+}
+
+@media(min-width:1051px){
+/* ---- 第四层：04 步排成"立绘 | 表单 | YAML"三列 ------------------------
+   这一步最高，因为 YAML 那块自己就 430px，叠在表单下面必然要滚。把它挪成
+   .stream-layout 的第三个直接子元素（HTML 里也改了位置），宽屏就是三列并排，
+   高度取三列里最高的那一列，而不是相加。
+
+   用 flex 而不是三列 grid：YAML 没生成时 .generated 是 display:none，
+   flex 里它整个不占位、表单自动摊开；grid 的第三条轨道会留一片空白。 */
+body.compact-step .stream-layout{display:flex;align-items:stretch;gap:12px}
+body.compact-step .art-card{flex:0 0 212px;min-height:0;display:flex;flex-direction:column}
+body.compact-step .art-preview{flex:1 1 auto;height:auto;min-height:210px}
+body.compact-step .art-caption b{font-size:18px}
+body.compact-step .art-tools{padding:12px;gap:9px}
+body.compact-step .stream-form{flex:1 1 auto;min-width:340px;padding:16px 18px}
+
+body.compact-step .stream-form .fields{gap:9px 12px}
+body.compact-step .stream-form .field label{margin-bottom:5px;font-size:11px}
+body.compact-step .stream-form .control{min-height:40px;padding:9px 12px}
+body.compact-step .stream-form textarea.control{min-height:56px}
+body.compact-step .tags{gap:6px}
+body.compact-step .tag{padding:5px 10px}
+body.compact-step .tier-panel{gap:9px}
+body.compact-step .range-box{padding:9px 11px}
+body.compact-step .range-box input{margin-top:8px}
+body.compact-step .tier-dial small{margin-top:6px}
+body.compact-step .tier-out{gap:7px}
+body.compact-step .tier-metric{padding:8px 10px}
+body.compact-step .tier-metric b{margin-top:4px;font-size:16px}
+body.compact-step .tier-metric small{margin-top:4px}
+body.compact-step .tier-hint{margin-top:6px;font-size:10px;line-height:1.5}
+body.compact-step .generate-row{margin-top:12px}
+body.compact-step .generate-row .primary{min-height:38px}
+body.compact-step .optional-toggle{min-height:40px}
+body.compact-step .optional-toggle button{min-height:30px;min-width:84px}
+
+/* YAML 那一列：整列高度由旁边两列决定，编辑框自己撑满并保留内部滚动。
+   这段 YAML 有一百多行，任何布局都装不下全文——所以让它在框里滚，
+   而不是把整页顶出滚动条。 */
+body.compact-step .generated{flex:1 1 0;min-width:318px;margin-top:0;padding:14px 16px}
+body.compact-step .generated.on{display:flex;flex-direction:column}
+body.compact-step .generated-head{margin-bottom:10px}
+body.compact-step textarea.yaml-editor{flex:1 1 auto;min-height:170px;font-size:11.5px;line-height:1.62}
+body.compact-step .yaml-hint{margin-top:7px;font-size:10px;line-height:1.5}
+body.compact-step .custom-skip-note.card-pad{padding:16px 18px}
+}
+
+/* 04 步的表单：四个短字段（姓名／网名／年龄／住所）本来占两行，最后 粉丝牌子名
+   还独占一行的左半边、右半边空着——两行半的高度只装了五个输入框。改成四列一行，
+   气质／时间／牌子 也正好并成一行，整块表单从 593px 收到 ~445px。
+   四列要宽度撑得住，所以再收一档断点：1360 以下还是两列（那时候多滚一点，
+   比把 11px 的中文标签压成两行强）。 */
+@media(min-width:1360px){
+  body.compact-step .stream-form .fields{grid-template-columns:repeat(4,minmax(0,1fr))}
+  /* 三列并排的比例重排一次：表单要装得下四列，YAML 那列给一个固定基准宽 */
+  body.compact-step .stream-form{flex:1 1 0;min-width:430px}
+  body.compact-step .generated{flex:0 1 372px;min-width:330px}
+}
+
+@media(min-width:1051px){
+/* 立绘列收到 212px 之后，「引用链接」和「上传本地立绘」并排放不下，各自折成两行。
+   这一列本来就窄，两个按钮竖着排更好按，也省一行的高度。 */
+body.compact-step .art-tools .file-row{grid-template-columns:1fr;gap:7px}
+body.compact-step .art-tools .secondary,body.compact-step .art-tools .file-pick{min-height:36px;font-size:11.5px}
+body.compact-step .art-tools small{font-size:10px}
+/* 三个读数在四列表单里各只剩 ~150px，b 那一行（例如「195（+提督 6）」）会把格子撑爆，
+   把说明文字挤出边界。字号各收一档，让 b 和 small 都能在格子里断行。 */
+body.compact-step .tier-metric b{font-size:15px;line-height:1.2}
+body.compact-step .tier-metric small{font-size:9px;line-height:1.35}
+}
+
+/* 1051–1359：字段还是两列，但表单被 YAML 那列挤到 ~470px，体量面板再左右一分，
+   三个读数各只剩 58px，「195（+提督 6）」会折成三行。这一段宽度里把拉杆和读数
+   改成上下排，读数就能拿到整个表单宽度。 */
+@media(min-width:1051px) and (max-width:1359px){
+  body.compact-step .tier-panel{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ---- 再收一档：矮屏（1366×768 那类老笔电） ----------------------------
+   768 高的屏上，上面那套还差一点：03 溢出 38px、04 溢出 82px。
+   这一档不动布局，只把外框和留白再压一遍——收的是"空的地方"，
+   内容该多大还是多大。 */
+@media(min-width:1051px) and (max-height:820px){
+  body.compact-step{--frame:8px}
+  body.compact-step .shell{border-radius:18px}
+  body.compact-step .header{padding:7px 22px 6px}
+  body.compact-step .brand{gap:11px}
+  body.compact-step .brand-mark{width:30px;height:30px}
+  body.compact-step .brand-mark img{width:17px;height:17px}
+  body.compact-step .brand-script{font-size:23px}
+  body.compact-step .brand-copy h1{font-size:14px}
+  /* "OPENING PROFILE · 2026" 是装饰，矮屏上第一个让位 */
+  body.compact-step .brand-copy p{display:none}
+  body.compact-step .steps{padding:0 18px}
+  body.compact-step .step-tab{margin:3px 0;padding:5px 6px 6px}
+  body.compact-step .step-tab b{margin-top:3px}
+  body.compact-step .main{padding:12px 20px 14px}
+  body.compact-step .section-head{margin-bottom:9px}
+  body.compact-step .section-head h2{font-size:20px}
+  body.compact-step .section-head p{font-size:11px;line-height:1.45}
+  body.compact-step .footer{padding:7px 22px 8px}
+  body.compact-step .footer .primary,body.compact-step .footer .secondary{min-height:34px}
+  /* 04 步字段最多，再让三个读数下面那行注解让位：粉丝数／底盘热度／大航海
+     这三个词本身够自解释，注解在 480px 高的可用区里不值 26px */
+  body.compact-step .tier-metric small{display:none}
+  body.compact-step .oshi-body{gap:3px;padding:9px 11px 10px}
+  body.compact-step .oshi-note.card-pad{padding:11px 14px}
+  body.compact-step .oshi-note .card-title{margin-bottom:8px}
+  body.compact-step .oshi-note-grid>div{padding:7px 10px}
+}
+
+/* 04 步在 768 高上还差 28px，最后一遍全落在表单的行距和输入框高度上 */
+@media(min-width:1051px) and (max-height:820px){
+  body.compact-step .stream-form{padding:13px 16px}
+  body.compact-step .stream-form .fields{gap:7px 12px}
+  body.compact-step .stream-form .field label{margin-bottom:4px}
+  body.compact-step .stream-form .control{min-height:36px;padding:7px 11px}
+  body.compact-step .stream-form textarea.control{min-height:44px}
+  body.compact-step .tier-hint{margin-top:5px;font-size:9.5px;line-height:1.45}
+  body.compact-step .generate-row{margin-top:9px}
+  body.compact-step .generate-row .primary{min-height:34px}
+}
+
+@media(min-width:1051px){
+/* ---- 05 确认页 --------------------------------------------------------
+   收之前 1440×900 溢出 155px。这一页两列的内容天生一长一短：左边九行档案是
+   定量的，右边的世界书正文是一段上百行的 YAML——按内容排就永远有一列过长。
+   所以改成"两列都撑满一屏"，各自内部滚：档案九行基本装得下，YAML 那块本来就
+   写了 overflow:auto，只是原先被 max-height:350px 钉死、钉完还是把整页顶出滚动条。 */
+body.confirm-step .panel[data-panel="5"].active{display:flex;flex-direction:column;height:100%;min-height:0}
+body.confirm-step .confirm-grid{flex:1 1 auto;min-height:0;align-items:stretch;gap:14px}
+
+body.confirm-step .identity-card{display:flex;flex-direction:column;min-height:0}
+/* 那张夜景是气氛，不是信息：矮屏上第一个让位，但保留到 120px 以上，
+   免得渐变压着标题糊成一条 */
+body.confirm-step .confirm-scene{flex:0 0 auto;height:clamp(120px,17vh,190px)}
+body.confirm-step .confirm-title em{font-size:24px}
+body.confirm-step .confirm-title h3{font-size:19px}
+body.confirm-step .confirm-lines{flex:1 1 auto;min-height:0;overflow:auto;padding:13px 18px 15px;gap:8px}
+body.confirm-step .confirm-line{grid-template-columns:82px 1fr;gap:12px;padding-bottom:8px}
+
+body.confirm-step .book-preview{display:flex;flex-direction:column;min-height:0;padding:15px 18px}
+body.confirm-step .book-preview .card-title{margin-bottom:10px}
+body.confirm-step .book-preview>p{font-size:11px;line-height:1.6}
+/* book-entry 自己是滚动容器，pre 去掉写死的 max-height 交给它 */
+body.confirm-step .book-entry{flex:1 1 auto;min-height:0;display:flex;margin-top:11px;padding:13px 14px}
+body.confirm-step .book-entry pre{flex:1 1 auto;min-height:0;max-height:none}
+}

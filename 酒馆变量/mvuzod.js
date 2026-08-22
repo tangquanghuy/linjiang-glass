@@ -344,14 +344,29 @@ const physiologySchema = z.preprocess(
     })
 );
 
+/**
+ * 直播间没有人数，只有热度。
+ *   粉丝数 —— 稳定量，她一共有多少人关注，是公开事实，AI 该知道；
+ *   热度   —— 开播时 = 系统配置.直播间.<名>.底盘热度 + 本场礼物堆的虚火，下播回 0。
+ * 底盘热度、本场热度、高能榜、大航海是后台账，只在 系统配置.直播间 里，不摊给模型。
+ */
 const streamSchema = z.preprocess(
-    v => isPlainObject(v) ? v : {},
+    v => {
+        if (!isPlainObject(v)) return {};
+        const next = { ...v };
+        // 旧档里的 人数 直接当热度用，别丢
+        if (next.人数 != null && next.热度 == null) next.热度 = next.人数;
+        delete next.人数;
+        return next;
+    },
     z.object({
         开播: boolPreprocess(false),
         标题: str(''),
-        人数: z.coerce.number().prefault(0).transform(n => Math.max(0, Math.floor(Number.isFinite(n) ? n : 0))),
+        热度: z.coerce.number().prefault(0).transform(n => Math.max(0, Math.floor(Number.isFinite(n) ? n : 0))),
+        粉丝数: z.coerce.number().prefault(0).transform(n => Math.max(0, Math.floor(Number.isFinite(n) ? n : 0))),
     }).transform(r => {
-        if (!r.开播) return { 开播: false, 标题: '', 人数: 0 };
+        // 没开播就没有标题也没有热度，但粉丝数是常驻的
+        if (!r.开播) return { 开播: false, 标题: '', 热度: 0, 粉丝数: r.粉丝数 };
         return r;
     })
 );

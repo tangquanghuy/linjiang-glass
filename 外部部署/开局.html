@@ -8,25 +8,27 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
-  /* 视觉沿用开局页 opening.css 的那套令牌，卡片就是那块玻璃壳的一小段截面。
-     跟开局页同一次改动：填充退到近乎没有、模糊压低，景深靠 backdrop-filter
-     的 brightness() 压暗透过来的光来拿，而不是往上刷一块深紫板。
-     这张卡衬的是酒馆聊天背景（深浅都有可能），压暗对两种底都成立，
-     刷固定深色只对深色主题成立。 */
+  /* 对着原型示意图那块 HUD 做的：冷紫玻璃 + 一圈暖粉外泛光 + 底边一道亮光，
+     标题是「花体英文 / 中文小标」那种成对写法。
+     跟上一版的关键区别：不再用 backdrop-filter: brightness() 压暗背景。
+     压暗在酒馆的深色聊天底上会把整张卡拉成一块炭黑板（跟原型完全不搭），
+     改成填充自己带足够的紫（alpha 约 .55），深底浅底都是同一块紫玻璃。 */
   :root {
     --ink: #fff;
     --mute: rgba(255, 255, 255, .82);
-    --faint: rgba(255, 255, 255, .70);
-    --line: rgba(255, 255, 255, .22);
-    --rim: rgba(255, 255, 255, .46);
-    --pink: #ffa3c9;
+    --faint: rgba(255, 255, 255, .62);
+    --line: rgba(255, 255, 255, .17);
+    --rim: rgba(255, 255, 255, .52);
+    --pink: #ffb3d4;
     --blue: #a9d6ff;
+    --gold: #ffe0aa;
     --ok: #9ff0cd;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: transparent; }
   body {
-    padding: 2px;
+    /* 外泛光要有地方铺开，不然会被楼层边缘切掉 */
+    padding: 8px 10px 12px;
     color: var(--ink);
     font-family: 'Noto Sans SC', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -38,22 +40,25 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 18px 24px;
-    padding: 20px 24px;
+    gap: 16px 26px;
+    padding: 22px 26px 24px;
     border: 1px solid var(--rim);
-    border-radius: 22px;
-    /* 填充只是一层几乎不存在的白，颜色让背景给 */
-    background: linear-gradient(158deg, rgba(255, 255, 255, .10), rgba(186, 198, 255, .05) 46%, rgba(255, 206, 232, .08));
+    border-radius: 26px;
+    /* 冷紫玻璃：两角各一团暖粉／湖蓝的光晕，是原型上那块 HUD 的取色 */
+    background:
+      radial-gradient(120% 150% at 4% -20%, rgba(255, 172, 210, .22), transparent 58%),
+      radial-gradient(110% 150% at 100% -6%, rgba(154, 198, 255, .20), transparent 60%),
+      linear-gradient(158deg, rgba(80, 78, 142, .54), rgba(38, 40, 90, .58) 48%, rgba(94, 62, 114, .54));
     box-shadow:
-      0 22px 60px -28px rgba(12, 8, 30, .55),
+      /* 落地阴影 + 两圈外泛光：原型那块板是"发光的亚克力"，不是贴上去的方块 */
+      0 26px 64px -30px rgba(10, 8, 30, .70),
+      0 0 30px -6px rgba(255, 170, 212, .34),
+      0 0 72px -20px rgba(154, 198, 255, .30),
       inset 0 1px 0 rgba(255, 255, 255, .58),
-      inset 0 -1px 0 rgba(255, 255, 255, .12),
-      /* 亮边压在浅色主题上会整条消失，补一圈极淡的外描边当轮廓 */
-      0 0 0 1px rgba(28, 22, 58, .10);
-    backdrop-filter: blur(8px) saturate(1.5) brightness(.62) contrast(1.05);
-    -webkit-backdrop-filter: blur(8px) saturate(1.5) brightness(.62) contrast(1.05);
-    /* 玻璃薄了之后白字底下什么都可能滑过去，给文字自己一层贴身暗影兜底 */
-    text-shadow: 0 1px 3px rgba(20, 16, 46, .55), 0 0 14px rgba(20, 16, 46, .28);
+      inset 0 -22px 46px -30px rgba(255, 198, 226, .40);
+    backdrop-filter: blur(16px) saturate(1.35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.35);
+    text-shadow: 0 1px 3px rgba(20, 16, 46, .42);
   }
   #launch::before {
     content: '';
@@ -61,48 +66,63 @@
     inset: 0;
     pointer-events: none;
     /* 一道窄而亮的斜切反光，不是一整片雾——"晶莹"是这么来的 */
-    background:
-      radial-gradient(56% 120% at 8% 0%, rgba(255, 163, 201, .14), transparent 70%),
-      radial-gradient(48% 130% at 96% 4%, rgba(169, 214, 255, .14), transparent 72%),
-      linear-gradient(118deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .05) 16%, transparent 34%, transparent 74%, rgba(255, 255, 255, .14));
+    background: linear-gradient(118deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .04) 15%, transparent 32%, transparent 76%, rgba(255, 255, 255, .13));
   }
-  #launch > * { position: relative; }
-  /* backdrop-filter 不可用时，压暗那一步就没了，白字会糊在亮底上。
-     这种情况退回到不透明深底——闷，但至少读得出来。 */
+  /* 底边那道亮光：原型里 HUD 下沿是压在桌面上的一条粉蓝反光 */
+  #launch::after {
+    content: '';
+    position: absolute;
+    left: 7%;
+    right: 7%;
+    bottom: 0;
+    height: 2px;
+    pointer-events: none;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 196, 224, .9) 26%, rgba(182, 214, 255, .9) 70%, transparent);
+    box-shadow: 0 0 18px rgba(255, 178, 214, .75);
+  }
+  #launch > * { position: relative; z-index: 1; }
+  /* backdrop-filter 不可用时只是少了模糊，填充本身就够紫，补足 alpha 即可 */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     #launch {
-      background: linear-gradient(135deg, rgba(50, 59, 105, .92), rgba(17, 22, 51, .94) 48%, rgba(51, 36, 74, .9));
+      background: linear-gradient(158deg, rgba(78, 76, 138, .94), rgba(34, 36, 84, .96) 48%, rgba(90, 58, 110, .94));
     }
   }
 
-  .brand { display: flex; align-items: center; gap: 15px; min-width: 0; }
+  /* 樱花徽记贴着花体标题那一行，跟原型里 Girls 旁边那朵一样；
+     垂直居中会让它掉到标题和正文中间的空当里 */
+  .brand { display: flex; align-items: flex-start; gap: 15px; min-width: 0; }
   .mark {
     flex: 0 0 auto;
-    width: 42px;
-    height: 42px;
+    margin-top: -2px;
+    width: 40px;
+    height: 40px;
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, .62);
-    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
-    box-shadow: 0 0 26px rgba(255, 178, 212, .30), inset 0 1px 0 rgba(255, 255, 255, .7);
+    border: 1px solid rgba(255, 255, 255, .58);
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .58), rgba(255, 214, 234, .16));
+    box-shadow: 0 0 24px rgba(255, 178, 212, .42), inset 0 1px 0 rgba(255, 255, 255, .7);
   }
-  .mark img { width: 23px; height: 23px; object-fit: contain; }
-  .script {
+  .mark img { width: 22px; height: 22px; object-fit: contain; }
+  .copy { min-width: 0; }
+  /* 原型的标题写法：花体英文 + 斜杠 + 中文小标，同一行 */
+  .titleline { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+  .titleline em {
     flex: 0 0 auto;
     font: 400 30px/1 'Pinyon Script', cursive;
-    color: #fff;
-    text-shadow: 0 2px 18px rgba(255, 160, 205, .55);
+    font-style: normal;
+    color: #fff5f9;
+    text-shadow: 0 2px 16px rgba(255, 168, 208, .70);
   }
-  .copy { min-width: 0; }
-  .copy .eyebrow {
+  .titleline span {
     color: var(--faint);
-    font: 600 10px/1.4 'Outfit', 'Noto Sans SC', sans-serif;
-    letter-spacing: .18em;
-    text-transform: uppercase;
+    font: 500 11px/1 'Outfit', 'Noto Sans SC', sans-serif;
+    letter-spacing: .16em;
+    white-space: nowrap;
   }
-  .copy h1 { margin-top: 4px; font-size: 17px; font-weight: 600; letter-spacing: .1em; }
-  .copy p { margin-top: 5px; color: var(--mute); font-size: 12px; line-height: 1.5; }
+  .copy h1 { margin-top: 7px; font-size: 17px; font-weight: 600; letter-spacing: .09em; }
+  .copy p { margin-top: 5px; color: var(--mute); font-size: 12px; line-height: 1.55; }
 
   #open {
     position: relative;
@@ -111,18 +131,21 @@
     align-items: center;
     gap: 9px;
     padding: 12px 24px;
-    border: 1px solid rgba(255, 255, 255, .9);
+    border: 1px solid rgba(255, 255, 255, .72);
     border-radius: 999px;
-    /* 主按钮反过来做成实心亮片：整张卡都透了，唯一的落点得是不透明的，
-       不然"开始配置"跟背景一起飘 */
-    background: linear-gradient(135deg, #fff2f8, #e6f1ff 58%, #fff3dd);
-    box-shadow: 0 14px 30px -14px rgba(255, 170, 208, .8), inset 0 1px 0 #fff;
-    color: #3a2740;
-    text-shadow: none;
+    /* 原型里的按钮是同一块玻璃上磨出来的亮胶囊，不是一片实心白纸。
+       实心白在这张卡上抢掉全部视线，改成半透明 + 一圈粉光。 */
+    background: linear-gradient(150deg, rgba(255, 255, 255, .30), rgba(255, 224, 240, .14) 55%, rgba(210, 228, 255, .18));
+    box-shadow:
+      0 0 24px -4px rgba(255, 178, 214, .60),
+      0 10px 24px -14px rgba(14, 10, 34, .70),
+      inset 0 1px 0 rgba(255, 255, 255, .72);
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(24, 18, 52, .55);
     font: 600 14px/1 'Noto Sans SC', system-ui, sans-serif;
     letter-spacing: .1em;
     cursor: pointer;
-    transition: border-color .18s, box-shadow .18s, transform .18s;
+    transition: border-color .18s, box-shadow .18s, transform .18s, background .18s;
   }
   #open i {
     font-style: normal;
@@ -132,8 +155,11 @@
   }
   #open:hover {
     border-color: #fff;
-    box-shadow: 0 16px 34px -14px rgba(255, 120, 176, .9), inset 0 1px 0 #fff;
-    filter: brightness(1.04);
+    background: linear-gradient(150deg, rgba(255, 255, 255, .40), rgba(255, 224, 240, .22) 55%, rgba(210, 228, 255, .26));
+    box-shadow:
+      0 0 30px -2px rgba(255, 160, 204, .78),
+      0 12px 26px -14px rgba(14, 10, 34, .70),
+      inset 0 1px 0 rgba(255, 255, 255, .85);
   }
   #open:hover i { transform: translateX(3px); }
   #open:active { transform: translateY(1px); }
@@ -143,29 +169,31 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding-top: 16px;
-    border-top: 1px solid var(--line);
+    padding-top: 15px;
+    /* 分隔线做成从亮到无的一道，跟原型里 Status 区块的分界一致 */
+    border-top: 1px solid transparent;
+    border-image: linear-gradient(90deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, .06) 72%, transparent) 1;
   }
   .steps span {
     display: inline-flex;
     align-items: baseline;
     gap: 7px;
     padding: 6px 13px;
-    border: 1px solid rgba(255, 255, 255, .26);
+    border: 1px solid rgba(255, 255, 255, .30);
     border-radius: 999px;
-    /* 小字块用淡深色底 + 自己再压一档亮度：白色底在亮背景上是"提亮"，
-       小字会被一起冲掉；压暗才压得住，而且照样透 */
-    background: rgba(24, 20, 52, .16);
-    backdrop-filter: blur(3px) brightness(.82);
-    -webkit-backdrop-filter: blur(3px) brightness(.82);
+    /* 卡片本体已经是紫玻璃，步骤块就在它上面再提一层亮，
+       而不是反过来抠一块暗（暗块在这张卡上会变成几个黑洞） */
+    background: linear-gradient(150deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .05));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38);
     color: var(--mute);
     font-size: 12px;
   }
   .steps span em {
-    font: 400 10px/1 'Outfit', sans-serif;
+    font: 500 10px/1 'Outfit', sans-serif;
     font-style: normal;
     letter-spacing: .12em;
-    color: var(--faint);
+    /* 序号取原型里资金那行的暖金 */
+    color: var(--gold);
   }
 
   #status {
@@ -174,11 +202,10 @@
     align-items: center;
     gap: 9px;
     padding: 9px 14px;
-    border: 1px solid rgba(255, 255, 255, .26);
-    border-radius: 12px;
-    background: rgba(24, 20, 52, .16);
-    backdrop-filter: blur(3px) brightness(.82);
-    -webkit-backdrop-filter: blur(3px) brightness(.82);
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 13px;
+    background: linear-gradient(150deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .34);
     color: var(--mute);
     font-size: 12px;
     line-height: 1.5;
@@ -199,9 +226,11 @@
   #status.warn::before { background: var(--pink); box-shadow: 0 0 12px var(--pink); }
 
   @media (max-width: 520px) {
-    #launch { grid-template-columns: minmax(0, 1fr); gap: 13px; padding: 18px; border-radius: 18px; }
+    body { padding: 6px 6px 10px; }
+    #launch { grid-template-columns: minmax(0, 1fr); gap: 13px; padding: 18px 18px 20px; border-radius: 20px; }
     .brand { gap: 12px; align-items: flex-start; }
-    .script { display: none; }
+    .titleline em { font-size: 26px; }
+    .titleline span { font-size: 10px; letter-spacing: .12em; }
     .copy h1 { font-size: 16px; }
     #open { width: 100%; justify-content: center; padding: 11px 18px; }
     .steps { gap: 6px; padding-top: 13px; }
@@ -213,9 +242,8 @@
 <div id="launch">
   <div class="brand">
     <div class="mark"><img src="https://tangquanghuy.github.io/linjiang-glass/assets/mark-sakura.png" alt=""></div>
-    <div class="script">Linjiang</div>
     <div class="copy">
-      <div class="eyebrow">Opening Profile · 2026</div>
+      <div class="titleline"><em>Opening</em><span>/ 开局配置 · 2026</span></div>
       <h1>在临江开始生活</h1>
       <p>定下玩家资料、住所与工作、我推的主播；确认后写回 MVU 与世界书。</p>
     </div>
@@ -240,8 +268,85 @@
   const CHANNEL = 'linjiang-opening';
   const OVERLAY_ID = 'linjiang-opening-overlay';
   const STYLE_ID = 'linjiang-opening-style';
-  const PROFILE_FIELDS = ['一句话定位', '外貌', '公开形象', '真实性格', '说话方式', '直播风格',
-    '兴趣与擅长', '生活习惯', '喜恶与雷区', '个人经历', '对观众的态度', '线上线下差异'];
+
+  /* 人设走「角色详情 YAML」，跟 世界书/红蔷薇、斯黛拉、璃亚梦 那三条是同一个格式，
+     生成与写入的做法照 参考/底部状态栏.html 的 人物详情生成：
+       - 模型只输出被 <streamer_profile_yaml> 包住的一段 YAML；
+       - 条目名统一前缀「角色详情：」，插在 after_character_definition；
+       - order 从保留段 260–299 里挑空位，避免跟别的条目抢顺序；
+       - 用 extra 里的 sourceName 做 upsert，开局跑第二次是更新而不是再插一条。 */
+  const PROFILE_TAG = 'streamer_profile_yaml';
+  const PROFILE_PREFIX = '角色详情：';
+  const PROFILE_ORDER_START = 260;
+  const PROFILE_ORDER_END = 299;
+
+  /* 格式示例。比 红蔷薇 那条精简，但层级和字段风格一致，额外多一个「直播设定」块——
+     只放质性的东西：网名、直播分类、常用时间、直播风格、对观众的态度、线上线下差异。
+
+     粉丝数、热度、大航海、牌子名一律不进世界书：那些是会变的运行时数值，归 MVU
+     （对象信息.<名>.直播 与 系统配置.直播间.<名>，由 酒馆变量/变量初始化 起头）。
+     世界书是静态设定，抄一份数字进去只会跟 MVU 打架。 */
+  const PROFILE_FORMAT_SAMPLE = `---
+角色详情:
+  沈遥:
+    线上常用名/主播网名: 遥夜
+    gender: 女
+    age: 23岁
+    identity:
+      public: 西洲区一家小型录音棚的兼职调音助理，晚间开播的杂谈主播
+      hidden: 靠直播收入替家里还一笔没人知道的债，对外一律说是"自己想做"
+    current_state:
+      - 住在西洲永初里的单间，隔音差，开播时会压低音量
+      - 一周固定播五天，节奏稳，很少突然休播
+      - 白天在录音棚打零工，下播后常常直接睡在客厅
+
+    直播设定:
+      平台网名: 遥夜
+      直播分类: [杂谈, 唱歌]
+      常用直播时间: 20:00 - 24:00
+      直播风格: 开场先念未读留言，再进当天的主题；节奏靠她自己控，不追弹幕
+      对观众的态度: 记得住长期发言的ID，但公开场合一律平等对待，不给单人特殊待遇
+      线上线下差异: 镜头前情绪稳定、语速偏快；线下话少，累了会直接不回消息
+
+    social_connection:
+      观众(听众们):
+        relationship: 大多是下班后开着直播做事的人，她把直播间当成陪伴型的背景声
+
+    appearance:
+      overview: 黑色长直发，发尾微卷。浅褐色瞳孔，眼下有一点淡淡的青黑。身形偏瘦，肩线单薄
+      attire:
+        daily: 宽松的灰色针织开衫配长裤，室内常年一双旧棉拖
+        直播: 换一件干净的白衬衫，只在镜头范围内讲究
+      feature:
+        - 眼下的青黑遮不住，粉丝当成她的标志
+        - 说话时习惯用指节敲桌沿打节拍
+
+    对白风格:
+      描述: 语速偏快但不急，句子短。回应会接住上一句的内容，不是各说各话。很少用语气词堆情绪
+      禁止写法:
+        - 禁止写成随时随地照顾玩家情绪的角色：她开播是工作，下播有自己的事
+        - 禁止把打赏写成能换取私人关系
+
+    内部描述:
+      爱好:
+        - 收集不同房间的环境底噪
+        - 深夜一个人走一段回家的路
+      个人特长: 调音与降噪处理；把零散话题接成完整节目
+      本职: 录音棚兼职调音助理，晚间主播
+
+    角色细节:
+      日常: 白天在棚里干活，傍晚回家吃泡面、检设备、开播；下播后处理消息和第二天的安排
+      社交: 对熟人放松得很慢，对越界要求会直接把话说明白
+      复杂反差: 镜头前是稳的那一方，私下常常处在快撑不住的边缘
+
+    行为指导:
+      浅层表现:
+        - 语速快、句子短、回应贴着上一句
+        - 被夸会短暂卡一下再回一句普通的谢谢
+      深层底色:
+        - 把"不能停播"当成底线，累也会硬撑
+      行为红线禁令:
+        - 不把她写成只围绕玩家存在的人`;
 
   const statusBox = document.getElementById('status');
   const openBtn = document.getElementById('open');
@@ -350,56 +455,131 @@
 
   /* ---------- 人设生成：代跑酒馆的模型 ---------- */
 
-  const parseProfile = (raw) => {
-    let text = String(raw || '').trim();
-    text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start < 0 || end <= start) throw new Error('模型没有返回 JSON');
-    const data = JSON.parse(text.slice(start, end + 1));
-    const profile = {};
-    for (const key of PROFILE_FIELDS) {
-      const value = data[key];
-      if (value == null) continue;
-      profile[key] = Array.isArray(value) ? value.join('；') : String(value);
+  /* 三级兜底取 YAML：先认标签，再认 ```yaml 围栏，最后退到第一个 --- 。
+     模型经常多写一句前言或者把围栏漏掉，这三级基本都能捞回来。 */
+  const stripYamlFence = (text) => String(text || '').trim()
+    .replace(/^```ya?ml\s*/i, '').trim()
+    .replace(/```$/i, '').trim();
+
+  const extractProfileYaml = (content) => {
+    const raw = String(content || '').trim();
+    if (!raw) return '';
+    const tagged = raw.match(new RegExp(`<${PROFILE_TAG}>([\\s\\S]*?)<\\/${PROFILE_TAG}>`, 'i'));
+    if (tagged && tagged[1]) return stripYamlFence(tagged[1]);
+    const fenced = raw.match(/```ya?ml\s*([\s\S]*?)```/i);
+    if (fenced && fenced[1]) return String(fenced[1]).trim();
+    const dashes = raw.indexOf('---');
+    if (dashes >= 0) return raw.slice(dashes).trim();
+    return '';
+  };
+
+  const normalizeAiResult = (result) => {
+    if (typeof result === 'string') return result;
+    if (Array.isArray(result)) return result.map(normalizeAiResult).filter(Boolean).join('\n');
+    if (result && typeof result === 'object') {
+      return String(result.content || result.text || result.message || result.result || '');
     }
-    if (!Object.keys(profile).length) throw new Error('JSON 里没有可用字段');
-    return profile;
+    return String(result == null ? '' : result);
+  };
+
+  /* 近期剧情参考：开局时通常没有聊天记录，所以这一段经常是空的，空了就不加。
+     真正有用的场合是玩家中途再补一名主播。 */
+  const buildChatReferenceSection = () => {
+    try {
+      const win = getCoreWindow();
+      const ctx = win.SillyTavern && typeof win.SillyTavern.getContext === 'function'
+        ? win.SillyTavern.getContext() : win.context;
+      const chat = ctx && Array.isArray(ctx.chat) ? ctx.chat : [];
+      if (!chat.length) return '';
+      const lines = chat.slice(-25).map((msg) => {
+        const content = String(msg && msg.mes || '').trim();
+        if (!content) return '';
+        return `**${msg.is_user ? '玩家' : (msg.name || '角色')}**: ${content}`;
+      }).filter(Boolean);
+      if (!lines.length) return '';
+      return `\n\n参考以下剧情内容定位角色形象，补充她的说话方式、行为倾向与当前处境；`
+        + `如果与「玩家已确定的设定」冲突，仍以「玩家已确定的设定」为准。\n\n`
+        + '近期剧情内容参考：\n```markdown\n' + lines.join('\n\n') + '\n```';
+    } catch (e) { return ''; }
+  };
+
+  const buildStreamerProfilePrompt = (input) => {
+    const d = input || {};
+    const mvu = getMvu();
+    let world = {};
+    try {
+      const data = mvu && mvu.getMvuData({ type: 'message', message_id: 'latest' });
+      world = (data && data.stat_data && data.stat_data.世界信息) || {};
+    } catch (e) { world = {}; }
+    const context = {
+      角色名称: d.name || '',
+      来源分类: '开局新建的自定义主播',
+      世界信息: world,
+      玩家已确定的设定: {
+        姓名: d.name || '',
+        主播网名: d.handle || '',
+        年龄: d.age || '',
+        住所: d.home || '未设置',
+        直播分类: d.categories || ['杂谈'],
+        常用直播时间: d.hours || '不固定',
+        气质关键词: d.tone || '无',
+        玩家提供的素材: d.seed || '无',
+      },
+      /* 这一组只给模型定调用：知道她是多大体量的主播，笔调才对得上。
+         这些数已经写进 MVU 了，所以明确要求不要出现在 YAML 里。 */
+      仅供参考的体量_不要写进YAML: {
+        体量: d.scale && d.scale.label || '',
+        粉丝数: d.scale && d.scale.followers || 0,
+        常态热度: d.scale && d.scale.base || 0,
+        大航海: d.scale ? `舰长 ${d.scale.guards} / 提督 ${d.scale.admirals} / 总督 ${d.scale.governors}` : '',
+      },
+    };
+    return `你需要为一名自定义主播生成可写入世界书的详细人物设定 YAML。这是一部现实向的都市直播题材作品，临江市是一座普通的现代城市，没有超能力和奇幻设定。
+
+要求：
+1. 严格参考后面的格式示例，保持同样的层级组织、字段风格和信息密度。
+2. 「玩家已确定的设定」里的每一项都是既定事实，必须原样落进 YAML 的对应位置，不许改写、不许省略。数字照抄。
+3. 其余部分在不与既定事实冲突的前提下合理补完：她要有自己的工作、住处、人际关系和判断，不是围绕玩家存在的角色。
+4. 打赏、关注、牌子等级只代表观众花过钱和看得久，不能写成能换取私人关系或好感。
+5. 「仅供参考的体量」只用来给笔调定调，绝对不要把粉丝数、热度、大航海人数、牌子名这类数字写进 YAML——它们是会变的运行时数值，另有去处。
+6. 输出中文内容，保留 YAML 结构。不要写解释、前言、后记、分析过程。
+7. 最终只允许输出被指定标签包裹的 YAML。
+
+最终输出格式必须严格如下：
+<${PROFILE_TAG}>
+\`\`\`yaml
+...你的 YAML 正文...
+\`\`\`
+</${PROFILE_TAG}>
+
+当前任务对象：
+\`\`\`json
+${JSON.stringify(context, null, 2)}
+\`\`\`${buildChatReferenceSection()}
+
+格式示例：
+\`\`\`yaml
+${PROFILE_FORMAT_SAMPLE.trim()}
+\`\`\``;
   };
 
   const generateStreamerProfile = async (input) => {
     const helper = getHelper();
     if (!helper || typeof helper.generateRaw !== 'function') throw new Error('TavernHelper.generateRaw 不可用');
-    const d = input || {};
-    const brief = [
-      '姓名: ' + (d.name || ''),
-      '主播网名: ' + (d.handle || ''),
-      '年龄: ' + (d.age || ''),
-      '住所: ' + (d.home || '未设置'),
-      '直播分类: ' + ((d.categories || []).join('、') || '杂谈'),
-      '热度: ' + (d.heat != null ? d.heat : '') + (d.heatLabel ? '（' + d.heatLabel + '）' : ''),
-      '粉丝数: ' + (d.followers != null ? d.followers : ''),
-      '舰长数: ' + (d.captains != null ? d.captains : ''),
-      '常用直播时间: ' + (d.hours || '不固定'),
-      '气质关键词: ' + (d.tone || '无'),
-      '玩家提供的素材: ' + (d.seed || '无'),
-    ].join('\n');
-    const system = [
-      '你在为一部现实向直播题材作品补全一名自定义主播的人设档案。',
-      '只输出一个 JSON 对象，不要写解释、不要用代码块。',
-      '键必须是且仅是: ' + PROFILE_FIELDS.join('、') + '。',
-      '每个值是一段 30~90 字的中文陈述，写具体的事实和习惯，不写夸张评价。',
-      '必须与玩家提供的素材保持一致，不要推翻已给定的事实。',
-    ].join('\n');
+    const prompt = buildStreamerProfilePrompt(input);
     const result = await helper.generateRaw({
-      ordered_prompts: [
-        { role: 'system', content: system },
-        { role: 'user', content: brief },
-      ],
-      max_chat_history: 0,
+      ordered_prompts: [{ role: 'user', content: prompt }],
+      max_chat_history: 25,
       should_stream: false,
+      overrides: {
+        world_info_before: '',
+        world_info_after: '',
+        chat_history: { with_depth_entries: false },
+      },
     });
-    return { profile: parseProfile(result) };
+    const yaml = extractProfileYaml(normalizeAiResult(result));
+    if (!yaml) throw new Error('模型没有返回可用的 YAML');
+    return { yaml };
   };
 
   /* ---------- 写回 MVU 与世界书 ---------- */
@@ -440,18 +620,77 @@
     return written;
   };
 
-  const worldbookEntry = (book) => ({
-    name: book.name,
-    comment: book.name,
-    enabled: true,
-    keys: book.keys || [],
-    key: book.keys || [],
-    content: book.content || '',
-    strategy: { type: 'selective', keys: book.keys || [], keys_secondary: { logic: 'and_any', keys: [] } },
-    position: { type: 'before_character_definition', role: 'system', depth: 4, order: 100 },
-    probability: 100,
-    recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until: null },
-  });
+  const COVER_PREFIX = 'custom_char_cover_';
+  const COVER_MAX_BYTES = 2 * 1024 * 1024;
+
+  const stashCustomCover = (payload) => {
+    const ui = payload && payload.ui;
+    const src = String(ui && ui.art && ui.art.src || '').trim();
+    const name = String(ui && ui.name || '').trim();
+    if (!src || !name) return '';
+    // data: URI 按两字节一字符估，超预算就不写，免得把 localStorage 撑爆
+    if (/^data:image\//i.test(src) && src.length * 2 > COVER_MAX_BYTES) {
+      return '立绘太大没能缓存，直播间会先用头像顶着';
+    }
+    try {
+      const win = getCoreWindow();
+      (win.localStorage || localStorage).setItem(COVER_PREFIX + name, src);
+      return '立绘已缓存为' + name + '的直播间封面';
+    } catch (e) {
+      return '立绘缓存失败，直播间会先用头像顶着';
+    }
+  };
+
+  const profileEntryName = (name) => PROFILE_PREFIX + String(name || '').trim();
+
+  /* order 从 260–299 里挑一个还没被占的。整段被占满才退到 max+1。
+     只统计同样是 after_character_definition 的条目：order 是按位置类型分别排的，
+     别的位置类型用了 260 不代表这里不能用。 */
+  const pickProfileOrder = (entries, skipUid) => {
+    const used = new Set();
+    let maxOrder = PROFILE_ORDER_END;
+    (Array.isArray(entries) ? entries : []).forEach((entry) => {
+      if (!entry || entry.uid === skipUid) return;
+      if (String(entry.position && entry.position.type || '') !== 'after_character_definition') return;
+      const order = Number(entry.position && entry.position.order);
+      if (!Number.isFinite(order)) return;
+      maxOrder = Math.max(maxOrder, order);
+      if (order >= PROFILE_ORDER_START && order <= PROFILE_ORDER_END) used.add(order);
+    });
+    for (let order = PROFILE_ORDER_START; order <= PROFILE_ORDER_END; order++) {
+      if (!used.has(order)) return order;
+    }
+    return maxOrder + 1;
+  };
+
+  const worldbookEntry = (book, order) => {
+    const keys = book.keys || [];
+    return {
+      name: profileEntryName(book.sourceName || book.name),
+      comment: profileEntryName(book.sourceName || book.name),
+      enabled: true,
+      keys,
+      key: keys,
+      content: String(book.content || '').trim(),
+      strategy: {
+        type: keys.length ? 'selective' : 'constant',
+        keys,
+        keys_secondary: { logic: 'and_any', keys: [] },
+        scan_depth: 'same_as_global',
+      },
+      position: { type: 'after_character_definition', role: 'system', depth: 0, order },
+      probability: 100,
+      /* 人设正文里全是角色名和地名，放开递归会互相把别的条目钓出来 */
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until: null },
+      effect: { sticky: null, cooldown: null, delay: null },
+      extra: {
+        linjiangOpening: {
+          sourceName: String(book.sourceName || book.name || '').trim(),
+          installedAt: new Date().toISOString(),
+        },
+      },
+    };
+  };
 
   const targetBookName = async (helper) => {
     try {
@@ -479,23 +718,81 @@
     return list.filter((book) => book && book.content);
   };
 
+  /* upsert，不是盲写：靠条目名或者 extra.sourceName 找已有的那条，找到就更新。
+     否则开局页跑第二次会在世界书里留下两条同名人设，谁生效看运气。 */
   const writeWorldbooks = async (books) => {
     if (!books.length) return false;
     const helper = getHelper();
     if (!helper) return false;
-    const name = await targetBookName(helper);
-    if (!name) return false;
-    for (const fn of ['createWorldbookEntries', 'createLorebookEntries']) {
-      try {
-        if (typeof helper[fn] === 'function') {
-          await helper[fn](name, books.map(worldbookEntry));
-          return name;
-        }
-      } catch (e) {
-        console.warn('[临江开局] 世界书写入失败 ' + fn, e);
+    const bookName = await targetBookName(helper);
+    if (!bookName) return false;
+
+    const readEntries = async () => {
+      for (const fn of ['getWorldbook', 'getLorebookEntries']) {
+        try {
+          if (typeof helper[fn] === 'function') {
+            const list = await helper[fn](bookName);
+            if (Array.isArray(list)) return list;
+          }
+        } catch (e) { /* 读不到就按空的走，退化成纯新建 */ }
       }
+      return [];
+    };
+
+    const updateEntry = async (uid, next) => {
+      for (const fn of ['updateWorldbookWith', 'setLorebookEntries']) {
+        try {
+          if (fn === 'updateWorldbookWith' && typeof helper[fn] === 'function') {
+            await helper[fn](bookName, (list) => (Array.isArray(list) ? list : [])
+              .map((item) => (item && item.uid === uid ? { ...item, ...next } : item)));
+            return true;
+          }
+          if (fn === 'setLorebookEntries' && typeof helper[fn] === 'function') {
+            await helper[fn](bookName, [{ uid, ...next }]);
+            return true;
+          }
+        } catch (e) {
+          console.warn('[临江开局] 世界书更新失败 ' + fn, e);
+        }
+      }
+      return false;
+    };
+
+    const createEntries = async (payloads) => {
+      for (const fn of ['createWorldbookEntries', 'createLorebookEntries']) {
+        try {
+          if (typeof helper[fn] === 'function') {
+            await helper[fn](bookName, payloads, { render: 'immediate' });
+            return true;
+          }
+        } catch (e) {
+          console.warn('[临江开局] 世界书新建失败 ' + fn, e);
+        }
+      }
+      return false;
+    };
+
+    let entries = await readEntries();
+    let touched = 0;
+    for (const book of books) {
+      const source = String(book.sourceName || book.name || '').trim();
+      const entryName = profileEntryName(source);
+      const existing = entries.find((entry) => {
+        if (!entry) return false;
+        const sameName = String(entry.name || entry.comment || '').trim() === entryName;
+        const sameSource = String(entry.extra?.linjiangOpening?.sourceName || '').trim() === source;
+        return sameName || sameSource;
+      });
+      const order = pickProfileOrder(entries, existing && existing.uid);
+      const payload = worldbookEntry(book, order);
+      const ok = existing
+        ? await updateEntry(existing.uid, payload)
+        : await createEntries([payload]);
+      if (!ok) return false;
+      touched += 1;
+      if (!existing) entries = await readEntries();
     }
-    return false;
+    return touched ? bookName : false;
   };
 
   const stashWorldbookText = (books) => {
@@ -525,6 +822,12 @@
       say('写回失败：' + (error && error.message ? error.message : error), 'warn');
       return;
     }
+    /* 自定义主播的封面存 localStorage，不进 MVU：图片地址（尤其本地上传的 data: URI）
+       太占地方。键沿用 正文美化.html 自定义角色那套前缀，直播间卡片直接读得到。
+       有插画的七位不走这条路——她们的封面是随机取一张 SFW 通用图。 */
+    const coverNote = stashCustomCover(payload);
+    if (coverNote) notes.push(coverNote);
+
     const oshi = (payload && Array.isArray(payload.oshi)) ? payload.oshi : [];
     if (oshi.length) {
       notes.push('我推 ' + oshi.map((x) => x.name).join('、') + ' 已关注并写好牌子');
@@ -534,7 +837,7 @@
       let book = false;
       try { book = await writeWorldbooks(books); }
       catch (e) { book = false; }
-      if (book) notes.push(books.length + ' 条人设已写入世界书《' + book + '》');
+      if (book) notes.push('人设已写入世界书《' + book + '》的「' + profileEntryName(books[0].sourceName || books[0].name) + '」');
       else if (stashWorldbookText(books)) notes.push('世界书写入不可用，人设正文已放进输入框');
       else notes.push('世界书写入不可用，请从开局页复制人设正文');
     }

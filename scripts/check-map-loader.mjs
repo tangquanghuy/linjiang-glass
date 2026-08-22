@@ -1,0 +1,84 @@
+/**
+ * 《地图加载 - 临江市》离线自检。
+ * 模拟酒馆的 EJS 环境（getMessageVar / getWorldInfo / lodash），跑几组位置看输出。
+ * 用法：node scripts/check-map-loader.mjs [节点名或区域字符串]
+ */
+import fs from 'node:fs';
+import ejs from 'ejs';
+import _ from 'lodash';
+
+const loader = fs.readFileSync('世界书/地图加载', 'utf8');
+const staticData = fs.readFileSync('世界书/地图静态资料', 'utf8');
+
+const 基础变量 = {
+  世界信息: {
+    年历: '2026年4月1日',
+    时间: { 时钟: '08:00', 时段: '朝' },
+    位置: { 区域: '鼓岭区 · 梧桐里花园洋房', 场所: '客厅', 私密度: 4 }
+  },
+  玩家信息: {
+    体力: 100,
+    金钱: 20000,
+    同行: null,
+    工作: { 职业: '便利店店员', 地点: '明湖区 · 罗森24h便利店', 日收入: 215, 今日已上班: false },
+    居住地: '鼓岭区 · 梧桐里花园洋房',
+    房产: {}
+  },
+  系统配置: {}
+};
+
+async function render(变量) {
+  const stat = _.merge(_.cloneDeep(基础变量), 变量 || {});
+  const ctx = {
+    _,
+    getMessageVar: (key, opt) => (key === 'stat_data' ? stat : (opt && opt.defaults)),
+    getWorldInfo: async (name) => (String(name).startsWith('地图静态资料') ? staticData : ''),
+    console
+  };
+  return ejs.render(loader, ctx, { async: true, rmWhitespace: false });
+}
+
+const 用例 = [
+  ['开局：梧桐里，工作在明湖便利店', {}],
+  ['山里：青屏山古木栈道，深夜', {
+    世界信息: { 时间: { 时钟: '23:40', 时段: '深夜' }, 位置: { 区域: '青屏山风景区 · 青屏山古木栈道', 场所: '观景崖边', 私密度: 4 } },
+    玩家信息: { 体力: 35 }
+  }],
+  ['江北：浦江老街自建房', {
+    世界信息: { 位置: { 区域: '雨石与浦江区 · 浦江老街自建房', 场所: '院子', 私密度: 3 } },
+    玩家信息: { 居住地: '雨石与浦江区 · 浦江老街自建房', 工作: { 职业: '研创园行政助理', 地点: '雨石与浦江区 · 浦江研创园', 日收入: 280, 今日已上班: false } }
+  }],
+  ['旧变量名（云庭公寓，地图上其实叫别的）', {
+    世界信息: { 位置: { 区域: '鼓岭区 · 云庭公寓', 场所: '客厅', 私密度: 5 } },
+    玩家信息: { 居住地: '鼓岭区 · 云庭公寓' }
+  }],
+  ['完全对不上的区域名', {
+    世界信息: { 位置: { 区域: '临江市 · 某个不存在的地方', 场所: '街边', 私密度: 2 } }
+  }],
+  ['无业 + 体力见底', {
+    玩家信息: { 体力: 12, 工作: { 职业: null, 地点: null, 日收入: 0, 今日已上班: false } }
+  }]
+];
+
+const only = process.argv[2];
+let 失败 = 0;
+const 报告 = [];
+for (const [标题, 变量] of 用例) {
+  if (only && !标题.includes(only)) continue;
+  报告.push('='.repeat(72), '▌ ' + 标题, '='.repeat(72));
+  try {
+    const out = await render(变量);
+    const 正文 = out.replace(/\n{3,}/g, '\n\n').trim();
+    报告.push(正文, '');
+    console.log(`OK  ${标题}  —  ${正文.split('\n').length} 行 / ${正文.length} 字`);
+  } catch (e) {
+    失败++;
+    报告.push('!! 渲染失败: ' + (e && e.stack ? e.stack : e), '');
+    console.log(`FAIL ${标题}: ${e && e.message}`);
+  }
+}
+fs.mkdirSync('artifacts', { recursive: true });
+fs.writeFileSync('artifacts/map-loader-check.txt', 报告.join('\n'), 'utf8');
+console.log('\n完整输出 → artifacts/map-loader-check.txt');
+console.log('\n' + (失败 ? `!! ${失败} 个用例渲染失败` : '全部用例渲染通过'));
+process.exit(失败 ? 1 : 0);
