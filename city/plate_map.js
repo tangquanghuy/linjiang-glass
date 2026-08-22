@@ -156,7 +156,9 @@
       mh_wedding: [0.580, 0.560],
       mh_pool: [0.280, 0.620],
       mh_mart: [0.400, 0.640],
-      mh_gym: [0.340, 0.700]
+      mh_gym: [0.340, 0.700],
+      mh_lanting: [0.700, 0.660],
+      mh_youth_apt: [0.520, 0.740]
     },
     guling: {
       gl_florist: [0.380, 0.360],
@@ -192,7 +194,9 @@
       xz_izakaya: [0.460, 0.620],
       xz_sales: [0.580, 0.680],
       xz_mech_garage: [0.300, 0.740],
-      xz_warehouse: [0.160, 0.780]
+      xz_bonded: [0.200, 0.680],
+      xz_warehouse: [0.160, 0.780],
+      xz_jiangwan: [0.780, 0.300]
     },
     luoxia: {
       lx_lab: [0.540, 0.300],
@@ -213,6 +217,7 @@
       pj_apt: [0.560, 0.220],
       pj_village: [0.400, 0.300],
       ys_rdpark: [0.640, 0.340],
+      pj_yunju: [0.720, 0.420],
       pj_morning: [0.360, 0.380],
       pj_nightshift: [0.480, 0.720],
       ys_container: [0.580, 0.800]
@@ -221,6 +226,7 @@
       ys_reedbed: [0.800, 0.360],
       ys_station: [0.500, 0.480],
       ys_breakwater: [0.840, 0.540],
+      ys_riverside: [0.560, 0.300],
       ys_fishmkt: [0.320, 0.560],
       ys_ferry: [0.720, 0.640],
       ys_shipyard: [0.280, 0.680],
@@ -239,7 +245,8 @@
       qp_cycle: [0.740, 0.560],
       qp_cable: [0.340, 0.620],
       qp_farm: [0.780, 0.740],
-      qp_visitor: [0.400, 0.840]
+      qp_visitor: [0.400, 0.840],
+      qp_foothill_share: [0.520, 0.760]
     },
     dongtang: {
       dt_nursery: [0.780, 0.200],
@@ -255,7 +262,8 @@
       dt_gas: [0.300, 0.640],
       dt_drive: [0.640, 0.720],
       dt_service: [0.440, 0.800],
-      dt_townhouse: [0.400, 0.880]
+      dt_townhouse: [0.400, 0.880],
+      dt_town_rental: [0.240, 0.760]
     }
   };
 
@@ -430,7 +438,61 @@
   const M = window.__PM;
   const D = M.D, R = M.R, LOD = M.LOD;
   const OPENING_MODE = new URLSearchParams(location.search).get('mode') === 'opening';
+  let openingTarget = new URLSearchParams(location.search).get('target') || 'home';
+  const OPENING_HOME_META = {
+    lx_share: { cost: '月租 RMB 1,800 / 押二付一', note: '普通合租 / 大学城南侧通勤', tier: 'starter' },
+    pj_apt: { cost: '月租 RMB 2,600 / 押二付一', note: '园区人才公寓 / 配套完整', tier: 'starter' },
+    gl_yunting: { cost: '月租 RMB 3,200 / 押二付一', note: '精装单间 / 住宅密度高', tier: 'starter' },
+    xz_jiayuan: { cost: '月租 RMB 3,900 / 押二付一', note: '西洲高层 / 靠近直播产业带', tier: 'starter' },
+    gl_wutong: { cost: '月租 RMB 2,200 / 押二付一', note: '老城步行房 / 离生活配套近', tier: 'starter' },
+    pj_village: { cost: '月租 RMB 1,500 / 押二付一', note: '低租金 / 公共空间紧凑', tier: 'starter' },
+    wx_home: { cost: '自有房产 / 无月租', note: '带小型工坊 / 无初始租金', tier: 'starter' },
+    mh_youth_apt: { cost: '月租 RMB 3,200 / 押一付一', note: '城区小单间 / 公交与生活配套方便', tier: 'starter' },
+    dt_town_rental: { cost: '月租 RMB 1,400 / 押一付一', note: '镇口低租单间 / 进城通勤较长', tier: 'starter' },
+    qp_foothill_share: { cost: '月租 RMB 1,800 / 押一付一', note: '山脚合租卧室 / 末班公交较早', tier: 'starter' }
+  };
+  const OPENING_JOB_META = {
+    lx_print: { label: '\u6253\u5370\u5e97\u5e97\u5458', pay: 'RMB 4,500 / \u6708', hours: '09:00-18:00' },
+    gl_parcel: { label: '\u5feb\u9012\u9a7f\u7ad9\u5e97\u5458', pay: 'RMB 4,800 / \u6708', hours: '08:30-18:30' },
+    mh_mart: { label: '\u4fbf\u5229\u5e97\u5e97\u5458', pay: 'RMB 4,700 / \u6708', hours: '14:00-22:00' },
+    xz_esports: { label: '\u7535\u7ade\u8231\u503c\u73ed\u5458', pay: 'RMB 5,200 / \u6708', hours: '16:00-00:00' },
+    dt_gas: { label: '\u52a0\u6cb9\u7ad9\u591c\u73ed\u5e97\u5458', pay: 'RMB 5,600 / \u6708', hours: '20:00-06:00' },
+    xz_sound_studio: { label: '\u5f55\u97f3\u68da\u52a9\u7406', pay: 'RMB 5,400 / \u6708', hours: '11:00-20:00' },
+    xz_theatre: { label: '\u5267\u9662\u573a\u52a1', pay: 'RMB 4,600 / \u6708', hours: '13:00-22:00' },
+    gl_pet: { label: '\u5ba0\u7269\u8bca\u7597\u6240\u52a9\u7406', pay: 'RMB 5,000 / \u6708', hours: '10:00-19:00' },
+    mh_hospital: { label: '\u533b\u9662\u524d\u53f0\u52a9\u7406', pay: 'RMB 5,800 / \u6708', hours: '08:00-17:00' },
+    lx_lab: { label: '\u5b9e\u9a8c\u697c\u503c\u73ed\u52a9\u7406', pay: 'RMB 6,000 / \u6708', hours: '18:00-02:00' },
+    ys_rdpark: { label: '\u7814\u521b\u56ed\u884c\u653f\u52a9\u7406', pay: 'RMB 6,200 / \u6708', hours: '09:30-18:30' },
+    wx_dye: { label: '\u624e\u67d3\u4f5c\u574a\u5b66\u5f92', pay: 'RMB 4,200 / \u6708', hours: '10:00-19:00' }
+  };
+  function openingNodeAllowed(n) {
+    if (!OPENING_MODE) return true;
+    // 选工作那一档也要留住已选的住所：路线两头都得有牌子，
+    // 不然画出来是一条从空白处伸出来的线。
+    if (openingTarget === 'work') return !!OPENING_JOB_META[n.id] || n.id === STATE.player.at;
+    return OPENING_STARTER_IDS.has(n.id);
+  }
+  /** 开局档的牌面：住所粉、工作蓝，跟宿主页面的图例对得上 */
+  function openingKind(n) {
+    if (!OPENING_MODE) return '';
+    if (OPENING_JOB_META[n.id] && n.id !== STATE.player.at) return 'work';
+    if (OPENING_HOME_META[n.id] || OPENING_STARTER_IDS.has(n.id)) return 'home';
+    return '';
+  }
+  /** 牌子上的副行：住所写租金，工作写月薪，省得来回点节点比价 */
+  function openingSub(n) {
+    const h = OPENING_HOME_META[n.id], job = OPENING_JOB_META[n.id];
+    if (openingTarget === 'work' && job) return job.pay;
+    if (h) return h.cost;
+    return n.district || '';
+  }
 
+  const OPENING_STARTER_IDS = new Set(Object.keys(OPENING_HOME_META));
+  const OPENING_NODE_OFFSET = {
+    xz_sound_studio: [-20, -13],
+    xz_esports: [20, 13]
+  };
+  const HOUSING_TIER_LABEL = { starter: '\u521d\u59cb\u4f4f\u5b85', advanced: '\u8fdb\u9636\u4f4f\u5b85', upper: '\u4e2d\u9ad8\u7ea7\u4f4f\u5b85', luxury: '\u9ad8\u7ea7\u4f4f\u5b85' };
   const stage = document.getElementById('stage');
   const platesHost = document.getElementById('plates');
   const tintEl = document.getElementById('tint');
@@ -757,22 +819,58 @@
    * 挤开之后标签就不在它指的地方了，一屏下来全是"名字在飘"，比叠着更难读。
    * 真正的密度控制手段是 LOD：远了少显几级，不是把字推来推去。
    */
+  /* 开局档的标签占位。这一档所有可选点【同时】全程显示（不走 LOD），
+     西洲那几个点彼此只隔三四十像素，牌子必然叠。
+     处理方式仍然不挪位置——挪了名字就不在它指的地方——而是叠上去的那张
+     整块撤掉，只留圆盘；圆盘照样能点，信息在侧栏里读。
+     先摆的赢：排序里选中项和已选住所在最前。 */
+  let openLabRects = [];
   function placeNode(it, s) {
     it.el.style.left = s.x + 'px';
     it.el.style.top = s.y + 'px';
     if (!it.lab) return;
 
+    /* 宽度得等牌子真正在场了才量。acquire 里那次是在 .np 还没 on 的时候量的，
+       量回来的是圆盘那点宽度（绝对定位的牌子按包含块收缩），
+       于是 dx=-lw/2 只挪了十几像素——所有名字都偏在圆盘右边，
+       而且按这个宽度做的相交测试永远测不出叠。量一次就够，之后内容不变。 */
+    if (!it.lm && it.el.classList.contains('on')) {
+      // acquire() runs before the node enters its visible state. At that point some
+      // browsers report the icon as 0 ? 0, which pins the plaque to the node's
+      // top-left corner instead of below the disc. Unhide first, then measure the
+      // actual rendered icon and plaque together.
+      it.lab.className = 'nl';
+      it.iw = it.ic.offsetWidth;
+      it.ih = it.ic.offsetHeight;
+      it.lw = it.lab.offsetWidth;
+      it.lh = it.lab.offsetHeight;
+      it.lm = true;
+    }
+
     const g = 6;
-    const dx = -it.lw / 2, dy = it.ih / 2 + g;
-    const x = s.x + dx, y = s.y + dy;
+    const left = (it.iw - it.lw) / 2;
+    const top = it.ih + g;
+    const x = s.x - it.lw / 2, y = s.y + it.ih / 2 + g;
     const pad = 10, W = vw(), H = vh();
     if (x < pad || y < pad || x + it.lw > W - pad || y + it.lh > H - pad) {
       it.lab.className = 'nl hide';
       return;
     }
+    it.lab.style.left = left + 'px';
+    it.lab.style.top = top + 'px';
+    if (OPENING_MODE && it.n) {
+      const m = 4;
+      const box = { x: x - m, y: y - m, w: it.lw + m * 2, h: it.lh + m * 2 };
+      // 当前选中和已选住所是这一步的主角，永远保留牌子；让别人给它让
+      const keep = it.n.id === selId || it.n.id === STATE.player.at;
+      const hit = !keep && openLabRects.some(r =>
+        box.x < r.x + r.w && box.x + box.w > r.x && box.y < r.y + r.h && box.y + box.h > r.y);
+      /* 被叠掉的那张位置照样算好——dup 是"暂时收起来"，指到圆盘上就放出来。
+         每个选项都得能读到名字，否则地图上会剩几个不知道是什么的圆点。 */
+      if (hit) { it.lab.className = 'nl hide dup'; return; }
+      openLabRects.push(box);
+    }
     it.lab.className = 'nl';
-    it.lab.style.left = (it.iw / 2 + dx) + 'px';
-    it.lab.style.top = (it.ih / 2 + dy) + 'px';
   }
 
   const cfg = t => {
@@ -824,6 +922,7 @@
 
   function renderNodes() {
     const W = vw(), H = vh();
+    openLabRects = [];
     layoutPlates();
     pool.forEach(it => it.seen = false);
     pins.forEach(it => it.seen = false);
@@ -839,7 +938,10 @@
          但乌溪门东压在乌溪区卡下面、临江南站压在雨石区卡下面，看不见。
          标签避让那套是你让删的，也不该加回来：挤开之后名字就不在它指的
          地方了。所以按视图分层——这一档显示轨道，那一档显示区。 */
-      const a = (netView ? 0 : 1) * (has ? 1 - ramp(r, LOD.chipOut[0], LOD.chipOut[1])
+      /* 开局档同理：那一档只有七八个可选点，且它们全程 opacity=1，
+         区卡跟它们钉在同一片地方——西洲区压着西洲嘉苑、鼓岭区压着云庭公寓。
+         区名改挂在地点牌的副行上，谁在哪个区照样读得出来。 */
+      const a = (netView || OPENING_MODE ? 0 : 1) * (has ? 1 - ramp(r, LOD.chipOut[0], LOD.chipOut[1])
         : 1 - ramp(view.z, 1.5, 2.3));
       const here = d.key === STATE.district;
       const it = acquire('D:' + d.key, 'major',
@@ -936,7 +1038,7 @@
   function drawDistrict(key) {
     const pl = M.PLATES[key], spots = M.PLACE[key];
     const r = ratio(key);
-    if (r < LOD.rank[0] - 0.1) return;      // 还太远，整层不用算
+    if (r < LOD.rank[0] - 0.1 && !OPENING_MODE) return;      // 还太远，整层不用算
     const W = vw(), H = vh();
 
     /* 节点只能出现在自己那张底板上。
@@ -945,13 +1047,14 @@
     const rects = plateRects().filter(t => t.k !== key && t.z > (zOf[key] || 0) && t.a > 0.55);
     const buried = p => rects.some(t => p.x > t.x && p.x < t.x + t.w && p.y > t.y && p.y < t.y + t.h);
 
-    const list = Object.keys(spots).map(id => byId[id]).filter(Boolean);
+    const list = Object.keys(spots).map(id => byId[id]).filter(Boolean).filter(openingNodeAllowed);
     const eventAt = {};
     STATE.events.forEach(e => eventAt[e.at] = e);
 
     // 强制显示的排在最前，其余按 rank
     const sorted = list.slice().sort((a, b) => pri(a) - pri(b));
     function pri(n) {
+      if (OPENING_MODE && n.id === selId) return -2;
       if (FORCED.has(n.id)) return -1;
       if (n.parentId || n.type === 'scene') return 9;
       return rankOf(n);
@@ -961,17 +1064,32 @@
       const scene = n.parentId || n.type === 'scene';
       const rk = rankOf(n);
       const tier = scene ? 'scene' : rk === 0 ? 'major' : rk >= 2 ? 'minor' : '';
-      const gate = scene ? LOD.scene : (FORCED.has(n.id) ? LOD.rank[0] : LOD.rank[rk]);
-      const a = ramp(r, gate, gate + (scene ? 0.3 : 0.22));
+      const openingNode = OPENING_MODE && openingNodeAllowed(n);
+      const gate = openingNode ? 0 : (scene ? LOD.scene : (FORCED.has(n.id) ? LOD.rank[0] : LOD.rank[rk]));
+      const a = openingNode ? 1 : ramp(r, gate, gate + (scene ? 0.3 : 0.22));
       const k = cfg(n.archetype);
       const wp = inFrame(pl.frame, spots[n.id][0], spots[n.id][1]);
       const p = toScreen(wp.x, wp.y);
+      const openingOffset = OPENING_MODE && OPENING_NODE_OFFSET[n.id];
+      if (openingOffset) { p.x += openingOffset[0]; p.y += openingOffset[1]; }
+      if (OPENING_MODE) {
+        // Opening choices must remain reachable even when the wide viewport crops
+        // the northern/southern district plates. Keep their anchors inside a
+        // label-safe band instead of silently dropping an entire district.
+        p.x = clamp(p.x, 100, W - 100);
+        p.y = clamp(p.y, 34, H - 78);
+      }
 
+      const okind = openingKind(n);
       const it = acquire('N:' + n.id, tier,
         `<div class="ni"><svg viewBox="0 0 32 32"><use href="#i-${k.icon}"/></svg></div>` +
-        `<div class="nl"><b>${esc(n.name)}</b></div>` +
-        (n.features && n.features.canWork ? '<div class="nj">可打工</div>' : ''));
-      it.el.style.setProperty('--nc', k.color);
+        `<div class="nl"><b>${esc(n.name)}</b>` +
+        (OPENING_MODE ? `<i>${esc(openingSub(n))}</i>` : '') + '</div>' +
+        /* 「可打工」角标在开局档是噪声：选住所时它跟这一步无关，
+           选工作时留在场的每个牌子都是岗位，说了也是废话 */
+        (!OPENING_MODE && n.features && n.features.canWork ? '<div class="nj">可打工</div>' : ''));
+      it.el.style.setProperty('--nc', okind === 'work' ? '#4b9bdd' : okind === 'home' ? '#e0559a' : k.color);
+      if (it._ok !== okind) { it._ok = okind; it.el.dataset.opening = okind; }
       it.n = n;
       if (!it.bound) {
         it.el.onclick = () => {
@@ -986,13 +1104,16 @@
         };
         it.bound = true;
       }
-      it.el.dataset.sel = n.id === selId ? '1' : '';
+      /* 选中的那张牌多带一行租金/月薪。默认不带是因为牌子宽度直接决定
+         有多少张能同时露名字——七个选项里三个被挤掉，就不成选择界面了。 */
+      const selNow = n.id === selId ? '1' : '';
+      if (it.el.dataset.sel !== selNow) { it.el.dataset.sel = selNow; it.lm = false; }
 
       /* 锚点出了视口就整个不显，不能只放宽到 ±120。
          放宽的后果是圆盘在屏外、标签被 padR 推回屏内——
          屏幕左边挂着一张"乌溪智慧农贸"，却没有任何东西指向它指的地方。
          标记的意义全在"它钉在哪儿"，锚点看不见，这张卡就不该在。 */
-      const on = a > 0.02 && !buried(p) &&
+      const on = a > 0.02 && (OPENING_MODE || !buried(p)) &&
         p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= H;
       it.el.style.opacity = on ? a : 0;
       it.el.classList.toggle('on', on);
@@ -1842,16 +1963,13 @@
     return bits;
   }
 
-  /** 事件级 trigger → 数值要求药丸。
-   *  面板是用来查「这块地能长出什么、各支要什么条件」的，
-   *  所以出条件不出正文：选项文本一摊开，玩法就提前被读完了。 */
+  /** Event conditions are compacted into player-facing chips. */
   function trigChips(t) {
     if (!t) return '';
     const out = [];
     const rng = (v, label) => {
       if (!Array.isArray(v) || v[0] == null) return;
       const [a, b] = v;
-      // 区间上限就是该字段的天花板时只写下限，写成 450–1000 是噪音
       out.push(b == null || b >= 100 ? `${label} ≥${a}` : `${label} ${a}–${b}`);
     };
     if (Array.isArray(t['时段']) && t['时段'].length) out.push(t['时段'].join(' / '));
@@ -1859,13 +1977,18 @@
     rng(t['顺从度'], '顺从');
     rng(t['性欲度'], '性欲');
     rng(t['尿意'], '尿意');
-    if (t['体力上限'] != null) out.push(`对象体力 ≤${t['体力上限']}`);
-    if (t['异常状态含']) out.push(`状态 ${t['异常状态含']}`);
-    if (t['需携带道具']) out.push(`带 ${t['需携带道具']}`);
-    if (!t['需同行']) out.push('可独行');
+    if (t['体力上限'] != null) out.push(`体力 ≤${t['体力上限']}`);
+    if (t['异常状态含']) out.push(`前置:${t['异常状态含']}`);
+    if (t['需携带道具']) out.push(`需要:${t['需携带道具']}`);
+    if (t['需同行']) out.push('需同行');
+    else out.push('可独行');
     return out.length
       ? `<div class="spot-req">${out.map(s => `<em>${esc(s)}</em>`).join('')}</div>`
       : '';
+  }
+
+  function splitFacts(value) {
+    return String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
   }
 
   function cardRows(card) {
@@ -1873,18 +1996,43 @@
     return ['pureLove', 'mischief', 'sexAction'].map(key => {
       const c = card[key];
       if (!c) return '';
-      const label = esc(c.分类 || { pureLove: '纯爱', mischief: '调教', sexAction: '欲望' }[key]);
-      const kind = TAG_KIND[c.分类] || CARD_KIND[key] || 'daily';
-      // 门槛本来就是人话字符串（'性欲度>=75, 顺从度>=550'），按逗号切成药丸就行
+      const label = esc(c['分类'] || { pureLove: '纯爱', mischief: '调教', sexAction: '欲望' }[key]);
+      const kind = TAG_KIND[c['分类']] || CARD_KIND[key] || 'daily';
       const gate = c['门槛']
-        ? String(c['门槛']).split(/[,，]/).map(s => s.trim()).filter(Boolean)
-          .map(s => `<em>${esc(s)}</em>`).join('')
-        : `<em class="free">无门槛</em>`;
-      return `<div class="spot-opt"><em class="spot-tag ${kind}">${label}</em>` +
-        `<div class="spot-gate">${gate}</div></div>`;
+        ? splitFacts(c['门槛']).map(s => `<em>${esc(s)}</em>`).join('')
+        : `<em class="free">无额外门槛</em>`;
+      const result = splitFacts(c['结算']);
+      return `<div class="spot-opt ${kind}">` +
+        `<div class="spot-opt-head"><em class="spot-tag ${kind}">${label}</em><span>行动路线</span></div>` +
+        (c['选项'] ? `<p class="spot-action">${esc(c['选项'])}</p>` : '') +
+        `<div class="spot-opt-foot"><div class="spot-gate-label">需要</div><div class="spot-gate">${gate}</div>` +
+        (result.length ? `<div class="spot-result">${result.map(s => `<em>${esc(s)}</em>`).join('')}</div>` : '') +
+        `</div></div>`;
     }).join('');
   }
 
+  function housingCost(h) {
+    if (!h) return '';
+    const parts = [];
+    if (h.sale) parts.push('RMB ' + Number(h.sale).toLocaleString());
+    if (h.rent) parts.push('RMB ' + Number(h.rent).toLocaleString() + ' / 月');
+    if (h.deposit) parts.push('押金 RMB ' + Number(h.deposit).toLocaleString());
+    return parts.join(' / ');
+  }
+  function openingInfo(n) {
+    const openingHome = OPENING_HOME_META[n.id];
+    const raw = OPENING_MODE && openingHome ? openingHome : (n.housing || openingHome);
+    const job = OPENING_JOB_META[n.id];
+    if (raw) {
+      const h = raw;
+      const tier = HOUSING_TIER_LABEL[h.tier] || '住宅';
+      const cost = h.cost || housingCost(h);
+      const unlock = h.unlock && h.unlock.minMoney ? ' / 解锁资金 RMB ' + Number(h.unlock.minMoney).toLocaleString() : '';
+      return '<section class="spot-opening"><div class="spot-opening-top"><span>Housing</span><b>'+esc(tier)+'</b></div><strong>'+esc(cost)+'</strong><p>'+esc((h.note || n.draw || '') + unlock)+'</p></section>';
+    }
+    if (job) return '<section class="spot-opening spot-opening-job"><div class="spot-opening-top"><span>Opening</span><b>可选工作</b></div><strong>'+esc(job.label)+'</strong><p>'+esc(job.pay)+' / '+esc(job.hours)+'</p></section>';
+    return '';
+  }
   function renderSpot(n) {
     const hours = (n.openHours || []).map(h =>
       `<em class="${h === phase || (h === '昼' && phase === '朝') ? 'on' : ''}">${esc(h)}</em>`
@@ -1905,17 +2053,29 @@
         : '') +
       `</section>`
     ) : '';
-    const events = (n.events || []).map(ev =>
-      `<article class="spot-evt">` +
+    const eventList = n.events || [];
+    const events = eventList.map((ev, index) =>
+      `<details class="spot-evt">` +
+      `<summary class="spot-evt-summary"><div class="spot-evt-main">` +
+      `<span class="spot-evt-index">事件 ${String(index + 1).padStart(2, '0')}</span>` +
       `<h3>${esc(ev.title)}</h3>` +
-      (ev.场所 ? `<div class="where">${esc(ev.场所)}</div>` : '') +
-      trigChips(ev.trigger) +
-      (ev.opportunity ? `<p>${esc(ev.opportunity)}</p>` : '') +
-      cardRows(ev.card) +
-      `</article>`
+      (ev['场所'] ? `<div class="where">${esc(ev['场所'])}</div>` : '') +
+      `</div><span class="spot-evt-toggle" aria-hidden="true"></span></summary>` +
+      `<div class="spot-evt-content">` +
+      (ev.opportunity ? `<div class="spot-scene"><span>现场</span><p>${esc(ev.opportunity)}</p></div>` : '') +
+      `<div class="spot-conditions"><span>条件</span>${trigChips(ev.trigger)}</div>` +
+      `<div class="spot-routes"><div class="spot-routes-title"><span>Choose</span><b>怎么做</b></div>${cardRows(ev.card)}</div>` +
+      `</div></details>`
     ).join('');
     const evHtml = events
-      ? `<section class="spot-sec"><div class="spot-k"><span>Play</span><b>在场事件</b></div>${events}</section>`
+      ? `<section class="spot-sec spot-events-sec"><div class="spot-k"><span>Play</span><b>在场事件</b><small>${eventList.length} 个</small></div>${events}</section>`
+      : '';
+
+    const placeInfo = (n.intro || shopHtml || gather)
+      ? `<details class="spot-more"><summary><span>Info</span><b>\u5730\u70b9\u4fe1\u606f</b><i>\u5c55\u5f00</i></summary><div class="spot-more-body">` +
+        (n.intro ? `<p class="spot-intro">${esc(n.intro)}</p>` : '') +
+        shopHtml + gather +
+        `</div></details>`
       : '';
 
     const full = n.fullName && n.fullName !== n.name
@@ -1941,10 +2101,10 @@
     if (navBtn) navBtn.onclick = () => { plan(n.id); closeSpot(); };
 
     document.getElementById('spot-body').innerHTML =
+      openingInfo(n) +
       (n.draw ? `<p class="spot-draw">${esc(n.draw)}</p>` : '') +
       (chips ? `<div class="spot-feats">${chips}</div>` : '') +
-      (n.intro ? `<p class="spot-intro">${esc(n.intro)}</p>` : '') +
-      shopHtml + gather + evHtml;
+      placeInfo + evHtml;
   }
 
   function markSel() {
@@ -1987,6 +2147,9 @@
 
   function plan(toId) {
     if (!G) return false;
+    // 没有起点就不该有行程。少了这一句，TRIP.to 会在 player.at 为空时被写进去，
+    // 留下一个「有终点没起点」的半状态——面板一旦被显示出来就是空壳带按钮。
+    if (!STATE.player.at) { clearTrip(); return false; }
     if (!toId || toId === STATE.player.at) { clearTrip(); return false; }
     if (!NODE_W[toId]) return false;
     TRIP.to = toId;
@@ -2034,7 +2197,17 @@
 
   function renderTrip() {
     if (!tripEl) return;
-    if (!TRIP.to || !TRIP.all) { tripEl.hidden = true; return; }
+    // 收起时把内容一起清掉。只 hidden 不清空的话，上一趟的 OD、方式、账目会留在
+    // DOM 里；下次任何原因让它显示出来，看到的就是上一趟的脏数据或者空壳面板。
+    if (!TRIP.to || !TRIP.all || !STATE.player.at) {
+      tripEl.hidden = true;
+      document.getElementById('trip-od').innerHTML = '';
+      document.getElementById('trip-modes').innerHTML = '';
+      document.getElementById('trip-sum').innerHTML = '';
+      document.getElementById('trip-legs').innerHTML = '';
+      document.getElementById('trip-go').disabled = true;
+      return;
+    }
     tripEl.hidden = false;
 
     document.getElementById('trip-od').innerHTML =
@@ -2257,6 +2430,7 @@
       if (TRIP.to === STATE.player.at) clearTrip(); else recompute();
     },
     revision: MAP_REV,
+    setOpeningTarget(target) { if (!OPENING_MODE) return false; openingTarget = target === 'work' ? 'work' : 'home'; selId = ''; invalidate(); return openingTarget; },
     // 打车夜间加价挂在时段上，所以换时段也要重算
     setPhase(k) { if (M.PHASES[k]) { phase = k; applyPhase(); if (TRIP.to) recompute(); } },
     focus,
@@ -2316,6 +2490,12 @@
      普通地图模式仍沿用 PLATE_MAP.onPick，不受这一层影响。 */
   if (OPENING_MODE) {
     API.petals(false);
+    /* 开局档是 4 月 1 日的朝，也是四个时段里最亮最透的一档——
+       宿主那一页整体走通透，底板不该是最沉的夜。 */
+    API.setPhase('朝');
+    /* 时段条和行程面板都归宿主页面管：那一页自己有通勤卡片，
+       而且这两块都钉在左下，跟宿主的图例撞在同一个角上。 */
+    document.documentElement.dataset.opening = '1';
     API.setState({ district: '', player: { at: '' }, actors: [], events: [], route: [] });
     API.fitAll(0);
     API.onPick(node => {

@@ -40,6 +40,7 @@ import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
 import { moreTrayMarkup, wireMoreTray } from '../more-tray.js';
+import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -179,7 +180,7 @@ function card(g, selected) {
   <div class="card-inner">
     <div class="card-glass"></div>
     <div class="pcard-art">
-      <img class="card-art" src="${g.art}" alt="" draggable="false"
+      <img class="card-art" src="${g.art}" alt="" draggable="false" decoding="async" loading="lazy"
         data-fx="${g.artFx ?? 0.5}" data-fy="${g.artFy ?? 0.16}"
         data-z="${g.artZ ?? 1.32}" data-ox="0"
         data-tx="0.5" data-ty="0.24">
@@ -368,14 +369,16 @@ export function mountPortraitContent(stage, { onPage } = {}) {
      page owns the column -- there is no girls panel to swap then. */
   const render = (options) => {
     if (workspace) return;
-    panel().outerHTML = girlsPanel(open);
+    const current = panel();
+    const next = safeFirstElement(girlsPanel(open));
+    if (current && next) current.replaceWith(next);
     wireRail(options);
   };
 
   /* Both panels, from scratch.  Needed when returning from a page, since a page
      replaces the column rather than sitting on top of it. */
   const paintBase = ({ restoreScroll = true } = {}) => {
-    content.innerHTML = statusPanel() + girlsPanel(open);
+    setSafeHTML(content, statusPanel() + girlsPanel(open));
     wireRail({ restoreScroll });
   };
 
@@ -430,7 +433,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     workspaceArg = arg ?? null;
     document.documentElement.classList.add('is-page-open');
     reportPortraitPage(true);
-    content.innerHTML = build(arg);
+    setSafeHTML(content, build(arg));
     sync();
     /* A page is a new view, not a continuation of the one underneath: start it at the
        top even if the reader had scrolled the column. */
@@ -485,7 +488,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
         sendChat(built.message).then((ok) => {
           row.classList.remove('is-confirming');
           row.querySelector('.pgift-confirm')?.remove();
-          row.insertAdjacentHTML('beforeend', `
+          insertSafeHTML(row, 'beforeend', `
       <span class="pgift-done"><b>${ok ? '已写入输入框' : '已生成消息'}</b><code>${built.message}</code>
         <em>${ok ? '请在酒馆发送' : '独立预览，未接入酒馆'}</em></span>`);
           sync();
@@ -503,7 +506,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     const built = buildGift(name, kind, key);
     if (!built) return;
     row.classList.add('is-confirming');
-    row.insertAdjacentHTML('beforeend', `
+    insertSafeHTML(row, 'beforeend', `
       <span class="pgift-confirm">
         ${kind === 'private'
     ? '<label><span>附言</span><input type="text" maxlength="30" placeholder="可选，一句话" data-gift-remark></label>'
@@ -683,6 +686,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   });
 
   onLive(() => {
+    if (!document.querySelector('.viewport')?.classList.contains('is-portrait')) return;
     if (workspace && workspace !== 'map' && workspace !== 'arcade') return;
     paintBase({ restoreScroll: true });
   });

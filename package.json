@@ -35,7 +35,10 @@
     "phone:build": "node phone/build.mjs",
     "phone:check": "node phone/build.mjs --check",
     "phone:shot": "node tools/shot_phone.mjs",
-    "assets": "python tools/export_assets.py && python tools/make_bg_plate.py && python tools/export_item_icons.py && python tools/export_gift_icons.py"
+    "assets": "python tools/export_assets.py && python tools/make_bg_plate.py && python tools/export_item_icons.py && python tools/export_gift_icons.py",
+    "tavern:double": "node scripts/check-double-status.mjs",
+    "opening": "node scripts/shot-opening.mjs",
+    "opening:labels": "node scripts/probe-opening-labels.mjs"
   },
   "devDependencies": {
     "playwright": "^1.56.1",

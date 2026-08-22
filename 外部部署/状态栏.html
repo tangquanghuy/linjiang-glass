@@ -48,7 +48,8 @@
   const CHANNEL = 'linjiang-hud';
   const POLL_MS = 3000;
 
-  const hudFrame = document.getElementById('hud');
+  const localHudFrame = document.getElementById('hud');
+  let hudFrame = localHudFrame;
   const hint = document.getElementById('hint');
   const hudOrigin = (() => {
     try { return new URL(HUD_URL, location.href).origin; }
@@ -271,6 +272,7 @@
 
   let lastSnap = '';
   const pushSnapshot = (force) => {
+    if (!isOwner()) return;
     const stat = fetchLatestMvuData();
     const hasWorld = !!(stat && stat.世界信息);
     showHint(hasWorld ? '' : '等待 MVU 数据…');
@@ -278,7 +280,7 @@
     const json = JSON.stringify(stat);
     if (!force && json === lastSnap) return;
     lastSnap = json;
-    postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', payload: { stat_data: stat } });
+    postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', context: manager.context(), payload: { stat_data: stat } });
   };
 
   const openPhonePanel = () => {
@@ -308,6 +310,7 @@
           ok: true,
           label: '临江玻璃状态栏',
           hasMvu: !!(mvuState.ready || mvuState.check()),
+          context: manager.context(),
         };
       case 'getSnapshot':
         return { stat_data: fetchLatestMvuData() };
@@ -329,12 +332,18 @@
 
   const onHudRequest = async (event) => {
     const data = event.data;
-    if (!data || data.channel !== CHANNEL || data.kind !== 'request') return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'request') return;
+    if (event.source !== hudFrame.contentWindow) return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    const currentContext = manager.context();
+    if (data.action !== 'handshake' && data.context
+        && (Number(data.context.epoch) !== currentContext.epoch
+          || String(data.context.chatKey || '') !== String(currentContext.chatKey || ''))) return;
     const reply = {
       channel: CHANNEL,
       kind: 'response',
       id: data.id,
+      context: manager.context(),
     };
     try {
       const payload = await handleRequest(data.action, data.payload || {});
@@ -376,12 +385,183 @@
   let uninstalled = false;
   let portraitPageOpen = false;
   let slotObserver = null;
+  let frameObserver = null;
+  let active = false;
+  let destroyed = false;
+  let controllerRecord = null;
+  const isOwner = () => active && !destroyed && manager.owner?.id === INSTANCE_ID;
 
   const tavernWin = () => {
     try { if (window.top && window.top !== window) return window.top; } catch (e) {}
     try { if (window.parent && window.parent !== window) return window.parent; } catch (e) {}
     return window;
   };
+
+
+
+  /* One controller per tavern page, one chat-scoped HUD runtime.  Message floors
+     only register anchors; the manager elects the newest connected anchor and keeps
+     the actual HUD iframe in the tavern document so a floor handover does not reload it. */
+  const MANAGER_KEY = '__linjiangHudManagerV2';
+  const MANAGER_VERSION = 2;
+  const INSTANCE_ID = (globalThis.crypto?.randomUUID?.() || `hud-${Date.now()}-${Math.random()}`);
+
+  const createManager = (host) => {
+    const manager = {
+      version: MANAGER_VERSION,
+      host,
+      sequence: 0,
+      epoch: 1,
+      chatKey: null,
+      candidates: new Map(),
+      owner: null,
+      hudFrame: null,
+      hudMode: '',
+      electTick: 0,
+      eventHooksBound: false,
+      contextTimer: 0,
+      context() { return { chatKey: this.chatKey, epoch: this.epoch }; },
+      createHudFrame() {
+        const frame = this.host.document.createElement('iframe');
+        frame.title = '?????';
+        frame.loading = 'eager';
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.allow = 'clipboard-read; clipboard-write';
+        frame.dataset.linjiangManaged = '1';
+        this.hudFrame = frame;
+        this.hudMode = '';
+        return frame;
+      },
+      ensureHudFrame() {
+        return this.hudFrame || this.createHudFrame();
+      },
+      resetHudFrame() {
+        try { this.hudFrame?.remove(); } catch (e) {}
+        this.hudFrame = null;
+        this.hudMode = '';
+      },
+      messageRank(frame) {
+        try {
+          const mes = frame?.closest?.('.mes');
+          const raw = mes?.getAttribute('mesid') ?? mes?.dataset?.mesid ?? mes?.dataset?.messageId;
+          const value = Number(raw);
+          if (Number.isFinite(value)) return value;
+        } catch (e) {}
+        return null;
+      },
+      register(controller) {
+        const record = {
+          ...controller,
+          sequence: ++this.sequence,
+          epoch: this.epoch,
+          rank: this.messageRank(controller.frame),
+        };
+        this.candidates.set(record.id, record);
+        if (this.owner && !this.owner.frame?.isConnected) {
+          try { this.owner.deactivate('disconnected'); } catch (e) {}
+          this.owner = null;
+        }
+        this.elect();
+        return record;
+      },
+      unregister(id) {
+        const record = this.candidates.get(id);
+        if (!record) {
+          if (this.owner?.id === id) this.owner = null;
+          this.scheduleElect();
+          return;
+        }
+        this.candidates.delete(id);
+        if (this.owner?.id === id) {
+          try { record.deactivate('removed'); } catch (e) {}
+          this.owner = null;
+        }
+        this.scheduleElect();
+      },
+      scheduleElect() {
+        if (this.electTick) return;
+        this.electTick = this.host.requestAnimationFrame(() => {
+          this.electTick = 0;
+          this.elect();
+        });
+      },
+      elect() {
+        const rows = [...this.candidates.values()].filter((row) =>
+          row.epoch === this.epoch && row.frame?.isConnected && !row.destroyed());
+        rows.sort((a, b) => {
+          if (a.rank != null || b.rank != null) return (a.rank ?? -Infinity) - (b.rank ?? -Infinity);
+          try {
+            if (a.frame.ownerDocument === b.frame.ownerDocument) {
+              const pos = a.frame.compareDocumentPosition(b.frame);
+              if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+              if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            }
+          } catch (e) {}
+          return a.sequence - b.sequence;
+        });
+        const next = rows.at(-1) || null;
+        if (next?.id === this.owner?.id) return;
+        const previous = this.owner;
+        this.owner = next;
+        try { previous?.deactivate('superseded'); } catch (e) {}
+        if (next) {
+          this.ensureHudFrame();
+          try { next.activate(this.context()); } catch (e) { console.warn('[?????] ????', e); }
+        } else if (this.hudFrame) {
+          this.hudFrame.style.visibility = 'hidden';
+          this.hudFrame.style.pointerEvents = 'none';
+        }
+      },
+      switchContext(chatKey = null) {
+        this.epoch += 1;
+        this.chatKey = chatKey == null ? null : String(chatKey);
+        const previous = this.owner;
+        this.owner = null;
+        try { previous?.deactivate('chat-switch'); } catch (e) {}
+        this.resetHudFrame();
+        clearTimeout(this.contextTimer);
+        /* chatLoaded and the replacement status iframe are not ordered consistently.
+           Adopt whichever registered anchors are still connected after the DOM burst;
+           disconnected old-chat anchors are pruned by the same pass. */
+        this.contextTimer = this.host.setTimeout(() => {
+          for (const [id, row] of this.candidates) {
+            if (!row.frame?.isConnected || row.destroyed()) this.candidates.delete(id);
+            else row.epoch = this.epoch;
+          }
+          this.scheduleElect();
+        }, 120);
+      },
+      bindEventHooks(core) {
+        if (this.eventHooksBound) return;
+        this.eventHooksBound = true;
+        const chatKey = () => {
+          try {
+            const context = core?.SillyTavern?.getContext?.() || core?.getContext?.();
+            return context?.chatId ?? context?.chat_id ?? context?.groupId ?? null;
+          } catch (e) { return null; }
+        };
+        try {
+          core?.eventSource?.on?.('mvu_data_updated', () => this.owner?.pushSnapshot(false));
+          core?.eventSource?.on?.('chatUpdated', () => this.owner?.requestFollow());
+          core?.eventSource?.on?.('chatLoaded', () => this.switchContext(chatKey()));
+        } catch (e) {}
+        try {
+          if (typeof core?.eventOn === 'function' && core?.Mvu?.events?.VARIABLE_UPDATE_ENDED) {
+            core.eventOn(core.Mvu.events.VARIABLE_UPDATE_ENDED, () => this.owner?.pushSnapshot(false));
+          }
+        } catch (e) {}
+      },
+    };
+    return manager;
+  };
+
+  const managerHost = tavernWin();
+  let manager = managerHost[MANAGER_KEY];
+  if (!manager || manager.version !== MANAGER_VERSION) {
+    try { manager?.resetHudFrame?.(); } catch (e) {}
+    manager = createManager(managerHost);
+    managerHost[MANAGER_KEY] = manager;
+  }
 
   const tavernSize = () => {
     try {
@@ -461,12 +641,6 @@
   const cleanupLeftovers = () => {
     const tavern = tavernWin();
     const doc = tavern.document;
-    const live = doc.getElementById(HUD_LIVE_ID);
-    if (live && live !== hudFrame) live.remove();
-    const slot = doc.getElementById('linjiang-hud-slot');
-    if (slot && slot.parentNode) slot.parentNode.removeChild(slot);
-    const overflowStyle = doc.getElementById('linjiang-hud-overflow');
-    if (overflowStyle && overflowStyle.parentNode) overflowStyle.parentNode.removeChild(overflowStyle);
     /* 全屏钮在 layout 里复用，不在每次重排时拆掉。 */
     const frame = window.frameElement;
     if (frame && (frame.parentNode === doc.body || frame.parentNode === doc.documentElement)) {
@@ -593,6 +767,7 @@
   };
 
   const onFsClick = (event) => {
+    if (!isOwner()) return;
     try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
     if (uninstalled) return;
     expanded = !expanded;
@@ -604,6 +779,7 @@
   };
 
   const onShrinkClick = (event) => {
+    if (!isOwner()) return;
     try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
     if (uninstalled) return;
     compacted = !compacted;
@@ -617,7 +793,7 @@
   const mountChromeButton = (id, onClick) => {
     const doc = tavernWin().document;
     let btn = doc.getElementById(id);
-    if (btn && !btn.querySelector('svg')) {
+    if (btn && (btn.dataset.linjiangOwner !== INSTANCE_ID || !btn.querySelector('svg'))) {
       btn.remove();
       btn = null;
     }
@@ -625,6 +801,7 @@
       btn = doc.createElement('button');
       btn.id = id;
       btn.type = 'button';
+      btn.dataset.linjiangOwner = INSTANCE_ID;
       btn.style.visibility = 'hidden';
       doc.body.appendChild(btn);
       listen(btn, 'click', onClick);
@@ -639,6 +816,7 @@
     if (!style) {
       style = doc.createElement('style');
       style.id = HUD_FS_STYLE_ID;
+      style.dataset.linjiangOwner = INSTANCE_ID;
       (doc.head || doc.documentElement).appendChild(style);
     }
     style.textContent = FS_CSS;
@@ -690,38 +868,23 @@
 
   const layoutCompact = () => {
     const frame = window.frameElement;
+    if (!frame || !isSafeOuterFrame(frame)) return;
     cleanupLeftovers();
-    parkHudInside();
-    hudFrame._linjiangAlign = 'iframe';
-    hudFrame._linjiangBox = null;
-    if (isSafeOuterFrame(frame)) {
-      const view = viewportPoint(frame);
-      const colW = Math.max(120, Math.round(frame.getBoundingClientRect().width || view.width || 0));
-      let height = Math.round(colW * BODY_H / BODY_W);
-      const maxH = Math.round((view.vh || tavernSize().h) * MAX_VH);
-      if (height > maxH) height = maxH;
-      frame.setAttribute('scrolling', 'no');
-      const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
-      apply('position', 'relative');
-      apply('transform', 'none');
-      apply('width', '100%');
-      apply('height', `${height}px`);
-      apply('max-width', 'none');
-      apply('margin', '0');
-      apply('border', '0');
-      apply('display', 'block');
-      apply('visibility', 'visible');
-      apply('opacity', '1');
-      apply('pointer-events', 'auto');
-      apply('overflow', 'hidden');
-      apply('left', 'auto');
-      apply('top', 'auto');
-      apply('z-index', 'auto');
-      apply('background', '#05040a');
+    const view = viewportPoint(frame);
+    const width = Math.max(120, Math.round(view.width || frame.getBoundingClientRect().width || 0));
+    const height = Math.min(Math.round(width * BODY_H / BODY_W), Math.round(view.vh * MAX_VH));
+    const box = { width, height };
+    if (frame.dataset.linjiangH !== String(height)) {
+      setSpacer(frame, height);
       frame.dataset.linjiangH = String(height);
     }
+    const after = viewportPoint(frame);
+    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
+    paintHud(box, false);
+    hudFrame._linjiangAlign = 'slot';
+    hudFrame._linjiangBox = box;
+    moveHud(after, box);
     placeFsButton();
-    requestAnimationFrame(placeFsButton);
   };
 
   const hudBox = (vw, vh) => {
@@ -804,7 +967,12 @@
       const maxX = view.vw - box.width - PORTRAIT_GUTTER;
       if (maxX >= minX) x = Math.max(minX, Math.min(x, maxX));
     }
-    hudFrame.style.transform = `translate3d(${x}px, ${view.top}px, 0)`;
+    /* left/top are intentional here: a transformed iframe is composited one frame
+       after #chat scrolls, producing a visible 1-delta jump.  Fixed-position layout
+       coordinates update in the same style/layout pass as the anchor rect. */
+    hudFrame.style.transform = 'none';
+    hudFrame.style.left = `${x}px`;
+    hudFrame.style.top = `${view.top}px`;
     applySlotVisibility(view, box);
     if (align === 'slot') {
       try { hideChromeButtons(); } catch (e) {}
@@ -958,22 +1126,25 @@
   };
 
   const layoutMobile = () => {
-    parkHudInside();
-    hudFrame._linjiangAlign = '';
     const frame = window.frameElement;
-    const vh = tavernSize().h;
-    if (isSafeOuterFrame(frame)) {
-      frame.setAttribute('scrolling', 'yes');
-      frame.style.cssText = 'position:relative;width:100%;border:0;display:block;visibility:visible;opacity:1;pointer-events:auto;';
-      frame.style.setProperty('height', `${Math.max(560, Math.round(vh * MAX_VH))}px`, 'important');
+    if (!frame || !isSafeOuterFrame(frame)) return;
+    cleanupLeftovers();
+    const view = viewportPoint(frame);
+    const width = Math.max(120, Math.round(view.width || frame.getBoundingClientRect().width || 0));
+    const height = Math.max(180, Math.min(Math.round(width * BODY_H / BODY_W), Math.round(view.vh * MAX_VH)));
+    const box = { width, height };
+    if (frame.dataset.linjiangH !== String(height)) {
+      setSpacer(frame, height);
+      frame.dataset.linjiangH = String(height);
     }
-    try {
-      if (portraitHud()) hideChromeButtons();
-      else placeFsButton();
-    } catch (e) { placeFsButton(); }
+    const after = viewportPoint(frame);
+    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
+    paintHud(box, false);
+    hudFrame._linjiangAlign = 'slot';
+    hudFrame._linjiangBox = box;
+    moveHud(after, box);
+    placeFsButton();
   };
-
-  let hudMode = '';
 
   const hudSrc = () => {
     try {
@@ -991,12 +1162,13 @@
 
   const syncHudSrc = () => {
     const mode = portraitHud() ? 'portrait' : 'landscape';
-    if (hudMode === mode && hudFrame.getAttribute('src')) return;
-    hudMode = mode;
+    if (manager.hudMode === mode && hudFrame.getAttribute('src')) return;
+    manager.hudMode = mode;
     hudFrame.src = hudSrc();
   };
 
   const fitParentFrame = () => {
+    if (!isOwner()) return;
     try {
       ensureFsChrome();
       if (expanded) layoutExpanded();
@@ -1016,7 +1188,7 @@
 
   let followTick = 0;
   const requestFollow = () => {
-    if (followTick) return;
+    if (!isOwner() || followTick) return;
     followTick = requestAnimationFrame(() => {
       followTick = 0;
       try { followHud(); } catch (e) {}
@@ -1224,6 +1396,7 @@
       hudFrame.contentWindow?.postMessage({
         channel: CHANNEL,
         kind: 'event',
+        context: manager.context(),
         type: 'autoscrollState',
         payload: { active },
       }, hudOrigin === '*' ? '*' : hudOrigin);
@@ -1367,7 +1540,8 @@
 
   const onHudAutoscroll = (event) => {
     const data = event.data;
-    if (!data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (event.source !== hudFrame.contentWindow) return;
     if (data.type !== 'autoscrollToggle' && data.type !== 'autoscrollMove') return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
     if (data.type === 'autoscrollToggle') toggleAutoscroll(data.payload || {});
@@ -1444,7 +1618,8 @@
 
   const onHudLayout = (event) => {
     const data = event.data;
-    if (!data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event') return;
+    if (event.source !== hudFrame.contentWindow) return;
     if (data.type !== 'portraitSize' && data.type !== 'portraitPage') return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
     if (data.type === 'portraitSize') {
@@ -1460,7 +1635,8 @@
 
   const onHudWheel = (event) => {
     const data = event.data;
-    if (!data || data.channel !== CHANNEL || data.kind !== 'event' || data.type !== 'wheel') return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event' || data.type !== 'wheel') return;
+    if (event.source !== hudFrame.contentWindow) return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
     if (autoscroll.active) stopAutoscroll();
     scrollReading(data.payload || {});
@@ -1484,43 +1660,7 @@
     listen(win, 'message', onHudLayout);
   };
 
-  const uninstall = () => {
-    if (uninstalled) return;
-    uninstalled = true;
-    portraitPageOpen = false;
-    unlockTavernScroll();
-    stopAutoscroll();
-    try { if (slotObserver) slotObserver.disconnect(); } catch (e) {}
-    slotObserver = null;
-    try { clearInterval(pollTimer); } catch (e) {}
-    try {
-      const tavern = tavernWin();
-      const doc = tavern.document;
-      const live = doc.getElementById(HUD_LIVE_ID);
-      if (live) live.remove();
-      const slot = doc.getElementById('linjiang-hud-slot');
-      if (slot) slot.remove();
-      const overflowStyle = doc.getElementById('linjiang-hud-overflow');
-      if (overflowStyle) overflowStyle.remove();
-      const fsBtn = doc.getElementById(HUD_FS_ID);
-      if (fsBtn) fsBtn.remove();
-      const shrinkBtn = doc.getElementById(HUD_SHRINK_ID);
-      if (shrinkBtn) shrinkBtn.remove();
-      const fsStyle = doc.getElementById(HUD_FS_STYLE_ID);
-      if (fsStyle) fsStyle.remove();
-    } catch (e) {}
-    try {
-      if (hudFrame && hudFrame.parentNode && hudFrame.parentNode !== document.body) {
-        hudFrame.remove();
-      }
-    } catch (e) {}
-    try {
-      const frame = window.frameElement;
-      if (frame) {
-        frame.removeAttribute('style');
-        try { delete frame.dataset.linjiangH; } catch (e2) {}
-      }
-    } catch (e) {}
+  const clearHostListeners = () => {
     while (hostListens.length) {
       const item = hostListens.pop();
       try { item.target.removeEventListener(item.type, item.fn, item.opts); } catch (e) {}
@@ -1528,56 +1668,85 @@
     hostWins.length = 0;
   };
 
-  addEventListener('pagehide', uninstall);
-  addEventListener('unload', uninstall);
-  try {
-    const fe = window.frameElement;
-    if (fe && fe.parentNode && typeof MutationObserver === 'function') {
-      const mo = new MutationObserver(() => {
-        if (!fe.isConnected) uninstall();
-      });
-      mo.observe(fe.parentNode, { childList: true });
-    }
-  } catch (e) {}
-
-  bindHostMessages(window);
-  try { bindHostMessages(tavernWin()); } catch (e) {}
-
-  fitParentFrame();
-  listen(window, 'resize', fitParentFrame);
-  try {
-    const tavern = tavernWin();
-    const opts = { passive: true, capture: true };
-    const pointerDocs = [tavern.document];
+  const removeOwnedChrome = () => {
     try {
-      if (window.parent?.document && window.parent.document !== tavern.document) {
-        pointerDocs.push(window.parent.document);
+      const doc = tavernWin().document;
+      for (const id of [HUD_FS_ID, HUD_SHRINK_ID, HUD_AUTOSCROLL_ID]) {
+        const element = doc.getElementById(id);
+        if (element?.dataset.linjiangOwner === INSTANCE_ID || id === HUD_AUTOSCROLL_ID) element?.remove();
       }
+      const style = doc.getElementById(HUD_FS_STYLE_ID);
+      if (style?.dataset.linjiangOwner === INSTANCE_ID) style.remove();
     } catch (e) {}
-    pointerDocs.forEach((doc) => {
-      listen(doc, 'mousemove', onHostMouseMove, opts);
-      listen(doc, 'mousedown', onHostMouseDown, { capture: true, passive: false });
-      listen(doc, 'keydown', onHostKeyDown, true);
-      listen(doc, 'wheel', () => { if (autoscroll.active) stopAutoscroll(); }, opts);
-    });
-    listen(tavern, 'mousedown', onHostMouseDown, { capture: true, passive: false });
-    listen(tavern, 'keydown', onHostKeyDown, true);
-    listen(tavern, 'blur', () => { if (autoscroll.active) stopAutoscroll(); });
-    listen(tavern, 'resize', fitParentFrame);
-    listen(tavern, 'orientationchange', fitParentFrame);
+  };
+
+  const collapseAnchor = () => {
     try {
-      if (tavern.visualViewport) listen(tavern.visualViewport, 'resize', fitParentFrame, { passive: true });
+      const frame = window.frameElement;
+      if (!frame) return;
+      frame.style.setProperty('height', '0px', 'important');
+      frame.style.setProperty('min-height', '0px', 'important');
+      frame.style.setProperty('opacity', '0', 'important');
+      frame.style.setProperty('pointer-events', 'none', 'important');
+      frame.dataset.linjiangH = '0';
     } catch (e) {}
-    listen(tavern, 'scroll', requestFollow, opts);
-    listen(tavern.document, 'scroll', requestFollow, opts);
-    const chat = tavern.document.getElementById('chat');
-    if (chat) listen(chat, 'scroll', requestFollow, opts);
-    if (window.parent && window.parent !== window && window.parent !== tavern) {
-      listen(window.parent, 'scroll', requestFollow, opts);
-      listen(window.parent.document, 'scroll', requestFollow, opts);
-      listen(window.parent, 'resize', fitParentFrame);
+  };
+
+  const deactivate = () => {
+    if (!active) { collapseAnchor(); return; }
+    active = false;
+    portraitPageOpen = false;
+    try { unlockTavernScroll(); } catch (e) {}
+    try { stopAutoscroll(); } catch (e) {}
+    try { slotObserver?.disconnect(); } catch (e) {}
+    slotObserver = null;
+    try { clearInterval(pollTimer); } catch (e) {}
+    pollTimer = 0;
+    if (followTick) {
+      try { cancelAnimationFrame(followTick); } catch (e) {}
+      followTick = 0;
     }
+    clearHostListeners();
+    removeOwnedChrome();
+    if (hudFrame) {
+      hudFrame.style.visibility = 'hidden';
+      hudFrame.style.pointerEvents = 'none';
+    }
+    collapseAnchor();
+  };
+
+  const bindActiveRuntime = () => {
+    bindHostMessages(window);
+    try { bindHostMessages(tavernWin()); } catch (e) {}
+    listen(window, 'resize', fitParentFrame);
     try {
+      const tavern = tavernWin();
+      const opts = { passive: true, capture: true };
+      const pointerDocs = [tavern.document];
+      try {
+        if (window.parent?.document && window.parent.document !== tavern.document) pointerDocs.push(window.parent.document);
+      } catch (e) {}
+      pointerDocs.forEach((doc) => {
+        listen(doc, 'mousemove', onHostMouseMove, opts);
+        listen(doc, 'mousedown', onHostMouseDown, { capture: true, passive: false });
+        listen(doc, 'keydown', onHostKeyDown, true);
+        listen(doc, 'wheel', () => { if (autoscroll.active) stopAutoscroll(); }, opts);
+      });
+      listen(tavern, 'mousedown', onHostMouseDown, { capture: true, passive: false });
+      listen(tavern, 'keydown', onHostKeyDown, true);
+      listen(tavern, 'blur', () => { if (autoscroll.active) stopAutoscroll(); });
+      listen(tavern, 'resize', fitParentFrame);
+      listen(tavern, 'orientationchange', fitParentFrame);
+      if (tavern.visualViewport) listen(tavern.visualViewport, 'resize', fitParentFrame, { passive: true });
+      listen(tavern, 'scroll', requestFollow, opts);
+      listen(tavern.document, 'scroll', requestFollow, opts);
+      const chat = tavern.document.getElementById('chat');
+      if (chat) listen(chat, 'scroll', requestFollow, opts);
+      if (window.parent && window.parent !== window && window.parent !== tavern) {
+        listen(window.parent, 'scroll', requestFollow, opts);
+        listen(window.parent.document, 'scroll', requestFollow, opts);
+        listen(window.parent, 'resize', fitParentFrame);
+      }
       const frame = window.frameElement;
       const pane = readingPane();
       if (frame && typeof IntersectionObserver === 'function') {
@@ -1587,27 +1756,61 @@
         });
         slotObserver.observe(frame);
       }
+      [50, 150, 400, 900].forEach((ms) => {
+        setTimeout(() => { if (isOwner()) requestFollow(); }, ms);
+      });
     } catch (e) {}
-    [50, 150, 400, 900].forEach((ms) => {
-      setTimeout(() => { if (!uninstalled) try { requestFollow(); } catch (e2) {} }, ms);
-    });
-  } catch (e) {}
-  showHint('等待 HUD / MVU…');
+  };
 
+  const activate = (context) => {
+    if (destroyed) return;
+    active = true;
+    uninstalled = false;
+    hudFrame = manager.ensureHudFrame();
+    hudFrame.dataset.linjiangOwner = INSTANCE_ID;
+    try { localHudFrame.remove(); } catch (e) {}
+    bindActiveRuntime();
+    fitParentFrame();
+    showHint('?? HUD / MVU?');
+    pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
+    postToHud({ channel: CHANNEL, kind: 'event', type: 'context', context });
+    pushSnapshot(true);
+  };
+
+  const uninstall = () => {
+    if (destroyed) return;
+    destroyed = true;
+    uninstalled = true;
+    deactivate('removed');
+    try { frameObserver?.disconnect(); } catch (e) {}
+    frameObserver = null;
+    manager.unregister(INSTANCE_ID);
+  };
+
+  addEventListener('pagehide', uninstall);
+  addEventListener('unload', uninstall);
   try {
-    const win = getCoreWindow();
-    if (win.eventSource?.on) {
-      win.eventSource.on('mvu_data_updated', () => pushSnapshot(false));
-      win.eventSource.on('chatLoaded', () => requestFollow());
-      win.eventSource.on('chatUpdated', () => requestFollow());
-    }
-    if (typeof win.eventOn === 'function' && win.Mvu?.events?.VARIABLE_UPDATE_ENDED) {
-      win.eventOn(win.Mvu.events.VARIABLE_UPDATE_ENDED, () => pushSnapshot(false));
+    const fe = window.frameElement;
+    if (fe && fe.parentNode && typeof MutationObserver === 'function') {
+      frameObserver = new MutationObserver(() => {
+        if (!fe.isConnected) uninstall();
+      });
+      frameObserver.observe(fe.parentNode, { childList: true });
     }
   } catch (e) {}
 
-  pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
-  pushSnapshot(true);
+  localHudFrame.style.display = 'none';
+  manager.bindEventHooks(getCoreWindow());
+  controllerRecord = manager.register({
+    id: INSTANCE_ID,
+    frame: window.frameElement,
+    activate,
+    deactivate,
+    pushSnapshot,
+    requestFollow,
+    destroyed: () => destroyed,
+  });
+
 })();
 </script>
 </body>

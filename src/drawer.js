@@ -1,5 +1,6 @@
 import geo from './geometry.json';
 import { inventoryRail, itemIconTag, potencyNotches } from './data.js';
+import { insertSafeHTML, setSafeHTML } from './dom.js';
 
 /* The lower panel: the item rail.
    ------------------------------------------------------------------
@@ -315,7 +316,7 @@ export function mountRailPanel(stage, {
 
   const open = () => {
     if (root) return;
-    stage.insertAdjacentHTML('beforeend', panelMarkup(body(), { label, extraClass }));
+    insertSafeHTML(stage, 'beforeend', panelMarkup(body(), { label, extraClass }));
     root = stage.querySelector(':scope > .drawer-root');
     paint();
     teardown = wire();
@@ -328,7 +329,7 @@ export function mountRailPanel(stage, {
     if (!root) return;
     teardown?.();
     const rail = root.querySelector('.drawer-rail');
-    rail.innerHTML = body();
+    setSafeHTML(rail, body());
     rail.scrollLeft = 0;
     teardown = wire();
   };

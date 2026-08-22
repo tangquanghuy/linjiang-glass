@@ -414,10 +414,9 @@ export function itemIcon(bucket, item) {
    step installs the remover as the *new* handler before retrying, which is what makes a
    double failure land on the placeholder instead of looping. */
 export function itemIconTag(icon, className) {
-  const onError = icon.fallback
-    ? `this.onerror=function(){this.remove()};this.src='${icon.fallback}'`
-    : 'this.remove()';
-  return `<img class="${className}" src="${icon.src}" alt="" draggable="false" onerror="${onError}">`;
+  const fallback = icon.fallback ? ` data-fallback-src="${icon.fallback}"` : '';
+  return `<img class="${className}" src="${icon.src}" alt="" draggable="false"
+    decoding="async" loading="lazy"${fallback} data-remove-on-error>`;
 }
 
 /* 强度, as notches filed into the cell's top-right corner.
@@ -1324,7 +1323,7 @@ function canonGirlName(name) {
   if (name == null) return null;
   const key = String(name).trim();
   if (!key || key === 'null' || key === '无') return null;
-  return GIRL_NAME_ALIAS[key] || key;
+  return GIRL_NAME_ALIAS[key] || escapeMarkupText(key);
 }
 
 function pickNamed(record, name) {
@@ -1341,10 +1340,19 @@ function asNum(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function escapeMarkupText(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function asStr(value, fallback = '') {
   if (value == null) return fallback;
   const text = String(value).trim();
-  return text || fallback;
+  return text ? escapeMarkupText(text) : fallback;
 }
 
 function shortDate(full) {

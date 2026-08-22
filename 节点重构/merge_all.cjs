@@ -1,10 +1,22 @@
 /**
- * Merge batch01~batch11 into city/city_mapdata.js by node id.
- * 用法：node merge_all.cjs
+ * 【已废弃】把 节点重构/batch01~11 合并进 city/city_mapdata.js。
+ *
+ * 这一批是上一代文案。city_mapdata.js 现在的正主是 节点重构V3/merge_v3.cjs，
+ * 直接跑这个脚本会用旧文案把 V3 的节点名和事件全部盖回去。
+ * 留着只为了能回溯旧数据，要跑必须显式加 --force。
+ *
+ * 用法：node merge_all.cjs --force
  * Output: ../city/city_mapdata.js (in place; history is managed by Git).
  */
 const fs = require('fs');
 const path = require('path');
+
+if (!process.argv.includes('--force')) {
+  console.error('已废弃：这会用旧批次覆盖 节点重构V3 的数据。');
+  console.error('要合并 V3 请用：node ../节点重构V3/merge_v3.cjs');
+  console.error('确实要跑旧批次，加 --force。');
+  process.exit(1);
+}
 
 const SRC = path.join(__dirname, '..', 'city', 'city_mapdata.js');
 
@@ -68,6 +80,16 @@ const merged = originalNodes.map(n => {
 });
 console.log(`Replaced ${replaced} nodes`);
 
+// 4b. 合并只允许「同 id 覆盖」，节点总数不得减少
+if (merged.length < originalNodes.length) {
+  console.error(
+    `ABORT: node count would shrink ${originalNodes.length} -> ${merged.length}`
+  );
+  process.exit(1);
+}
+const untouched = originalNodes.filter((n) => !rebuilt.has(n.id)).map((n) => n.id);
+console.log(`Kept ${untouched.length} original-only nodes: ${untouched.join(', ')}`);
+
 // 5. 序列化回 JS
 const serialize = (obj, indent = 2) => {
   return JSON.stringify(obj, null, indent)
@@ -84,7 +106,8 @@ const serialize = (obj, indent = 2) => {
 };
 
 const header = `/**
- * 临江市节点库（已合并重构批次 01~11，共 ${merged.length} 节点）
+ * 临江市节点库（共 ${merged.length} 节点）
+ * = 重构批次 01~11 覆盖 ${replaced} 个节点 + 保留 ${untouched.length} 个原有节点
  * 对齐：PLAN_v3、变量草稿、节点复审清单.md
  * 合并时间：${new Date().toISOString().slice(0, 10)}
  */

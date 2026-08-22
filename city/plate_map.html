@@ -140,7 +140,7 @@
     .np[data-tier="scene"]::before { width: 46px; height: 46px; }
 
     /* 圆盘：白底 + 彩环 + 彩色字形 */
-    /* 尺寸和边都收了一档。之前圆盘 34px、2px 实白边、白牌硬边框，
+    /* 尺寸和边框都收了一档。此前圆盘、实白边和白牌硬边同时出现，
        贴在夜景照片上像贴纸——太亮太硬，和底下的图不在一个空间里。
        现在靠柔化的深色投影把标记压进画面，亮部收着来。 */
     .ni {
@@ -464,7 +464,7 @@
     /* ============ 比例尺 ============
        全套坐标本来是纯归一化的，没有标尺，所以以前画这个是在撒谎。
        现在 KM_PER_UNIT 定了，它是诚实的了。
-       长度取"整公里对应多少像素"，不是"固定像素对应多少公里"——
+       长度按整公里对应当前像素宽度，不再使用固定像素伪装比例。
        反过来做的话数字永远是 1.37 km 这种，读起来像随机数。 */
     #scale {
       position: absolute; right: 60px; bottom: 19px; z-index: 20;
@@ -485,7 +485,7 @@
 
     /* ============ 行程 ============
        四种方式的时长同时摆在 tab 上。只显示当前那一种的话，
-       玩家没有比较对象，"选哪种"就退化成随手点——
+       玩家需要直接比较不同方式，不让选择退化成随手点选。
        地铁便宜一个数量级、打车快十分钟，这个账要看得见才成立。 */
     #trip[hidden] { display: none; }
     #trip {
@@ -679,6 +679,30 @@
     }
 
     /* ============ 地点详情 ============
+       宿主的开局页已有通勤卡片和图例，地图内不再重复显示行程面板；
+       时段条和行程面板在开局模式中隐藏，避免遮住地图选择。 */
+    html[data-opening] #phase,
+    html[data-opening] #trip { display: none !important; }
+    /* 开局模式只显示可选住所或岗位，牌子需要一眼分清用途：
+       粉边代表住所，蓝边代表工作，与宿主页面图例保持一致。 */
+    html[data-opening] .np .nl {
+      padding: 4px 11px 5px;
+      border-radius: 10px;
+      box-shadow: 0 8px 22px -8px rgba(4, 8, 24, .85), 0 0 0 1.5px var(--nc, rgba(10, 18, 36, .12));
+    }
+    html[data-opening] .np:hover .nl.dup { display: block; }
+    html[data-opening] .np:hover .nl { z-index: 40; }
+    html[data-opening] .np .nl i { display: none; }
+    html[data-opening] .np:hover .nl i { display: block; color: #8a5c78; font-weight: 600; }
+    html[data-opening] .np[data-sel="1"] .nl i { display: block; color: #8a5c78; font-weight: 600; }
+    html[data-opening] .np[data-opening="work"][data-sel="1"] .nl i { color: #3f6f9c; }
+    html[data-opening] .np[data-sel="1"] .nl {
+      color: #1b2233;
+      background: linear-gradient(180deg, #fff, #ffeef6);
+      box-shadow: 0 10px 26px -8px rgba(4, 8, 24, .9), 0 0 0 2px var(--nc, #e0559a);
+    }
+
+    /* ============ 地点详情 ============
        和 HUD 页同一套玻璃：半透明蓝、霜面、加边光。
        地图控件是实像素，这块也按实像素画，不走画布单位。 */
     #spot[hidden] { display: none; }
@@ -698,8 +722,9 @@
     .spot-sheet {
       --page-rim: rgba(232, 236, 255, .56);
       position: absolute;
-      top: 16px; right: 16px; bottom: 16px;
-      width: min(420px, calc(100vw - 32px));
+      top: clamp(16px, 4vh, 42px); left: 50%; bottom: clamp(16px, 4vh, 42px);
+      width: min(560px, calc(100vw - 48px));
+      transform: translateX(-50%);
       pointer-events: auto;
       display: flex; flex-direction: column;
       overflow: hidden;
@@ -738,8 +763,8 @@
         linear-gradient(0deg, rgba(255, 176, 196, .14), rgba(255, 168, 190, .055) 28px, rgba(255, 150, 180, 0) 78px);
     }
     @keyframes spot-in {
-      from { transform: translateX(28px); opacity: 0; }
-      to { transform: none; opacity: 1; }
+      from { transform: translate(-50%, 24px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
     }
 
     .spot-close {
@@ -886,37 +911,156 @@
     .spot-spec li::marker { color: rgba(228, 228, 250, .38); }
     .spot-mats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
+    .spot-more {
+      margin-top: 12px;
+      border: 1px solid rgba(210, 220, 255, .12);
+      border-radius: 14px;
+      background: rgba(16, 22, 48, .18);
+    }
+    .spot-more summary {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .spot-more summary::-webkit-details-marker { display: none; }
+    .spot-more summary span {
+      font: 400 16px/1 'Pinyon Script', cursive;
+      color: rgba(247, 230, 243, .64);
+    }
+    .spot-more summary b {
+      font: 500 11px/1 'Noto Sans SC', sans-serif;
+      color: rgba(250, 247, 255, .74);
+      letter-spacing: .08em;
+    }
+    .spot-more summary i {
+      margin-left: auto;
+      font: 400 10px/1 'Noto Sans SC', sans-serif;
+      color: rgba(224, 226, 248, .42);
+      font-style: normal;
+    }
+    .spot-more[open] summary i { color: rgba(224, 232, 255, .68); }
+    .spot-more-body {
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(226, 231, 255, .08);
+    }
+    .spot-more-body .spot-sec:first-child { margin-top: 12px; }
+
+    .spot-k small {
+      margin-left: auto;
+      font: 400 11px/1 'Noto Sans SC', sans-serif;
+      color: rgba(224, 226, 248, .42);
+      letter-spacing: .02em;
+    }
+
     .spot-evt {
-      padding: 12px 14px 10px;
+      overflow: hidden;
       border-radius: 16px;
       border: 1px solid rgba(210, 220, 255, .14);
       background: rgba(16, 22, 48, .28);
     }
-    .spot-evt + .spot-evt { margin-top: 10px; }
+    .spot-evt + .spot-evt { margin-top: 8px; }
+    .spot-evt-summary {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .spot-evt-summary::-webkit-details-marker { display: none; }
+    .spot-evt-summary:hover { background: rgba(255, 255, 255, .045); }
+    .spot-evt-main { flex: 1; min-width: 0; }
+    .spot-evt-index {
+      display: block; margin-bottom: 4px;
+      font: 500 10px/1 Outfit, 'Noto Sans SC', sans-serif;
+      color: rgba(218, 225, 255, .42);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
     .spot-evt h3 {
-      font: 600 13.5px/1.35 'Noto Sans SC', sans-serif;
+      overflow: hidden;
+      font: 600 14px/1.35 'Noto Sans SC', sans-serif;
       color: rgba(250, 247, 255, .94);
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .spot-evt .where {
-      margin-top: 4px;
+      margin-top: 3px;
+      overflow: hidden;
       font: 400 11px/1.3 'Noto Sans SC', sans-serif;
       color: rgba(224, 226, 248, .5);
-      letter-spacing: .06em;
+      letter-spacing: .04em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .spot-evt p {
-      margin: 8px 0 10px;
-      font: 400 12.5px/1.6 'Noto Sans SC', sans-serif;
-      color: rgba(228, 228, 250, .78);
+    .spot-evt-toggle {
+      flex: 0 0 auto;
+      width: 9px; height: 9px;
+      border-right: 1.5px solid rgba(235, 239, 255, .72);
+      border-bottom: 1.5px solid rgba(235, 239, 255, .72);
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform .18s ease;
     }
-    .spot-opt {
-      display: flex; gap: 8px; align-items: flex-start;
-      padding: 8px 0;
+    .spot-evt[open] .spot-evt-toggle { transform: rotate(225deg) translate(-2px, -2px); }
+    .spot-evt-content {
+      padding: 0 14px 12px;
       border-top: 1px solid rgba(226, 231, 255, .08);
     }
-    .spot-opt:first-of-type { border-top: 0; }
+    .spot-scene {
+      display: flex; gap: 9px; align-items: flex-start;
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 11px;
+      background: rgba(121, 137, 205, .11);
+    }
+    .spot-scene > span,
+    .spot-conditions > span,
+    .spot-gate-label,
+    .spot-result::before {
+      flex: 0 0 auto;
+      font: 600 10px/1.5 'Noto Sans SC', sans-serif;
+      color: rgba(226, 232, 255, .52);
+      letter-spacing: .08em;
+    }
+    .spot-scene p {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 0;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      font: 400 12.5px/1.55 'Noto Sans SC', sans-serif;
+      color: rgba(236, 236, 252, .82);
+    }
+    .spot-conditions {
+      display: flex; gap: 8px; align-items: flex-start;
+      margin-top: 9px;
+    }
+    .spot-conditions > span { padding-top: 3px; }
+    .spot-conditions .spot-req { margin-top: 0; }
+    .spot-routes { margin-top: 10px; }
+    .spot-routes-title {
+      display: flex; align-items: baseline; gap: 7px;
+      margin-bottom: 4px;
+    }
+    .spot-routes-title span {
+      font: 400 16px/1 'Pinyon Script', cursive;
+      color: rgba(247, 230, 243, .68);
+    }
+    .spot-routes-title b {
+      font: 500 11px/1 'Noto Sans SC', sans-serif;
+      color: rgba(250, 247, 255, .72);
+      letter-spacing: .08em;
+    }
+    .spot-opt {
+      padding: 9px 0 8px;
+      border-top: 1px solid rgba(226, 231, 255, .08);
+    }
+    .spot-opt-head { display: flex; align-items: center; gap: 8px; }
+    .spot-opt-head span {
+      font: 400 10.5px/1.4 'Noto Sans SC', sans-serif;
+      color: rgba(224, 226, 248, .42);
+    }
     .spot-tag {
       flex: 0 0 auto;
-      margin-top: 1px;
       padding: 2px 8px; border-radius: 999px;
       font: 600 10px/1.4 'Noto Sans SC', sans-serif;
       font-style: normal;
@@ -926,34 +1070,60 @@
     .spot-tag.mischief { color: #e4d7ff; background: rgba(168, 151, 255, .22); }
     .spot-tag.sex { color: #ffe1c4; background: rgba(255, 173, 125, .22); }
     .spot-tag.daily { color: #d4e8ff; background: rgba(120, 180, 255, .18); }
-    /* 数值要求。事件级 trigger 和分支级门槛都用小药丸出，
-       选项正文不进面板——这里是查条件的地方，不是读剧本的地方。 */
-    .spot-req {
-      display: flex; flex-wrap: wrap; gap: 5px;
-      margin-top: 7px;
+    .spot-action {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 6px 0 6px;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      font: 500 12.5px/1.5 'Noto Sans SC', sans-serif;
+      color: rgba(246, 245, 255, .88);
     }
+    .spot-opt-foot {
+      display: flex; gap: 7px; align-items: flex-start;
+      min-width: 0;
+    }
+    .spot-gate-label { padding-top: 3px; }
+    .spot-gate {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      min-width: 0;
+    }
+    .spot-gate em,
+    .spot-result em,
     .spot-req em {
       padding: 2px 7px; border-radius: 6px;
-      border: 1px solid rgba(226, 231, 255, .16);
-      background: rgba(16, 22, 48, .34);
-      font: 500 10.5px/1.55 Outfit, 'Noto Sans SC', sans-serif;
-      font-style: normal; letter-spacing: .03em;
-      color: rgba(214, 222, 255, .84);
-    }
-    .spot-gate {
-      display: flex; flex-wrap: wrap; gap: 5px;
-      flex: 1; min-width: 0;
-    }
-    .spot-gate em {
-      padding: 2px 7px; border-radius: 6px;
-      background: rgba(255, 255, 255, .07);
-      font: 500 10.5px/1.55 Outfit, 'Noto Sans SC', sans-serif;
+      font: 500 10px/1.45 Outfit, 'Noto Sans SC', sans-serif;
       font-style: normal;
       color: rgba(228, 232, 254, .8);
+    }
+    .spot-gate em {
+      background: rgba(255, 255, 255, .07);
     }
     .spot-gate em.free {
       padding-left: 0; background: none;
       color: rgba(228, 232, 254, .38);
+    }
+    .spot-result {
+      display: flex; flex: 1; flex-wrap: wrap; gap: 4px;
+      min-width: 0; justify-content: flex-end;
+    }
+    .spot-result::before { content: '\7ed3\679c'; padding-top: 3px; }
+    .spot-result em {
+      overflow: hidden;
+      max-width: 120px;
+      background: rgba(137, 161, 220, .12);
+      color: rgba(216, 229, 255, .7);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .spot-req {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      min-width: 0;
+    }
+    .spot-req em {
+      border: 1px solid rgba(226, 231, 255, .13);
+      background: rgba(16, 22, 48, .28);
+      color: rgba(214, 222, 255, .78);
     }
 
     @media (max-width: 720px) {
@@ -962,6 +1132,7 @@
       .spot-sheet {
         top: auto; right: 10px; left: 10px; bottom: 10px;
         width: auto; height: min(78vh, 640px);
+        transform: none;
         border-radius: 24px;
         animation-name: spot-up;
       }
@@ -971,6 +1142,13 @@
       }
     }
   </style>
+
+<style>
+/* Opening setup metadata in the location sheet. */
+.spot-opening{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(255,218,232,.28);border-radius:14px;background:linear-gradient(135deg,rgba(255,174,213,.13),rgba(126,194,255,.12));box-shadow:inset 0 1px rgba(255,255,255,.10)}
+.spot-opening-top{display:flex;align-items:baseline;gap:9px;margin-bottom:7px}.spot-opening-top span{font:400 17px/1 'Pinyon Script',cursive;color:rgba(255,224,239,.78)}.spot-opening-top b{font-size:11px;letter-spacing:.10em;color:rgba(255,249,255,.88)}
+.spot-opening strong{display:block;color:#ffe4ad;font:600 14px/1.35 'Outfit','Noto Sans SC',sans-serif}.spot-opening p{margin-top:5px;color:rgba(242,238,255,.66);font-size:11px;line-height:1.55}.spot-opening-job strong{color:#cfe8ff}
+</style>
 </head>
 
 <body>
@@ -999,7 +1177,8 @@
       <div id="trip-modes"></div>
       <div id="trip-sum"></div>
       <div id="trip-legs"></div>
-      <button id="trip-go" type="button">出发</button>
+      <!-- 默认 disabled：没算出行程之前这个按钮不该是可点的绿色 -->
+      <button id="trip-go" type="button" disabled>出发</button>
     </div>
 
     <div id="ctl">
@@ -1027,7 +1206,7 @@
   </div>
 
   <svg style="display:none" xmlns="http://www.w3.org/2000/svg"><defs id="icons"></defs></svg>
-  <script src="./plate_map.js?v=20260821-requirements-v3"></script>
+  <script src="./plate_map.js?v=20260822-starter-homes-v1"></script>
 </body>
 
 </html>

@@ -212,7 +212,7 @@
 .card-name b.long { font-size: 21px; }
 .card-name b.xl { font-size: 18px; }
 .card-star {
-  --hit-d: 28px;
+  --hit-d: 26px;
   position: absolute;
   top: 17px;
   right: 8px;
@@ -227,11 +227,13 @@
   transition: transform .16s, filter .16s;
 }
 .card:has(b.long) .card-star {
+  --hit-d: 22px;
   width: 22px;
   height: 22px;
   top: 16px;
 }
 .card:has(b.xl) .card-star {
+  --hit-d: 20px;
   width: 20px;
   height: 20px;
   top: 15px;

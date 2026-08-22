@@ -47,7 +47,7 @@ function stripMarkdownFence(source) {
 
 async function loadProductionStatusSource() {
   if (!statusSourcePromise) {
-    statusSourcePromise = fetch('../变量相关/状态栏.html', { cache: 'no-store' })
+    statusSourcePromise = fetch('../外部部署/状态栏.html', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) throw new Error(`状态栏源码读取失败: HTTP ${response.status}`);
         return response.text();

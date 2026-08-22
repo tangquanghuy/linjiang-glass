@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>心里话面板 · 视觉设计稿</title>
+  <style>
+    :root {
+      --bg: #dfe5e1;
+      --bg-deep: #c8d0cb;
+      --ink: #253b37;
+      --muted: #71817b;
+      --line: rgba(37, 59, 55, .16);
+      --serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+      --sans: "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--bg-deep); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--serif);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(255,255,255,.74), transparent 32%),
+        radial-gradient(circle at 94% 12%, rgba(190,216,205,.58), transparent 28%),
+        linear-gradient(135deg, #e8ece7, #d4ddd7 52%, #c6d0ca);
+    }
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .page { width: min(1160px, calc(100% - 36px)); margin: 0 auto; padding: 46px 0 80px; }
+    .masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-bottom: 30px; }
+    .kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; color: #a35f51; font: 700 11px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; }
+    .kicker::before { content: ''; width: 38px; height: 1px; background: currentColor; box-shadow: 11px 0 0 -0.5px currentColor; }
+    h1 { margin: 0; font-size: clamp(32px, 5vw, 60px); font-weight: 500; letter-spacing: .13em; line-height: 1.1; text-shadow: 0 2px 0 rgba(255,255,255,.45); }
+    .subtitle { margin: 13px 0 0; color: var(--muted); font-size: 14px; letter-spacing: .08em; line-height: 1.8; }
+    .build-info { min-width: 230px; padding: 14px 16px; border: 1px solid rgba(37,59,55,.14); border-radius: 12px; background: rgba(255,255,255,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.65); font: 11px/1.7 var(--mono); color: #60716a; }
+    .build-info strong { display: block; color: #35534b; font: 700 12px/1.4 var(--sans); letter-spacing: .08em; }
+
+    .control-deck { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: stretch; margin-bottom: 26px; padding: 16px; border: 1px solid rgba(42,68,61,.15); border-radius: 18px; background: rgba(246,249,245,.54); box-shadow: 0 18px 42px rgba(48,69,60,.10), inset 0 1px 0 rgba(255,255,255,.76); backdrop-filter: blur(10px); }
+    .parser-label { display: block; margin: 0 0 8px 2px; color: #64766f; font: 700 10px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; }
+    .parser-row { display: flex; min-height: 84px; gap: 10px; }
+    textarea { width: 100%; resize: vertical; min-height: 84px; padding: 12px 14px; border: 1px solid rgba(58,86,77,.18); border-radius: 11px; outline: none; background: rgba(255,255,255,.72); color: #364d46; font: 14px/1.75 var(--serif); box-shadow: inset 0 2px 8px rgba(70,84,75,.04); }
+    textarea:focus { border-color: #a36354; box-shadow: 0 0 0 3px rgba(163,99,84,.12); }
+    .parse-btn { align-self: stretch; min-width: 105px; padding: 0 18px; border: 1px solid rgba(115,56,47,.2); border-radius: 11px; background: linear-gradient(145deg, #b97967, #914f45); color: #fff8f0; font: 700 13px/1 var(--sans); letter-spacing: .1em; box-shadow: 0 8px 16px rgba(132,73,61,.20), inset 0 1px 0 rgba(255,255,255,.22); transition: transform .2s, filter .2s; }
+    .parse-btn:hover { transform: translateY(-2px); filter: brightness(1.07); }
+    .style-picker { display: flex; flex-direction: column; justify-content: space-between; min-width: 318px; }
+    .style-picker-title { margin: 0 0 9px; color: #64766f; font: 700 10px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; }
+    .style-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .style-btn { padding: 9px 7px; border: 1px solid rgba(52,80,70,.16); border-radius: 8px; background: rgba(255,255,255,.44); color: #4d625a; font: 600 11px/1 var(--sans); letter-spacing: .05em; transition: background .2s, color .2s, transform .2s; }
+    .style-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.76); }
+    .style-btn.active { border-color: rgba(143,73,61,.42); background: #a96758; color: #fff; box-shadow: 0 5px 11px rgba(137,73,60,.18); }
+
+    .gallery-head { display: flex; align-items: center; gap: 18px; margin: 34px 0 17px; }
+    .gallery-head h2 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: .14em; white-space: nowrap; }
+    .gallery-head::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(90,117,105,.25), transparent); }
+    .gallery-head span { color: #8a9992; font: 10px/1 var(--mono); letter-spacing: .14em; }
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+    .sample-wrap { position: relative; min-width: 0; }
+    .sample-index { position: absolute; z-index: 5; left: 18px; top: 15px; color: rgba(255,255,255,.72); font: 10px/1 var(--mono); letter-spacing: .12em; pointer-events: none; }
+    .sample-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 3px 9px; color: #5e7169; font: 700 11px/1.3 var(--sans); letter-spacing: .1em; }
+    .sample-caption small { color: #8c9993; font: 10px/1.3 var(--sans); letter-spacing: .04em; }
+    .voice-card { position: relative; overflow: hidden; min-height: 224px; padding: 29px 28px 25px; text-align: left; isolation: isolate; }
+    .voice-card::selection, .voice-card *::selection { background: rgba(181,100,83,.22); }
+    .voice-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .voice-emblem { display: grid; place-items: center; flex: 0 0 auto; width: 41px; height: 41px; font: 700 16px/1 var(--serif); }
+    .voice-ident { min-width: 0; }
+    .voice-name { display: block; overflow: hidden; color: var(--card-ink); font-size: 18px; font-weight: 700; letter-spacing: .11em; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .voice-role { display: block; margin-top: 3px; color: var(--card-muted); font: 10px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+    .voice-status { margin-left: auto; align-self: flex-start; padding: 5px 8px; border: 1px solid var(--card-line); border-radius: 99px; color: var(--card-muted); font: 9px/1 var(--mono); letter-spacing: .08em; white-space: nowrap; }
+    .voice-thought { position: relative; z-index: 2; margin: 0; color: var(--card-ink); font-size: 17px; line-height: 1.95; letter-spacing: .045em; }
+    .voice-thought::before { content: '“'; display: block; height: 16px; margin-bottom: 2px; color: var(--card-accent); font: 42px/.7 Georgia, serif; opacity: .72; }
+    .voice-foot { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 24px; padding-top: 11px; border-top: 1px solid var(--card-line); color: var(--card-muted); font: 9px/1.4 var(--mono); letter-spacing: .1em; }
+    .voice-meter { display: inline-flex; gap: 3px; }
+    .voice-meter i { display: block; width: 14px; height: 3px; border-radius: 99px; background: var(--card-line); }
+    .voice-meter i.on { background: var(--card-accent); box-shadow: 0 0 8px color-mix(in srgb, var(--card-accent) 45%, transparent); }
+
+    /* A 典藏纸页：有印章、编号、纤维线 */
+    .archival { --card-ink: #3d4540; --card-muted: #8d8174; --card-accent: #ad6355; --card-line: rgba(119,92,68,.24); border: 1px solid rgba(129,101,75,.24); border-radius: 5px 18px 18px 5px; background: linear-gradient(115deg, rgba(255,250,237,.97), rgba(250,244,228,.86)); box-shadow: 0 16px 25px rgba(100,82,55,.12), inset 0 1px 0 #fff; }
+    .archival::before { content: ''; position: absolute; inset: 0; z-index: 0; opacity: .45; background: repeating-linear-gradient(0deg, transparent 0 32px, rgba(141,116,82,.09) 32px 33px), repeating-linear-gradient(90deg, transparent 0 8px, rgba(141,116,82,.018) 8px 9px); pointer-events: none; }
+    .archival::after { content: 'MIND / 01'; position: absolute; right: 23px; bottom: 53px; z-index: 1; color: rgba(172,99,85,.22); font: 11px/1 var(--mono); letter-spacing: .18em; transform: rotate(-8deg); }
+    .archival .voice-emblem { border: 1px solid rgba(173,99,85,.44); border-radius: 50%; color: var(--card-accent); }
+    .archival .voice-status { background: rgba(173,99,85,.08); }
+
+    /* B 夜航 HUD：系统界面感，适合冷静/克制角色 */
+    .nocturne { --card-ink: #e7eaf2; --card-muted: #98a2b8; --card-accent: #7cdbc9; --card-line: rgba(150,211,205,.22); border: 1px solid rgba(126,210,200,.25); border-radius: 17px; background: linear-gradient(130deg, #172531, #243d47 54%, #16252d); box-shadow: 0 19px 34px rgba(22,44,51,.26), inset 0 1px 0 rgba(255,255,255,.12); }
+    .nocturne::before { content: ''; position: absolute; inset: 0; z-index: 0; background: linear-gradient(transparent 0 96%, rgba(124,219,201,.12) 96% 97%, transparent 97%), linear-gradient(90deg, transparent 0 88%, rgba(124,219,201,.07) 88% 88.15%, transparent 88.15%); background-size: 100% 25px, 34px 100%; opacity: .6; pointer-events: none; }
+    .nocturne::after { content: ''; position: absolute; right: -36px; top: -48px; width: 170px; height: 170px; border: 1px solid rgba(124,219,201,.16); border-radius: 50%; box-shadow: 0 0 0 12px rgba(124,219,201,.035), 0 0 0 28px rgba(124,219,201,.025); }
+    .nocturne .voice-emblem { border: 1px solid var(--card-line); border-radius: 10px; color: var(--card-accent); background: rgba(124,219,201,.06); box-shadow: 0 0 18px rgba(124,219,201,.11); }
+    .nocturne .voice-status { color: var(--card-accent); background: rgba(124,219,201,.06); }
+    .nocturne .voice-thought::before { text-shadow: 0 0 18px rgba(124,219,201,.48); }
+
+    /* C 星轨档案：命运/梦境/观测 */
+    .astral { --card-ink: #e9e6fb; --card-muted: #aaa5cd; --card-accent: #e7bb77; --card-line: rgba(217,198,255,.21); border: 1px solid rgba(205,190,246,.23); border-radius: 24px; background: radial-gradient(circle at 82% 18%, rgba(224,193,114,.22) 0 1px, transparent 2px), radial-gradient(circle at 72% 35%, rgba(209,195,255,.30) 0 1px, transparent 2px), linear-gradient(135deg, #292646, #49406c 58%, #292642); box-shadow: 0 20px 34px rgba(53,43,83,.24), inset 0 1px 0 rgba(255,255,255,.14); }
+    .astral::before { content: ''; position: absolute; right: -80px; top: -80px; width: 250px; height: 250px; border: 1px solid rgba(225,203,133,.23); border-radius: 50%; box-shadow: 0 0 0 18px rgba(225,203,133,.04), 0 0 0 46px rgba(225,203,133,.025); transform: rotate(32deg); }
+    .astral::after { content: ''; position: absolute; right: 88px; top: 22px; width: 4px; height: 4px; border-radius: 50%; background: #f1ca76; box-shadow: 24px 14px 0 rgba(224,207,255,.8), 46px -9px 0 rgba(224,207,255,.65), -72px 34px 0 rgba(224,207,255,.55); }
+    .astral .voice-emblem { border: 1px solid rgba(231,187,119,.48); border-radius: 50%; color: var(--card-accent); background: rgba(231,187,119,.08); }
+    .astral .voice-status { background: rgba(231,187,119,.08); }
+
+    /* D 编辑批注：像正文页边留下的隐秘记录 */
+    .editorial { --card-ink: #4b403d; --card-muted: #9b817a; --card-accent: #a55c54; --card-line: rgba(165,92,84,.25); min-height: 224px; padding-left: 49px; border-left: 2px solid var(--card-accent); background: linear-gradient(90deg, rgba(166,95,84,.11), rgba(255,255,255,.2) 42%, transparent); }
+    .editorial::before { content: '04'; position: absolute; left: -18px; top: 26px; z-index: 3; color: var(--card-accent); font: 11px/1 var(--mono); letter-spacing: .1em; background: #dce3de; transform: rotate(-90deg); }
+    .editorial::after { content: ''; position: absolute; left: 23px; top: 26px; bottom: 27px; z-index: 0; border-left: 1px dashed rgba(165,92,84,.28); }
+    .editorial .voice-emblem { width: auto; height: auto; border: 0; color: var(--card-accent); font-size: 18px; }
+    .editorial .voice-status { background: rgba(165,92,84,.07); }
+    .editorial .voice-thought { font-style: italic; }
+
+    /* E 潮汐玻璃：温柔、带一点呼吸感 */
+    .tide { --card-ink: #31515a; --card-muted: #71949a; --card-accent: #d27f68; --card-line: rgba(82,152,161,.24); border: 1px solid rgba(109,182,188,.28); border-radius: 28px 10px 28px 10px; background: linear-gradient(145deg, rgba(244,253,249,.78), rgba(200,236,231,.63)); box-shadow: 0 19px 30px rgba(79,135,134,.18), inset 0 1px 0 rgba(255,255,255,.8); backdrop-filter: blur(12px); }
+    .tide::before { content: ''; position: absolute; left: -10%; right: -10%; bottom: 26px; height: 82px; opacity: .28; background: repeating-radial-gradient(ellipse at 50% 100%, transparent 0 13px, rgba(84,160,163,.28) 14px 15px, transparent 16px 27px); transform: rotate(-4deg); }
+    .tide .voice-emblem { border: 1px solid rgba(210,127,104,.45); border-radius: 50% 50% 50% 5px; color: var(--card-accent); transform: rotate(-45deg); }
+    .tide .voice-emblem::first-letter { display: inline-block; transform: rotate(45deg); }
+    .tide .voice-status { background: rgba(255,255,255,.3); }
+
+    /* F 封缄信笺：偏情感、秘密、告白 */
+    .sealed { --card-ink: #f2e8e2; --card-muted: #c3aaa2; --card-accent: #e6a18b; --card-line: rgba(239,186,169,.24); border: 1px solid rgba(230,161,139,.28); border-radius: 12px; background: linear-gradient(145deg, #402a35, #5c3540 58%, #332633); box-shadow: 0 20px 34px rgba(72,35,47,.25), inset 0 1px 0 rgba(255,255,255,.12); }
+    .sealed::before { content: ''; position: absolute; left: 50%; top: -60px; width: 180px; height: 180px; border: 1px solid rgba(230,161,139,.16); transform: translateX(-50%) rotate(45deg); }
+    .sealed .voice-emblem { border: 1px solid rgba(230,161,139,.48); border-radius: 5px; color: var(--card-accent); transform: rotate(45deg); }
+    .sealed .voice-emblem span { transform: rotate(-45deg); }
+    .sealed .voice-status { color: var(--card-accent); background: rgba(230,161,139,.07); }
+
+    .style-card { display: none; }
+    .style-card.show { display: block; animation: appear .42s cubic-bezier(.2,.75,.25,1); }
+    @keyframes appear { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+    .parsed-preview { min-height: 0; margin-top: 12px; }
+    .parsed-preview:empty { display: none; }
+    .parsed-note { margin: 10px 0 0; color: #a45f57; font: 12px/1.7 var(--sans); }
+    @media (max-width: 900px) { .control-deck { grid-template-columns: 1fr; } .style-picker { min-width: 0; } .gallery { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .page { width: min(100% - 22px, 760px); padding-top: 28px; } .masthead { display: block; } .build-info { margin-top: 18px; } .parser-row { display: block; } .parse-btn { width: 100%; min-height: 42px; margin-top: 8px; } .style-buttons { grid-template-columns: repeat(2, 1fr); } .voice-card { padding: 25px 19px 22px; } .voice-status { display: none; } .voice-thought { font-size: 16px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div>
+        <div class="kicker">Narrative Interface / 心理活动模块</div>
+        <h1>心里话面板</h1>
+        <p class="subtitle">不是对白，也不是旁白。它是角色没有说出口、但被系统捕捉到的那一层声音。</p>
+      </div>
+      <div class="build-info"><strong>VISUAL STUDY 06</strong>角色名必须独立可识别<br>正文保持安静 · 心理活动获得层次<br>适配：SillyTavern / AI 输出解析</div>
+    </header>
+
+    <section class="control-deck">
+      <div>
+        <label class="parser-label" for="aiInput">AI OUTPUT / 输入一行心里话</label>
+        <div class="parser-row">
+          <textarea id="aiInput">（东雪莉：*他应该没有发现吧……只要再等一会儿，我就能把真正想说的话讲出来。*）</textarea>
+          <button class="parse-btn" id="parseBtn" type="button">解析预览</button>
+        </div>
+        <div id="parsedPreview" class="parsed-preview"></div>
+      </div>
+      <div class="style-picker">
+        <div class="style-picker-title">预览风格 / SELECT SKIN</div>
+        <div class="style-buttons">
+          <button class="style-btn active" data-style="archival">典藏纸页</button>
+          <button class="style-btn" data-style="nocturne">夜航 HUD</button>
+          <button class="style-btn" data-style="astral">星轨档案</button>
+          <button class="style-btn" data-style="editorial">编辑批注</button>
+          <button class="style-btn" data-style="tide">潮汐玻璃</button>
+          <button class="style-btn" data-style="sealed">封缄信笺</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="gallery-head"><h2>视觉方向试做</h2><span>6 DIRECTIONS / ROLE NAME INCLUDED</span></div>
+    <section class="gallery">
+      <div class="sample-wrap style-card show" data-style-card="archival">
+        <div class="sample-caption"><span>A · 典藏纸页</span><small>默认推荐 / 文学正文</small></div><span class="sample-index">ARCHIVE 01</span>
+        <article class="voice-card archival"><div class="voice-head"><div class="voice-emblem">✦</div><div class="voice-ident"><span class="voice-name">东雪莉</span><span class="voice-role">Inner voice / captured thought</span></div><span class="voice-status">UNSPOKEN</span></div><p class="voice-thought">他应该没有发现吧……只要再等一会儿，我就能把真正想说的话讲出来。</p><div class="voice-foot"><span>MEMORY TRACE · 01</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i></i><i></i></span></div></article>
+      </div>
+      <div class="sample-wrap style-card" data-style-card="nocturne">
+        <div class="sample-caption"><span>B · 夜航 HUD</span><small>冷静 / 系统 / 克制</small></div><span class="sample-index">SIGNAL 02</span>
+        <article class="voice-card nocturne"><div class="voice-head"><div class="voice-emblem">⌁</div><div class="voice-ident"><span class="voice-name">塔菲</span><span class="voice-role">Cognitive monitor / private channel</span></div><span class="voice-status">SYNC 72%</span></div><p class="voice-thought">情绪波动正在上升。先保持镇定，绝对不能让他看出我的破绽。</p><div class="voice-foot"><span>CHANNEL / PRIVATE</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div></article>
+      </div>
+      <div class="sample-wrap style-card" data-style-card="astral">
+        <div class="sample-caption"><span>C · 星轨档案</span><small>梦境 / 命运 / 观测</small></div><span class="sample-index">ORBIT 03</span>
+        <article class="voice-card astral"><div class="voice-head"><div class="voice-emblem">✧</div><div class="voice-ident"><span class="voice-name">沙花叉</span><span class="voice-role">Astral log / uncharted feeling</span></div><span class="voice-status">ORBITING</span></div><p class="voice-thought">如果这条路真的通向星海，那我现在的犹豫，或许也只是航线上的一颗小小暗星。</p><div class="voice-foot"><span>CONSTELLATION / 07</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div></article>
+      </div>
+      <div class="sample-wrap style-card" data-style-card="editorial">
+        <div class="sample-caption"><span>D · 编辑批注</span><small>轻量 / 文学 / 贴正文</small></div><span class="sample-index">MARGIN 04</span>
+        <article class="voice-card editorial"><div class="voice-head"><div class="voice-emblem">✦</div><div class="voice-ident"><span class="voice-name">旁白记录</span><span class="voice-role">Margin note / almost invisible</span></div><span class="voice-status">ANNOTATION</span></div><p class="voice-thought">她把手藏进袖口，像是这样就能把那一点不合时宜的期待也一起藏起来。</p><div class="voice-foot"><span>PAGE 042 · LEFT MARGIN</span><span class="voice-meter"><i class="on"></i><i></i><i></i><i></i></span></div></article>
+      </div>
+      <div class="sample-wrap style-card" data-style-card="tide">
+        <div class="sample-caption"><span>E · 潮汐玻璃</span><small>温柔 / 呼吸 / 情绪波纹</small></div><span class="sample-index">TIDE 05</span>
+        <article class="voice-card tide"><div class="voice-head"><div class="voice-emblem">◌</div><div class="voice-ident"><span class="voice-name">水原</span><span class="voice-role">Emotional current / low tide</span></div><span class="voice-status">RISING</span></div><p class="voice-thought">明明只是很普通的一句话，为什么落在耳朵里，却像潮水一样，一遍一遍地回来。</p><div class="voice-foot"><span>EMOTION / SOFT WAVE</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i></i><i></i></span></div></article>
+      </div>
+      <div class="sample-wrap style-card" data-style-card="sealed">
+        <div class="sample-caption"><span>F · 封缄信笺</span><small>秘密 / 告白 / 高情绪</small></div><span class="sample-index">SEALED 06</span>
+        <article class="voice-card sealed"><div class="voice-head"><div class="voice-emblem"><span>◆</span></div><div class="voice-ident"><span class="voice-name">未寄出的信</span><span class="voice-role">Sealed confession / private letter</span></div><span class="voice-status">LOCKED</span></div><p class="voice-thought">如果我现在叫住他，这句话就再也没有办法假装只是随口一提了。</p><div class="voice-foot"><span>DO NOT READ ALOUD</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div></article>
+      </div>
+    </section>
+  </main>
+  <script>
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+    const parseThought = value => {
+      const line = String(value || '').trim();
+      const match = line.match(/^[\(（]\s*([^():：\n]+?)\s*[:：]\s*\*([^*\n]+?)\*\s*[\)）]$/) || line.match(/^([^():：\n]+?)\s*[:：]\s*\*([^*\n]+?)\*$/);
+      return match ? { name: match[1].trim(), thought: match[2].trim() } : null;
+    };
+    const makePreview = (style, data) => `<article class="voice-card ${style}"><div class="voice-head"><div class="voice-emblem">✦</div><div class="voice-ident"><span class="voice-name">${escapeHtml(data.name)}</span><span class="voice-role">Parsed inner voice / live preview</span></div><span class="voice-status">PARSED</span></div><p class="voice-thought">${escapeHtml(data.thought)}</p><div class="voice-foot"><span>AI OUTPUT · CAPTURED</span><span class="voice-meter"><i class="on"></i><i class="on"></i><i></i><i></i></span></div></article>`;
+    let selectedStyle = 'archival';
+    document.querySelectorAll('.style-btn').forEach(button => button.addEventListener('click', () => {
+      selectedStyle = button.dataset.style;
+      document.querySelectorAll('.style-btn').forEach(item => item.classList.toggle('active', item === button));
+      document.querySelectorAll('[data-style-card]').forEach(card => card.classList.toggle('show', card.dataset.styleCard === selectedStyle));
+      document.getElementById('parsedPreview').innerHTML = '';
+    }));
+    document.getElementById('parseBtn').addEventListener('click', () => {
+      const data = parseThought(document.getElementById('aiInput').value);
+      const preview = document.getElementById('parsedPreview');
+      preview.innerHTML = data ? makePreview(selectedStyle, data) : '<p class="parsed-note">格式未识别。请使用：（角色名：*心理活动想法*）</p>';
+    });
+  </script>
+</body>
+</html>

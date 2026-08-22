@@ -12,6 +12,7 @@ import { icons } from './icons.js';
 import { openPhone, requestClockIn } from './bridge.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
+import { insertSafeHTML, setSafeHTML } from './dom.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
 
@@ -276,7 +277,7 @@ function partCrop(girl, key, cls) {
   return `
         <span class="${cls}">
           <img src="${partArt(girl.name, key)}" alt="" draggable="false"
-            onerror="this.remove()">
+            data-remove-on-error>
           <em>暂无截图</em>
         </span>`;
 }
@@ -776,13 +777,13 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   /* The gift tray and its card live outside this layer but are scoped to whoever the
      dock is showing, so whoever owns them has to hear that the dock changed -- see
      the wiring in content.js. */
-  const closeAll = () => { closeMap(); closeArcade(); layer.innerHTML = ''; dockName = null; sync(); onDock?.(null); };
+  const closeAll = () => { closeMap(); closeArcade(); layer.replaceChildren(); dockName = null; sync(); onDock?.(null); };
 
   /* Pages append after the dock rather than replacing the layer, so the dock keeps
      its DOM, its scroll and its already-built rim SVGs underneath. */
   const openPage = (html) => {
     closePage();
-    layer.insertAdjacentHTML('beforeend', html);
+    insertSafeHTML(layer, 'beforeend', html);
     sync();
   };
 
@@ -813,7 +814,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     if (dockName === girl.name && !has('.page-modal') && !overlayOpen()) { closeAll(); return; }
     closePage();
     drop('.dock-root');
-    layer.insertAdjacentHTML('afterbegin', characterDock(girl));
+    insertSafeHTML(layer, 'afterbegin', characterDock(girl));
     dockName = girl.name;
     paintDock(layer);
     sync();
@@ -827,7 +828,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     const next = Math.max(0, Math.min(pages - 1, inventoryLeaf + delta));
     if (next === inventoryLeaf) return;
     inventoryLeaf = next;
-    board.innerHTML = inventoryBoard(inventoryLeaf);
+    setSafeHTML(board, inventoryBoard(inventoryLeaf));
   };
 
   const PAGES = {
@@ -860,7 +861,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   const openNote = (name, part) => {
     if (!has('.page-modal')) return;
     closeNote();
-    layer.insertAdjacentHTML('beforeend', developmentNote(name, part));
+    insertSafeHTML(layer, 'beforeend', developmentNote(name, part));
   };
 
   layer.addEventListener('click', (event) => {

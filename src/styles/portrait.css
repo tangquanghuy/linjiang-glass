@@ -346,7 +346,8 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 .pnav::after,
 .pclose::after,
 .pbtn-ghost::after,
-.pdots i::after {
+.pdots i::after,
+.pcard-star::after {
   content: '';
   position: absolute;
   inset: calc(-1 * max(0px, (44px / var(--k, 1) - var(--d, 44px)) / 2));

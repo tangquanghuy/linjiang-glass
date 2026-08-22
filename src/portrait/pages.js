@@ -156,7 +156,7 @@ function devTiles(girl, development) {
       <button class="pdev-open" type="button" data-dev-part="${key}"
         aria-expanded="false" aria-controls="${id}">
         <span class="pdev-crop">
-          <img src="${partArt(girl.name, key)}" alt="" draggable="false" onerror="this.remove()">
+          <img src="${partArt(girl.name, key)}" alt="" draggable="false" data-remove-on-error>
           <em>暂无截图</em>
         </span>
         <span class="pdev-meta">

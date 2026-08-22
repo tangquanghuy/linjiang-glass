@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>临江 · 开局配置</title>
+<style>
+  html, body { margin: 0; background: transparent; }
+  #launch {
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(232, 236, 255, .28);
+    border-radius: 14px;
+    background: rgba(18, 20, 42, .78);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 8px 24px rgba(7, 8, 27, .32), inset 0 1px 0 rgba(255, 255, 255, .18);
+    color: #e6e9f7;
+    font: 400 13px/1.5 "Noto Sans SC", system-ui, sans-serif;
+  }
+  #launch .copy { flex: 1 1 180px; min-width: 0; }
+  #launch b { display: block; font-size: 15px; font-weight: 600; letter-spacing: .04em; }
+  #launch small { display: block; margin-top: 3px; color: rgba(214, 220, 244, .66); font-size: 12px; }
+  #open {
+    flex: 0 0 auto;
+    padding: 9px 18px;
+    border: 1px solid rgba(255, 190, 226, .5);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(255, 150, 205, .34), rgba(120, 140, 255, .34));
+    color: #fff;
+    font: 600 13px/1 "Noto Sans SC", system-ui, sans-serif;
+    cursor: pointer;
+  }
+  #open:hover { border-color: rgba(255, 255, 255, .82); filter: brightness(1.1); }
+  #status { flex: 1 1 100%; color: rgba(255, 214, 236, .88); font-size: 12px; min-height: 1em; }
+</style>
+</head>
+<body>
+<div id="launch">
+  <div class="copy"><b>临江 · 开局配置</b><small>填写玩家资料、住所与工作、自定义主播，完成后写回 MVU 与世界书。</small></div>
+  <button id="open" type="button">开始配置</button>
+  <div id="status"></div>
+</div>
+<script>
+(function () {
+  /* 粘进角色卡的「开局」楼层。本页与酒馆同源，能摸到 parent.Mvu / TavernHelper；
+     开局页本身托管在 GitHub Pages（跨域），只通过 postMessage 和这里说话。
+     这里只做三件事：全屏挂起开局页、代跑人设生成、把 commitPreview 写回酒馆。 */
+  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html';
+  // const OPENING_URL = 'http://127.0.0.1:5173/opening.html';
+  const CHANNEL = 'linjiang-opening';
+  const OVERLAY_ID = 'linjiang-opening-overlay';
+  const STYLE_ID = 'linjiang-opening-style';
+  const PROFILE_FIELDS = ['一句话定位', '外貌', '公开形象', '真实性格', '说话方式', '直播风格',
+    '兴趣与擅长', '生活习惯', '喜恶与雷区', '个人经历', '对观众的态度', '线上线下差异'];
+
+  const statusBox = document.getElementById('status');
+  const openBtn = document.getElementById('open');
+  const openingOrigin = (() => {
+    try { return new URL(OPENING_URL, location.href).origin; }
+    catch (e) { return '*'; }
+  })();
+  let frame = null;
+
+  const say = (text) => { statusBox.textContent = text || ''; };
+
+  const tavernWin = () => {
+    try { if (window.top && window.top !== window) return window.top; } catch (e) {}
+    try { if (window.parent && window.parent !== window) return window.parent; } catch (e) {}
+    return window;
+  };
+
+  const getCoreWindow = () => {
+    const wins = [];
+    try { if (window.parent) wins.push(window.parent); } catch (e) {}
+    try { if (window.top && window.top !== window.parent) wins.push(window.top); } catch (e) {}
+    wins.push(window);
+    for (const win of wins) {
+      try { if (win && win.Mvu && typeof win.Mvu.getMvuData === 'function') return win; } catch (e) {}
+    }
+    for (const win of wins) {
+      try { if (win && win.TavernHelper) return win; } catch (e) {}
+    }
+    return window.parent || window;
+  };
+
+  const getMvu = () => {
+    const win = getCoreWindow();
+    try {
+      if (win && win.Mvu && typeof win.Mvu.getMvuData === 'function'
+          && typeof win.Mvu.replaceMvuData === 'function') return win.Mvu;
+    } catch (e) {}
+    return null;
+  };
+
+  const getHelper = () => {
+    try { return getCoreWindow().TavernHelper || null; } catch (e) { return null; }
+  };
+
+  /* ---------- 全屏挂起开局页 ---------- */
+
+  const ensureStyle = (doc) => {
+    if (doc.getElementById(STYLE_ID)) return;
+    const style = doc.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = [
+      '#' + OVERLAY_ID + '{position:fixed;left:0;top:0;width:100%;height:100%;',
+      'z-index:2147483646;background:#05040a;display:block;}',
+      '#' + OVERLAY_ID + ' iframe{display:block;width:100%;height:100%;border:0;background:#05040a;}',
+      '#' + OVERLAY_ID + ' .lj-close{position:absolute;right:14px;top:14px;width:36px;height:36px;',
+      'display:grid;place-items:center;border:1px solid rgba(232,236,255,.55);border-radius:50%;',
+      'background:rgba(24,30,62,.82);color:#fff;font:600 18px/1 system-ui,sans-serif;cursor:pointer;',
+      'backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);}',
+      '#' + OVERLAY_ID + ' .lj-close:hover{background:rgba(48,58,110,.9);}',
+    ].join('');
+    doc.head.appendChild(style);
+  };
+
+  const closeOverlay = () => {
+    const doc = tavernWin().document;
+    const box = doc.getElementById(OVERLAY_ID);
+    if (box) box.remove();
+    frame = null;
+    try { tavernWin().removeEventListener('keydown', onKey); } catch (e) {}
+  };
+
+  const onKey = (event) => { if (event.key === 'Escape') closeOverlay(); };
+
+  const openOverlay = () => {
+    const win = tavernWin();
+    const doc = win.document;
+    closeOverlay();
+    ensureStyle(doc);
+    const box = doc.createElement('div');
+    box.id = OVERLAY_ID;
+    const inner = doc.createElement('iframe');
+    inner.title = '临江开局配置';
+    inner.loading = 'eager';
+    inner.referrerPolicy = 'strict-origin-when-cross-origin';
+    inner.allow = 'clipboard-read; clipboard-write; fullscreen';
+    inner.src = OPENING_URL;
+    const close = doc.createElement('button');
+    close.type = 'button';
+    close.className = 'lj-close';
+    close.textContent = '×';
+    close.title = '关闭开局配置';
+    /* 内联 onclick 跑在酒馆文档自己的作用域里：本楼层被重绘掉之后，关闭按钮仍然有效。 */
+    close.setAttribute('onclick', "this.parentNode && this.parentNode.remove()");
+    close.addEventListener('click', closeOverlay);
+    box.appendChild(inner);
+    box.appendChild(close);
+    doc.body.appendChild(box);
+    frame = inner;
+    try { win.addEventListener('keydown', onKey); } catch (e) {}
+    say(getMvu() ? '开局页已打开；完成后点「确认」写回。' : '开局页已打开；未检测到 MVU，写回会失败。');
+  };
+
+  /* ---------- 人设生成：代跑酒馆的模型 ---------- */
+
+  const parseProfile = (raw) => {
+    let text = String(raw || '').trim();
+    text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error('模型没有返回 JSON');
+    const data = JSON.parse(text.slice(start, end + 1));
+    const profile = {};
+    for (const key of PROFILE_FIELDS) {
+      const value = data[key];
+      if (value == null) continue;
+      profile[key] = Array.isArray(value) ? value.join('；') : String(value);
+    }
+    if (!Object.keys(profile).length) throw new Error('JSON 里没有可用字段');
+    return profile;
+  };
+
+  const generateStreamerProfile = async (input) => {
+    const helper = getHelper();
+    if (!helper || typeof helper.generateRaw !== 'function') throw new Error('TavernHelper.generateRaw 不可用');
+    const d = input || {};
+    const brief = [
+      '姓名: ' + (d.name || ''),
+      '主播网名: ' + (d.handle || ''),
+      '年龄: ' + (d.age || ''),
+      '住所: ' + (d.home || '未设置'),
+      '直播分类: ' + ((d.categories || []).join('、') || '杂谈'),
+      '热度: ' + (d.heat != null ? d.heat : '') + (d.heatLabel ? '（' + d.heatLabel + '）' : ''),
+      '粉丝数: ' + (d.followers != null ? d.followers : ''),
+      '舰长数: ' + (d.captains != null ? d.captains : ''),
+      '常用直播时间: ' + (d.hours || '不固定'),
+      '气质关键词: ' + (d.tone || '无'),
+      '玩家提供的素材: ' + (d.seed || '无'),
+    ].join('\n');
+    const system = [
+      '你在为一部现实向直播题材作品补全一名自定义主播的人设档案。',
+      '只输出一个 JSON 对象，不要写解释、不要用代码块。',
+      '键必须是且仅是: ' + PROFILE_FIELDS.join('、') + '。',
+      '每个值是一段 30~90 字的中文陈述，写具体的事实和习惯，不写夸张评价。',
+      '必须与玩家提供的素材保持一致，不要推翻已给定的事实。',
+    ].join('\n');
+    const result = await helper.generateRaw({
+      ordered_prompts: [
+        { role: 'system', content: system },
+        { role: 'user', content: brief },
+      ],
+      max_chat_history: 0,
+      should_stream: false,
+    });
+    return { profile: parseProfile(result) };
+  };
+
+  /* ---------- 写回 MVU 与世界书 ---------- */
+
+  const isPlain = (value) => !!value && typeof value === 'object' && !Array.isArray(value);
+
+  const deepMerge = (target, source) => {
+    for (const [key, value] of Object.entries(source || {})) {
+      if (isPlain(value)) {
+        if (!isPlain(target[key])) target[key] = {};
+        deepMerge(target[key], value);
+      } else {
+        target[key] = value;
+      }
+    }
+    return target;
+  };
+
+  const writeMvu = (stat) => {
+    if (!isPlain(stat)) throw new Error('开局数据为空');
+    const mvu = getMvu();
+    if (!mvu) throw new Error('MVU 未就绪');
+    const scopes = [{ type: 'message', message_id: 'latest' }, { type: 'chat' }];
+    let written = 0;
+    for (const scope of scopes) {
+      try {
+        const data = mvu.getMvuData(scope);
+        if (!data) continue;
+        if (!isPlain(data.stat_data)) data.stat_data = {};
+        deepMerge(data.stat_data, stat);
+        mvu.replaceMvuData(data, scope);
+        written += 1;
+      } catch (e) {
+        console.warn('[临江开局] MVU 写入失败', scope, e);
+      }
+    }
+    if (!written) throw new Error('MVU 写入失败');
+    return written;
+  };
+
+  const worldbookEntry = (book) => ({
+    name: book.name,
+    comment: book.name,
+    enabled: true,
+    keys: book.keys || [],
+    key: book.keys || [],
+    content: book.content || '',
+    strategy: { type: 'selective', keys: book.keys || [], keys_secondary: { logic: 'and_any', keys: [] } },
+    position: { type: 'before_character_definition', role: 'system', depth: 4, order: 100 },
+    probability: 100,
+    recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until: null },
+  });
+
+  const targetBookName = async (helper) => {
+    try {
+      const names = typeof helper.getCharWorldbookNames === 'function'
+        ? helper.getCharWorldbookNames('current') : null;
+      if (names && names.primary) return names.primary;
+      if (names && Array.isArray(names.additional) && names.additional.length) return names.additional[0];
+    } catch (e) {}
+    for (const fn of ['getOrCreateChatWorldbook', 'getOrCreateChatLorebook']) {
+      try {
+        if (typeof helper[fn] === 'function') {
+          const name = await helper[fn]('current');
+          if (name) return name;
+        }
+      } catch (e) {}
+    }
+    return null;
+  };
+
+  const writeWorldbook = async (book) => {
+    if (!book || !book.content) return false;
+    const helper = getHelper();
+    if (!helper) return false;
+    const name = await targetBookName(helper);
+    if (!name) return false;
+    for (const fn of ['createWorldbookEntries', 'createLorebookEntries']) {
+      try {
+        if (typeof helper[fn] === 'function') {
+          await helper[fn](name, [worldbookEntry(book)]);
+          return name;
+        }
+      } catch (e) {
+        console.warn('[临江开局] 世界书写入失败 ' + fn, e);
+      }
+    }
+    return false;
+  };
+
+  const stashWorldbookText = (book) => {
+    if (!book || !book.content) return false;
+    try {
+      const win = getCoreWindow();
+      const doc = (win && win.document) ? win.document : document;
+      const area = doc.getElementById('send_textarea');
+      if (!area) return false;
+      const current = String(area.value || '').trim();
+      if (current.indexOf(book.content) === -1) {
+        area.value = current ? (current + '\n\n' + book.content) : book.content;
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+        area.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return true;
+    } catch (e) { return false; }
+  };
+
+  const commit = async (payload) => {
+    const notes = [];
+    try {
+      writeMvu(payload && payload.mvu);
+      notes.push('开局数据已写入 MVU');
+    } catch (error) {
+      say('写回失败：' + (error && error.message ? error.message : error));
+      return;
+    }
+    if (payload && payload.worldbook) {
+      let book = false;
+      try { book = await writeWorldbook(payload.worldbook); }
+      catch (e) { book = false; }
+      if (book) notes.push('人设已写入世界书《' + book + '》');
+      else if (stashWorldbookText(payload.worldbook)) notes.push('世界书写入不可用，人设正文已放进输入框');
+      else notes.push('世界书写入不可用，请从开局页复制人设正文');
+    }
+    say(notes.join('；') + '。');
+    closeOverlay();
+  };
+
+  /* ---------- 桥接 ---------- */
+
+  const onMessage = async (event) => {
+    const data = event.data;
+    if (!data || data.channel !== CHANNEL) return;
+    if (!frame || event.source !== frame.contentWindow) return;
+    if (openingOrigin !== '*' && event.origin !== openingOrigin) return;
+
+    if (data.kind === 'request') {
+      const reply = { channel: CHANNEL, kind: 'response', id: data.id };
+      try {
+        if (data.action !== 'generateStreamerProfile') throw new Error('未知桥接动作: ' + data.action);
+        say('正在用酒馆当前模型生成人设…');
+        const payload = await generateStreamerProfile(data.payload || {});
+        event.source.postMessage(Object.assign({ ok: true, payload }, reply), event.origin);
+        say('人设已由酒馆模型生成。');
+      } catch (error) {
+        event.source.postMessage(Object.assign({
+          ok: false, error: error && error.message ? error.message : String(error),
+        }, reply), event.origin);
+        say('模型生成失败，开局页已用本地模板兜底。');
+      }
+      return;
+    }
+
+    if (data.kind === 'event' && data.type === 'commitPreview') {
+      await commit(data.payload || {});
+    }
+  };
+
+  const bind = (win) => {
+    try { win.addEventListener('message', onMessage); } catch (e) {}
+  };
+
+  bind(window);
+  if (tavernWin() !== window) bind(tavernWin());
+  openBtn.addEventListener('click', openOverlay);
+  say(getMvu() ? '' : '未检测到 MVU，先让状态栏跑起来再开局。');
+})();
+</script>
+</body></html>

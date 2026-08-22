@@ -12,6 +12,7 @@ import { onPref, pref } from './prefs.js';
 import { icons } from './icons.js';
 import { sendChat } from './bridge.js';
 import { moreTrayMarkup, wireMoreTray } from './more-tray.js';
+import { safeFirstElement, setSafeHTML } from './dom.js';
 
 const sprites = rebaseRecord(spritesRaw);
 
@@ -210,7 +211,10 @@ const PAGE = 4;
 const PIN_KEY = 'glass-hud-pinned';
 let page = 0;
 let pinned = [];
-try { pinned = JSON.parse(localStorage.getItem(PIN_KEY) || '[]'); } catch { pinned = []; }
+try {
+  const saved = JSON.parse(localStorage.getItem(PIN_KEY) || '[]');
+  pinned = Array.isArray(saved) ? saved.filter((name) => typeof name === 'string') : [];
+} catch { pinned = []; }
 
 /* Exported so the portrait layout pins into the same store: 置顶 is a player
    preference, not a property of one composition, so pinning on a phone has to hold
@@ -221,7 +225,7 @@ export function togglePin(name) {
   const i = pinned.indexOf(name);
   if (i >= 0) pinned.splice(i, 1);
   else pinned.push(name);
-  localStorage.setItem(PIN_KEY, JSON.stringify(pinned));
+  try { localStorage.setItem(PIN_KEY, JSON.stringify(pinned)); } catch { /* memory state still works */ }
 }
 
 export function orderedGirls() {
@@ -248,7 +252,7 @@ function girlCard(g) {
   <div class="card-inner">
     <div class="card-glass"></div>
     <div class="card-art-clip">
-      <img class="card-art" src="${g.art}" alt="" draggable="false"
+      <img class="card-art" src="${g.art}" alt="" draggable="false" decoding="async" loading="lazy"
         data-fx="${g.artFx ?? 0.5}" data-fy="${g.artFy ?? 0.16}"
         data-z="${g.artZ ?? 1.32}" data-ox="${g.artOx ?? 0}"
         data-tx="${g.artTx ?? 0.30}" data-ty="${g.artTy ?? 0.34}">
@@ -281,7 +285,7 @@ function pageSlice() {
 
 function paintRail(rail) {
   if (!rail) return;
-  rail.innerHTML = pageSlice().map(girlCard).join('');
+  setSafeHTML(rail, pageSlice().map(girlCard).join(''));
   placeCardArts(rail);
 }
 
@@ -448,11 +452,11 @@ export function renderContent(root) {
   if (rail) placeCardArts(rail);
 
   onLive(() => {
+    if (document.querySelector('.viewport')?.classList.contains('is-portrait')) return;
     const pane = root.querySelector('.pane-status');
     if (pane) {
-      const wrap = document.createElement('div');
-      wrap.innerHTML = statusPane();
-      pane.replaceWith(wrap.firstElementChild);
+      const nextPane = safeFirstElement(statusPane());
+      if (nextPane) pane.replaceWith(nextPane);
       wireProfile();
     }
     paintRail(root.querySelector('.rail'));

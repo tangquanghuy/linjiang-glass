@@ -174,9 +174,14 @@ console.log(`  ${'-'.repeat(112)}`);
     window.__fixtureAlignmentSamples = [];
     let frames = 0;
     const sample = () => {
-      const hud = document.getElementById('linjiang-hud-live')?.getBoundingClientRect();
+      const hudElement = document.getElementById('linjiang-hud-live');
+      const hud = hudElement?.getBoundingClientRect();
       const slot = window.__linjiangTavernReal.statusFrame?.getBoundingClientRect();
-      if (hud && slot) window.__fixtureAlignmentSamples.push(hud.top - slot.top);
+      /* Once the anchor has left #chat the HUD is deliberately hidden.  Its dormant
+         fixed box may settle one rAF later, but there is no visible jump to score. */
+      if (hud && slot && getComputedStyle(hudElement).visibility !== 'hidden') {
+        window.__fixtureAlignmentSamples.push(hud.top - slot.top);
+      }
       if (++frames < 45) requestAnimationFrame(sample);
     };
     requestAnimationFrame(sample);

@@ -1,31 +1,76 @@
-/* Talks to 变量相关/状态栏.html.  That shell is same-origin with SillyTavern and
-   owns Mvu; this page is the GitHub / Vite HUD and must not touch parent.Mvu. */
-
+/* Cross-origin bridge between the HUD and the same-origin tavern deployment shell. */
 import { applyStatData, applyMoney } from './data.js';
 
 export const CHANNEL = 'linjiang-hud';
-
 const pending = new Map();
 let seq = 0;
 let started = false;
 let autoscrollActive = false;
+let bridgeContext = { chatKey: null, epoch: 0 };
+
+const parentOrigin = (() => {
+  try { return document.referrer ? new URL(document.referrer).origin : '*'; }
+  catch { return '*'; }
+})();
 
 export function isEmbedded() {
   try { return window.parent && window.parent !== window; }
   catch { return false; }
 }
 
-function rpc(action, payload = {}) {
-  if (!isEmbedded()) {
-    return Promise.reject(new Error('not embedded'));
+function validParentMessage(event) {
+  if (!isEmbedded() || event.source !== window.parent) return false;
+  return parentOrigin === '*' || event.origin === parentOrigin;
+}
+
+function sameContext(a, b) {
+  if (!a || !b) return true;
+  return Number(a.epoch || 0) === Number(b.epoch || 0)
+    && String(a.chatKey || '') === String(b.chatKey || '');
+}
+
+let moneyChain = Promise.resolve();
+let pendingMoney = null;
+let moneyTimer = 0;
+let moneyWaiters = [];
+
+function settleMoneyWaiters(value) {
+  const waiters = moneyWaiters;
+  moneyWaiters = [];
+  waiters.forEach((resolve) => resolve(value));
+}
+
+function resetContext(next) {
+  const normalized = {
+    chatKey: next?.chatKey == null ? null : String(next.chatKey),
+    epoch: Math.max(0, Number(next?.epoch) || 0),
+  };
+  if (sameContext(normalized, bridgeContext)) return;
+  bridgeContext = normalized;
+  if (moneyTimer) clearTimeout(moneyTimer);
+  moneyTimer = 0;
+  pendingMoney = null;
+  settleMoneyWaiters(false);
+  for (const [id, wait] of pending) {
+    if (wait.action === 'handshake') continue;
+    pending.delete(id);
+    wait.reject(new Error('bridge context changed'));
   }
+  moneyChain = Promise.resolve();
+}
+
+function rpc(action, payload = {}) {
+  if (!isEmbedded()) return Promise.reject(new Error('not embedded'));
   const id = ++seq;
+  const requestContext = { ...bridgeContext };
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id);
       reject(new Error(`bridge timeout: ${action}`));
     }, 8000);
     pending.set(id, {
+      action,
+      context: requestContext,
       resolve: (value) => { clearTimeout(timer); resolve(value); },
       reject: (err) => { clearTimeout(timer); reject(err); },
     });
@@ -33,24 +78,37 @@ function rpc(action, payload = {}) {
       channel: CHANNEL,
       kind: 'request',
       id,
+      context: requestContext,
       action,
       payload,
-    }, '*');
+    }, parentOrigin);
   });
 }
 
 function onMessage(event) {
+  if (!validParentMessage(event)) return;
   const data = event.data;
   if (!data || data.channel !== CHANNEL) return;
   if (data.kind === 'response') {
     const wait = pending.get(data.id);
     if (!wait) return;
     pending.delete(data.id);
+    if (data.context && wait.action === 'handshake') resetContext(data.context);
+    if (data.context && wait.action !== 'handshake' && !sameContext(data.context, wait.context)) {
+      wait.reject(new Error('stale bridge response'));
+      return;
+    }
     if (data.ok) wait.resolve(data.payload);
     else wait.reject(new Error(data.error || 'bridge error'));
     return;
   }
+  if (data.kind === 'event' && data.type === 'context') {
+    resetContext(data.context);
+    return;
+  }
   if (data.kind === 'event' && data.type === 'snapshot') {
+    if (data.context) resetContext(data.context);
+    if (data.context && !sameContext(data.context, bridgeContext)) return;
     applyStatData(data.payload?.stat_data);
     return;
   }
@@ -93,12 +151,10 @@ export async function requestClockIn() {
   return true;
 }
 
-let moneyChain = Promise.resolve();
-let pendingMoney = null;
-let moneyTimer = 0;
-
 function sendMoney(n) {
+  const context = { ...bridgeContext };
   moneyChain = moneyChain.then(async () => {
+    if (!sameContext(context, bridgeContext)) return false;
     await rpc('patch', {
       patches: [{ op: 'replace', path: '/玩家信息/金钱', value: n }],
     });
@@ -116,51 +172,44 @@ export function setMoney(value) {
   if (!isEmbedded()) return Promise.resolve(true);
   pendingMoney = n;
   clearTimeout(moneyTimer);
+  const result = new Promise((resolve) => moneyWaiters.push(resolve));
   moneyTimer = setTimeout(() => {
     moneyTimer = 0;
     const v = pendingMoney;
     pendingMoney = null;
-    if (v != null) sendMoney(v);
+    if (v == null) { settleMoneyWaiters(true); return; }
+    sendMoney(v).then(settleMoneyWaiters);
   }, 280);
-  return moneyChain;
+  return result;
 }
 
 export function flushMoney() {
-  if (moneyTimer) {
-    clearTimeout(moneyTimer);
-    moneyTimer = 0;
-  }
+  if (moneyTimer) clearTimeout(moneyTimer);
+  moneyTimer = 0;
   if (pendingMoney == null) return moneyChain;
   const v = pendingMoney;
   pendingMoney = null;
-  return sendMoney(v);
+  return sendMoney(v).then((ok) => { settleMoneyWaiters(ok); return ok; });
 }
 
 let lastPortraitH = 0;
+function postEvent(type, payload) {
+  if (!isEmbedded()) return;
+  window.parent.postMessage({ channel: CHANNEL, kind: 'event', context: bridgeContext, type, payload }, parentOrigin);
+}
 
 export function reportPortraitSize(height) {
-  if (!isEmbedded()) return;
-  if (document.documentElement.classList.contains('is-page-open')) return;
+  if (!isEmbedded() || document.documentElement.classList.contains('is-page-open')) return;
   const h = Math.round(Number(height) || 0);
   if (h < 1 || h === lastPortraitH) return;
   lastPortraitH = h;
-  window.parent.postMessage({
-    channel: CHANNEL,
-    kind: 'event',
-    type: 'portraitSize',
-    payload: { height: h },
-  }, '*');
+  postEvent('portraitSize', { height: h });
 }
 
 export function reportPortraitPage(open) {
   if (!isEmbedded()) return;
   if (!open) lastPortraitH = 0;
-  window.parent.postMessage({
-    channel: CHANNEL,
-    kind: 'event',
-    type: 'portraitPage',
-    payload: { open: !!open },
-  }, '*');
+  postEvent('portraitPage', { open: !!open });
 }
 
 export function startBridge() {
@@ -169,17 +218,11 @@ export function startBridge() {
   if (isEmbedded()) document.documentElement.classList.add('is-embedded');
   addEventListener('message', onMessage);
   if (!isEmbedded()) return;
-  const postPointerEvent = (type, event) => {
-    window.parent.postMessage({
-      channel: CHANNEL,
-      kind: 'event',
-      type,
-      payload: {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      },
-    }, '*');
-  };
+
+  const postPointerEvent = (type, point) => postEvent(type, {
+    clientX: point.clientX,
+    clientY: point.clientY,
+  });
   addEventListener('mousedown', (event) => {
     if (event.button !== 1) return;
     event.preventDefault();
@@ -188,42 +231,46 @@ export function startBridge() {
   addEventListener('auxclick', (event) => {
     if (event.button === 1) event.preventDefault();
   }, { capture: true, passive: false });
+
+  let pointerTick = 0;
+  let pointer = null;
   addEventListener('mousemove', (event) => {
-    if (autoscrollActive) postPointerEvent('autoscrollMove', event);
+    if (!autoscrollActive) return;
+    pointer = { clientX: event.clientX, clientY: event.clientY };
+    if (pointerTick) return;
+    pointerTick = requestAnimationFrame(() => {
+      pointerTick = 0;
+      if (pointer) postPointerEvent('autoscrollMove', pointer);
+    });
   }, { passive: true });
 
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;
-    let node = event.target;
-    if (node && node.nodeType !== 1) node = node.parentElement;
-    while (node && node !== document.body) {
-      const style = getComputedStyle(node);
-      const y = style.overflowY;
-      if ((y === 'auto' || y === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
-        const top = node.scrollTop;
-        const atStart = top <= 0 && event.deltaY < 0;
-        const atEnd = top + node.clientHeight >= node.scrollHeight - 1 && event.deltaY > 0;
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+    for (const candidate of path) {
+      if (!(candidate instanceof Element) || candidate === document.body) continue;
+      const y = getComputedStyle(candidate).overflowY;
+      if ((y === 'auto' || y === 'scroll') && candidate.scrollHeight > candidate.clientHeight + 1) {
+        const atStart = candidate.scrollTop <= 0 && event.deltaY < 0;
+        const atEnd = candidate.scrollTop + candidate.clientHeight >= candidate.scrollHeight - 1 && event.deltaY > 0;
         if (!atStart && !atEnd) return;
       }
-      node = node.parentElement;
     }
     if (!event.deltaY && !event.deltaX) return;
-    window.parent.postMessage({
-      channel: CHANNEL,
-      kind: 'event',
-      type: 'wheel',
-      payload: {
-        deltaX: event.deltaX,
-        deltaY: event.deltaY,
-        deltaMode: event.deltaMode,
-        clientX: event.clientX,
-        clientY: event.clientY,
-      },
-    }, '*');
-  }, { passive: true });
-  rpc('handshake').then(() => rpc('getSnapshot')).then((payload) => {
-    applyStatData(payload?.stat_data);
-  }).catch((err) => {
+    event.preventDefault();
+    postEvent('wheel', {
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaMode: event.deltaMode,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+  }, { passive: false });
+
+  rpc('handshake').then((hello) => {
+    if (hello?.context) resetContext(hello.context);
+    return rpc('getSnapshot');
+  }).then((payload) => applyStatData(payload?.stat_data)).catch((err) => {
     console.warn('[hud] bridge', err);
   });
 }

@@ -1,0 +1,168 @@
+<div class="monologue-wrapper">
+  <div class="monologue-card">
+    <!-- 背景光效 -->
+    <div class="ambient-glow"></div>
+    
+    <!-- 卡片头部：状态与脑电波微动画 -->
+    <div class="card-header">
+      <div class="mind-waves">
+        <span class="wave"></span><span class="wave"></span><span class="wave"></span>
+      </div>
+      <span class="tag-text">意识潜流</span>
+    </div>
+
+    <!-- 独白主体 -->
+    <div class="card-body">
+      <div class="quote-icon left">“</div>
+      <p class="monologue-text">
+        时间在这里仿佛凝固成了琥珀。我能听见心脏在胸腔里沉闷地回响，像是某种古老钟表的指针，正不可逆转地扣击着现实与虚幻的界限……
+      </p>
+      <div class="quote-icon right">”</div>
+    </div>
+
+    <!-- 卡片底部：心理状态标记 -->
+    <div class="card-footer">
+      <span class="mental-state">· 心率波动 88bpm · 认知重塑中</span>
+    </div>
+  </div>
+</div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&display=swap');
+
+.monologue-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  background: transparent;
+}
+
+.monologue-card {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  padding: 2rem 2.25rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(18, 18, 26, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 30px 60px -12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.monologue-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 35px 70px -10px rgba(124, 58, 237, 0.15),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+/* 弥散光晕背景 */
+.ambient-glow {
+  position: absolute;
+  top: -40%;
+  left: -20%;
+  width: 140%;
+  height: 180%;
+  background: radial-gradient(
+    circle at 30% 30%, 
+    rgba(124, 58, 237, 0.15) 0%, 
+    rgba(236, 72, 153, 0.05) 40%, 
+    transparent 70%
+  );
+  pointer-events: none;
+  animation: pulseGlow 8s infinite alternate ease-in-out;
+}
+
+/* 顶部状态与声音波形 */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.2rem;
+}
+
+.mind-waves {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 12px;
+}
+
+.wave {
+  width: 2px;
+  background: #a78bfa;
+  border-radius: 2px;
+  animation: waveJump 1.4s infinite ease-in-out alternate;
+}
+.wave:nth-child(1) { height: 40%; animation-delay: 0.1s; }
+.wave:nth-child(2) { height: 100%; animation-delay: 0.3s; }
+.wave:nth-child(3) { height: 60%; animation-delay: 0.5s; }
+
+.tag-text {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: #a78bfa;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* 文字体裁与引号 */
+.card-body {
+  position: relative;
+  margin: 0.5rem 0 1.25rem;
+}
+
+.monologue-text {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  font-size: 1.08rem;
+  line-height: 2.1;
+  color: #e2e8f0;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.quote-icon {
+  position: absolute;
+  font-family: Georgia, serif;
+  font-size: 3.5rem;
+  line-height: 1;
+  color: rgba(167, 139, 250, 0.15);
+  pointer-events: none;
+  user-select: none;
+}
+.quote-icon.left { top: -20px; left: -15px; }
+.quote-icon.right { bottom: -35px; right: -10px; }
+
+/* 底部心理描述 */
+.card-footer {
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mental-state {
+  font-size: 0.725rem;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  font-family: monospace;
+}
+
+/* 关键帧动画 */
+@keyframes waveJump {
+  0% { transform: scaleY(0.3); opacity: 0.5; }
+  100% { transform: scaleY(1.1); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); opacity: 0.6; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+</style>

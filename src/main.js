@@ -18,6 +18,8 @@ import './styles/menu.css';
 import './styles/perf.css';
 
 import { cssUrl } from './asset.js';
+import { installImageFallbacks } from './dom.js';
+installImageFallbacks();
 document.documentElement.style.setProperty('--hud-frost', cssUrl('frost.png'));
 
 import { buildDefs, buildRim, buildLens } from './glass.js';
@@ -43,12 +45,13 @@ const portraitMq = matchMedia('(max-width: 879px) and (orientation: portrait)');
 
 function wantsPortrait() {
   const forced = new URLSearchParams(location.search).get('mode');
-  /* A tavern status iframe on a phone is a tall, narrow column.  Honour that
-     even if the shell still has ?mode=landscape from a desktop first paint. */
-  const phoneColumn = innerWidth < 880 && innerWidth < innerHeight;
-  if (phoneColumn) return true;
+  /* An explicit host decision is authoritative.  The deployment shell knows the
+     actual tavern viewport; this iframe may itself be tall even while the phone is
+     held sideways, so inferring from the iframe first picks the wrong composition. */
   if (forced === 'portrait') return true;
   if (forced === 'landscape') return false;
+  const phoneColumn = innerWidth < 880 && innerWidth < innerHeight;
+  if (phoneColumn) return true;
   return portraitMq.matches || (innerWidth < innerHeight && innerWidth < 720);
 }
 

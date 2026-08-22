@@ -23,6 +23,7 @@ import {
   inventoryRail, itemIconTag, player, potencyNotches, resolveGift,
 } from './data.js';
 import { mountRailPanel } from './drawer.js';
+import { insertSafeHTML } from './dom.js';
 import { icons } from './icons.js';
 
 const ic = (name) => (name ? `<i class="ic">${icons[name]}</i>` : '');
@@ -273,7 +274,7 @@ export function mountGifts(stage, { onSend } = {}) {
     const focused = document.activeElement?.dataset?.giftRemark !== undefined;
     const caret = focused ? document.activeElement.selectionStart : null;
     host.querySelectorAll('.gift-confirm, .gift-shade').forEach((el) => el.remove());
-    host.insertAdjacentHTML('beforeend', confirmCard(state));
+    insertSafeHTML(host, 'beforeend', confirmCard(state));
     if (focused) {
       const input = host.querySelector('[data-gift-remark]');
       input?.focus();
@@ -309,7 +310,7 @@ export function mountGifts(stage, { onSend } = {}) {
     const host = layer();
     if (!host) return;
     host.querySelector('.gift-toast')?.remove();
-    host.insertAdjacentHTML('beforeend', `
+    insertSafeHTML(host, 'beforeend', `
 <div class="gift-toast" role="status">
   <b>已生成消息</b><code>${esc(text)}</code><em>尚未接入发送，也未扣除库存</em>
 </div>`);

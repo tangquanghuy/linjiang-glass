@@ -150,13 +150,13 @@
   border-radius: 23px;
 }
 .ptools .more-tray-item .ic { font-size: 43px; }
-.ptools .more-tray-item small { font-size: 22px; }
+.ptools .more-tray-item small { font-size: var(--fs-micro); }
 .ptools .more-tray-item em {
   right: -8px;
   top: -9px;
   padding: 4px 7px 5px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--fs-micro);
 }
 
 /* Each portrait item still owns a 44-real-pixel minimum target. */
