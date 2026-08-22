@@ -13,8 +13,13 @@ export const icons = {
                <path d="M3 10.4h11.6a2 2 0 0 1 2 2v1.2a2 2 0 0 1-2 2H3"/>
                <path d="M6.4 6.6V5.2a1.6 1.6 0 0 1 1.6-1.6h7.2"/>`),
 
-  calendarSmall: svg(`<path d="M5.4 7.2h13.2a2 2 0 0 1 2 2v.6H3.4v-.6a2 2 0 0 1 2-2Z"/>
-                      <path d="M8 4.4v3.2M16 4.4v3.2"/>`),
+  /* The body used to be missing: the mark was a top rail plus two hangers, which at
+     --icon-sm read as a full calendar cropped in half rather than as a compact one.
+     Kept simpler than `calendar` -- no day grid -- since 何时 draws it at caption size
+     next to 月/日, where six dots turn into noise. */
+  calendarSmall: svg(`<rect x="3.4" y="6.2" width="17.2" height="14.4" rx="2.4"/>
+                      <path d="M3.4 10.8h17.2"/>
+                      <path d="M8 3.8v4.4M16 3.8v4.4"/>`),
 
   calendar: svg(`<rect x="3.2" y="5.6" width="17.6" height="15" rx="2.4"/>
                  <path d="M3.2 10.4h17.6M8 3.4v4M16 3.4v4"/>
