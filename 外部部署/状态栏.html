@@ -496,6 +496,8 @@
         return recordArcadeEvent(payload?.event || {});
       case 'sendMessage':
         return sendMessage(payload?.text);
+      case 'collapseHud':
+        return collapseHud();
       case 'openPhone':
         return openPhonePanel();
       case 'generateDevelopmentNotes':
@@ -978,6 +980,17 @@
     try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
     try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
     fitParentFrame();
+  };
+
+  const collapseHud = () => {
+    if (!isOwner()) return false;
+    if (!expanded) return true;
+    expanded = false;
+    const tavern = tavernWin();
+    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
+    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
+    fitParentFrame();
+    return true;
   };
 
   const onShrinkClick = (event) => {

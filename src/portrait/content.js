@@ -35,11 +35,12 @@ import { CARD, TOOL } from './geometry.js';
 import { PORTRAIT_PAGES } from './pages.js';
 import { head, ic, meter, pct } from './parts.js';
 import { destinations, onLive } from '../data.js';
-import { openPhone, requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
+import { collapseHud, openPhone, requestClockIn, sendChat, reportPortraitPage } from '../bridge.js';
 import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
 import { mountCgOverlay } from '../cg.js';
+import { formatTravelMessage } from '../travel.js';
 
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
 import { applyPrefClick } from '../settings.js';
@@ -422,11 +423,26 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     wireRail({ restoreScroll });
   };
 
+  const onMapTravel = async (travel) => {
+    closeOverlay();
+    workspace = null;
+    workspaceArg = null;
+    document.documentElement.classList.remove('is-page-open');
+    reportPortraitPage(false);
+    try { await collapseHud(); } catch (error) { console.warn('[map] collapse HUD', error); }
+    const message = formatTravelMessage(travel);
+    try {
+      const sent = await sendChat(message);
+      if (!sent) console.info('[map] travel message generated', message);
+    } catch (error) {
+      console.warn('[map] send travel message', error);
+    }
+    paintBase();
+  };
+
   const openOverlay = (name) => {
-    /* An overlay can now be launched from a page -- 更多工具条 lists 街机 -- and the column
-       under it still holds that page's DOM.  `workspace` is about to be overwritten, so
-       record that fact for closePage, which otherwise returns early on the way out of an
-       overlay and would leave the page standing with the state saying otherwise. */
+    /* An overlay can now be launched over a page -- the column underneath it still
+       holds that page's DOM. */
     overlayOverPage = !!workspace && !OVERLAYS[workspace];
     if (!workspace) {
       railScroll = rail()?.scrollLeft ?? railScroll;
@@ -437,7 +453,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     document.documentElement.classList.add('is-page-open');
     reportPortraitPage(true);
     closeOverlay();
-    unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage });
+    const options = name === 'map' ? { onTravel: onMapTravel } : {};
+    unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage, ...options });
   };
 
   const openPage = (page, arg) => {

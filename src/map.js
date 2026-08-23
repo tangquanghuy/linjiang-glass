@@ -120,10 +120,16 @@ export function mapRuntime(nodes = []) {
   };
 }
 
-function applyToFrame(iframe, { resetView } = {}) {
+function applyToFrame(iframe, { resetView, onTravel } = {}) {
   let api;
   try { api = iframe.contentWindow?.PLATE_MAP; } catch { return false; }
   if (!api) return false;
+  /* The route panel belongs to the map iframe, but the action belongs to the HUD.
+     Wire it as soon as PLATE_MAP exists so a click on ?? cannot disappear into the
+     self-contained map page. */
+  if (typeof onTravel === 'function' && typeof api.onTravel === 'function') {
+    api.onTravel(onTravel);
+  }
   const nodes = iframe.contentWindow.CITY_MAP_DATA?.nodes || [];
   const period = world.time.period;
   api.setPhase(PHASE_ALIAS[period] || period);
@@ -132,11 +138,11 @@ function applyToFrame(iframe, { resetView } = {}) {
   return true;
 }
 
-function bindFrame(iframe) {
+function bindFrame(iframe, { onTravel } = {}) {
   if (!iframe) return;
   let tries = 0;
   const apply = (resetView) => {
-    if (applyToFrame(iframe, { resetView })) return;
+    if (applyToFrame(iframe, { resetView, onTravel })) return;
     if (tries++ < 40) setTimeout(() => apply(resetView), 50);
   };
   iframe.addEventListener('load', () => apply(true));
@@ -157,13 +163,13 @@ export function mapOverlay() {
 </div>`;
 }
 
-export function mountMapOverlay(host, { onClose } = {}) {
+export function mountMapOverlay(host, { onClose, onTravel } = {}) {
   const root = host || document.body;
   document.querySelectorAll('.map-layer').forEach((el) => el.remove());
   root.insertAdjacentHTML('beforeend', mapOverlay());
   const layer = root.querySelector(':scope > .map-layer') || document.querySelector('.map-layer');
   const iframe = layer.querySelector('[data-map-frame]');
-  bindFrame(iframe);
+  bindFrame(iframe, { onTravel });
   layer.querySelector('[data-map-close]').addEventListener('click', () => onClose?.());
   document.documentElement.classList.add('has-map');
   const offLive = onLive(() => applyToFrame(iframe, { resetView: false }));

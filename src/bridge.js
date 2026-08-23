@@ -164,6 +164,12 @@ export async function sendChat(text) {
   return true;
 }
 
+export async function collapseHud() {
+  if (!isEmbedded()) return false;
+  await rpc('collapseHud');
+  return true;
+}
+
 export async function openPhone() {
   if (!isEmbedded()) {
     dispatchEvent(new CustomEvent('linjiang:open-phone'));

@@ -1,4 +1,4 @@
-/* 临江 · 素材缓存
+﻿/* 临江 · 素材缓存
    =========================================================================
    贴进酒馆的「脚本」栏，和 辅助计算脚本.js 并列。它跟游戏逻辑无关，只干一件事：
    把卡片要用的图存进 IndexedDB，之后一律从本地取，不再走网络。
@@ -286,6 +286,26 @@
         return api;
     })();
 
-    window.LinjiangAssets = api;
-    api.ready.then(() => { if (!api.broken) prefetchGifts(0); });
+    /* 酒馆中的脚本和消息卡片可能运行在不同的 iframe。将 API 与加载标记同时
+       发布到当前窗口、父窗口和顶层窗口，封面与正文才能稳定检测到。 */
+    function publish(target) {
+        try {
+            if (!target) return;
+            target.LinjiangAssets = api;
+            target.__素材缓存脚本_loaded__ = true;
+            target.__临江素材缓存_loaded__ = true;
+        } catch (_) { /* 跨源窗口忽略 */ }
+    }
+
+    const publishTargets = [window];
+    try { if (window.parent && !publishTargets.includes(window.parent)) publishTargets.push(window.parent); } catch (_) { }
+    try { if (window.top && !publishTargets.includes(window.top)) publishTargets.push(window.top); } catch (_) { }
+    publishTargets.forEach(publish);
+
+    api.ready.then(() => {
+        // 初始化完成后再发布一次，覆盖酒馆重建窗口期间丢失的引用。
+        publishTargets.forEach(publish);
+        if (!api.broken) prefetchGifts(0);
+    });
 })();
+

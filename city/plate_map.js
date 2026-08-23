@@ -2281,10 +2281,31 @@
   /** 出发。地图只改自己那份位置，扣时间体力金钱是宿主的账 */
   function depart() {
     const r = TRIP.result, to = TRIP.to;
-    if (!r || !to) return;
+    const from = STATE.player.at;
+    if (!r || !to || !from) return;
     STATE.player.at = to;
     if (PLATE_OF[to]) STATE.district = PLATE_OF[to];
-    if (onTravel) onTravel({ to, mode: r.mode, min: r.min, km: r.km, yuan: r.yuan, stamina: r.stamina, legs: r.legs });
+    if (onTravel) {
+      const mode = NET.MODES.find(item => item.id === r.mode);
+      onTravel({
+        from,
+        to,
+        fromName: nameOfId(from),
+        toName: nameOfId(to),
+        mode: r.mode,
+        modeLabel: mode ? mode.label : r.mode,
+        min: r.min,
+        km: r.km,
+        yuan: r.yuan,
+        stamina: r.stamina,
+        legs: r.legs.map(leg => ({
+          ...leg,
+          lineName: leg.carrier === 'rail'
+            ? (NET.lineOf(leg.line)?.name || '\u5730\u94c1')
+            : '',
+        })),
+      });
+    }
     clearTrip();
     const w = worldOf(to);
     if (w) {

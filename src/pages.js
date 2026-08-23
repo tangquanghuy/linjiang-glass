@@ -9,7 +9,8 @@ import {
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
-import { openPhone, reportOverlay, requestClockIn, sendChat } from './bridge.js';
+import { collapseHud, openPhone, reportOverlay, requestClockIn, sendChat } from './bridge.js';
+import { formatTravelMessage } from './travel.js';
 import { applyPrefClick, settingsBody } from './settings.js';
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
@@ -818,17 +819,35 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     sync();
   };
 
-  const openOverlay = (mount) => {
+  const openOverlay = (mount, options = {}) => {
     onOverlay?.();
     closeNote();
     drop('.page-shade, .page-modal');
     closeOverlays();
-    const unmount = mount(viewport, { onClose: closePage });
+    const unmount = mount(viewport, { onClose: closePage, ...options });
     sync();
     return unmount;
   };
 
-  const openMap = () => { unmountMap = openOverlay(mountMapOverlay); };
+  const onMapTravel = async (travel) => {
+    /* The iframe has already committed its local destination. Tear down the map
+       before talking to the tavern so the HUD returns to its normal layout even if
+       the chat request takes a moment. */
+    closeMap();
+    sync();
+    try { await collapseHud(); } catch (error) { console.warn('[map] collapse HUD', error); }
+    const message = formatTravelMessage(travel);
+    try {
+      const sent = await sendChat(message);
+      if (!sent) console.info('[map] travel message generated', message);
+    } catch (error) {
+      console.warn('[map] send travel message', error);
+    }
+  };
+
+  const openMap = () => {
+    unmountMap = openOverlay(mountMapOverlay, { onTravel: onMapTravel });
+  };
   const openArcade = () => { unmountArcade = openOverlay(mountArcadeOverlay); };
   const openCg = () => { unmountCg = openOverlay(mountCgOverlay); };
 

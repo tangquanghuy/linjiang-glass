@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./opening.css?v=20260823-opening-two-v6">
+<link rel="stylesheet" href="./opening.css?v=20260823-opening-message-v11">
 </head>
 <body>
 <div class="app"><div class="shell">
@@ -54,18 +54,28 @@
     <div class="oshi-counter"><span>已选</span><b id="oshi-count">0</b><i>/ 1</i></div>
   </div>
   <div class="oshi-grid" id="oshi-grid"></div>
-  <div class="card opening-picker">
+  <div class="oshi-pagination" aria-label="主播页码"><i></i><span><b>1</b><em>/</em>1</span><i></i></div>
+  <div class="card opening-picker" id="opening-picker">
     <div class="opening-picker-head">
       <div><div class="eyebrow">OPENING SCENE</div><h3>选择开局</h3></div>
       <span>预留标题、简介与详细内容，之后可直接补充正式开局。</span>
     </div>
     <div class="opening-switcher">
-      <button class="opening-arrow" id="opening-prev" type="button" aria-label="上一个开局">‹</button>
-      <div class="opening-slide" id="opening-slide">
-        <span class="opening-index" id="opening-index">01 / 05</span>
-        <div><b id="opening-title">无</b><p id="opening-summary">无</p></div>
+      <button class="opening-arrow" id="opening-prev" type="button" aria-label="上一个开局"><span>‹</span></button>
+      <div class="opening-stage">
+        <button class="opening-neighbor opening-neighbor-prev" id="opening-prev-preview" type="button" aria-label="选择上一个开局">
+          <span>PREVIOUS</span><b id="opening-prev-title">自定义开局</b><small id="opening-prev-summary">由玩家直接输入开局内容</small>
+        </button>
+        <div class="opening-slide" id="opening-slide">
+          <div class="opening-number"><b id="opening-index">01</b><span>/ <i id="opening-total">05</i></span></div>
+          <div class="opening-slide-copy"><em>SELECTED OPENING</em><b id="opening-title">无</b><p id="opening-summary">无</p></div>
+          <div class="opening-dots" id="opening-dots" aria-hidden="true"></div>
+        </div>
+        <button class="opening-neighbor opening-neighbor-next" id="opening-next-preview" type="button" aria-label="选择下一个开局">
+          <span>NEXT</span><b id="opening-next-title">回家看直播</b><small id="opening-next-summary">玩家结束一天的工作，回家进入关注主播的直播间。</small>
+        </button>
       </div>
-      <button class="opening-arrow" id="opening-next" type="button" aria-label="下一个开局">›</button>
+      <button class="opening-arrow" id="opening-next" type="button" aria-label="下一个开局"><span>›</span></button>
     </div>
     <div class="custom-opening hidden" id="custom-opening-box">
       <label for="custom-opening-text">自定义开局内容</label>
@@ -128,5 +138,5 @@
 </div></div>
 <div class="map-modal" id="map-modal"><div class="map-dialog"><div class="map-head"><div><h3 id="map-title">选择住所</h3><p>在地图中点击地点；标准住所也可从下方快速选择。</p></div><button class="icon-btn" id="map-close" type="button">×</button></div><div class="map-frame"><iframe id="map-iframe" title="临江市地图" loading="eager"></iframe></div><div class="map-foot" id="quick-homes"></div></div></div>
 <div class="toast" id="toast"></div>
-<script src="./opening.js?v=20260823-opening-two-v6"></script>
+<script src="./opening.js?v=20260823-opening-message-v11"></script>
 </body></html>
