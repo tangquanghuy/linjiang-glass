@@ -565,7 +565,7 @@
    * PLATE_MAP.setState. Keeping demo actors here makes stale people flash while
    * an iframe is loading and masks integration failures.
    */
-  const MAP_REV = '20260821-requirements-v3';
+  const MAP_REV = '20260823-opening-pan-v3';
   const STATE = {
     district: '',
     player: { at: '' },
@@ -1112,13 +1112,9 @@
       const p = toScreen(wp.x, wp.y);
       const openingOffset = OPENING_MODE && OPENING_NODE_OFFSET[n.id];
       if (openingOffset) { p.x += openingOffset[0]; p.y += openingOffset[1]; }
-      if (OPENING_MODE) {
-        // Opening choices must remain reachable even when the wide viewport crops
-        // the northern/southern district plates. Keep their anchors inside a
-        // label-safe band instead of silently dropping an entire district.
-        p.x = clamp(p.x, 100, W - 100);
-        p.y = clamp(p.y, 34, H - 78);
-      }
+      /* 开局节点也必须服从地图本体的世界坐标。竖屏只能看到城市的一部分，
+         视口外的选项留在原地，玩家拖动地图后再进入画面；不能把它们 clamp 到
+         屏幕边缘，否则不同城区会被压成两列，节点与底图也失去空间对应。 */
 
       const okind = openingKind(n);
       const it = acquire('N:' + n.id, tier,

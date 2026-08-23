@@ -4936,11 +4936,15 @@
   </style>
   <style id="evt-card-css">
 .evt-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
   margin: 1.2em 0;
   color: rgba(236, 236, 252, .93);
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   line-height: 1.4;
   font-size: 14px;
+  writing-mode: horizontal-tb;
   -webkit-font-smoothing: antialiased;
 }
 .evt {
@@ -5212,10 +5216,20 @@ body[data-theme] .reading-content .evt .evt-brief {
   white-space: nowrap;
   text-shadow: 0 0 8px color-mix(in srgb, var(--signal) 55%, transparent);
 }
-.evt-opt .col { min-width: 0; }
+.evt-opt .col {
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
 .evt-opt .act {
+  display: block;
+  min-width: 0;
   font: 500 14px/1.55 "PingFang SC", "Microsoft YaHei", sans-serif;
   color: rgba(255, 255, 255, .95);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
   text-shadow: 0 1px 3px rgba(8, 10, 24, .5);
 }
 .evt-opt .sub { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: 5px; }
@@ -5324,11 +5338,14 @@ body[data-theme] .reading-content .evt .evt-brief {
 .evt-a .plate .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--signal) 60%, #fff); }
 .evt-a .head {
   position: relative; z-index: 2;
+  width: 100%; min-width: 0; max-width: none;
   padding: 20px 24px 18px 8px;
   display: flex; flex-direction: column; gap: 10px;
 }
 .evt-a .body {
-  position: relative; z-index: 2; padding: 15px 24px 20px;
+  position: relative; z-index: 2;
+  width: 100%; min-width: 0; max-width: none;
+  padding: 15px 24px 20px;
   background:
     radial-gradient(ellipse 54% 90% at 8% 110%, color-mix(in srgb, var(--wash) 24%, transparent), transparent 72%),
     linear-gradient(180deg, rgba(27, 34, 70, .95), rgba(17, 22, 48, .985));
@@ -5337,22 +5354,76 @@ body[data-theme] .reading-content .evt .evt-brief {
     inset 0 18px 34px rgba(92, 105, 170, .055);
 }
 @container (max-width: 560px) {
-  .evt-a .stage { grid-template-columns: 1fr; min-height: 0; }
-  .evt-a .evt-art { width: 100%; height: 150px; bottom: auto; }
+  .evt-a .stage { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .evt-a .evt-art { width: 100%; height: 158px; bottom: auto; }
   .evt-a .evt-art::after {
     background:
       linear-gradient(180deg, rgba(10, 13, 32, .12) 0%, rgba(12, 16, 40, .40) 52%, rgba(14, 19, 46, .86) 100%),
       linear-gradient(90deg, transparent 50%, color-mix(in srgb, var(--wash) 30%, transparent) 100%);
   }
-  .evt-a .stage > .spacer { height: 150px; }
-  .evt-a .head { padding: 14px 18px 14px; }
-  .evt-a .body { padding: 0 18px 18px; }
+  .evt-a .stage > .spacer { height: 158px; }
+  .evt-a .head { padding: 14px 18px 15px; }
+  .evt-a .body { padding: 10px 18px 18px; }
   .evt-opt { grid-template-columns: 3px auto minmax(0, 1fr); }
   .evt-go { display: none; }
-  .evt-cast { left: 14px; top: 86px; bottom: auto; gap: 9px; }
+  .evt-cast { left: 14px; top: 92px; bottom: auto; gap: 9px; }
   .evt-face { width: 52px; height: 52px; border-radius: 14px; }
   .evt-who .nm { font-size: 15px; }
   .evt-a .plate { left: 14px; top: 12px; }
+}
+
+/* 竖屏里的正文列有时会被宿主的“阅读宽度”压成半屏。事件卡片改为按当前
+   iframe 视口居中展开，避免 2～3 个汉字就被迫换行。 */
+@media (max-width: 720px) and (orientation: portrait) {
+  /* content-visibility:auto 隐含 paint containment；不解除时，向视口展开的两侧会被正文列裁掉。 */
+  body[data-theme] .reading-content:has(.evt-wrap) {
+    contain: none;
+    content-visibility: visible;
+    overflow: visible;
+  }
+  .reading-content .evt-wrap {
+    width: min(680px, calc(100vw - 20px));
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* 真正的窄卡片把“分类”和“选项正文”拆成上下两行。分类不再长期占据
+   横向栏位，正文、门槛和结算都能使用完整宽度。 */
+@container (max-width: 430px) {
+  .evt-a .head { padding: 13px 14px 14px; gap: 8px; }
+  .evt-a .body { padding: 9px 12px 14px; }
+  .evt-title { font-size: 19px; line-height: 1.38; }
+  body[data-theme] .reading-content .evt .evt-brief { font-size: 12.5px; line-height: 1.75; }
+  .evt-metas { gap: 6px; }
+  .evt-mp { height: 22px; padding: 0 8px; }
+  .evt-opt {
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 7px 9px;
+    min-height: 0;
+    padding: 10px 11px 10px 0;
+  }
+  .evt-opt > .bar { grid-column: 1; grid-row: 1 / -1; }
+  .evt-opt > .evt-cat { grid-column: 2; grid-row: 1; justify-self: start; }
+  .evt-opt > .col { grid-column: 2 / -1; grid-row: 2; }
+  .evt-opt > .evt-go { grid-column: 3; grid-row: 1; display: block; width: 18px; height: 18px; }
+  .evt-opt.locked > .evt-go { display: none; }
+  .evt-opt .act { line-height: 1.6; }
+  .evt-opt .sub { gap: 6px; margin-top: 6px; }
+}
+
+@media (max-width: 360px) and (orientation: portrait) {
+  .reading-content .evt-wrap { width: calc(100vw - 12px); }
+  .evt-a .evt-glass { border-radius: 17px; }
+  .evt-a .head { padding-left: 12px; padding-right: 12px; }
+  .evt-a .body { padding-left: 9px; padding-right: 9px; }
+  .evt-cast { left: 12px; }
+  .evt-a .plate { left: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .evt, .evt * { animation: none !important; transition: none !important; }

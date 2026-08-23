@@ -264,7 +264,7 @@ function giftEntry(name) {
   <button class="pgift-entry" type="button" data-gift-page="${name}">
     ${ic('heart')}<span>${giftLabel(scenes)}</span>
     <em>${scenes.near ? '在身边' : ''}${scenes.near && scenes.live ? ' · ' : ''}${
-      scenes.live ? `直播中 ${stream.viewers.toLocaleString('en-US')} 人` : ''}</em>
+      scenes.live ? `直播中 热度 ${stream.heat.toLocaleString('en-US')}` : ''}</em>
     ${ic('arrowRight')}
   </button>`;
 }

@@ -584,7 +584,7 @@ const roster = [
        point: a 周五 夜 slot with live false is 今日休播, which is what the player wants to
        know.  See streamSchedule below. */
     stream: {
-      live: false, title: '', viewers: 0,
+      live: false, title: '', heat: 0,
       schedule: { start: '21:30', end: '00:30', days: ['周一', '周二', '周三', '周四', '周五', '周六'], note: '深夜杂谈·周日休' },
     },
   },
@@ -604,7 +604,7 @@ const roster = [
     /* The one who keeps a real schedule, and she is on it right now -- 周五 夜 is a slot and
        live is true, so her cell reads 正在播 rather than 临时开播. */
     stream: {
-      live: true, title: '王牌级杂谈：读SC与整活', viewers: 18240,
+      live: true, title: '王牌级杂谈：读SC与整活', heat: 18240,
       schedule: { start: '20:00', end: '23:30', days: ['周一', '周二', '周四', '周五', '周六', '周日'], note: '晚间主档·周三休' },
     },
   },
@@ -622,7 +622,7 @@ const roster = [
     location: { area: '明湖区 · 湖滨商街', place: '居酒屋卡座', privacy: 1 },
     fan: fan({ follow: true, tipped: 690, tier: '舰长', days: 12, muted: true }),
     stream: {
-      live: false, title: '', viewers: 0,
+      live: false, title: '', heat: 0,
       schedule: { start: '21:00', end: '00:30', days: ['周一', '周二', '周四', '周五', '周日'], note: '历史常用晚间档' },
     },
   },
@@ -643,7 +643,7 @@ const roster = [
        broadcast days, which is how the page says she is an occasional streamer rather than a daily one, and 时雨羽衣 is the case that
        keeps whoever builds it from assuming every character has a week. */
     stream: {
-      live: false, title: '', viewers: 0,
+      live: false, title: '', heat: 0,
       schedule: { start: '22:00', end: '00:30', days: ['周三', '周日'], note: '周更型·日本晚间' },
     },
   },
@@ -664,7 +664,7 @@ const roster = [
        the sample stops the grid from being read as "only the ones I follow". */
     fan: fan(),
     stream: {
-      live: false, title: '', viewers: 0,
+      live: false, title: '', heat: 0,
       schedule: { start: '19:00', end: '22:00', days: ['周一', '周二', '周四', '周五', '周日'], note: '黄昏音乐台·周三六休' },
     },
   },
@@ -682,7 +682,7 @@ const roster = [
     location: { area: '西洲区 · 极光声学棚', place: '录音棚休息区', privacy: 4 },
     fan: fan({ follow: true, tipped: 80, tier: '办卡', days: 22 }),
     stream: {
-      live: false, title: '', viewers: 0,
+      live: false, title: '', heat: 0,
       schedule: { start: '18:30', end: '21:30', days: ['周二', '周三', '周四', '周五', '周六', '周日'], note: '傍晚电台·周一休' },
     },
   },
@@ -703,7 +703,7 @@ const roster = [
        两个 cells today: 临时开播 at 夜 and 档期 at 深夜.  This is the case the schedule exists
        for, and the reason a cell cannot be a boolean. */
     stream: {
-      live: true, title: '深夜emo小作文与观众互动', viewers: 6310,
+      live: true, title: '深夜emo小作文与观众互动', heat: 6310,
       schedule: { start: '23:00', end: '02:00', days: ['周一', '周三', '周四', '周五', '周六', '周日'], note: '深夜互动·周二休' },
     },
   },
@@ -811,12 +811,12 @@ export function fanAccounts() {
   return girls.map((girl) => {
     const detail = characterDetails[girl.name];
     const record = detail.fan || fan();
-    const stream = detail.stream || { live: false, title: '', viewers: 0 };
+    const stream = detail.stream || { live: false, title: '', heat: 0 };
     const fl = fanLine(record);
     const caption = [
       watching === girl.name ? '正在看' : '',
       stream.live
-        ? (stream.viewers ? `直播中 ${stream.viewers.toLocaleString('en-US')} 人` : '直播中')
+        ? (stream.heat ? `直播中 热度 ${stream.heat.toLocaleString('en-US')}` : '直播中')
         : record.follow ? '已关注' : '路人',
       record.mod ? '房管' : '',
       record.muted ? (record.muteDays > 0 ? `禁言 ${record.muteDays}天` : '禁言中') : '',
@@ -828,7 +828,7 @@ export function fanAccounts() {
       theme: girl.theme,
       live: !!stream.live,
       title: stream.title || '',
-      viewers: stream.viewers || 0,
+      heat: stream.heat || 0,
       watching: watching === girl.name,
       follow: !!record.follow,
       tipped: record.tipped || 0,
@@ -917,7 +917,7 @@ export function streamSchedule() {
       currentState,
       live: !!stream.live,
       title: stream.live ? stream.title || '' : '',
-      viewers: stream.live ? stream.viewers || 0 : 0,
+      heat: stream.live ? stream.heat || 0 : 0,
       watching: watching === girl.name,
     };
   }).sort((a, b) => a.startMinutes - b.startMinutes || a.name.localeCompare(b.name, 'zh-CN'));
@@ -1534,7 +1534,7 @@ export function applyStatData(stat) {
       const stream = block.直播 || {};
       c.stream.live = !!stream.开播;
       c.stream.title = asStr(stream.标题);
-      c.stream.viewers = asNum(stream.人数, 0);
+      c.stream.heat = asNum(stream.热度, 0);
     }
     const fanRow = pickNamed(fans, c.name);
     if (fanRow) {

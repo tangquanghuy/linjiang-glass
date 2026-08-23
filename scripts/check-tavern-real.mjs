@@ -250,6 +250,69 @@ console.log(`  ${'-'.repeat(112)}`);
   await page.close();
 }
 
+
+console.log('\n  partial-slot scroll regression');
+console.log(`  ${'-'.repeat(112)}`);
+for (const presetId of ['desktop-work', 'phone-iphone']) {
+  const preset = REAL_PRESETS.find((item) => item.id === presetId);
+  const page = await openPreset(preset);
+  await page.evaluate(() => {
+    const chat = document.getElementById('chat');
+    const frame = window.__linjiangTavernReal.statusFrame;
+    const chatRect = chat.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    /* Put the slot top 96px above the reading pane. The old 32px top-edge gate
+       hid the complete HUD here even though almost all of the spacer remained. */
+    chat.scrollTop = Math.max(0, chat.scrollTop + frameRect.top - chatRect.top + 96);
+  });
+  await page.waitForTimeout(180);
+  const state = await page.evaluate(() => {
+    const chat = document.getElementById('chat').getBoundingClientRect();
+    const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const hud = document.getElementById('linjiang-hud-live');
+    const style = getComputedStyle(hud);
+    return {
+      chatTop: chat.top,
+      chatBottom: chat.bottom,
+      slotTop: slot.top,
+      slotBottom: slot.bottom,
+      visibility: style.visibility,
+      pointerEvents: style.pointerEvents,
+      clipPath: style.clipPath,
+    };
+  });
+  const slotTopLeft = state.slotTop < state.chatTop - 32;
+  const slotStillIntersects = state.slotBottom > state.chatTop + 1 && state.slotTop < state.chatBottom - 1;
+  const visible = state.visibility === 'visible' && state.pointerEvents === 'auto';
+  const clipped = state.clipPath && state.clipPath !== 'none';
+  check(`partial-scroll-${presetId}`, slotTopLeft && slotStillIntersects && visible && clipped,
+    JSON.stringify(state));
+  console.log(`  ${slotTopLeft && slotStillIntersects && visible && clipped ? 'ok  ' : 'FAIL'}  `
+    + `${presetId.padEnd(19)} slot ${Math.round(state.slotTop)}..${Math.round(state.slotBottom)} `
+    + `chat ${Math.round(state.chatTop)}..${Math.round(state.chatBottom)} ${state.visibility} ${state.clipPath}`);
+  if (presetId === 'phone-iphone') {
+    writeFileSync('artifacts/tavern-real-phone-partial-scroll.png', await page.screenshot({ fullPage: false }));
+  }
+  await page.evaluate(() => {
+    const chat = document.getElementById('chat');
+    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const pane = chat.getBoundingClientRect();
+    chat.scrollTop += Math.max(0, frame.bottom - pane.top + 8);
+  });
+  await page.waitForTimeout(150);
+  const fullyGone = await page.evaluate(() => {
+    const chat = document.getElementById('chat').getBoundingClientRect();
+    const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const hud = document.getElementById('linjiang-hud-live');
+    return {
+      outside: slot.bottom <= chat.top + 1 || slot.top >= chat.bottom - 1,
+      visibility: getComputedStyle(hud).visibility,
+    };
+  });
+  check(`full-scroll-${presetId}`, fullyGone.outside && fullyGone.visibility === 'hidden', JSON.stringify(fullyGone));
+  await page.close();
+}
+
 await browser.close();
 await server.close();
 

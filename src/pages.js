@@ -82,7 +82,7 @@ function liveChip(name) {
   if (!stream?.live) return '';
   const tier = fan?.tier && fan.tier !== '无' ? `<em>${fan.tier}</em>` : '';
   return `<span class="dock-chip is-live" title="${stream.title}">
-    <i></i>直播中 · ${stream.viewers.toLocaleString('en-US')} 人${tier}</span>`;
+    <i></i>直播中 · 热度 ${stream.heat.toLocaleString('en-US')}${tier}</span>`;
 }
 
 /* ---------------------------------------------------------------- the dock */
@@ -352,7 +352,7 @@ function scheduleLineState(row) {
   const state = row.currentState ? SLOT_STATES[row.currentState] : null;
   const label = state?.label || '今日休息';
   const detail = row.live
-    ? `${row.title || '直播间'}${row.viewers ? ` · ${row.viewers.toLocaleString('en-US')} 人` : ''}`
+    ? `${row.title || '直播间'}${row.heat ? ` · 热度 ${row.heat.toLocaleString('en-US')}` : ''}`
     : row.plannedToday ? `${row.start}–${row.end}` : row.note;
   return `<div class="schedule-line-state ${state?.tone || 'is-rest'}">
     <b>${label}</b><small>${detail}</small>
@@ -527,7 +527,7 @@ function profilePage() {
     : '身边没有人';
   const room = watching ? characterDetails[watching]?.stream : null;
   const roomSub = !watching ? '没有在看'
-    : room?.live ? `直播中 · ${room.viewers.toLocaleString('en-US')} 人`
+    : room?.live ? `直播中 · 热度 ${room.heat.toLocaleString('en-US')}`
       : '她没有在播';
 
   const fans = accounts.map((row) => `

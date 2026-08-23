@@ -1160,10 +1160,12 @@
     }
   };
 
-  /* The lifted HUD is position:fixed, so a spacer that starts above the
-     reading pane still paints its lower half over the latest messages.
-     Show it only when the slot's top edge has entered #chat, and clip the
-     rest so it cannot cover the top bar or send form. */
+  /* The lifted HUD is position:fixed while its transparent spacer stays in
+     the message flow. Mirror an ordinary in-flow iframe: keep every part whose
+     spacer still intersects #chat, and clip only the portions above/below the
+     reading pane. Hiding as soon as the slot's top 32px left the pane made the
+     whole HUD vanish after one small wheel/touch scroll while its blank spacer
+     remained, which was especially destructive on portrait phones. */
   const applySlotVisibility = (view, box) => {
     if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'page') {
       hudFrame.style.removeProperty('clip-path');
@@ -1175,8 +1177,11 @@
     const rr = pane ? pane.getBoundingClientRect() : {
       left: 0, top: 0, right: view.vw, bottom: view.vh,
     };
-    const topInView = view.top < rr.bottom - 4 && (view.top + 32) > rr.top;
-    if (!topInView) {
+    const hudBottom = view.top + box.height;
+    const visibleTop = Math.max(view.top, rr.top);
+    const visibleBottom = Math.min(hudBottom, rr.bottom);
+    const intersects = visibleBottom - visibleTop > 1;
+    if (!intersects) {
       hudFrame.style.visibility = 'hidden';
       hudFrame.style.pointerEvents = 'none';
       hudFrame.style.removeProperty('clip-path');
@@ -1184,7 +1189,7 @@
       return;
     }
     const insetTop = Math.max(0, rr.top - view.top);
-    const insetBottom = Math.max(0, (view.top + box.height) - rr.bottom);
+    const insetBottom = Math.max(0, hudBottom - rr.bottom);
     hudFrame.style.visibility = 'visible';
     hudFrame.style.pointerEvents = 'auto';
     if (insetTop > 0.5 || insetBottom > 0.5) {

@@ -363,7 +363,7 @@ export function giftPage(name) {
   }
   if (scenes.live) {
     blocks.push(`
-  ${section('直播打赏', `${stream.viewers.toLocaleString('en-US')} 人在看`, '不动背包')}
+  ${section('直播打赏', `热度 ${stream.heat.toLocaleString('en-US')}`, '不动背包')}
   ${giftRail().map((g) => `
   <div class="pgift-band"><b>${g.label}</b><i></i></div>
   ${g.items.map(tipRow).join('')}`).join('')}`);
@@ -456,7 +456,7 @@ function portraitScheduleState(row) {
   const state = row.currentState ? SLOT_STATES[row.currentState] : null;
   const label = state?.label || '今日休息';
   const detail = row.live
-    ? `${row.title || '直播间'}${row.viewers ? ` · ${row.viewers.toLocaleString('en-US')} 人` : ''}`
+    ? `${row.title || '直播间'}${row.heat ? ` · 热度 ${row.heat.toLocaleString('en-US')}` : ''}`
     : row.note;
   return `<div class="pschedule-line-state ${state?.tone || 'is-rest'}"><b>${label}</b><small>${detail}</small></div>`;
 }
