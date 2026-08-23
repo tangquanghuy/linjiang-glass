@@ -436,6 +436,7 @@ function getCGCollectionStats() {
 // CG面板当前模式：'unlock'（一键解锁模式）或 'progress'（收藏进度模式）
 let cgPanelMode = 'progress';
 const CG_CHARACTER_PAGE_SIZE = 6;
+const CG_UNLOCK_AFFECTION_REQUIREMENT = 800;
 const CG_FAVORITES_STORAGE_KEY = 'dnf-phone-cg-favorite-characters';
 let cgCharacterPage = 0;
 
@@ -595,11 +596,11 @@ function bindCGGalleryEvents() {
         const char = $(this).data('character');
         const affection = getCharacterAffection(char);
 
-        if (affection < 100) {
+        if (affection < CG_UNLOCK_AFFECTION_REQUIREMENT) {
             if (typeof toastr !== 'undefined') {
-                toastr.warning(`${char} 的好感度不足100，无法一键解锁！`);
+                toastr.warning(`${char} 的好感度需达到 ${CG_UNLOCK_AFFECTION_REQUIREMENT} 才能一键解锁！`);
             } else {
-                alert(`${char} 的好感度不足100，无法一键解锁！`);
+                alert(`${char} 的好感度需达到 ${CG_UNLOCK_AFFECTION_REQUIREMENT} 才能一键解锁！`);
             }
             return;
         }
@@ -781,7 +782,7 @@ function generateGalleryPanel(data) {
                     </div>
                     <div>
                         <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">开启CG预览权限</div>
-                        <div style="font-size: 11px; color: #94a3b8;">需好感度 ≥ 100，不影响真实收集度</div>
+                        <div style="font-size: 11px; color: #94a3b8;">需好感度 ≥ ${CG_UNLOCK_AFFECTION_REQUIREMENT}，不影响真实收集度</div>
                     </div>
                 </div>
                 <i class="fas fa-chevron-down" style="font-size: 12px; color: #cbd5e1; transition: transform 0.3s;"></i>
@@ -792,7 +793,7 @@ function generateGalleryPanel(data) {
         characters.forEach(char => {
             const charStats = stats.characters[char];
             const affection = getCharacterAffection(char, relationshipSource);
-            const canUnlock = affection >= 100;
+            const canUnlock = affection >= CG_UNLOCK_AFFECTION_REQUIREMENT;
 
             const charUnlockedMap = displayUnlockedCG[char] || {};
             const totalScenes = Object.keys(CG_LIST[char]).length;
@@ -827,8 +828,8 @@ function generateGalleryPanel(data) {
                         </div>
                         <span style="
                             font-size: 11px; 
-                            color: ${affection >= 100 ? '#f43f5e' : '#94a3b8'}; 
-                            background: ${affection >= 100 ? '#fff1f2' : '#f1f5f9'}; 
+                            color: ${affection >= CG_UNLOCK_AFFECTION_REQUIREMENT ? '#f43f5e' : '#94a3b8'}; 
+                            background: ${affection >= CG_UNLOCK_AFFECTION_REQUIREMENT ? '#fff1f2' : '#f1f5f9'}; 
                             padding: 3px 8px; border-radius: 12px; font-weight: 600;
                             height: fit-content;
                         ">
@@ -861,7 +862,7 @@ function generateGalleryPanel(data) {
         const totalScenes = Object.keys(CG_LIST[char]).length;
         const currentUnlockedCount = Object.keys(charUnlockedMap).length;
         const isPreviewActive = currentUnlockedCount >= totalScenes;
-        const canUnlock = affection >= 100;
+        const canUnlock = affection >= CG_UNLOCK_AFFECTION_REQUIREMENT;
         const coverUrl = getCGCharacterCover(char);
         const fallbackInitial = escapeHtml(char.charAt(0));
         let unlockStateHtml = '';
@@ -1183,7 +1184,7 @@ function generateCGCharacterDetailPanel(characterName, data) {
     const totalScenes = Object.keys(scenes).length;
     const currentUnlockedCount = Object.keys(charUnlocked).length;
     const isPreviewActive = currentUnlockedCount >= totalScenes;
-    const canUnlock = affection >= 100;
+    const canUnlock = affection >= CG_UNLOCK_AFFECTION_REQUIREMENT;
 
     let unlockHtml = '';
     if (cgPanelMode === 'unlock') {
