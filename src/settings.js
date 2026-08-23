@@ -9,7 +9,7 @@
    prefs.js 已经存着值和枚举了，这里只补两样它没有的东西：给人读的标题/说明，
    以及"改完之后除了写 store 还要做什么"。 */
 
-import { PREF_CHOICES, pref, setPref } from './prefs.js';
+import { PREF_CHOICES, onPref, pref, setPref } from './prefs.js';
 import { reportDockDefault } from './bridge.js';
 
 /* 说明文字比标签长得多，是故意的。这两个选项的差别都不在字面上——"适配宽度"和
@@ -18,10 +18,10 @@ import { reportDockDefault } from './bridge.js';
 export const SETTINGS_ROWS = [
   {
     name: 'dockDefault',
-    en: 'Default docking',
-    label: 'HUD 默认停靠',
-    note: '打开聊天时状态栏怎么摆。适配宽度会让它脱开消息栏、按视口宽度铺开；收进嵌入框则一开始就待在消息楼层里，等于开局替你按了一次缩小钮。',
-    hint: '仅桌面宽度生效 · 缩小钮随时可临时切换',
+    en: 'HUD docking',
+    label: 'HUD 停靠方式',
+    note: '这里和面板右上角的“收回嵌入框”按钮是同一个持久化状态。适配宽度会脱开消息栏、按视口宽度铺开；收进嵌入框会限制在消息楼层的栏位宽度内。',
+    hint: '桌面宽度可见 · 刷新或重新渲染后保留',
   },
   {
     name: 'inventoryOpen',
@@ -82,9 +82,19 @@ export function applyPrefClick(target) {
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-checked', on ? 'true' : 'false');
   });
-  /* 停靠方式要立刻推给壳层。注意这里不走 onPref 订阅：点已经选中的那颗时 setPref
-     不会触发任何监听（值没变），但这一下仍然应该生效——用户可能先用缩小钮临时切过，
-     现在点回来就是想把它掰回默认值。所以通报是无条件的。 */
+  /* 停靠方式要立刻推给壳层。注意这里不只依赖 onPref 订阅：点已经选中的那颗时 setPref
+     不会触发监听（值没变），但壳层的当前布局仍可能需要重新套用，所以通报始终发送。 */
   if (name === 'dockDefault') reportDockDefault(value, { apply: true });
   return true;
 }
+
+
+/* The shell-side shrink button can change dockDefault without a click inside this
+   document. Keep any mounted landscape/portrait settings page truthful in place. */
+onPref((name, value) => {
+  document.querySelectorAll(`[data-pref-set="${name}"]`).forEach((btn) => {
+    const on = btn.dataset.prefValue === value;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+});

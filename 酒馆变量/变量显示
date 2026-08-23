@@ -54,7 +54,7 @@ current.玩家信息 = {
 };
 
 // ========== 对象信息 ==========
-// 只保留 AI 可见稿中的字段；开发度的“评语”等脚本侧扩展字段不进入变量提示。
+// 只显示同行、当前直播间或附近 5 楼正文命中变量对象名的对象。
 const experienceKeys = [
   '露出经验', '自慰经验', '排泄调教经验', '道具调教经验',
   '凌辱调教经验', '隐奸经验', '青奸经验', '睡奸经验',
@@ -62,66 +62,85 @@ const experienceKeys = [
 ];
 const developmentParts = ['口腔', '胸', '小穴', '肛门'];
 const objects = data.对象信息 || {};
+const objectNames = Object.keys(objects).map(name => String(name || '').trim()).filter(Boolean);
 
-current.对象信息 = _.mapValues(objects, raw => {
-  const obj = raw || {};
-  const expRaw = obj.性经历 || {};
-  const developmentRaw = obj.开发度 || {};
+let recentMessages = [];
+try {
+  const got = typeof getChatMessages === 'function' ? getChatMessages(-5) || [] : [];
+  recentMessages = Array.isArray(got) ? got : [got];
+} catch (_) {}
+const recentText = recentMessages.map(message => {
+  if (typeof message === 'string') return message;
+  try { return JSON.stringify(message); } catch (_) { return String(message || ''); }
+}).join('\n')
+  .replace(/<update\b[^>]*>[\s\S]*?<\/update>/gi, ' ')
+  .replace(/<json_patch\b[^>]*>[\s\S]*?<\/json_patch>/gi, ' ')
+  .replace(/```[\s\S]*?```/g, ' ');
 
-  const experiences = {
-    近期性经验次数: Number(expRaw.近期性经验次数) || 0
-  };
-  experienceKeys.forEach(key => {
-    const item = expRaw[key] || {};
-    experiences[key] = {
-      次数: Number(item.次数) || 0,
-      可更新: item.可更新 !== false
+const selectedNames = [];
+const addObject = name => {
+  name = String(name || '').trim();
+  if (objectNames.includes(name) && !selectedNames.includes(name)) selectedNames.push(name);
+};
+addObject(player.同行);
+addObject(player.所在直播间);
+objectNames.forEach(name => recentText.includes(name) && addObject(name));
+
+if (selectedNames.length) {
+  const selectedObjects = Object.fromEntries(selectedNames.map(name => [name, objects[name]]));
+  current.对象信息 = _.mapValues(selectedObjects, raw => {
+    const obj = raw || {};
+    const expRaw = obj.性经历 || {};
+    const developmentRaw = obj.开发度 || {};
+
+    const experiences = { 近期性经验次数: Number(expRaw.近期性经验次数) || 0 };
+    experienceKeys.forEach(key => {
+      const item = expRaw[key] || {};
+      experiences[key] = { 次数: Number(item.次数) || 0, 可更新: item.可更新 !== false };
+    });
+
+    const development = {};
+    developmentParts.forEach(key => {
+      const part = developmentRaw[key] || {};
+      development[key] = {
+        档位: Number(part.档位) || 0,
+        进度: Number(part.进度) || 0,
+        可更新: part.可更新 !== false
+      };
+    });
+
+    const bond = obj.羁绊 || {};
+    const location = obj.位置 || {};
+    const physiology = obj.生理 || {};
+    const stream = obj.直播 || {};
+    return {
+      羁绊: {
+        好感度: Number(bond.好感度) || 0,
+        顺从度: Number(bond.顺从度) || 0,
+        心情: String(bond.心情 || '')
+      },
+      位置: {
+        区域: String(location.区域 || ''),
+        场所: String(location.场所 || ''),
+        私密度: Number(location.私密度) || 0
+      },
+      性经历: experiences,
+      开发度: development,
+      生理: {
+        性欲度: Number(physiology.性欲度) || 0,
+        体力: Number(physiology.体力) || 0,
+        尿意: Number(physiology.尿意) || 0,
+        异常状态: _.cloneDeep(physiology.异常状态 || {})
+      },
+      直播: {
+        开播: stream.开播 === true,
+        标题: String(stream.标题 || ''),
+        热度: Number(stream.热度) || 0,
+        粉丝数: Number(stream.粉丝数) || 0
+      }
     };
   });
-
-  const development = {};
-  developmentParts.forEach(key => {
-    const part = developmentRaw[key] || {};
-    development[key] = {
-      档位: Number(part.档位) || 0,
-      进度: Number(part.进度) || 0,
-      可更新: part.可更新 !== false
-    };
-  });
-
-  const bond = obj.羁绊 || {};
-  const location = obj.位置 || {};
-  const physiology = obj.生理 || {};
-  const stream = obj.直播 || {};
-
-  return {
-    羁绊: {
-      好感度: Number(bond.好感度) || 0,
-      顺从度: Number(bond.顺从度) || 0,
-      心情: String(bond.心情 || '')
-    },
-    位置: {
-      区域: String(location.区域 || ''),
-      场所: String(location.场所 || ''),
-      私密度: Number(location.私密度) || 0
-    },
-    性经历: experiences,
-    开发度: development,
-    生理: {
-      性欲度: Number(physiology.性欲度) || 0,
-      体力: Number(physiology.体力) || 0,
-      尿意: Number(physiology.尿意) || 0,
-      异常状态: _.cloneDeep(physiology.异常状态 || {})
-    },
-    直播: {
-      开播: stream.开播 === true,
-      标题: String(stream.标题 || ''),
-      热度: Number(stream.热度) || 0,
-      粉丝数: Number(stream.粉丝数) || 0
-    }
-  };
-});
-_%>
+}_%>
 
 # 以下是当前支撑世界运行的变量，请以此为准
 <current_world_state>

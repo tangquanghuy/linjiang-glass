@@ -4885,54 +4885,42 @@
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
-@media (max-width: 640px) {
-  .liveroom.liveroom.liveroom {
-    height: min(720px, calc(100dvh - 16px));
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
-  }
-  .liveroom.liveroom.liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
-  .liveroom.liveroom.liveroom .cam { grid-column: 1; grid-row: 2; }
-  .liveroom.liveroom.liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
-  .liveroom.liveroom.liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
-  .liveroom.liveroom.liveroom .avatar { width: 30px; height: 30px; }
-  .liveroom.liveroom.liveroom .meta h1 { display: none; }
-  .liveroom.liveroom.liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
-  .liveroom.liveroom.liveroom .meta p span:nth-child(2) { display: none; }
-  .liveroom.liveroom.liveroom .room-h .acts { gap: 2px; }
-  .liveroom.liveroom.liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
-  .liveroom.liveroom.liveroom .follow { height: 32px; padding: 0 12px; }
-  .liveroom.liveroom.liveroom .cam img.feed { object-position: 50% 10%; }
-  .liveroom.liveroom.liveroom .tabs { height: 40px; }
-  .liveroom.liveroom.liveroom .tab { font-size: 13px; }
-  .liveroom.liveroom.liveroom .pane { padding: 8px; }
-  .liveroom.liveroom.liveroom .send { padding: 8px 8px 10px; }
-  .liveroom.liveroom.liveroom .dlg { width: min(300px, 100%); }
+/* One layout source of truth is maintained by JS from host type plus actual card width.
+   Desktop cards between 441px and 580px stay two-column; mobile/narrow tablets stack
+   at 580px; every host stacks below 441px as the final usability fallback. */
+.liveroom.liveroom.liveroom.is-compact {
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, .95fr);
 }
-@container (max-width: 580px) {
-  .liveroom.liveroom.liveroom {
-    height: min(720px, calc(100dvh - 16px));
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 46px minmax(200px, 240px) 44px minmax(0, 1fr);
-  }
-  .liveroom.liveroom.liveroom .room-h { height: 46px; padding: 0 8px; gap: 8px; }
-  .liveroom.liveroom.liveroom .cam { grid-column: 1; grid-row: 2; }
-  .liveroom.liveroom.liveroom .tray { grid-column: 1; grid-row: 3; height: 44px; }
-  .liveroom.liveroom.liveroom .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
-  .liveroom.liveroom.liveroom .avatar { width: 30px; height: 30px; }
-  .liveroom.liveroom.liveroom .meta h1 { display: none; }
-  .liveroom.liveroom.liveroom .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
-  .liveroom.liveroom.liveroom .meta p span:nth-child(2) { display: none; }
-  .liveroom.liveroom.liveroom .room-h .acts { gap: 2px; }
-  .liveroom.liveroom.liveroom .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
-  .liveroom.liveroom.liveroom .follow { height: 32px; padding: 0 12px; }
-  .liveroom.liveroom.liveroom .cam img.feed { object-position: 50% 10%; }
-  .liveroom.liveroom.liveroom .tabs { height: 40px; }
-  .liveroom.liveroom.liveroom .tab { font-size: 13px; }
-  .liveroom.liveroom.liveroom .pane { padding: 8px; }
-  .liveroom.liveroom.liveroom .send { padding: 8px 8px 10px; }
-  .liveroom.liveroom.liveroom .dlg { width: min(300px, 100%); }
+.liveroom.liveroom.liveroom.is-compact .room-h { padding: 0 9px; gap: 8px; }
+.liveroom.liveroom.liveroom.is-compact .host { gap: 9px; }
+.liveroom.liveroom.liveroom.is-compact .avatar { width: 32px; height: 32px; }
+.liveroom.liveroom.liveroom.is-compact .meta h1 { font-size: 13px; }
+.liveroom.liveroom.liveroom.is-compact .meta p { gap: 6px; font-size: 11px; }
+.liveroom.liveroom.liveroom.is-compact .pause { margin-left: 0; font-size: 11px; }
+.liveroom.liveroom.liveroom.is-compact .follow { padding: 0 10px; }
+
+.liveroom.liveroom.liveroom.is-stacked {
+  height: clamp(620px, calc(100dvh - 16px), 720px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 46px clamp(200px, 45cqi, 240px) 44px minmax(0, 1fr);
 }
+.liveroom.liveroom.liveroom.is-stacked .room-h { height: 46px; padding: 0 8px; gap: 8px; }
+.liveroom.liveroom.liveroom.is-stacked .cam { grid-column: 1; grid-row: 2; }
+.liveroom.liveroom.liveroom.is-stacked .tray { grid-column: 1; grid-row: 3; height: 44px; }
+.liveroom.liveroom.liveroom.is-stacked .side { grid-column: 1; grid-row: 4; border-left: 0; border-top: 1px solid var(--line); }
+.liveroom.liveroom.liveroom.is-stacked .avatar { width: 30px; height: 30px; }
+.liveroom.liveroom.liveroom.is-stacked .meta h1 { display: none; }
+.liveroom.liveroom.liveroom.is-stacked .meta p { margin-top: 0; font-size: 11px; gap: 8px; }
+.liveroom.liveroom.liveroom.is-stacked .meta p span:nth-child(2) { display: none; }
+.liveroom.liveroom.liveroom.is-stacked .room-h .acts { gap: 2px; }
+.liveroom.liveroom.liveroom.is-stacked .pause { padding: 0 4px; margin-left: 0; font-size: 11px; }
+.liveroom.liveroom.liveroom.is-stacked .follow { height: 32px; padding: 0 12px; }
+.liveroom.liveroom.liveroom.is-stacked .cam img.feed { object-position: 50% 10%; }
+.liveroom.liveroom.liveroom.is-stacked .tabs { height: 40px; }
+.liveroom.liveroom.liveroom.is-stacked .tab { font-size: 13px; }
+.liveroom.liveroom.liveroom.is-stacked .pane { padding: 8px; }
+.liveroom.liveroom.liveroom.is-stacked .send { padding: 8px 8px 10px; }
+.liveroom.liveroom.liveroom.is-stacked .dlg { width: min(300px, 100%); }
 @media (prefers-reduced-motion: reduce) {.liveroom.liveroom.liveroom, .liveroom.liveroom.liveroom *, .liveroom.liveroom.liveroom *::before { animation: none !important; transition: none !important; }}
   </style>
   <style id="evt-card-css">
@@ -5886,7 +5874,7 @@ body[data-theme] .reading-content .evt .evt-brief {
   </style>
 </head>
 
-<body class="theme-preload render-pending" data-reading-width-level="0">
+<body class="theme-preload render-pending">
   <script>
     document.body.setAttribute('data-theme', window.__initialTheme || 'warm-white');
 
@@ -6459,13 +6447,25 @@ body[data-theme] .reading-content .evt .evt-brief {
       lrSpawnFly(state, item, self);
     }
 
+    function lrLayoutMode(root) {
+      const width = root.clientWidth;
+      const hostLayout = document.body?.dataset.hostLayout;
+      const hostMobile = hostLayout ? hostLayout === 'mobile' : window.innerWidth <= 768;
+      if (width <= 440 || (hostMobile && width <= 580)) return 'stacked';
+      if (width <= 580) return 'compact';
+      return 'wide';
+    }
+
     function lrPlacePin(state) {
-      const pin = lrEl(state.root, 'pin');
-      const cam = lrEl(state.root, 'cam');
-      const tabs = state.root.querySelector('.tabs');
+      const root = state.root;
+      const pin = lrEl(root, 'pin');
+      const cam = lrEl(root, 'cam');
+      const tabs = root.querySelector('.tabs');
       if (!pin || !cam || !tabs) return;
-      const narrow = state.root.clientWidth <= 580;
-      if (narrow) {
+      const mode = lrLayoutMode(root);
+      root.classList.toggle('is-stacked', mode === 'stacked');
+      root.classList.toggle('is-compact', mode === 'compact');
+      if (mode === 'stacked') {
         if (pin.parentNode !== cam) cam.appendChild(pin);
       } else if (pin.previousElementSibling !== tabs) {
         tabs.after(pin);
@@ -9496,21 +9496,51 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       if (increase) increase.disabled = readingWidthLevel >= READING_WIDTH_LEVELS.length - 1;
     }
 
+    function syncHostLayout() {
+      let hostViewportWidth = window.innerWidth;
+      try {
+        hostViewportWidth = Number(window.parent?.innerWidth) || window.innerWidth;
+      } catch (e) { }
+      const nextLayout = hostViewportWidth > 768 ? 'desktop' : 'mobile';
+      const changed = document.body?.dataset.hostLayout !== nextLayout;
+      document.body?.setAttribute('data-host-layout', nextLayout);
+      if (changed) {
+        document.querySelectorAll('.liveroom').forEach((root) => {
+          if (root._lr) lrPlacePin(root._lr);
+        });
+      }
+      return nextLayout;
+    }
+
+    let hostLayoutResizeRaf = 0;
+    function queueHostLayoutSync() {
+      if (hostLayoutResizeRaf) return;
+      hostLayoutResizeRaf = requestAnimationFrame(() => {
+        hostLayoutResizeRaf = 0;
+        syncHostLayout();
+      });
+    }
+    window.addEventListener('resize', queueHostLayoutSync, { passive: true });
+    window.addEventListener('orientationchange', queueHostLayoutSync, { passive: true });
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.addEventListener('resize', queueHostLayoutSync, { passive: true });
+      }
+    } catch (e) { }
+
     function applyReadingWidth(options = {}) {
       readingWidthLevel = Math.max(0, Math.min(READING_WIDTH_LEVELS.length - 1, readingWidthLevel));
       const level = READING_WIDTH_LEVELS[readingWidthLevel];
       const parentWindow = window.parent;
       let parentDocument = null;
-      let hostViewportWidth = window.innerWidth;
       try {
         parentDocument = parentWindow?.document || null;
-        hostViewportWidth = Number(parentWindow?.innerWidth) || window.innerWidth;
       } catch (e) {
         parentDocument = null;
       }
 
       document.body?.setAttribute('data-reading-width-level', String(readingWidthLevel));
-      document.body?.setAttribute('data-host-layout', hostViewportWidth > 768 ? 'desktop' : 'mobile');
+      syncHostLayout();
       updateReadingWidthControls();
       if (!parentDocument) return;
 
@@ -9539,11 +9569,63 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       }
     }
 
+    function getHostReadingWidth() {
+      const parentWindow = window.parent;
+      let parentDocument = null;
+      try {
+        parentDocument = parentWindow?.document || null;
+      } catch (e) {
+        parentDocument = null;
+      }
+
+      const sliderValue = Number.parseFloat(parentDocument?.getElementById('chat_width_slider')?.value);
+      if (Number.isFinite(sliderValue)) return sliderValue;
+
+      let context = null;
+      try {
+        context = window.SillyTavern?.getContext?.()
+          || window.SillyTavern
+          || parentWindow?.SillyTavern?.getContext?.()
+          || parentWindow?.SillyTavern;
+      } catch (e) { }
+      const settingValue = Number.parseFloat(context?.powerUserSettings?.chat_width);
+      if (Number.isFinite(settingValue)) return settingValue;
+
+      try {
+        const rootStyle = parentDocument?.documentElement;
+        const inlineWidth = Number.parseFloat(rootStyle?.style?.getPropertyValue('--sheldWidth'));
+        if (Number.isFinite(inlineWidth)) return inlineWidth;
+        const computedWidth = Number.parseFloat(parentDocument?.defaultView?.getComputedStyle(rootStyle)?.getPropertyValue('--sheldWidth'));
+        if (Number.isFinite(computedWidth)) return computedWidth;
+      } catch (e) { }
+
+      return null;
+    }
+
+    function getClosestReadingWidthLevel(chatWidth) {
+      if (!Number.isFinite(chatWidth)) return 0;
+      return READING_WIDTH_LEVELS.reduce((closestIndex, level, index, levels) => {
+        const closestDistance = Math.abs(level.chatWidth - chatWidth);
+        const currentDistance = Math.abs(levels[closestIndex].chatWidth - chatWidth);
+        return currentDistance < closestDistance ? closestIndex : index;
+      }, 0);
+    }
+
     function initReadingWidth() {
-      const savedLevel = Number.parseInt(localStorage.getItem(READING_WIDTH_STORAGE_KEY) || '0', 10);
-      readingWidthLevel = Number.isFinite(savedLevel)
-        ? Math.max(0, Math.min(READING_WIDTH_LEVELS.length - 1, savedLevel))
-        : 0;
+      const savedValue = localStorage.getItem(READING_WIDTH_STORAGE_KEY);
+      const savedLevel = Number.parseInt(savedValue ?? '', 10);
+
+      // Without a saved manual choice, only sync the controls to the host width.
+      if (savedValue === null || Number.isNaN(savedLevel)) {
+        readingWidthLevel = getClosestReadingWidthLevel(getHostReadingWidth());
+        document.body?.removeAttribute('data-reading-width-level');
+        syncHostLayout();
+        updateReadingWidthControls();
+        return;
+      }
+
+      // Restore only a value explicitly saved by clicking this page.
+      readingWidthLevel = Math.max(0, Math.min(READING_WIDTH_LEVELS.length - 1, savedLevel));
       applyReadingWidth({ skipPersist: true });
     }
 

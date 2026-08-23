@@ -1231,11 +1231,11 @@ body.compact-step .custom-opening textarea{min-height:60px}
   body.oshi-step .opening-picker{flex:none}
 }
 
-/* Mobile finish guard: keep the final action inside the visible iframe viewport.
+/* Mobile and tablet finish guard: keep the final action inside the visible iframe viewport.
    The host opens this page in a full-screen iframe; on short screens the final
    profile can be taller than the iframe, so the action bar follows the scroll
    edge instead of sitting below the last visible line. */
-@media(max-width:900px){
+@media(max-width:1050px){
   body.confirm-step .shell{overflow:visible}
   body.confirm-step .footer{
     position:sticky;

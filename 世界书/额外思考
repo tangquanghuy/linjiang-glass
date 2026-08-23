@@ -1,0 +1,72 @@
+<%_
+await (async () => {
+const d = _.cloneDeep(getMessageVar('stat_data', { defaults: {} })) || {};
+const p = d.玩家信息 || {}, objs = d.对象信息 || {};
+const names = Object.keys(objs).map(v => String(v || '').trim()).filter(Boolean);
+
+const rules = await (async () => {
+  try {
+    const raw = String(await getWorldInfo('数值阶段静态资料') || '');
+    return new Function(`${raw}\n;return typeof NUMERIC_STAGE_DATA !== 'undefined' ? NUMERIC_STAGE_DATA : {};`)() || {};
+  } catch (e) {
+    try { console.log('[额外思考] 数值阶段静态资料读取失败：' + (e?.message || e)); } catch (_) {}
+    return {};
+  }
+})();
+
+let messages = [];
+try {
+  const got = typeof getChatMessages === 'function' ? getChatMessages(-5) || [] : [];
+  messages = Array.isArray(got) ? got : [got];
+} catch (_) {}
+const recent = messages.map(v => {
+  if (typeof v === 'string') return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v || ''); }
+}).join('\n')
+  .replace(/<update\b[^>]*>[\s\S]*?<\/update>/gi, ' ')
+  .replace(/<json_patch\b[^>]*>[\s\S]*?<\/json_patch>/gi, ' ')
+  .replace(/```[\s\S]*?```/g, ' ');
+
+const selected = new Map();
+const add = (name, reason) => {
+  name = String(name || '').trim();
+  if (!names.includes(name)) return;
+  const reasons = selected.get(name) || [];
+  if (!reasons.includes(reason)) reasons.push(reason);
+  selected.set(name, reasons);
+};
+add(p.同行, '与玩家同行');
+add(p.所在直播间, '玩家当前所在直播间');
+names.forEach(name => recent.includes(name) && add(name, ``));
+
+const num = (v, fallback, max) => Math.max(0, Math.min(max, Math.round(Number.isFinite(Number(v)) ? Number(v) : fallback)));
+const fmt = (key, value) => {
+  const stage = (rules[key] || []).find(v => value >= v.min && value <= v.max)
+    || { name: '阶段资料缺失', brief: `未从对应静态世界书解析到${key}阶段` };
+  return `[${key}: ${value}（${stage.name}｜${stage.brief}）]`;
+};
+const lines = ['- 玩家', `  - ${fmt('体力', num(p.体力, 100, 100))}`];
+selected.forEach((why, name) => {
+  const o = objs[name] || {}, b = o.羁绊 || {}, ph = o.生理 || {};
+  lines.push(`- ${name}（${why.join('；')}）`,
+    `  - ${fmt('好感度', num(b.好感度, 0, 1000))}`,
+    `  - ${fmt('顺从度', num(b.顺从度, 0, 1000))}`,
+    `  - ${fmt('性欲度', num(ph.性欲度, 0, 100))}`,
+    `  - ${fmt('体力', num(ph.体力, 100, 100))}`,
+    `  - ${fmt('尿意', num(ph.尿意, 0, 100))}`);
+});
+_%>
+易错点强调:
+  - **注意认知隔离**：考虑哪些信息是隐私的？玩家的年龄、住址、职业、财产收入等信息，在没有主动告知其他人之前，别人并不知道这些信息！同理，直播间弹幕也不会知道主播的住址、收入等隐私信息
+  - 线上线下身份隔离：即使是在直播间跟主播聊的很熟，在线下也有可能是陌生人，线下见面并不能直接就知道真实身份
+
+此外，必须将以下问题纳入你的思考，在你被要求的思考标签结束前，务必显示输出这几个问题的思考过程：
+  - 1、数值与阶段定性：
+    <%- lines.join('\n    ') %>
+  - 2、数值驱动行为，根据上述阶段定性，重点分析：
+    - ① 心理防线（好感/顺从）：当前好感/顺从阶段下，角色绝对不会做什么？能接受的最大尺度是什么？
+    - ② 生理状态（性欲/体力/尿意）：当前阶段是否已带来身体异样，需要产生哪些具象行为？
+  - 3、玩家与其他角色数值变动：行动体力值扣减、好感、顺从度、尿意合理增减
+<%_
+})();
+_%>

@@ -1,6 +1,6 @@
 /* Cross-origin bridge between the HUD and the same-origin tavern deployment shell. */
 import { applyStatData, applyMoney } from './data.js';
-import { pref } from './prefs.js';
+import { pref, setPref } from './prefs.js';
 
 export const CHANNEL = 'linjiang-hud';
 const pending = new Map();
@@ -160,6 +160,14 @@ function onMessage(event) {
   if (data.kind === 'event' && data.type === 'layoutMode') {
     const mode = data.payload?.mode === 'portrait' ? 'portrait' : 'landscape';
     dispatchEvent(new CustomEvent('linjiang:layout-mode', { detail: { mode } }));
+    return;
+  }
+  if (data.kind === 'event' && data.type === 'dockState') {
+    /* The top-right shrink button lives in the tavern shell. Treat it as another
+       writer of the same preference as the settings row, so a shell re-render or
+       full reload restores the actual last docking state. */
+    const mode = data.payload?.mode === 'embedded' ? 'embedded' : 'page';
+    setPref('dockDefault', mode);
     return;
   }
   if (data.kind === 'event' && data.type === 'snapshot') {
@@ -353,6 +361,119 @@ export function startBridge() {
       if (pointer) postPointerEvent('autoscrollMove', pointer);
     });
   }, { passive: true });
+
+  /* Touch gestures do not bubble out of an iframe. Forward vertical drags that
+     the HUD itself cannot consume so a phone can keep scrolling the tavern
+     reading pane even when the fixed HUD covers most of the viewport. */
+  const touchScroll = {
+    id: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    axis: null,
+    forwarding: false,
+    pendingY: 0,
+    pendingPoint: null,
+    raf: 0,
+  };
+  const resetTouchScroll = (keepPending = false) => {
+    touchScroll.id = null;
+    touchScroll.axis = null;
+    touchScroll.forwarding = false;
+    if (!keepPending) {
+      touchScroll.pendingY = 0;
+      touchScroll.pendingPoint = null;
+      if (touchScroll.raf) cancelAnimationFrame(touchScroll.raf);
+      touchScroll.raf = 0;
+    }
+  };
+  const touchById = (list, id) => {
+    for (let i = 0; i < list.length; i += 1) {
+      if (list[i].identifier === id) return list[i];
+    }
+    return null;
+  };
+  const elementCanConsumeTouch = (element, deltaY) => {
+    if (!(element instanceof Element) || !deltaY) return false;
+    const root = document.scrollingElement || document.documentElement;
+    const isRoot = element === root || element === document.documentElement || element === document.body;
+    let overflowY = '';
+    try { overflowY = getComputedStyle(element).overflowY; } catch { return false; }
+    if (isRoot) {
+      if (overflowY === 'hidden' || overflowY === 'clip') return false;
+    } else if (overflowY !== 'auto' && overflowY !== 'scroll' && overflowY !== 'overlay') return false;
+    const max = Math.max(0, element.scrollHeight - element.clientHeight);
+    if (max <= 1) return false;
+    return deltaY > 0 ? element.scrollTop < max - 1 : element.scrollTop > 1;
+  };
+  const hudCanConsumeTouch = (event, deltaY) => {
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+    const seen = new Set();
+    for (const candidate of path) {
+      if (!(candidate instanceof Element) || seen.has(candidate)) continue;
+      seen.add(candidate);
+      if (elementCanConsumeTouch(candidate, deltaY)) return true;
+    }
+    const root = document.scrollingElement || document.documentElement;
+    return !seen.has(root) && elementCanConsumeTouch(root, deltaY);
+  };
+  const queueTouchScroll = (point, deltaY) => {
+    touchScroll.pendingY += deltaY;
+    touchScroll.pendingPoint = { clientX: point.clientX, clientY: point.clientY };
+    if (touchScroll.raf) return;
+    touchScroll.raf = requestAnimationFrame(() => {
+      touchScroll.raf = 0;
+      const dy = touchScroll.pendingY;
+      const current = touchScroll.pendingPoint;
+      touchScroll.pendingY = 0;
+      touchScroll.pendingPoint = null;
+      if (!current || Math.abs(dy) < 0.01) return;
+      postEvent('touchScroll', {
+        deltaX: 0,
+        deltaY: dy,
+        deltaMode: 0,
+        clientX: current.clientX,
+        clientY: current.clientY,
+      });
+    });
+  };
+  addEventListener('touchstart', (event) => {
+    if (lastOverlay || document.documentElement.classList.contains('is-page-open') || event.touches.length !== 1) {
+      resetTouchScroll();
+      return;
+    }
+    const touch = event.touches[0];
+    touchScroll.id = touch.identifier;
+    touchScroll.startX = touchScroll.lastX = touch.clientX;
+    touchScroll.startY = touchScroll.lastY = touch.clientY;
+    touchScroll.axis = null;
+    touchScroll.forwarding = false;
+  }, { capture: true, passive: true });
+  addEventListener('touchmove', (event) => {
+    if (touchScroll.id == null || event.touches.length !== 1) return;
+    const touch = touchById(event.touches, touchScroll.id);
+    if (!touch) return;
+    const totalX = touch.clientX - touchScroll.startX;
+    const totalY = touch.clientY - touchScroll.startY;
+    if (!touchScroll.axis) {
+      if (Math.max(Math.abs(totalX), Math.abs(totalY)) < 6) return;
+      touchScroll.axis = Math.abs(totalY) >= Math.abs(totalX) ? 'y' : 'x';
+    }
+    const deltaY = touchScroll.lastY - touch.clientY;
+    touchScroll.lastX = touch.clientX;
+    touchScroll.lastY = touch.clientY;
+    if (touchScroll.axis !== 'y' || !deltaY) return;
+    if (!touchScroll.forwarding && hudCanConsumeTouch(event, deltaY)) return;
+    touchScroll.forwarding = true;
+    if (event.cancelable) event.preventDefault();
+    queueTouchScroll(touch, deltaY);
+  }, { capture: true, passive: false });
+  addEventListener('touchend', (event) => {
+    if (touchScroll.id == null || touchById(event.touches, touchScroll.id)) return;
+    resetTouchScroll(true);
+  }, { capture: true, passive: true });
+  addEventListener('touchcancel', () => resetTouchScroll(), { capture: true, passive: true });
 
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;

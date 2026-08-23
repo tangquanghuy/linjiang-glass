@@ -567,13 +567,11 @@
   const HUD_FS_STYLE_ID = 'linjiang-hud-fs-style';
   const HUD_AUTOSCROLL_ID = 'linjiang-hud-autoscroll';
   let expanded = false;
-  /* Session-only: shrink the HUD from the 90vw overlay down to the status slot's own
-     width.  Cleared on reload; not written to storage.
-
-     注意它并不是真的把 HUD 放回状态栏 iframe 里 —— 名字和下面那个从未被调用的
-     parkHudInside 都容易让人这么以为。实际做法见 layoutCompact：HUD 始终是挂在酒馆
-     文档上的 position:fixed 浮层，compacted 只是把它的宽度收到楼层栏位那么宽、并让
-     它跟着栏位的位置走（align 'slot'），跟竖屏和手机是同一套机制。 */
+  /* Persisted docking state. `compacted` is the current controller's local mirror,
+     while manager.dockMode carries it across message/status-frame owner handovers and
+     the HUD preference store carries it across full reloads. The shell cannot read the
+     HUD origin's localStorage directly, so startup sync travels HUD -> shell and clicks
+     on the top-right shrink button travel shell -> HUD. */
   let compacted = false;
   /* 这个会话的初始 compacted 由 HUD 的全局设置决定，但那个值存在 HUD origin 的
      localStorage 里，这边跨域读不到——只能等 HUD 开机后 postMessage 过来
@@ -613,7 +611,7 @@
      only register anchors; the manager elects the newest connected anchor and keeps
      the actual HUD iframe in the tavern document so a floor handover does not reload it. */
   const MANAGER_KEY = '__linjiangHudManagerV2';
-  const MANAGER_VERSION = 2;
+  const MANAGER_VERSION = 3;
   const INSTANCE_ID = (globalThis.crypto?.randomUUID?.() || `hud-${Date.now()}-${Math.random()}`);
 
   const createManager = (host) => {
@@ -627,6 +625,9 @@
       owner: null,
       hudFrame: null,
       hudMode: '',
+      /* Shared by every status-frame controller. The managed HUD survives floor
+         re-renders, so its docking state must survive the owner handover too. */
+      dockMode: null,
       electTick: 0,
       eventHooksBound: false,
       contextTimer: 0,
@@ -1013,23 +1014,38 @@
     shrinkTouched = true;
     compacted = !compacted;
     if (compacted) expanded = false;
+    const mode = compacted ? 'embedded' : 'page';
+    manager.dockMode = mode;
+    /* This button and the settings row are two views of one persisted value. */
+    postToHud({
+      channel: CHANNEL,
+      kind: 'event',
+      type: 'dockState',
+      context: manager.context(),
+      payload: { mode },
+    });
     const tavern = tavernWin();
     try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
     try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
     fitParentFrame();
   };
 
-  /* HUD 通报的默认停靠方式。见 compacted 上方关于两个标记的说明。
-     注意 compacted 只在桌面宽度分得出差别（fitParentFrame 里那条 isDesktop() 条件），
-     所以在手机上这次补正会照常记账、但排版上看不出变化——这是对的，设置页也这么写着。 */
+  /* Apply the persisted docking state reported by the HUD settings store. `apply`
+     means the user just changed the settings row and therefore overrides the current
+     layout immediately; the startup report is accepted once unless the top-right button
+     was already used in this controller. */
   const applyDockDefault = (payload) => {
     if (uninstalled) return;
     const embedded = payload?.mode === 'embedded';
+    const mode = embedded ? 'embedded' : 'page';
     const forced = !!payload?.apply;
     if (!forced) {
       if (dockDefaultApplied || shrinkTouched) return;
       dockDefaultApplied = true;
     }
+    /* Save before the equality return: a newly elected controller may already have
+       the right local boolean but the shared manager still needs the source of truth. */
+    manager.dockMode = mode;
     if (compacted === embedded) return;
     compacted = embedded;
     if (compacted) expanded = false;
@@ -1411,7 +1427,7 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body24');
+      url.searchParams.set('v', 'body25-touch-scroll');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -1965,7 +1981,8 @@
 
   const onHudWheel = (event) => {
     const data = event.data;
-    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event' || data.type !== 'wheel') return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event'
+        || (data.type !== 'wheel' && data.type !== 'touchScroll')) return;
     if (event.source !== hudFrame.contentWindow) return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
     if (autoscroll.active) stopAutoscroll();
@@ -2103,6 +2120,13 @@
     if (destroyed) return;
     active = true;
     uninstalled = false;
+    /* A message/status re-render elects a new controller without reloading the
+       managed HUD iframe. Restore the shared docking state before the first layout,
+       otherwise the new owner falls back to the viewport-wide desktop box. */
+    if (manager.dockMode === 'embedded' || manager.dockMode === 'page') {
+      compacted = manager.dockMode === 'embedded';
+      dockDefaultApplied = true;
+    }
     /* 新接手的 HUD 身上没有覆盖层；上一任留下的标记不能带过来，否则两颗钮再也不出现。 */
     overlayOpen = false;
     hudFrame = manager.ensureHudFrame();

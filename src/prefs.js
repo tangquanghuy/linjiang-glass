@@ -17,19 +17,15 @@ const DEFAULTS = {
      event reads -- but browsing icons is not everyone's idea of browsing, so the full
      page has to stay one click away from the button rather than two. */
   inventoryOpen: 'drawer',
-  /* 挂进酒馆时 HUD 默认怎么停靠。'page' 是一直以来的行为：铺成 90vw 的浮层，宽度按
-     视口来，不受消息楼层的窄栏限制。'embedded' 则一开始就待在消息楼层那个嵌入框里，
-     等于开局就替你按了一次右上角的缩小钮。
+  /* 挂进酒馆时 HUD 怎么停靠。'page' 铺成按视口宽度计算的浮层；'embedded' 把
+     HUD 收到消息楼层的嵌入框宽度里。这个值就是面板右上角“收回嵌入框”按钮的持久化
+     状态，不是另设的一份开机默认值：设置页和右上角按钮无论从哪边修改，都写回这里。
 
-     两点值得说明，因为它们决定了这个选项的边界：
-       1. 只有桌面宽度分得清这两种状态。竖屏和窄屏本来就一直待在栏位里
-          （见 状态栏.html 的 fitParentFrame：compacted 分支带 isDesktop() 条件），
-          所以在手机上改这个值不会有任何可见变化。
-       2. 这是"默认值"，不是"当前状态"。缩小钮照旧随时能临时切换，而且手动切过之后
-          本会话就不再被这个默认值覆盖——手动操作应该盖过偏好设置，不是反过来。
+     只有桌面宽度分得清这两种布局。竖屏和窄屏本来就一直待在栏位里（见状态栏.html 的
+     fitParentFrame），所以在手机上修改后会被记住，但要回到桌面宽度才看得出差别。
 
-     壳层与 HUD 不同源，读不到这里的 localStorage，所以这个值是 HUD 开机后通过
-     postMessage 通报过去的（bridge.js 的 reportDockDefault）。 */
+     壳层与 HUD 不同源，读不到这里的 localStorage。HUD 开机时通过 postMessage 把值通报
+     给壳层；右上角按钮则反向把新状态发回 HUD，由这里落盘。 */
   dockDefault: 'page',
   /* Disable backdrop sampling on weaker devices while preserving fills, edges and layout. */
   performanceMode: 'auto',
