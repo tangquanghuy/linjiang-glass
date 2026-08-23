@@ -1617,6 +1617,13 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 
 /* 开发度: two across.  Four across in 795 units would be 190 a tile, and the crop is
    the thing worth seeing. */
+.pdev-note-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin: calc(var(--sp-2) * -1) 0 var(--sp-3); }
+.pdev-note-actions button {
+  min-height: 34px; padding: 0 var(--sp-3); border: 1px solid rgba(255,226,244,.22);
+  border-radius: 17px; background: rgba(218,164,205,.10); color: rgba(248,235,246,.78);
+  font: 500 12px/1 'Noto Sans SC'; cursor: pointer;
+}
+.pdev-note-actions button:disabled { opacity: .48; cursor: wait; }
 .pdev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
 .pdev-tile {
   border: 2px solid rgba(226, 230, 255, .14);

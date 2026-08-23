@@ -4971,17 +4971,24 @@
 
 .evt-glass {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid var(--page-rim);
-  background: rgba(36, 50, 96, .44);
+  /* 小样原本铺在整页夜景上；正式正文可能是暖白/青绿纸面，所以卡片必须自带
+     一层深色承托，不能只靠透明玻璃去采样页面背景。 */
+  background:
+    radial-gradient(ellipse 78% 66% at 14% -12%, color-mix(in srgb, var(--wash) 48%, transparent), transparent 66%),
+    radial-gradient(ellipse 58% 72% at 104% 18%, color-mix(in srgb, var(--glow) 22%, transparent), transparent 70%),
+    linear-gradient(148deg, rgba(31, 41, 82, .985) 0%, rgba(18, 24, 52, .992) 54%, rgba(11, 15, 34, .996) 100%);
   backdrop-filter: blur(26px) saturate(1.34);
   -webkit-backdrop-filter: blur(26px) saturate(1.34);
   box-shadow:
-    0 20px 52px rgba(7, 8, 27, .40),
-    0 0 26px color-mix(in srgb, var(--glow) 60%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, .40),
-    inset 1px 0 0 rgba(255, 255, 255, .14),
-    inset 0 -1px 0 rgba(255, 215, 232, .16);
+    0 24px 58px rgba(7, 8, 27, .46),
+    0 0 30px color-mix(in srgb, var(--glow) 66%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .42),
+    inset 1px 0 0 rgba(255, 255, 255, .16),
+    inset -1px 0 0 rgba(190, 200, 255, .07),
+    inset 0 -1px 0 rgba(255, 215, 232, .18);
 }
 .evt-glass::after {
   content: ''; position: absolute; left: 26px; right: 26px; top: 0; height: 1px;
@@ -5136,12 +5143,15 @@
 }
 .evt-bond[data-k="好感度"] { --bc: #ff8ebd; }
 .evt-bond[data-k="顺从度"] { --bc: #be9aff; }
-.evt-brief {
+body[data-theme] .reading-content .evt .evt-brief {
+  margin: 0;
+  color: rgba(246, 247, 255, .92);
   font: 400 13px/1.85 "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: rgba(228, 230, 250, .74);
-  text-shadow: 0 1px 3px rgba(6, 8, 20, .45);
+  letter-spacing: .025em;
+  text-align: left;
+  text-indent: 0;
+  text-shadow: 0 1px 4px rgba(4, 6, 18, .92), 0 0 14px rgba(4, 6, 18, .62);
 }
-
 .evt-opts { list-style: none; display: grid; gap: var(--sp-2); margin: 0; padding: 0; }
 .evt-opt {
   --signal: #8f9bd8; --glow: rgba(150, 162, 255, .34); --rim: rgba(226, 231, 255, .62);
@@ -5155,7 +5165,7 @@
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(60, 72, 128, .40), rgba(28, 36, 74, .46));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 4px 14px rgba(8, 10, 28, .22);
-  cursor: default;
+  cursor: pointer;
   text-align: left;
   font: inherit;
   color: inherit;
@@ -5297,6 +5307,8 @@
   position: relative; z-index: 2; overflow: hidden;
   display: grid; grid-template-columns: 42% minmax(0, 1fr);
   min-height: 232px;
+  background: #10162f;
+  box-shadow: inset 0 -1px 0 rgba(218, 224, 255, .10);
 }
 .evt-a .stage > .spacer { position: relative; }
 .evt-a .plate {
@@ -5317,9 +5329,13 @@
 }
 .evt-a .body {
   position: relative; z-index: 2; padding: 15px 24px 20px;
-  background: linear-gradient(180deg, rgba(14, 18, 42, .30), rgba(14, 18, 42, .52));
+  background:
+    radial-gradient(ellipse 54% 90% at 8% 110%, color-mix(in srgb, var(--wash) 24%, transparent), transparent 72%),
+    linear-gradient(180deg, rgba(27, 34, 70, .95), rgba(17, 22, 48, .985));
+  box-shadow:
+    inset 0 1px 0 rgba(225, 230, 255, .12),
+    inset 0 18px 34px rgba(92, 105, 170, .055);
 }
-
 @container (max-width: 560px) {
   .evt-a .stage { grid-template-columns: 1fr; min-height: 0; }
   .evt-a .evt-art { width: 100%; height: 150px; bottom: auto; }
@@ -5333,7 +5349,7 @@
   .evt-a .body { padding: 0 18px 18px; }
   .evt-opt { grid-template-columns: 3px auto minmax(0, 1fr); }
   .evt-go { display: none; }
-  .evt-cast { left: 14px; bottom: 12px; gap: 9px; }
+  .evt-cast { left: 14px; top: 86px; bottom: auto; gap: 9px; }
   .evt-face { width: 52px; height: 52px; border-radius: 14px; }
   .evt-who .nm { font-size: 15px; }
   .evt-a .plate { left: 14px; top: 12px; }
@@ -6006,30 +6022,33 @@
     const applyMvuPatches = (patches) => {
       try {
         if (!mvuState.ready && !mvuState.check()) return false;
-        const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
-        if (!mvuData?.stat_data) return false;
-        patches.forEach(patch => {
-          const parts = patch.path.split('/').filter(Boolean);
-          if (patch.op === 'replace' || patch.op === 'add') {
-            let obj = mvuData.stat_data;
-            for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) obj[parts[i]] = {}; obj = obj[parts[i]]; }
-            obj[parts[parts.length - 1]] = patch.value;
-          } else if (patch.op === 'remove') {
-            let obj = mvuData.stat_data;
-            for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) return; obj = obj[parts[i]]; }
-            delete obj[parts[parts.length - 1]];
-          }
-        });
-        mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
-        return true;
+        const scopes = [{ type: 'message', message_id: 'latest' }, { type: 'chat' }];
+        for (const scope of scopes) {
+          const mvuData = mvuState.mvu.getMvuData(scope);
+          if (!mvuData?.stat_data || Object.keys(mvuData.stat_data).length === 0) continue;
+          patches.forEach(patch => {
+            const parts = patch.path.split('/').filter(Boolean);
+            if (patch.op === 'replace' || patch.op === 'add') {
+              let obj = mvuData.stat_data;
+              for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]] || typeof obj[parts[i]] !== 'object') obj[parts[i]] = {}; obj = obj[parts[i]]; }
+              obj[parts[parts.length - 1]] = patch.value;
+            } else if (patch.op === 'remove') {
+              let obj = mvuData.stat_data;
+              for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) return; obj = obj[parts[i]]; }
+              delete obj[parts[parts.length - 1]];
+            }
+          });
+          mvuState.mvu.replaceMvuData(mvuData, scope);
+          return true;
+        }
+        return false;
       } catch (e) { console.warn('[正文美化] MVU patch:', e); return false; }
     };
-
     // ==================== 直播间 <LiveRoom> ====================
     /* 直播间的表和算法都在 外部部署/辅助计算脚本.js（parent.LinjiangAux）：
        礼物价格与人气点数、大航海档位、数量档位、牌子等级公式、名字折叠、以及一切写入。
        本文件同源，直接调，不用 postMessage。
-       拿不到脚本时退化成只读展示——按钮会提示"辅助计算脚本没跑起来"，而不是自己算一套。 */
+       拿不到脚本时只有关注/取关直接写 MVU，其它消费动作仍保持只读，不在卡片里另算一套。 */
     function lrAux() {
       try {
         const win = window.parent || window;
@@ -6506,6 +6525,26 @@
       const btn = state.root.querySelector('[data-lr-act="follow"]');
       btn.classList.toggle('on', !!state.follow);
       btn.textContent = state.follow ? '已关注' : '+ 关注';
+      btn.setAttribute('aria-pressed', state.follow ? 'true' : 'false');
+      btn.title = state.follow ? '点击取关' : '点击关注主播';
+    }
+
+    function lrSyncFollowFromMvu(state, paint) {
+      const next = lrIsTrue(lrFan(lrReadStat(), state.host).关注);
+      const changed = next !== state.follow;
+      state.follow = next;
+      if (paint !== false && changed) lrPaintFollow(state);
+      return next;
+    }
+
+    function lrWriteFollowDirect(state, follow) {
+      const ok = applyMvuPatches([{
+        op: 'add',
+        path: `/玩家信息/粉丝身份/${state.host}/关注`,
+        value: follow === true
+      }]);
+      if (!ok) return { ok: false, 提示: 'MVU 关注状态写入失败' };
+      return { ok: true, 花费: 0, 快照: { 关注: follow === true } };
     }
     function lrPaintPop(state) {
       // 直播间没有人数，顶栏显示的是热度
@@ -6577,36 +6616,40 @@
       return ok;
     }
 
-    /* 所有写入都交给辅助计算脚本，这里只负责把结果画上去。
+    /* 礼物等结算交给辅助计算脚本；关注/取关额外保留直接写 MVU 的兜底。
        原来这个函数自己拼 10 条 MVU 补丁（钱、所在直播间、累计打赏、牌子等级、关注、
        牌子档位、本场热度、直播热度、高能榜、大航海），跟辅助脚本抢同一批字段。
        现在一次 roomAction 换回一份快照，连送递减、榜一还手、热度换算都在脚本那边算好。 */
     function lrApplySnapshot(state, snap) {
       if (!snap) return;
-      state.money = snap.金钱;
-      state.follow = snap.关注;
-      state.tipped = snap.累计打赏;
-      state.badge = snap.牌子等级;
-      state.tier = snap.牌子档位 || '';
-      state.days = snap.牌子剩余天数;
-      state.heat = snap.热度;
-      state.base = snap.底盘热度;
-      state.medal = snap.牌子名 || state.medal;
-      state.rank = (snap.高能榜 || []).map((r) => ({ user: r.名字, score: r.本场消费 }));
-      state.navy = (snap.大航海.名单 || []).map((x) => ({ user: x.名字, tier: LR_TIER_KEY[x.档位] || '', days: x.天数 }));
+      const has = (key) => Object.prototype.hasOwnProperty.call(snap, key);
+      if (has('金钱')) state.money = snap.金钱;
+      if (has('关注')) state.follow = snap.关注 === true;
+      if (has('累计打赏')) state.tipped = snap.累计打赏;
+      if (has('牌子等级')) state.badge = snap.牌子等级;
+      if (has('牌子档位')) state.tier = snap.牌子档位 || '';
+      if (has('牌子剩余天数')) state.days = snap.牌子剩余天数;
+      if (has('热度')) state.heat = snap.热度;
+      if (has('底盘热度')) state.base = snap.底盘热度;
+      if (has('粉丝数')) state.fans = snap.粉丝数;
+      if (snap.牌子名) state.medal = snap.牌子名;
+      if (Array.isArray(snap.高能榜)) state.rank = snap.高能榜.map((r) => ({ user: r.名字, score: r.本场消费 }));
+      if (Array.isArray(snap.大航海?.名单)) state.navy = snap.大航海.名单.map((x) => ({ user: x.名字, tier: LR_TIER_KEY[x.档位] || '', days: x.天数 }));
       lrPaintMoney(state);
       lrPaintPop(state);
       lrPaintFollow(state);
       lrPaintNavy(state);
       lrPaintRank(state);
     }
-
     /* 返回 false 表示没写成（钱不够、脚本没跑起来），调用方不要再往弹幕里推那一条。 */
     function lrDoAction(state, action, extra) {
       const aux = lrAux();
-      if (!aux) { lrToast(state, '辅助计算脚本没跑起来，直播间暂时只能看'); return false; }
       let res = null;
-      try { res = aux.roomAction(Object.assign({ 主播: state.host, 动作: action }, extra || {})); }
+      try {
+        if (aux) res = aux.roomAction(Object.assign({ 主播: state.host, 动作: action }, extra || {}));
+        else if (action === '关注') res = lrWriteFollowDirect(state, extra?.关注 === true);
+        else { lrToast(state, '辅助计算脚本没跑起来，送礼功能暂时不可用'); return false; }
+      }
       catch (e) { console.warn('[正文美化] roomAction', e); }
       if (!res || !res.ok) { lrToast(state, (res && res.提示) || '操作没能完成'); return false; }
       lrApplySnapshot(state, res.快照);
@@ -6922,8 +6965,9 @@
           const quiet = lrEl(state.root, 'cam').classList.toggle('quiet');
           act.textContent = quiet ? '弹幕 关' : '弹幕 开';
         } else if (kind === 'follow') {
+          // 点下去时先重读一次，避免卡片挂载后 MVU 被别处修改导致反向操作。
+          lrSyncFollowFromMvu(state, false);
           lrDoAction(state, '关注', { 关注: !state.follow });
-          lrPaintFollow(state);
         } else if (kind === 'sc') {
           ev.preventDefault();
           lrOpenSc(state);
@@ -6972,6 +7016,23 @@
         if (ev.key === 'Escape') { ev.preventDefault(); lrCloseDlg(state); }
         else if (ev.target.closest('[data-lr="dlg"]')) { ev.preventDefault(); lrConfirm(state); }
       });
+
+      // AI、状态栏或其它卡片改了 MVU 后，当前直播间按钮也跟着刷新。
+      try {
+        const win = getCore().window;
+        const eventOnFn = win.eventOn || window.eventOn;
+        if (!window.__lrMvuFollowBound && typeof eventOnFn === 'function' && (mvuState.ready || mvuState.check())) {
+          const eventName = mvuState.mvu?.events?.VARIABLE_UPDATE_ENDED;
+          if (eventName) {
+            window.__lrMvuFollowBound = true;
+            eventOnFn(eventName, () => {
+              document.querySelectorAll('.liveroom').forEach((root) => {
+                if (root._lr) lrSyncFollowFromMvu(root._lr, true);
+              });
+            });
+          }
+        }
+      } catch (e) { console.warn('[正文美化] MVU 关注状态监听失败', e); }
     }
 
     const ENABLE_DEMO_CONTENT = false;
@@ -7220,49 +7281,44 @@
       return !!(girl && (girl.羁绊 || girl.生理));
     }
 
+    function evtReqNumber(value) {
+      if (value == null || value === '') return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /* 门槛只判断稳定、结构明确的数值字段。
+       心情、背包、异常状态等自由文本条件留给正文判断，不参与按钮灰置。 */
     function evtEvalReq(req, girl, player) {
       if (!req) return true;
-      if (!evtHasStats(girl)) return true;
-      const bond = girl.羁绊 || {};
-      const phy = girl.生理 || {};
+      const bond = (girl && girl.羁绊) || {};
+      const phy = (girl && girl.生理) || {};
       const ctx = {
-        好感度: Number(bond.好感度) || 0,
-        顺从度: Number(bond.顺从度) || 0,
-        性欲度: Number(phy.性欲度) || 0,
-        体力: Number(phy.体力) || 0,
-        对象体力: Number(phy.体力) || 0,
-        尿意: Number(phy.尿意) || 0
+        好感度: evtReqNumber(bond.好感度),
+        顺从度: evtReqNumber(bond.顺从度),
+        性欲度: evtReqNumber(phy.性欲度),
+        体力: evtReqNumber(player && player.体力),
+        对象体力: evtReqNumber(phy.体力),
+        尿意: evtReqNumber(phy.尿意),
+        金钱: evtReqNumber(player && player.金钱)
       };
       let ok = true;
       let hit = false;
-      const re = /(好感度|顺从度|性欲度|对象体力|体力|尿意)\s*([≥<=＜＞]{1,2}|>=|<=|>|<)\s*(\d+)/g;
+      const re = /(好感度|顺从度|性欲度|对象体力|体力|尿意|金钱)\s*(>=|<=|==|[≥≤=＜＞><])\s*(-?\d+(?:\.\d+)?)/g;
       let m;
-      while ((m = re.exec(req))) {
+      while ((m = re.exec(String(req)))) {
         hit = true;
-        const n = ctx[m[1]];
+        const actual = ctx[m[1]];
         const op = String(m[2]).replace('≥', '>=').replace('≤', '<=').replace('＞', '>').replace('＜', '<');
-        const v = +m[3];
-        if (op === '>=' && !(n >= v)) ok = false;
-        else if (op === '<=' && !(n <= v)) ok = false;
-        else if (op === '>' && !(n > v)) ok = false;
-        else if (op === '<' && !(n < v)) ok = false;
+        const expected = Number(m[3]);
+        if (actual == null) ok = false;
+        else if (op === '>=' && !(actual >= expected)) ok = false;
+        else if (op === '<=' && !(actual <= expected)) ok = false;
+        else if (op === '>' && !(actual > expected)) ok = false;
+        else if (op === '<' && !(actual < expected)) ok = false;
+        else if ((op === '=' || op === '==') && actual !== expected) ok = false;
       }
-      const abn = req.match(/异常状态含\s*[:：]?\s*['"]?([^'"·,，]+)/);
-      if (abn) {
-        hit = true;
-        const needle = abn[1].trim();
-        const list = Array.isArray(phy.异常状态) ? phy.异常状态 : [];
-        if (!list.some((s) => String(s).indexOf(needle) !== -1)) ok = false;
-      }
-      const item = req.match(/需携带\s*[:：]?\s*(.+?)(?:[·,，]|$)/);
-      if (item) {
-        hit = true;
-        const want = item[1].trim();
-        const bag = (player && player.背包) || {};
-        const pools = Object.assign({}, bag.用品 || {}, bag.消耗品 || {}, bag.素材 || {});
-        const has = Object.keys(pools).some((k) => k.indexOf(want) !== -1 || String((pools[k] && pools[k].名称) || '').indexOf(want) !== -1);
-        if (!has) ok = false;
-      }
+      // 没有可识别数值条件时不由冷代码设锁。
       return hit ? ok : true;
     }
 
@@ -7280,7 +7336,7 @@
       }).join('');
     }
 
-    function evtChoicePayload(option) {
+    function evtChoicePayload(option, objectName) {
       const gainText = (option.结算 || []).map(([k, v]) => {
         const value = String(v || '');
         return /^[+\-]\d/.test(value) || value === '重置' || value === '归零'
@@ -7288,9 +7344,42 @@
           : `${k}→${value}`;
       }).join('，');
       return encodeURIComponent(JSON.stringify({
+        对象: objectName || '',
+        门槛: option.门槛 || '',
         选项: option.选项 || '',
         结算: gainText
       }));
+    }
+
+    function evtChoiceData(button) {
+      try { return JSON.parse(decodeURIComponent(button.dataset.evtChoice || '')) || {}; }
+      catch (err) { console.warn('[正文美化] 突发事件选项解析失败', err); return null; }
+    }
+
+    function evtRefreshChoice(button, stat) {
+      const payload = evtChoiceData(button);
+      if (!payload) return false;
+      const data = stat || evtReadStat();
+      const player = (data && data.玩家信息) || {};
+      let objectName = payload.对象 || '';
+      if (evtIsSolo(objectName) && player.同行) objectName = player.同行;
+      const girl = evtIsSolo(objectName) ? {} : evtGirl(data, objectName);
+      const met = !payload.门槛 || evtEvalReq(payload.门槛, girl, player);
+      button.classList.toggle('locked', !met);
+      button.disabled = !met;
+      button.setAttribute('aria-disabled', met ? 'false' : 'true');
+      button.title = met ? '点击选择此行动' : `数值条件未满足：${payload.门槛}`;
+      const req = button.querySelector('.evt-req');
+      if (req && payload.门槛) {
+        req.classList.toggle('met', met);
+        req.innerHTML = evtIc(met ? 'check' : 'lock') + evtEsc(payload.门槛);
+      }
+      return met;
+    }
+
+    function evtRefreshChoices(root) {
+      const stat = evtReadStat();
+      (root || document).querySelectorAll('.evt-opt[data-evt-choice]').forEach((button) => evtRefreshChoice(button, stat));
     }
 
     function bindSuddenEventEvents() {
@@ -7298,21 +7387,26 @@
       window.__suddenEventChoicesBound = true;
       document.addEventListener('click', (ev) => {
         const button = ev.target.closest && ev.target.closest('.evt-opt[data-evt-choice]');
-        if (!button || button.disabled) return;
-        let payload = null;
-        try {
-          payload = JSON.parse(decodeURIComponent(button.dataset.evtChoice || ''));
-        } catch (err) {
-          console.warn('[正文美化] 突发事件选项解析失败', err);
-        }
+        if (!button) return;
+        // 点击时重新读取 MVU，防止旧卡片按挂载时的过期数值放行。
+        if (!evtRefreshChoice(button)) { ev.preventDefault(); return; }
+        const payload = evtChoiceData(button);
         if (!payload || !String(payload.选项 || '').trim()) return;
         ev.preventDefault();
         const gains = String(payload.结算 || '').trim();
         const message = `选择突发事件选项：${payload.选项}${gains ? `；结算：${gains}` : ''}`;
-        if (!lrSendToChat(message)) {
-          console.warn('[正文美化] 突发事件选项发送失败');
-        }
+        if (!lrSendToChat(message)) console.warn('[正文美化] 突发事件选项发送失败');
       });
+
+      // MVU 更新后，当前页面中已经显示的事件卡也重新计算数值门槛。
+      try {
+        const win = getCore().window;
+        const eventOnFn = win.eventOn || window.eventOn;
+        if (typeof eventOnFn === 'function' && (mvuState.ready || mvuState.check())) {
+          const eventName = mvuState.mvu?.events?.VARIABLE_UPDATE_ENDED;
+          if (eventName) eventOnFn(eventName, () => evtRefreshChoices(document));
+        }
+      } catch (e) { console.warn('[正文美化] 突发事件 MVU 状态监听失败', e); }
     }
 
     function evtPips(n) {
@@ -7377,10 +7471,10 @@
         const req = o.门槛
           ? '<span class="evt-req' + (o.达成 ? ' met' : '') + '">' + evtIc(o.达成 ? 'check' : 'lock') + evtEsc(o.门槛) + '</span>'
           : '';
-        return '<li><button class="evt-opt' + (locked ? ' locked' : '') + '" data-cat="' + evtAttr(o.分类) + '" data-evt-choice="' + evtAttr(evtChoicePayload(o)) + '" type="button"' + (locked ? ' disabled aria-disabled="true"' : '') + '>'
+        return '<li><button class="evt-opt' + (locked ? ' locked' : '') + '" data-cat="' + evtAttr(o.分类) + '" data-evt-choice="' + evtAttr(evtChoicePayload(o, parsed.对象)) + '" type="button"' + (locked ? ' disabled aria-disabled="true"' : ' aria-disabled="false"') + '>'
           + '<span class="bar"></span><span class="evt-cat">' + evtEsc(o.分类) + '</span>'
           + '<span class="col"><span class="act">' + evtEsc(o.选项) + '</span>'
-          + '<span class="sub">' + req + (locked ? '' : evtGainsHtml(o.结算)) + '</span></span>'
+          + '<span class="sub">' + req + evtGainsHtml(o.结算) + '</span></span>'
           + '<span class="evt-go">' + EVT_IC.go + '</span></button></li>';
       }).join('') + '</ul>';
 
@@ -7426,6 +7520,7 @@
       if (content && !content.querySelector('.evt') && slotOpen) {
         content.insertAdjacentHTML('beforeend', renderSuddenEvent(EVT_DEMO, 0));
       }
+      evtRefreshChoices(document);
     }
 
     const AVATAR_CACHE_PREFIX = 'custom_char_avatar_';

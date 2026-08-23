@@ -1,4 +1,4 @@
-﻿/* Portrait pages.
+/* Portrait pages.
    ------------------------------------------------------------------
    A page here replaces the column rather than being appended below it.  Three reasons,
    and the first is the one that rules out every alternative: the landscape pages cannot
@@ -164,7 +164,7 @@ export function inventoryPage({ selected = new Map(), notice = '' } = {}) {
 function devTiles(girl, development) {
   return DEV_PARTS.map(([key, label]) => {
     const tier = development[key];
-    const note = devMatrix[girl.name]?.[key]?.[tier];
+    const note = characterDetails[girl.name].developmentNotes?.[key] || devMatrix[girl.name]?.[key]?.[tier];
     const id = `pdev-${key}`;
     return `
     <div class="pdev-tile${tier ? '' : ' is-zero'}">
@@ -181,7 +181,7 @@ function devTiles(girl, development) {
         <span class="pdev-pips">${DEV_TIERS.map((_, n) =>
           `<i class="${n && n <= tier ? 'on' : ''}"></i>`).slice(1).join('')}</span>
       </button>
-      <div class="pdev-note" id="${id}" hidden>
+      <div class="pdev-note" id="${id}" data-dev-note-name="${girl.name}" data-dev-note-part="${key}" hidden>
         ${note
           ? `<p>${note}</p>`
           : `<p class="is-muted">暂无评语</p>`}
@@ -261,6 +261,7 @@ export function characterPage(name) {
   ${meter('尿意', physiology.bladder, 100, 'gold', THRESHOLDS.bladder)}
 
   ${section('身体开发度', '四部位')}
+  <div class="pdev-note-actions"><button type="button" data-dev-notes-action="generate" data-dev-notes-name="${girl.name}">刷新评语</button><button type="button" data-dev-notes-action="restore" data-dev-notes-name="${girl.name}">恢复默认</button></div>
   <div class="pdev-grid">${devTiles(girl, development)}</div>
 
   ${section('性经历', '计数')}
@@ -441,8 +442,8 @@ export function eventsPage() {
 
   const ready = events.filter((e) => e.status === '可触发').length;
   return `
-<section class="ppanel is-page" data-panel="page" role="dialog" aria-label="当日事件">
-  ${head('Today', '当日事件')}
+<section class="ppanel is-page" data-panel="page" role="dialog" aria-label="事件提示">
+  ${head('Today', '事件提示')}
   <button class="pclose" type="button" data-page-close aria-label="返回">×</button>
 
   <div class="pevt-sum">

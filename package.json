@@ -45,10 +45,12 @@
     "opening:map": "node scripts/check-opening-map.mjs",
     "opening:labels": "node scripts/probe-opening-labels.mjs",
     "map:export": "node scripts/export-ai-map.mjs",
+    "map:airp": "node scripts/export-airp-map-yaml.mjs",
     "map:build": "node scripts/build-worldbook-map.mjs",
     "map:check": "node scripts/check-map-loader.mjs",
     "map:vars": "node scripts/check-init-vars.mjs && node scripts/check-opening-nodes.mjs",
     "map:homes": "node scripts/shot-new-homes.mjs",
+    "worldbook:locations": "python scripts/import-worldbook-locations.py",
     "map": "node scripts/export-ai-map.mjs && node scripts/build-worldbook-map.mjs && node scripts/check-map-loader.mjs && node scripts/check-init-vars.mjs && node scripts/check-opening-nodes.mjs"
   },
   "devDependencies": {

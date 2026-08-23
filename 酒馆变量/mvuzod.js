@@ -157,39 +157,12 @@ const dateDisplaySchema = z.preprocess(
     })
 );
 
-// --- 事件池 ---
+// --- 事件提示：脚本与AI共用，值保持为短文本 ---
 
-const eventConditionSchema = z.preprocess(
+const noticeSchema = z.preprocess(
     v => isPlainObject(v) ? v : {},
-    z.object({
-        好感度: z.coerce.number().optional(),
-        顺从度: z.coerce.number().optional(),
-        性欲度: z.coerce.number().optional(),
-        体力上限: z.coerce.number().optional(),
-        需携带道具: z.string().optional(),
-        时段: periodArraySchema.optional(),
-    }).transform(r => {
-        const next = { ...r };
-        if (next.时段 && next.时段.length === 0) delete next.时段;
-        return _.pickBy(next, v => v !== undefined && v !== '');
-    })
-);
-
-const dailyEventSchema = z.object({
-    区域: z.preprocess(v => normalizeArea(v), str('')),
-    场所: str('').optional(),
-    标题: str(''),
-    分类: eventCategorySchema,
-    优先级: clampNum(50, 1, 100),
-    状态: eventStatusEnum,
-    条件: eventConditionSchema,
-    简述: str(''),
-}).transform(r => {
-    const next = { ...r };
-    if (!next.场所) delete next.场所;
-    return next;
-});
-
+    z.record(z.string(), safeStr('')).transform(r => _.pickBy(r, value => String(value || '').trim()))
+).prefault({});
 // --- 工作 / 房产 / 粉丝身份 ---
 
 const workSchema = z.preprocess(
@@ -217,6 +190,13 @@ const propertySchema = z.object({
     描述: str(''),
 });
 
+const fixedExpenseSchema = z.preprocess(
+    v => isPlainObject(v) ? v : {},
+    z.object({
+        金额: z.coerce.number().prefault(0).transform(v => Math.max(0, Math.floor(Number.isFinite(v) ? v : 0))),
+        支付周期: closedEnum(['每日', '每周', '每月'], '每月'),
+    })
+);
 const fanSchema = z.object({
     关注: boolPreprocess(false),
     累计打赏: z.coerce.number().prefault(0).transform(v => Math.max(0, Math.floor(Number.isFinite(v) ? v : 0))),
@@ -286,7 +266,6 @@ const bondSchema = z.preprocess(
 );
 
 const EXPERIENCE_KEYS = [
-    '近期性经验次数',
     '露出经验',
     '自慰经验',
     '排泄调教经验',
@@ -301,20 +280,43 @@ const EXPERIENCE_KEYS = [
     '性直播经验',
 ];
 
+const experienceCounter = value => Math.max(0, Math.floor(Number.isFinite(Number(value)) ? Number(value) : 0));
+
+const experienceItemSchema = z.preprocess(v => {
+    if (isPlainObject(v)) {
+        return {
+            次数: v.次数 ?? v.值 ?? 0,
+            可更新: v.可更新 ?? true,
+        };
+    }
+    return { 次数: v, 可更新: true };
+}, z.object({
+    次数: z.coerce.number().prefault(0).transform(experienceCounter),
+    可更新: boolPreprocess(true),
+}));
+
 const experienceSchema = z.preprocess(
     v => isPlainObject(v) ? v : {},
-    z.object(
-        Object.fromEntries(EXPERIENCE_KEYS.map(key => [key, z.coerce.number().prefault(0).transform(n => Math.max(0, Math.floor(Number.isFinite(n) ? n : 0)))]))
-    )
-);
-
-const devPartSchema = z.preprocess(
-    v => isPlainObject(v) ? v : {},
     z.object({
-        档位: clampNum(0, 0, 5),
-        评语: str(''),
+        近期性经验次数: z.coerce.number().prefault(0).transform(experienceCounter),
+        ...Object.fromEntries(EXPERIENCE_KEYS.map(key => [key, experienceItemSchema])),
     })
 );
+
+const devPartSchema = z.preprocess(v => {
+    if (!isPlainObject(v)) return {};
+    return {
+        档位: v.档位 ?? 0,
+        进度: v.进度 ?? 0,
+        可更新: v.可更新 ?? true,
+        评语: v.评语 ?? '',
+    };
+}, z.object({
+    档位: clampNum(0, 0, 5),
+    进度: clampNum(0, 0, 999),
+    可更新: boolPreprocess(true),
+    评语: str(''),
+}));
 
 const developmentSchema = z.preprocess(v => {
     if (!isPlainObject(v)) return {};
@@ -330,20 +332,35 @@ const developmentSchema = z.preprocess(v => {
     小穴: devPartSchema,
     肛门: devPartSchema,
 }));
+const statusItemSchema = z.preprocess(v => {
+    if (typeof v === 'string') return { 到期条件: v };
+    if (!isPlainObject(v)) return { 到期条件: '手动确认解除后移除' };
+    const oldTime = v.到期时间;
+    return {
+        到期条件: v.到期条件
+            ?? (oldTime ? `${oldTime} 到期移除` : '手动确认解除后移除'),
+    };
+}, z.object({
+    到期条件: safeStr('手动确认解除后移除'),
+}));
 
+const statusRecordSchema = z.preprocess(v => {
+    if (Array.isArray(v)) {
+        return Object.fromEntries(v
+            .filter(item => typeof item === 'string' && item.trim())
+            .map(item => [item.trim(), { 到期条件: '手动确认解除后移除' }]));
+    }
+    return isPlainObject(v) ? v : {};
+}, z.record(z.string(), statusItemSchema)).prefault({});
 const physiologySchema = z.preprocess(
     v => isPlainObject(v) ? v : {},
     z.object({
         性欲度: clampNum(0, 0, 100),
         体力: clampNum(100, 0, 100),
         尿意: clampNum(0, 0, 100),
-        异常状态: z.preprocess(
-            v => Array.isArray(v) ? v.filter(item => 'string' === typeof item && item.trim()) : [],
-            z.array(z.string())
-        ).transform(uniqStrings).prefault([]),
+        异常状态: statusRecordSchema,
     })
 );
-
 /**
  * 直播间没有人数，只有热度。
  *   粉丝数 —— 稳定量，她一共有多少人关注，是公开事实，AI 该知道；
@@ -394,6 +411,7 @@ const playerSchema = z.preprocess(
         工作: workSchema,
         居住地: z.preprocess(v => normalizeArea(v), str('')),
         房产: z.record(z.string().describe('房产名称'), propertySchema).prefault({}),
+        生活固定支出: z.record(z.string().describe('支出项'), fixedExpenseSchema).prefault({}),
         所在直播间: z.preprocess(v => canonGirlName(v), nullableStr(null)),
         粉丝身份: z.preprocess(
             remapGirlKeys,
@@ -406,7 +424,20 @@ const playerSchema = z.preprocess(
 // --- 世界信息 ---
 
 const worldSchema = z.preprocess(
-    v => isPlainObject(v) ? v : {},
+    v => {
+        const next = isPlainObject(v) ? { ...v } : {};
+        if (!isPlainObject(next.事件提示)) {
+            const oldEvents = next.事件池?.当日事件;
+            next.事件提示 = isPlainObject(oldEvents)
+                ? Object.fromEntries(Object.entries(oldEvents).map(([id, event]) => [
+                    id,
+                    String(event?.简述 || event?.标题 || id),
+                ]))
+                : {};
+        }
+        delete next.事件池;
+        return next;
+    },
     z.object({
         年历: str('2026年4月1日'),
         日期显示: dateDisplaySchema,
@@ -418,15 +449,9 @@ const worldSchema = z.preprocess(
             })
         ),
         位置: locationSchema,
-        事件池: z.preprocess(
-            v => isPlainObject(v) ? v : {},
-            z.object({
-                当日事件: z.record(z.string().describe('事件ID'), dailyEventSchema).prefault({}),
-            })
-        ),
+        事件提示: noticeSchema,
     })
 );
-
 // --- Arcade / 街机里程碑（脚本写入，按聊天隔离） ---
 
 const arcadeCounter = (val = 0) => z.coerce.number().prefault(val)
@@ -460,7 +485,7 @@ const arcadeStatsSchema = z.preprocess(
 const arcadeConfigSchema = z.preprocess(
     v => isPlainObject(v) ? v : {},
     z.object({
-        版本: arcadeCounter(1),
+        版本: arcadeCounter(3),
         统计: arcadeStatsSchema,
         已解锁: z.record(z.string(), boolPreprocess(false)).prefault({}),
         已达成: z.record(z.string(), boolPreprocess(false)).prefault({}),

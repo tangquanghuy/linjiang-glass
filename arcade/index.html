@@ -136,6 +136,35 @@ html.is-hud .wallet-mint{display:none!important}
 .swatch[data-theme=green]{background:linear-gradient(140deg,#f8fffb,#dcebe3)}
 .swatch[data-theme=classic-dark]{background:linear-gradient(140deg,#29231e,#161310)}
 
+/* ---------- chat-scoped arcade milestones ---------- */
+.bar-right{gap:7px}
+.milestone-launch{position:relative;flex:none}
+.milestone-btn{position:relative;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid color-mix(in srgb,#ffd766 42%,var(--line));border-radius:999px;background:linear-gradient(145deg,#ffd96b20,#9a6cff1a);cursor:pointer;box-shadow:inset 0 1px 0 #ffffff1f;transition:.16s}
+.milestone-btn:hover{background:linear-gradient(145deg,#ffd96b30,#9a6cff26);border-color:#ffe18a99}
+.milestone-btn .trophy{font-size:17px;line-height:1;filter:drop-shadow(0 0 6px #ffc84d66)}
+.milestone-btn b{color:#ffe294;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.milestone-btn.has-new{animation:milestone-pulse .65s ease 2}
+@keyframes milestone-pulse{50%{transform:translateY(-2px);box-shadow:0 0 20px #ffd75a75,inset 0 1px #fff7}}
+.milestone-backdrop{position:fixed;inset:0;z-index:95;display:flex;justify-content:flex-end;padding:10px;background:#0807139c;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.milestone-sheet{width:min(440px,100%);height:min(680px,calc(100dvh - 20px));display:flex;flex-direction:column;overflow:hidden;border:1px solid color-mix(in srgb,#ffe197 36%,var(--line));border-radius:24px;background:linear-gradient(155deg,color-mix(in srgb,var(--panel) 96%,#4a315f),color-mix(in srgb,var(--stage) 98%,#182747));box-shadow:0 28px 80px #0009,inset 0 1px #ffffff1d}
+.milestone-head{display:flex;align-items:center;gap:12px;padding:18px 18px 14px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#ffd96018,#a786ff13)}
+.milestone-head-mark{display:grid;place-items:center;width:42px;height:42px;border:1px solid #ffe39a55;border-radius:14px;background:#ffd55b19;font-size:23px;box-shadow:inset 0 1px #fff4}
+.milestone-head-copy{min-width:0;flex:1}.milestone-head-copy h2{margin:0;font-size:17px;letter-spacing:.08em}.milestone-head-copy p{margin:3px 0 0;color:var(--muted);font-size:10px}
+.milestone-close{width:38px;height:38px;padding:0;border:1px solid var(--line);border-radius:12px;background:#ffffff0b;cursor:pointer;font-size:22px;line-height:1}.milestone-close:hover{background:#ffffff18}
+.milestone-summary{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.milestone-summary b{font-size:13px}.milestone-summary span{color:#ffe294;font:800 12px/1 ui-monospace,Consolas,monospace}.milestone-sync{grid-column:1/-1;color:var(--muted);font-size:10px}.milestone-sync.is-live{color:var(--good)}
+.milestone-list{flex:1;min-height:0;overflow:auto;padding:12px;scrollbar-width:thin}
+.milestone-card{position:relative;display:grid;grid-template-columns:46px minmax(0,1fr);gap:11px;margin-bottom:9px;padding:12px;border:1px solid var(--line);border-radius:16px;background:#ffffff08;overflow:hidden}
+.milestone-card:after{content:"";position:absolute;left:0;bottom:0;width:var(--progress,0%);height:3px;background:linear-gradient(90deg,var(--accent),#ffe079);box-shadow:0 0 10px #ffe07966;transition:width .35s}
+.milestone-card.is-done{border-color:#ffe09655;background:linear-gradient(120deg,#ffd85a13,#ffffff08 48%,#9c7bff12)}
+.milestone-card.is-done .milestone-icon{filter:none;box-shadow:0 0 18px #ffd35b35,inset 0 1px #fff5}
+.milestone-icon{display:grid;place-items:center;width:46px;height:46px;border:1px solid var(--line);border-radius:14px;background:#0002;font-size:24px;filter:grayscale(.75)}
+.milestone-copy{min-width:0}.milestone-title{display:flex;align-items:center;gap:7px}.milestone-title b{font-size:13px}.milestone-rank{padding:2px 6px;border:1px solid #ffe19738;border-radius:999px;color:#e8cf91;font-size:8px;font-weight:900;letter-spacing:.08em}.milestone-copy p{margin:4px 0 7px;color:var(--muted);font-size:10px;line-height:1.45}
+.milestone-progress{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}.milestone-track{height:6px;overflow:hidden;border-radius:99px;background:#0004}.milestone-track i{display:block;width:var(--progress,0%);height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),#ffe079)}.milestone-progress em{color:var(--muted);font:700 9px/1 ui-monospace,Consolas,monospace;font-style:normal}
+.milestone-reward{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:9px}.milestone-reward span{color:#d7c5ff}.milestone-reward strong{color:var(--muted);font-weight:800}.milestone-card.is-done .milestone-reward strong{color:var(--good)}
+.milestone-foot{padding:10px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:9px;line-height:1.5;text-align:center}
+@media(max-width:640px){.milestone-btn{min-width:44px;padding:0 7px;justify-content:center}.milestone-btn b{position:absolute;right:-3px;top:-4px;min-width:18px;padding:3px 4px;border-radius:999px;background:#795b24;color:#fff4ba;font-size:8px;box-shadow:0 2px 7px #0008}.milestone-btn .trophy{font-size:16px}.milestone-backdrop{padding:6px}.milestone-sheet{height:calc(100dvh - 12px);border-radius:19px}.milestone-head{padding:13px}.milestone-list{padding:8px}.milestone-card{padding:10px;margin-bottom:7px}}
+
 /* Shrine is a full-bleed night scene. The dock floats over it instead of
    eating a solid strip, so the tree is not cut off by a second header. */
 html[data-game=shrine]{
@@ -148,7 +177,8 @@ html[data-game=shrine] .topbar{
   pointer-events:none;
 }
 html[data-game=shrine] .tab,
-html[data-game=shrine] .wallet{pointer-events:auto}
+html[data-game=shrine] .wallet,
+html[data-game=shrine] .milestone-launch{pointer-events:auto}
 html[data-game=shrine] .stage,
 html[data-game=shrine] .stage[data-fit=viewport] .frame{height:100dvh}
 
@@ -337,6 +367,11 @@ html.is-force-landscape[data-game=fishing] .stage{height:100%}
   <nav class="tabs" id="tabs" role="tablist" aria-label="游戏切换"></nav>
 
   <div class="bar-right">
+    <div class="milestone-launch">
+      <button class="milestone-btn" id="milestoneBtn" type="button" aria-expanded="false" aria-haspopup="dialog" aria-label="打开街机里程碑">
+        <span class="trophy" aria-hidden="true">🏆</span><b id="milestoneBadge">0/5</b>
+      </button>
+    </div>
     <div class="wallet">
       <button class="wallet-btn" id="walletBtn" type="button" aria-expanded="false" aria-haspopup="true" aria-label="共享钱包">
         <span class="mark" aria-hidden="true">¥</span>
@@ -361,6 +396,19 @@ html.is-force-landscape[data-game=fishing] .stage{height:100%}
     </div>
   </div>
 </header>
+
+<div class="milestone-backdrop" id="milestoneBackdrop" hidden>
+  <section class="milestone-sheet" role="dialog" aria-modal="true" aria-labelledby="milestoneTitle">
+    <header class="milestone-head">
+      <span class="milestone-head-mark" aria-hidden="true">🏆</span>
+      <div class="milestone-head-copy"><h2 id="milestoneTitle">街机里程碑</h2><p>达标后，新变体会永久加入当前聊天的奖池</p></div>
+      <button class="milestone-close" id="milestoneClose" type="button" aria-label="关闭里程碑">×</button>
+    </header>
+    <div class="milestone-summary"><b>奖池收集进度</b><span id="milestoneTotal">0 / 5</span><small class="milestone-sync" id="milestoneSync">等待当前聊天的 MVU 数据</small></div>
+    <div class="milestone-list" id="milestoneList"></div>
+    <footer class="milestone-foot">里程碑保存在「系统配置 · 街机」中，切换酒馆聊天后会读取该聊天自己的进度。</footer>
+  </section>
+</div>
 
 <main class="stage" id="stage" data-fit="content">
   <div class="loader" id="loader"><div class="spinner" aria-hidden="true"></div><span>正在载入…</span></div>
@@ -403,6 +451,13 @@ const GAMES = [
    title:'深海寻宝',       state:'airp_fishing_state_v1', fit:'content', themed:true, landscape:true},
 ];
 const GAME_STATE_KEYS = GAMES.map(g => g.state).filter(Boolean);
+const MILESTONES = [
+  {id:'slot-golden-grape',unlock:'slot_golden_grape',rank:'铜章',icon:'🍇',group:'幸运机',field:'旋转次数',target:50,title:'黄金果实',reward:'黄金葡萄',effect:'3 倍黄金变体，作为低概率额外奖项加入幸运机。'},
+  {id:'fish-golden-clown',unlock:'fish_golden_clown',rank:'铜章',icon:'🐠',group:'捕鱼',field:'捕获次数',target:100,title:'黄金鱼影',reward:'黄金小丑鱼',effect:'4 倍黄金鱼种，拥有略高的有效回报率。'},
+  {id:'fish-starlight-jelly',unlock:'fish_starlight_jelly',rank:'银章',icon:'🌌',group:'捕鱼',field:'捕获次数',target:500,title:'星海来客',reward:'星光水母',effect:'8 倍星空鱼种，带有额外福运修正。'},
+  {id:'slot-mystery-cloud',unlock:'slot_mystery_cloud',rank:'银章',icon:'❔',group:'幸运机',field:'旋转次数',target:500,title:'云中变数',reward:'云雾问号',effect:'两个相同图案同行时，问号会以云雾动画变形成第三个。'},
+  {id:'fish-deep-bomb',unlock:'fish_deep_bomb',rank:'金章',icon:'💣',group:'捕鱼',field:'捕获次数',target:2000,title:'深海爆破',reward:'深海炸弹',effect:'引爆后清除鱼群，并把鱼群倍率的一半计入爆破奖金。'},
+];
 
 const el = {
   tabs:      document.getElementById('tabs'),
@@ -410,6 +465,13 @@ const el = {
   balance:   document.getElementById('balance'),
   walletBtn: document.getElementById('walletBtn'),
   walletPop: document.getElementById('walletPop'),
+  milestoneBtn: document.getElementById('milestoneBtn'),
+  milestoneBadge: document.getElementById('milestoneBadge'),
+  milestoneBackdrop: document.getElementById('milestoneBackdrop'),
+  milestoneClose: document.getElementById('milestoneClose'),
+  milestoneList: document.getElementById('milestoneList'),
+  milestoneTotal: document.getElementById('milestoneTotal'),
+  milestoneSync: document.getElementById('milestoneSync'),
   stage:     document.getElementById('stage'),
   frame:     document.getElementById('frame'),
   loader:    document.getElementById('loader'),
@@ -704,6 +766,36 @@ el.frame.addEventListener('load', () => {
 addEventListener('resize', () => { syncForceLandscape(); fit(); });
 addEventListener('orientationchange', () => { syncForceLandscape(); fit(); });
 
+/* ---------------- milestones ---------------- */
+function milestoneValue(item) {
+  return money(arcadeProfile?.['统计']?.[item.group]?.[item.field]);
+}
+function milestoneDone(item) {
+  return !!arcadeProfile?.['已达成']?.[item.id] || !!arcadeProfile?.['已解锁']?.[item.unlock] || milestoneValue(item) >= item.target;
+}
+function renderMilestones() {
+  const doneCount = MILESTONES.filter(milestoneDone).length;
+  el.milestoneBadge.textContent = `${doneCount}/${MILESTONES.length}`;
+  el.milestoneTotal.textContent = `${doneCount} / ${MILESTONES.length}`;
+  el.milestoneSync.textContent = arcadeProfile ? '已连接当前聊天 · 进度由 MVU 保存' : '尚未连接酒馆 MVU；独立打开页面时只展示规则';
+  el.milestoneSync.classList.toggle('is-live', !!arcadeProfile);
+  el.milestoneList.innerHTML = MILESTONES.map((item) => {
+    const value = milestoneValue(item), done = milestoneDone(item), shown = Math.min(item.target, value);
+    const percent = done ? 100 : Math.max(0, Math.min(100, value / item.target * 100));
+    const status = done ? '已加入奖池' : `还差 ${Math.max(0, item.target - value)} 次`;
+    return `<article class="milestone-card${done ? ' is-done' : ''}" style="--progress:${percent}%"><span class="milestone-icon" aria-hidden="true">${item.icon}</span><div class="milestone-copy"><div class="milestone-title"><b>${item.title}</b><span class="milestone-rank">${item.rank}</span></div><p>${item.group} · ${item.field}达到 ${item.target} 次。${item.effect}</p><div class="milestone-progress"><span class="milestone-track" style="--progress:${percent}%"><i></i></span><em>${shown} / ${item.target}</em></div><div class="milestone-reward"><span>解锁：${item.reward}</span><strong>${status}</strong></div></div></article>`;
+  }).join('');
+}
+function toggleMilestones(open) {
+  const next = open === undefined ? el.milestoneBackdrop.hidden : !!open;
+  el.milestoneBackdrop.hidden = !next;
+  el.milestoneBtn.setAttribute('aria-expanded', String(next));
+  if (next) { togglePop(false); renderMilestones(); setTimeout(() => el.milestoneClose.focus(), 0); }
+}
+el.milestoneBtn.addEventListener('click', (event) => { event.stopPropagation(); toggleMilestones(); });
+el.milestoneClose.addEventListener('click', () => toggleMilestones(false));
+el.milestoneBackdrop.addEventListener('click', (event) => { if (event.target === el.milestoneBackdrop) toggleMilestones(false); });
+
 /* ---------------- wallet popover ---------------- */
 function togglePop(open) {
   const next = open === undefined ? el.walletPop.hidden : open;
@@ -715,7 +807,7 @@ el.walletBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop()
 document.addEventListener('click', (e) => {
   if (!el.walletPop.hidden && !e.target.closest('.wallet')) togglePop(false);
 });
-addEventListener('keydown', (e) => { if (e.key === 'Escape') togglePop(false); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { togglePop(false); toggleMilestones(false); } });
 
 el.walletPop.addEventListener('click', (e) => {
   const b = e.target.closest('button');
@@ -743,8 +835,14 @@ addEventListener('message', (e) => {
     if (d.type === 'airp-arcade:set-profile') {
       arcadeProfile = d.profile && typeof d.profile === 'object' ? d.profile : null;
       if (arcadeProfile) send(current.ns + ':set-profile', {profile: arcadeProfile});
+      renderMilestones();
       const unlocked = Array.isArray(d.unlocked) ? d.unlocked : [];
-      if (unlocked.length) toast('里程碑解锁：' + unlocked.map(x => x.label || x.id).join(' / '));
+      if (unlocked.length) {
+        toast('里程碑解锁：' + unlocked.map(x => x.label || x.id).join(' / '));
+        el.milestoneBtn.classList.remove('has-new');
+        void el.milestoneBtn.offsetWidth;
+        el.milestoneBtn.classList.add('has-new');
+      }
     }
     return;
   }
@@ -799,6 +897,7 @@ if (embedded) {
   show(gameFromHash());
 }
 renderBalance();
+renderMilestones();
 })();
 </script>
 </body>

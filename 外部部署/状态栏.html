@@ -1,4 +1,4 @@
-﻿```text
+```text
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -179,15 +179,15 @@
   };
 
   const ARCADE_MILESTONES = [
-    { id: 'slot-golden-grape', unlock: 'slot_golden_grape', label: '黄金葡萄', game: 'slots', field: '旋转次数', target: 10 },
-    { id: 'fish-golden-clown', unlock: 'fish_golden_clown', label: '黄金小丑鱼', game: 'fishing', field: '捕获次数', target: 10 },
-    { id: 'fish-starlight-jelly', unlock: 'fish_starlight_jelly', label: '星光水母', game: 'fishing', field: '捕获次数', target: 25 },
-    { id: 'slot-mystery-cloud', unlock: 'slot_mystery_cloud', label: '云雾问号', game: 'slots', field: '旋转次数', target: 30 },
-    { id: 'fish-deep-bomb', unlock: 'fish_deep_bomb', label: '深海炸弹', game: 'fishing', field: '捕获次数', target: 50 },
+    { id: 'slot-golden-grape', unlock: 'slot_golden_grape', label: '黄金葡萄', game: 'slots', field: '旋转次数', target: 50 },
+    { id: 'fish-golden-clown', unlock: 'fish_golden_clown', label: '黄金小丑鱼', game: 'fishing', field: '捕获次数', target: 100 },
+    { id: 'fish-starlight-jelly', unlock: 'fish_starlight_jelly', label: '星光水母', game: 'fishing', field: '捕获次数', target: 500 },
+    { id: 'slot-mystery-cloud', unlock: 'slot_mystery_cloud', label: '云雾问号', game: 'slots', field: '旋转次数', target: 500 },
+    { id: 'fish-deep-bomb', unlock: 'fish_deep_bomb', label: '深海炸弹', game: 'fishing', field: '捕获次数', target: 2000 },
   ];
 
   const freshArcadeProfile = () => ({
-    版本: 1,
+    版本: 3,
     统计: {
       刮刮乐: { 结算次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
       幸运机: { 旋转次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
@@ -212,6 +212,21 @@
     }
     base.已解锁 = src.已解锁 && typeof src.已解锁 === 'object' ? { ...src.已解锁 } : {};
     base.已达成 = src.已达成 && typeof src.已达成 === 'object' ? { ...src.已达成 } : {};
+    const sourceVersion = Math.floor(num(src.版本));
+    if (sourceVersion < 3) {
+      const rows = { scratch: base.统计.刮刮乐, slots: base.统计.幸运机, fishing: base.统计.捕鱼 };
+      for (const milestone of ARCADE_MILESTONES) {
+        const reached = num(rows[milestone.game]?.[milestone.field]) >= milestone.target;
+        if (reached) {
+          base.已达成[milestone.id] = true;
+          base.已解锁[milestone.unlock] = true;
+        } else {
+          delete base.已达成[milestone.id];
+          delete base.已解锁[milestone.unlock];
+        }
+      }
+    }
+    base.版本 = 3;
     return base;
   };
 
@@ -369,6 +384,59 @@
     throw new Error('没找到小手机脚本，请确认它已在酒馆里启用');
   };
 
+  const DEV_PARTS = ['口腔', '胸', '小穴', '肛门'];
+
+  const normalizeDevelopmentNotes = (raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('评语响应不是JSON对象');
+    const notes = {};
+    DEV_PARTS.forEach((part) => {
+      const text = String(raw[part] || '').replace(/\s+/g, ' ').trim();
+      if (!text) throw new Error(`评语响应缺少${part}`);
+      notes[part] = text.slice(0, 1200);
+    });
+    return notes;
+  };
+
+  const parseDevelopmentNotes = (response) => {
+    const text = String(response || '').trim();
+    const tagged = text.match(/<development_notes>([\s\S]*?)<\/development_notes>/i);
+    let body = tagged ? tagged[1].trim() : text;
+    body = body.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const start = body.indexOf('{');
+    const end = body.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error('评语响应中没有JSON对象');
+    try { return normalizeDevelopmentNotes(JSON.parse(body.slice(start, end + 1))); }
+    catch (error) { throw new Error(`评语JSON解析失败：${error.message}`); }
+  };
+
+  const writeDevelopmentNotes = (name, rawNotes) => {
+    const notes = normalizeDevelopmentNotes(rawNotes);
+    const stat = fetchLatestMvuData();
+    if (!stat?.对象信息?.[name]?.开发度) throw new Error(`MVU中找不到目标对象：${name}`);
+    const patches = DEV_PARTS.map((part) => ({
+      op: 'replace',
+      path: `/对象信息/${name}/开发度/${part}/评语`,
+      value: notes[part],
+    }));
+    if (!applyMvuPatches(patches)) throw new Error('评语写入MVU失败');
+    pushSnapshot(true);
+    return notes;
+  };
+
+  const generateDevelopmentNotes = async (payload) => {
+    const name = String(payload?.name || '').trim();
+    const prompt = String(payload?.prompt || '').trim();
+    if (!name || !prompt) throw new Error('评语生成参数不完整');
+    if (!prompt.includes(name)) throw new Error('生成提示词缺少目标对象姓名，无法激活对应世界书');
+    const core = getCoreWindow();
+    const helper = [core, window.parent, window.top, window].map((win) => {
+      try { return win?.TavernHelper; } catch (e) { return null; }
+    }).find((value) => value && typeof value.generate === 'function');
+    if (!helper) throw new Error('TavernHelper.generate API 不可用');
+    const userInput = `【目标对象世界书关键词】${name}\n【只处理目标对象】${name}\n\n${prompt}`;
+    const response = await helper.generate({ user_input: userInput, max_chat_history: 10 });
+    return writeDevelopmentNotes(name, parseDevelopmentNotes(response));
+  };
   const handleRequest = (action, payload) => {
     switch (action) {
       case 'handshake':
@@ -391,6 +459,10 @@
         return sendMessage(payload?.text);
       case 'openPhone':
         return openPhonePanel();
+      case 'generateDevelopmentNotes':
+        return generateDevelopmentNotes(payload);
+      case 'restoreDevelopmentNotes':
+        return writeDevelopmentNotes(String(payload?.name || '').trim(), payload?.notes || {});
       default:
         throw new Error('未知桥接动作: ' + action);
     }

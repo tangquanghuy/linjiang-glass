@@ -43,6 +43,7 @@ import { mountCgOverlay } from '../cg.js';
 
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
 import { applyPrefClick } from '../settings.js';
+import { handleDevelopmentNotesButton } from '../dev-notes.js';
 
 /* ------------------------------------------------------------------ status */
 
@@ -673,6 +674,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
        not a re-render: the reader keeps their place in a page that may be several
        screens long.  Only one open at a time -- four expanded notes is the wall of text
        the tiles exist to avoid. */
+    const devNotes = event.target.closest('[data-dev-notes-action]');
+    if (devNotes) { handleDevelopmentNotesButton(devNotes); return; }
     const devOpen = event.target.closest('[data-dev-part]');
     if (devOpen) {
       const tile = devOpen.parentElement;

@@ -71,7 +71,7 @@ function resetContext(next) {
   moneyChain = Promise.resolve();
 }
 
-function rpc(action, payload = {}) {
+function rpc(action, payload = {}, timeoutMs = 8000) {
   if (!isEmbedded()) return Promise.reject(new Error('not embedded'));
   const id = ++seq;
   const requestContext = { ...bridgeContext };
@@ -79,7 +79,7 @@ function rpc(action, payload = {}) {
     const timer = setTimeout(() => {
       pending.delete(id);
       reject(new Error(`bridge timeout: ${action}`));
-    }, 8000);
+    }, timeoutMs);
     pending.set(id, {
       action,
       context: requestContext,
@@ -163,6 +163,15 @@ export async function requestClockIn() {
   return true;
 }
 
+export async function requestDevelopmentNotesGeneration(payload) {
+  if (!isEmbedded()) throw new Error('评语生成只在酒馆内可用');
+  return rpc('generateDevelopmentNotes', payload, 120000);
+}
+
+export async function requestDevelopmentNotesRestore(payload) {
+  if (!isEmbedded()) throw new Error('评语恢复只在酒馆内可用');
+  return rpc('restoreDevelopmentNotes', payload, 30000);
+}
 function sendMoney(n) {
   const context = { ...bridgeContext };
   moneyChain = moneyChain.then(async () => {

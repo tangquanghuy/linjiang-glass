@@ -1,4 +1,4 @@
-﻿/* Secondary HUD pages.
+/* Secondary HUD pages.
    Character cards open a compact dock in the unused scene area above the main
    status bar. Dense systems use a near-full-screen glass workspace. */
 
@@ -271,6 +271,14 @@
 .archive-head > i { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(226,231,255,.20), transparent); }
 .archive-head > em { font: 400 11px/1 'Noto Sans SC'; font-style: normal; color: rgba(255,214,236,.58); letter-spacing: .06em; }
 .archive-head .dock-mark { width: 17px; height: 17px; }
+.dev-note-actions { display: flex; gap: 7px; flex: none; }
+.dev-note-actions button {
+  min-height: 28px; padding: 0 10px; border: 1px solid rgba(255,226,244,.22);
+  border-radius: 14px; background: rgba(218,164,205,.10); color: rgba(248,235,246,.76);
+  font: 500 11px/1 'Noto Sans SC'; letter-spacing: .04em; cursor: pointer;
+}
+.dev-note-actions button:disabled { opacity: .48; cursor: wait; }
+@media (hover: hover) { .dev-note-actions button:hover:not(:disabled) { background: rgba(218,164,205,.22); border-color: rgba(255,226,244,.42); } }
 .status-tag { display: inline-flex; align-items: center; min-height: 25px; padding: 0 10px; border: 1px solid rgba(240,218,239,.22); border-radius: 13px; background: rgba(218,164,205,.12); font-size: 11px; color: rgba(248,235,246,.75); }
 .status-tag.is-muted { color: rgba(230,230,242,.46); }
 

@@ -1,0 +1,39 @@
+# 以下是当前支撑世界允许的数值变量，请以变量为基准考虑相关内容
+<current_world_state>
+世界信息:
+  年历: {{get_message_variable::stat_data.世界信息.年历}}
+  日期: {{get_message_variable::stat_data.世界信息.日期显示.星期}} ({{get_message_variable::stat_data.世界信息.日期显示.季节}} 第{{get_message_variable::stat_data.世界信息.日期显示.年内周次}}周)
+  时间: {{get_message_variable::stat_data.世界信息.时间.时钟}} [{{get_message_variable::stat_data.世界信息.时间.时段}}]
+  位置:
+    区域: {{get_message_variable::stat_data.世界信息.位置.区域}}
+    场所: {{get_message_variable::stat_data.世界信息.位置.场所}}
+    私密度: {{get_message_variable::stat_data.世界信息.位置.私密度}}
+  当日事件:
+{{format_message_variable::stat_data.世界信息.事件池.当日事件}}
+
+玩家信息:
+  体力: {{get_message_variable::stat_data.玩家信息.体力}}/100
+  金钱: ￥{{get_message_variable::stat_data.玩家信息.金钱}}
+  同行状态: {{get_message_variable::stat_data.玩家信息.同行}}
+  居住地: {{get_message_variable::stat_data.玩家信息.居住地}}
+  工作:
+    职业: {{get_message_variable::stat_data.玩家信息.工作.职业}}
+    地点: {{get_message_variable::stat_data.玩家信息.工作.地点}}
+    日收入: {{get_message_variable::stat_data.玩家信息.工作.日收入}}
+    今日已上班: {{get_message_variable::stat_data.玩家信息.工作.今日已上班}}
+  所在直播间: {{get_message_variable::stat_data.玩家信息.所在直播间}}
+  房产清单:
+{{format_message_variable::stat_data.玩家信息.房产}}
+  粉丝身份:
+{{format_message_variable::stat_data.玩家信息.粉丝身份}}
+  背包:
+    素材:
+{{format_message_variable::stat_data.玩家信息.背包.素材}}
+    消耗品:
+{{format_message_variable::stat_data.玩家信息.背包.消耗品}}
+    用品:
+{{format_message_variable::stat_data.玩家信息.背包.用品}}
+
+对象信息:
+{{format_message_variable::stat_data.对象信息}}
+</current_world_state>

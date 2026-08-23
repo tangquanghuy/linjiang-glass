@@ -937,3 +937,76 @@ body.confirm-step .book-preview>p{font-size:11px;line-height:1.6}
 body.confirm-step .book-entry{flex:1 1 auto;min-height:0;display:flex;margin-top:11px;padding:13px 14px}
 body.confirm-step .book-entry pre{flex:1 1 auto;min-height:0;max-height:none}
 }
+
+/* 自定义主播的常用开播时间：只接受时间选择，不再让玩家填写自由字符串。 */
+.time-picker{
+  padding:8px 9px 7px;
+  border:1px solid rgba(235,239,255,.22);
+  border-radius:12px;
+  background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(17,20,48,.18));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.time-range-row{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);align-items:end;gap:6px}
+.time-range-row>i{align-self:center;color:rgba(238,235,249,.48);font:400 10px/1 'Noto Sans SC';text-align:center;font-style:normal;margin-top:14px}
+.field label.time-slot{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;margin:0;padding:0 8px;min-width:0;height:36px;border:1px solid rgba(235,239,255,.14);border-radius:9px;background:rgba(7,10,28,.24)}
+.time-slot>span{color:rgba(238,235,249,.48);font-size:9px;letter-spacing:.08em;white-space:nowrap}
+.time-slot input{min-width:0;width:100%;height:34px;padding:0;border:0;outline:0;background:transparent;color:rgba(255,255,255,.92);font:500 12px/1 'Outfit','Noto Sans SC',sans-serif;color-scheme:dark;text-align:center}
+.time-slot input::-webkit-calendar-picker-indicator{opacity:.65;cursor:pointer;filter:invert(1)}
+.time-presets{display:flex;gap:5px;margin-top:6px}
+.time-presets button{flex:1;min-width:0;height:25px;padding:0 5px;border:1px solid rgba(235,239,255,.12);border-radius:999px;background:rgba(9,13,34,.22);color:rgba(238,235,249,.58);font:400 9px/1 'Noto Sans SC';cursor:pointer;transition:.18s ease}
+.time-presets button:hover{border-color:rgba(194,182,226,.42);color:rgba(255,255,255,.9)}
+.time-presets button.on{border-color:rgba(210,196,239,.5);background:rgba(154,132,196,.22);color:#fff;box-shadow:0 0 15px rgba(142,120,187,.12)}
+.time-picker>small{display:block;margin:6px 2px 0;color:rgba(238,235,249,.43);font-size:9px;line-height:1.35}
+.time-picker.invalid{border-color:rgba(255,158,175,.6);box-shadow:0 0 0 2px rgba(255,123,149,.08)}
+@media(max-width:700px){.time-presets button{height:28px;font-size:10px}}
+/* 多位自定义主播与本地存档管理 */
+.compact-action{min-height:38px;padding:0 15px;border-radius:11px;cursor:pointer}
+.custom-manager{margin-bottom:12px;padding:11px 13px;border-radius:16px}
+.custom-manager-head,.archive-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.custom-manager-head>div{display:flex;align-items:baseline;gap:9px}
+.custom-manager-head b,.archive-head b{font-size:13px;font-weight:600;letter-spacing:.06em}
+.custom-manager-head span{color:var(--faint);font-size:10px}
+.custom-manager-head strong{color:#fff;font:600 16px/1 'Outfit'}
+#archive-toggle i{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:5px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.10);font-style:normal;font-size:10px}
+#archive-toggle.on{border-color:rgba(210,196,239,.5);color:#fff;background:rgba(154,132,196,.18)}
+.custom-roster{display:flex;align-items:stretch;gap:7px;margin-top:9px;overflow-x:auto;padding-bottom:1px}
+.custom-empty{display:flex;align-items:center;min-height:38px;color:rgba(238,235,249,.42);font-size:10.5px}
+.custom-roster-item{flex:0 0 auto;display:flex;align-items:stretch;overflow:hidden;border:1px solid rgba(235,239,255,.13);border-radius:11px;background:rgba(8,12,31,.22)}
+.custom-roster-item.on{border-color:rgba(222,202,244,.52);background:rgba(151,128,190,.18);box-shadow:0 0 18px rgba(130,106,176,.12)}
+.custom-roster-item>button:first-child,.archive-item>button:first-child{display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:6px 10px;cursor:pointer;text-align:left}
+.custom-roster-item i,.archive-item i{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border-radius:50%;background:linear-gradient(145deg,rgba(255,211,228,.28),rgba(185,216,255,.20));color:#fff;font-style:normal;font-size:12px}
+.custom-roster-item span,.archive-item span{display:grid;gap:2px;min-width:0}
+.custom-roster-item b,.archive-item b{color:#fff;font-size:11px;font-weight:500;white-space:nowrap}
+.custom-roster-item small,.archive-item small{color:rgba(238,235,249,.48);font-size:9px;white-space:nowrap}
+.custom-remove{width:29px;border:0;border-left:1px solid rgba(235,239,255,.09);background:transparent;color:rgba(238,235,249,.45);cursor:pointer}
+.custom-remove:hover{color:#ffc5d8;background:rgba(255,112,153,.09)}
+.archive-panel{margin-top:10px;padding-top:10px;border-top:1px solid rgba(235,239,255,.10)}
+.archive-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:9px}
+.archive-item{display:flex;align-items:stretch;min-width:0;overflow:hidden;border:1px solid rgba(235,239,255,.12);border-radius:11px;background:rgba(8,12,31,.20)}
+.archive-item>button:first-child{flex:1 1 auto;min-width:0}
+.archive-item>button:last-child{flex:0 0 auto;padding:0 10px;border:0;border-left:1px solid rgba(235,239,255,.09);background:transparent;color:rgba(238,235,249,.42);font-size:9px;cursor:pointer}
+.archive-item>button:last-child:hover{color:#ffc5d8;background:rgba(255,112,153,.09)}
+.generate-row{flex-wrap:wrap}
+.generate-row #save-custom:disabled{opacity:.45;cursor:default}
+.confirm-grid.confirm-only{grid-template-columns:1fr;max-width:1080px;margin:0 auto}
+@media(min-width:1051px){
+  body.confirm-step .confirm-only .confirm-lines{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;padding:18px 22px 20px}
+  body.confirm-step .confirm-only .confirm-line:nth-last-child(-n+2){border-bottom:0}
+  body.compact-step .custom-manager{padding:8px 11px;margin-bottom:9px}
+  body.compact-step .custom-roster{margin-top:6px}
+  body.compact-step .custom-roster-item>button:first-child{padding:5px 9px}
+  body.compact-step .custom-roster-item i{width:24px;height:24px;flex-basis:24px}
+  body.compact-step .archive-panel{position:absolute;z-index:8;left:0;right:0;margin:8px 0 0;padding:12px;border:1px solid rgba(235,239,255,.20);border-radius:14px;background:rgba(18,20,48,.96);box-shadow:0 20px 55px rgba(0,0,0,.38);backdrop-filter:blur(18px)}
+}
+@media(max-width:900px){.archive-list{grid-template-columns:1fr 1fr}.confirm-grid.confirm-only{max-width:none}}
+@media(max-width:700px){
+  .section-head .compact-action{width:auto;margin-top:12px}
+  .custom-manager-head{align-items:flex-start}
+  .archive-list{grid-template-columns:1fr}
+  .custom-roster{margin-right:-5px}
+}
+/* 管理面板展开时参与排版，不遮住编辑器；确认卡占满可用宽度。 */
+.confirm-grid.confirm-only{width:100%}
+@media(min-width:1051px){
+  body.compact-step .archive-panel{position:static;left:auto;right:auto;margin-top:8px;padding:10px 0 0;border:0;border-top:1px solid rgba(235,239,255,.10);border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>临江 · 开局配置</title>
+<title>临江 · 故事开场</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
@@ -303,12 +303,12 @@
   <div class="brand">
     <div class="mark"><img src="https://tangquanghuy.github.io/linjiang-glass/assets/mark-sakura.png" alt=""></div>
     <div class="copy">
-      <div class="titleline"><em>Opening</em><span>/ 开局配置 · 2026</span></div>
-      <h1>在临江开始生活</h1>
-      <p>定下玩家资料、住所与工作、我推的主播；确认后写回 MVU 与世界书。</p>
+      <div class="titleline"><em>Opening</em><span>/ 临江生活序章 · 2026</span></div>
+      <h1>从这一刻，住进临江</h1>
+      <p>填写你的资料，选择住所、工作与关注的主播。</p>
     </div>
   </div>
-  <button id="open" type="button">开始配置 <i>&rarr;</i></button>
+  <button id="open" type="button">开启我的故事 <i>&rarr;</i></button>
   <div class="steps">
     <span><em>01</em>关于你</span>
     <span><em>02</em>住所与工作</span>
@@ -323,7 +323,7 @@
   /* 粘进角色卡的「开局」楼层。本页与酒馆同源，能摸到 parent.Mvu / TavernHelper；
      开局页本身托管在 GitHub Pages（跨域），只通过 postMessage 和这里说话。
      这里只做三件事：全屏挂起开局页、代跑人设生成、把 commitPreview 写回酒馆。 */
-  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html';
+  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260823-multi-custom-v2';
   // const OPENING_URL = 'http://127.0.0.1:5173/opening.html';
   const CHANNEL = 'linjiang-opening';
   const OVERLAY_ID = 'linjiang-opening-overlay';
@@ -415,6 +415,7 @@
     catch (e) { return '*'; }
   })();
   let frame = null;
+  let loadingTimer = null;
 
   const say = (text, tone) => {
     statusBox.textContent = text || '';
@@ -462,18 +463,44 @@
     style.id = STYLE_ID;
     style.textContent = [
       '#' + OVERLAY_ID + '{position:fixed;left:0;top:0;width:100%;height:100%;',
-      'z-index:2147483646;background:#05040a;display:block;}',
-      '#' + OVERLAY_ID + ' iframe{display:block;width:100%;height:100%;border:0;background:#05040a;}',
-      '#' + OVERLAY_ID + ' .lj-close{position:absolute;right:14px;top:14px;width:36px;height:36px;',
+      'z-index:2147483646;background:#0a0911;display:block;overflow:hidden;}',
+      '#' + OVERLAY_ID + ' iframe{position:relative;z-index:1;display:block;width:100%;height:100%;border:0;background:#0a0911;}',
+      '#' + OVERLAY_ID + ' .lj-loader{position:absolute;inset:0;z-index:2;display:grid;place-items:center;',
+      'background:radial-gradient(circle at 50% 36%,rgba(127,112,181,.25),transparent 34%),',
+      'radial-gradient(circle at 18% 82%,rgba(116,148,185,.13),transparent 32%),#0a0911;',
+      'color:#f3f0fa;font-family:"Noto Sans SC",system-ui,sans-serif;transition:opacity .45s ease,visibility .45s ease;}',
+      '#' + OVERLAY_ID + ' .lj-loader::before{content:"";position:absolute;inset:0;opacity:.16;',
+      'background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),',
+      'linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:34px 34px;}',
+      '#' + OVERLAY_ID + ' .lj-loader.done{opacity:0;visibility:hidden;pointer-events:none;}',
+      '#' + OVERLAY_ID + ' .lj-loader-inner{position:relative;width:min(360px,72vw);text-align:center;}',
+      '#' + OVERLAY_ID + ' .lj-loader-mark{width:48px;height:48px;margin:0 auto 20px;border:1px solid rgba(236,229,255,.38);',
+      'border-radius:50%;display:grid;place-items:center;box-shadow:0 0 36px rgba(169,151,220,.16);}',
+      '#' + OVERLAY_ID + ' .lj-loader-mark::after{content:"";width:9px;height:9px;border-radius:50%;background:#ddd2f4;',
+      'box-shadow:0 0 18px rgba(221,210,244,.9);animation:lj-opening-pulse 1.6s ease-in-out infinite;}',
+      '#' + OVERLAY_ID + ' .lj-loader-title{font-size:15px;font-weight:500;letter-spacing:.18em;margin-bottom:9px;}',
+      '#' + OVERLAY_ID + ' .lj-loader-copy{font-size:11px;letter-spacing:.12em;color:rgba(230,225,240,.56);margin-bottom:23px;}',
+      '#' + OVERLAY_ID + ' .lj-loader-track{height:3px;border-radius:99px;overflow:hidden;background:rgba(235,229,247,.12);',
+      'box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);}',
+      '#' + OVERLAY_ID + ' .lj-loader-bar{position:relative;width:7%;height:100%;border-radius:inherit;',
+      'background:linear-gradient(90deg,#8e87ae,#ded5ef);box-shadow:0 0 13px rgba(201,190,230,.5);transition:width .42s ease;}',
+      '#' + OVERLAY_ID + ' .lj-loader-bar::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent);',
+      'transform:translateX(-100%);animation:lj-opening-shimmer 1.25s linear infinite;}',
+      '#' + OVERLAY_ID + ' .lj-loader-meta{display:flex;justify-content:space-between;margin-top:10px;color:rgba(230,225,240,.43);',
+      'font:400 10px/1.2 "Outfit",system-ui,sans-serif;letter-spacing:.1em;}',
+      '#' + OVERLAY_ID + ' .lj-close{position:absolute;z-index:3;right:14px;top:14px;width:36px;height:36px;',
       'display:grid;place-items:center;border:1px solid rgba(232,236,255,.55);border-radius:50%;',
       'background:rgba(24,30,62,.82);color:#fff;font:600 18px/1 system-ui,sans-serif;cursor:pointer;',
       'backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);}',
       '#' + OVERLAY_ID + ' .lj-close:hover{background:rgba(48,58,110,.9);}',
+      '@keyframes lj-opening-pulse{0%,100%{transform:scale(.72);opacity:.55}50%{transform:scale(1);opacity:1}}',
+      '@keyframes lj-opening-shimmer{to{transform:translateX(100%)}}',
     ].join('');
     doc.head.appendChild(style);
   };
 
   const closeOverlay = () => {
+    if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
     const doc = tavernWin().document;
     const box = doc.getElementById(OVERLAY_ID);
     if (box) box.remove();
@@ -490,27 +517,71 @@
     ensureStyle(doc);
     const box = doc.createElement('div');
     box.id = OVERLAY_ID;
+
     const inner = doc.createElement('iframe');
-    inner.title = '临江开局配置';
+    inner.title = '临江故事开场';
     inner.loading = 'eager';
     inner.referrerPolicy = 'strict-origin-when-cross-origin';
     inner.allow = 'clipboard-read; clipboard-write; fullscreen';
+
+    const loading = doc.createElement('div');
+    loading.className = 'lj-loader';
+    loading.setAttribute('role', 'status');
+    loading.setAttribute('aria-live', 'polite');
+    loading.innerHTML = '<div class="lj-loader-inner">'
+      + '<div class="lj-loader-mark"></div>'
+      + '<div class="lj-loader-title">正在加载资源</div>'
+      + '<div class="lj-loader-copy">临江的故事即将开始</div>'
+      + '<div class="lj-loader-track"><div class="lj-loader-bar"></div></div>'
+      + '<div class="lj-loader-meta"><span>LOADING</span><span class="lj-loader-percent">7%</span></div>'
+      + '</div>';
+    const loadingBar = loading.querySelector('.lj-loader-bar');
+    const loadingPercent = loading.querySelector('.lj-loader-percent');
+    const loadingCopy = loading.querySelector('.lj-loader-copy');
+    const startedAt = Date.now();
+    let progress = 7;
+
+    const setProgress = (value) => {
+      progress = Math.max(progress, Math.min(100, Math.round(value)));
+      loadingBar.style.width = progress + '%';
+      loadingPercent.textContent = progress + '%';
+    };
+    const timer = setInterval(() => {
+      if (progress >= 92) return;
+      const step = progress < 45 ? 5 + Math.random() * 7 : progress < 76 ? 2 + Math.random() * 4 : .6 + Math.random() * 1.8;
+      setProgress(Math.min(92, progress + step));
+    }, 380);
+    loadingTimer = timer;
+
+    inner.addEventListener('load', () => {
+      clearInterval(timer);
+      if (loadingTimer === timer) loadingTimer = null;
+      setProgress(100);
+      loadingCopy.textContent = '准备完成';
+      const wait = Math.max(260, 720 - (Date.now() - startedAt));
+      win.setTimeout(() => {
+        loading.classList.add('done');
+        win.setTimeout(() => { if (loading.parentNode) loading.remove(); }, 500);
+      }, wait);
+    }, { once: true });
     inner.src = OPENING_URL;
+
     const close = doc.createElement('button');
     close.type = 'button';
     close.className = 'lj-close';
     close.textContent = '×';
-    close.title = '关闭开局配置';
+    close.title = '暂时离开';
     /* 内联 onclick 跑在酒馆文档自己的作用域里：本楼层被重绘掉之后，关闭按钮仍然有效。 */
     close.setAttribute('onclick', "this.parentNode && this.parentNode.remove()");
     close.addEventListener('click', closeOverlay);
     box.appendChild(inner);
+    box.appendChild(loading);
     box.appendChild(close);
     doc.body.appendChild(box);
     frame = inner;
     try { win.addEventListener('keydown', onKey); } catch (e) {}
-    if (getMvu()) say('开局页已打开；完成后点「确认」写回。');
-    else say('开局页已打开，但没检测到 MVU，写回会失败。', 'warn');
+    if (getMvu()) say('完成选择后，准备开始打工/看播/调教的都市生活。');
+    else say('MVU未就绪，试试刷新页面。', 'warn');
   };
 
   /* ---------- 人设生成：代跑酒馆的模型 ---------- */
@@ -684,23 +755,31 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
   const COVER_MAX_BYTES = 2 * 1024 * 1024;
 
   const stashCustomCover = (payload) => {
-    const ui = payload && payload.ui;
-    const src = String(ui && ui.art && ui.art.src || '').trim();
-    const name = String(ui && ui.name || '').trim();
-    if (!src || !name) return '';
-    // data: URI 按两字节一字符估，超预算就不写，免得把 localStorage 撑爆
-    if (/^data:image\//i.test(src) && src.length * 2 > COVER_MAX_BYTES) {
-      return '立绘太大没能缓存，直播间会先用头像顶着';
+    const list = payload && Array.isArray(payload.uis) && payload.uis.length
+      ? payload.uis : (payload && payload.ui ? [payload.ui] : []);
+    let saved = 0;
+    let missed = 0;
+    for (const ui of list) {
+      const src = String(ui && ui.art && ui.art.src || '').trim();
+      const name = String(ui && ui.name || '').trim();
+      if (!src || !name) continue;
+      if (/^data:image\//i.test(src) && src.length * 2 > COVER_MAX_BYTES) {
+        missed += 1;
+        continue;
+      }
+      try {
+        const win = getCoreWindow();
+        (win.localStorage || localStorage).setItem(COVER_PREFIX + name, src);
+        saved += 1;
+      } catch (e) {
+        missed += 1;
+      }
     }
-    try {
-      const win = getCoreWindow();
-      (win.localStorage || localStorage).setItem(COVER_PREFIX + name, src);
-      return '立绘已缓存为' + name + '的直播间封面';
-    } catch (e) {
-      return '立绘缓存失败，直播间会先用头像顶着';
-    }
+    if (saved && missed) return '已保存' + saved + '位主播的直播间封面，另有' + missed + '张立绘暂未保存';
+    if (saved) return '已保存' + saved + '位主播的直播间封面';
+    if (missed) return '有' + missed + '张立绘暂未保存，直播间会先使用头像';
+    return '';
   };
-
   const profileEntryName = (name) => PROFILE_PREFIX + String(name || '').trim();
 
   /* order 从 260–299 里挑一个还没被占的。整段被占满才退到 max+1。
@@ -877,9 +956,10 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
     const notes = [];
     try {
       writeMvu(payload && payload.mvu);
-      notes.push('开局数据已写入 MVU');
+      notes.push('你的身份与生活档案已经保存');
     } catch (error) {
-      say('写回失败：' + (error && error.message ? error.message : error), 'warn');
+      console.error('[临江开局] 保存失败', error);
+      say('保存时遇到一点问题，请稍后再试。', 'warn');
       return;
     }
     /* 自定义主播的封面存 localStorage，不进 MVU：图片地址（尤其本地上传的 data: URI）
@@ -890,16 +970,16 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
 
     const oshi = (payload && Array.isArray(payload.oshi)) ? payload.oshi : [];
     if (oshi.length) {
-      notes.push('我推 ' + oshi.map((x) => x.name).join('、') + ' 已关注并写好牌子');
+      notes.push('已经关注 ' + oshi.map((x) => x.name).join('、') + '，她们会出现在你的临江日常里');
     }
     const books = bookList(payload);
     if (books.length) {
       let book = false;
       try { book = await writeWorldbooks(books); }
       catch (e) { book = false; }
-      if (book) notes.push('人设已写入世界书《' + book + '》的「' + profileEntryName(books[0].sourceName || books[0].name) + '」');
-      else if (stashWorldbookText(books)) notes.push('世界书写入不可用，人设正文已放进输入框');
-      else notes.push('世界书写入不可用，请从开局页复制人设正文');
+      if (book) notes.push('你所期待的相遇已经准备好了');
+      else if (stashWorldbookText(books)) notes.push('人物故事已为你放入输入框，请保留后继续');
+      else notes.push('人物故事暂未保存，请在离开前复制留存');
     }
     say(notes.join('；') + '。', 'ok');
     closeOverlay();
@@ -917,15 +997,15 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
       const reply = { channel: CHANNEL, kind: 'response', id: data.id };
       try {
         if (data.action !== 'generateStreamerProfile') throw new Error('未知桥接动作: ' + data.action);
-        say('正在用酒馆当前模型生成人设…');
+        say('正在为你的特别关注补全故事…');
         const payload = await generateStreamerProfile(data.payload || {});
         event.source.postMessage(Object.assign({ ok: true, payload }, reply), event.origin);
-        say('人设已由酒馆模型生成。', 'ok');
+        say('她的故事已经准备好了。', 'ok');
       } catch (error) {
         event.source.postMessage(Object.assign({
           ok: false, error: error && error.message ? error.message : String(error),
         }, reply), event.origin);
-        say('模型生成失败，开局页已用本地模板兜底。', 'warn');
+        say('灵感暂时走神了，已为她准备一份基础故事。', 'warn');
       }
       return;
     }
@@ -942,7 +1022,7 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
   bind(window);
   if (tavernWin() !== window) bind(tavernWin());
   openBtn.addEventListener('click', openOverlay);
-  if (!getMvu()) say('未检测到 MVU，先让状态栏跑起来再开局。', 'warn');
+  if (!getMvu()) say('故事档案正在准备中，请稍候片刻再开启。');
 })();
 </script>
 </body></html>

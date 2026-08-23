@@ -5,7 +5,7 @@
    into the same row component and the layout flows around it.
 
    Field names, ranges and enums follow 变量相关/变量草稿 (the MVU schema):
-     世界信息  年历 / 日期显示 / 时间{时钟,时段} / 位置{区域,场所,私密度} / 事件池
+     世界信息  年历 / 日期显示 / 时间{时钟,时段} / 位置{区域,场所,私密度} / 事件提示
      玩家信息  体力 / 金钱 / 同行 / 工作 / 居住地 / 粉丝身份 / 背包
      对象信息  羁绊 / 位置 / 性经历 / 开发度 / 生理 / 直播
    Keys here are the English view model the design note asks for -- one adapter
@@ -216,8 +216,17 @@ export const player = {
   },
 };
 
+const ARCADE_PROFILE_VERSION = 3;
+const ARCADE_PROFILE_MILESTONES = [
+  { id: 'slot-golden-grape', unlock: 'slot_golden_grape', game: '幸运机', field: '旋转次数', target: 50 },
+  { id: 'fish-golden-clown', unlock: 'fish_golden_clown', game: '捕鱼', field: '捕获次数', target: 100 },
+  { id: 'fish-starlight-jelly', unlock: 'fish_starlight_jelly', game: '捕鱼', field: '捕获次数', target: 500 },
+  { id: 'slot-mystery-cloud', unlock: 'slot_mystery_cloud', game: '幸运机', field: '旋转次数', target: 500 },
+  { id: 'fish-deep-bomb', unlock: 'fish_deep_bomb', game: '捕鱼', field: '捕获次数', target: 2000 },
+];
+
 export const arcadeProfile = {
-  版本: 1,
+  版本: ARCADE_PROFILE_VERSION,
   统计: {
     刮刮乐: { 结算次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
     幸运机: { 旋转次数: 0, 中奖次数: 0, 最高倍率: 0, 累计返奖: 0 },
@@ -748,6 +757,7 @@ export const characterDetails = Object.fromEntries(roster.map((c, index) => [c.n
   physiology: c.physiology,
   experience: c.experience,
   development: c.development,
+  developmentNotes: {},
   location: c.location,
   fan: c.fan,
   stream: c.stream,
@@ -956,7 +966,7 @@ export function streamSchedule() {
    靠图形认——所以只适合这种按熟了的高频项。需要读一下名字才知道是什么的去处，
    都在 destinations 里带着标签。 */
 export const tools = [
-  { icon: 'mail', label: '当日事件', page: 'events', badge: true },
+  { icon: 'mail', label: '事件提示', page: 'events', badge: true },
   { icon: 'memo', label: '背包', page: 'inventory' },
   { icon: 'mapPin', label: '地图', page: 'map' },
   /* 从托盘提上来的：手机是这批里唯一"随时会摸一下"的，其余三个是特意去一趟的。 */
@@ -1278,7 +1288,8 @@ export function onLive(fn) {
 /* Arcade / clock-in write 金钱 without waiting for the next full snapshot. */
 export function applyArcadeProfile(raw, { notify = true } = {}) {
   const src = raw && typeof raw === 'object' ? raw : {};
-  arcadeProfile.版本 = Math.max(1, Math.floor(asNum(src.版本, 1)));
+  const sourceVersion = Math.max(0, Math.floor(asNum(src.版本, 0)));
+  arcadeProfile.版本 = ARCADE_PROFILE_VERSION;
   const stats = src.统计 && typeof src.统计 === 'object' ? src.统计 : {};
   for (const [game, defaults] of Object.entries(arcadeProfile.统计)) {
     const row = stats[game] && typeof stats[game] === 'object' ? stats[game] : {};
@@ -1286,6 +1297,18 @@ export function applyArcadeProfile(raw, { notify = true } = {}) {
   }
   arcadeProfile.已解锁 = src.已解锁 && typeof src.已解锁 === 'object' ? { ...src.已解锁 } : {};
   arcadeProfile.已达成 = src.已达成 && typeof src.已达成 === 'object' ? { ...src.已达成 } : {};
+  if (sourceVersion < ARCADE_PROFILE_VERSION) {
+    for (const milestone of ARCADE_PROFILE_MILESTONES) {
+      const reached = asNum(arcadeProfile.统计[milestone.game]?.[milestone.field]) >= milestone.target;
+      if (reached) {
+        arcadeProfile.已达成[milestone.id] = true;
+        arcadeProfile.已解锁[milestone.unlock] = true;
+      } else {
+        delete arcadeProfile.已达成[milestone.id];
+        delete arcadeProfile.已解锁[milestone.unlock];
+      }
+    }
+  }
   if (notify) emitLive();
   return arcadeProfile;
 }
@@ -1383,19 +1406,26 @@ function mapProperty(obj) {
 
 function mapEvents(pool) {
   if (!pool || typeof pool !== 'object') return [];
-  return Object.entries(pool).map(([id, ev]) => ({
-    id,
-    area: asStr(ev?.区域),
-    place: asStr(ev?.场所),
-    title: asStr(ev?.标题, id),
-    category: ev?.分类 ?? '日常',
-    priority: asNum(ev?.优先级, 0),
-    status: asStr(ev?.状态, '待触发'),
-    conditions: ev?.条件 && typeof ev.条件 === 'object' ? ev.条件 : {},
-    summary: asStr(ev?.简述),
-  }));
+  return Object.entries(pool).map(([id, ev]) => {
+    if (typeof ev === 'string') {
+      return {
+        id, area: '', place: '', title: id, category: '日常',
+        priority: 50, status: '待处理', conditions: {}, summary: ev,
+      };
+    }
+    return {
+      id,
+      area: asStr(ev?.区域),
+      place: asStr(ev?.场所),
+      title: asStr(ev?.标题, id),
+      category: ev?.分类 ?? '日常',
+      priority: asNum(ev?.优先级, 0),
+      status: asStr(ev?.状态, '待触发'),
+      conditions: ev?.条件 && typeof ev.条件 === 'object' ? ev.条件 : {},
+      summary: asStr(ev?.简述),
+    };
+  });
 }
-
 function syncViews() {
   roster.forEach((c) => {
     const g = girls.find((row) => row.name === c.name);
@@ -1411,6 +1441,7 @@ function syncViews() {
       d.physiology = c.physiology;
       d.experience = c.experience;
       d.development = c.development;
+      d.developmentNotes = c.developmentNotes || {};
       d.location = c.location;
       d.fan = c.fan;
       d.stream = c.stream;
@@ -1466,7 +1497,7 @@ export function applyStatData(stat) {
   player.inventory.goods = mapBag(bag.用品, 'goods');
   resetItemArt();
 
-  const events = mapEvents(info.事件池?.当日事件);
+  const events = mapEvents(info.事件提示);
   dailyEvents.length = 0;
   dailyEvents.push(...events);
 
@@ -1487,16 +1518,18 @@ export function applyStatData(stat) {
       c.physiology.desire = asNum(phy.性欲度, c.physiology.desire);
       c.physiology.stamina = asNum(phy.体力, c.physiology.stamina);
       c.physiology.bladder = asNum(phy.尿意, c.physiology.bladder);
-      c.physiology.statuses = Array.isArray(phy.异常状态) ? [...phy.异常状态] : [];
+      c.physiology.statuses = Array.isArray(phy.异常状态) ? [...phy.异常状态] : (phy.异常状态 && typeof phy.异常状态 === 'object' ? Object.keys(phy.异常状态) : []);
       const exp = block.性经历 || {};
       EXPERIENCE_FIELDS.forEach(([key, label]) => {
-        c.experience[key] = asNum(exp[label], c.experience[key]);
+        c.experience[key] = asNum(exp[label]?.次数 ?? exp[label], c.experience[key]);
       });
       const dev = block.开发度 || {};
       DEV_PARTS.forEach(([key, label, fileLabel]) => {
         const part = dev[label] || (fileLabel ? dev[fileLabel] : null) || dev[key];
         const tier = part && typeof part === 'object' ? part.档位 : part;
         if (tier != null) c.development[key] = asNum(tier, c.development[key]);
+        if (!c.developmentNotes) c.developmentNotes = {};
+        if (part && typeof part === 'object' && typeof part.评语 === 'string') c.developmentNotes[key] = part.评语;
       });
       const stream = block.直播 || {};
       c.stream.live = !!stream.开播;

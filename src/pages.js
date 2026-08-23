@@ -1,4 +1,4 @@
-﻿import geo from './geometry.json';
+import geo from './geometry.json';
 import dockArtRaw from './dock-art.json';
 import { rebaseRecord } from './asset.js';
 import devMatrix from './dev-matrix.json';
@@ -15,6 +15,7 @@ import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 import { isCgOpen, mountCgOverlay } from './cg.js';
 import { insertSafeHTML, setSafeHTML } from './dom.js';
+import { handleDevelopmentNotesButton } from './dev-notes.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
 
@@ -292,7 +293,7 @@ function developmentNote(name, partKey) {
   const girl = girls.find((item) => item.name === name) || girls[0];
   const tier = characterDetails[girl.name].development[partKey];
   const label = (DEV_PARTS.find(([k]) => k === partKey) || [, partKey])[1];
-  const note = devMatrix[girl.name]?.[partKey]?.[tier];
+  const note = characterDetails[girl.name].developmentNotes?.[partKey] || devMatrix[girl.name]?.[partKey]?.[tier];
 
   return `
     <div class="dev-sheet-shade" data-dev-close></div>
@@ -307,7 +308,7 @@ function developmentNote(name, partKey) {
       </header>
       <div class="dev-sheet-body">
         ${partCrop(girl, partKey, 'dev-sheet-crop')}
-        <div class="dev-sheet-copy">
+        <div class="dev-sheet-copy" data-dev-note-name="${girl.name}" data-dev-note-part="${partKey}">
         ${note
           ? `<p>${note}</p>`
           : `<p class="is-muted">暂无评语</p>`}
@@ -335,7 +336,7 @@ function characterFull(name) {
         <span class="archive-id-sub">${bond.mood} · 好感 ${bond.favor} · 顺从 ${bond.obedience}</span>
       </header>
       <section class="archive-sec archive-sec-dev">
-        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降</span><i></i></div>
+        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降</span><i></i><div class="dev-note-actions"><button type="button" data-dev-notes-action="generate" data-dev-notes-name="${girl.name}">刷新评语</button><button type="button" data-dev-notes-action="restore" data-dev-notes-name="${girl.name}">恢复默认</button></div></div>
         <div class="dev-grid">${developmentTiles(girl, development)}</div>
       </section>
       <section class="archive-sec">
@@ -426,7 +427,7 @@ function eventsPage() {
     </article>`;
   }).join('');
 
-  return pageShell('Today Events', '当日事件', `
+  return pageShell('Event Notices', '事件提示', `
     <div class="page-summary">
       <div><span>${world.calendar.full} · ${world.time.period}</span><b>${dailyEvents.length} 条事件线索</b></div>
     </div>
@@ -960,7 +961,8 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
       destroySelectedInventory();
       return;
     }
-    if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
+    const devNotes = event.target.closest('[data-dev-notes-action]');
+    if (devNotes) { handleDevelopmentNotesButton(devNotes); return; }    if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
     const tile = event.target.closest('[data-dev-part]');
     if (tile) { openNote(tile.dataset.devName, tile.dataset.devPart); return; }
     if (event.target.closest('[data-dock-close]')) { closeAll(); return; }
