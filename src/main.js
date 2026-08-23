@@ -34,6 +34,7 @@ import { renderContent } from './content.js';
 import { createPortraitStage } from './portrait/stage.js';
 import { mountPortraitContent } from './portrait/content.js';
 import { startBridge } from './bridge.js';
+import { onPref, pref } from './prefs.js';
 
 /* Two layouts, not one layout with breakpoints.
    ------------------------------------------------------------------
@@ -47,9 +48,10 @@ import { startBridge } from './bridge.js';
 
    ?mode=portrait / ?mode=landscape forces one for testing. */
 const portraitMq = matchMedia('(max-width: 879px) and (orientation: portrait)');
+let hostMode = null;
 
 function wantsPortrait() {
-  const forced = new URLSearchParams(location.search).get('mode');
+  const forced = hostMode || new URLSearchParams(location.search).get('mode');
   /* An explicit host decision is authoritative.  The deployment shell knows the
      actual tavern viewport; this iframe may itself be tall even while the phone is
      held sideways, so inferring from the iframe first picks the wrong composition. */
@@ -167,6 +169,11 @@ function applyMode() {
   }
 }
 
+const applyPerformanceMode = () => {
+  document.documentElement.dataset.hudPerformance = pref('performanceMode') === 'low' ? 'low' : 'auto';
+};
+applyPerformanceMode();
+
 applyMode();
 startBridge();
 
@@ -175,6 +182,18 @@ const scheduleMode = () => {
   cancelAnimationFrame(modeTick);
   modeTick = requestAnimationFrame(applyMode);
 };
+
+onPref((name) => {
+  if (name === 'performanceMode') applyPerformanceMode();
+});
+
+addEventListener('linjiang:layout-mode', (event) => {
+  const next = event.detail?.mode === 'portrait' ? 'portrait' : 'landscape';
+  if (hostMode === next) return;
+  hostMode = next;
+  scheduleMode();
+});
+
 addEventListener('resize', scheduleMode);
 if (portraitMq.addEventListener) portraitMq.addEventListener('change', scheduleMode);
 else if (portraitMq.addListener) portraitMq.addListener(scheduleMode);

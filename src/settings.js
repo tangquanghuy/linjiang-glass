@@ -30,6 +30,13 @@ export const SETTINGS_ROWS = [
     note: '点背包是先拉出底部抽屉（不挡住画面，适合只是确认带了什么），还是直接进整页背包。',
     hint: '仅横向构图生效 · 竖屏没有底部抽屉',
   },
+  {
+    name: 'performanceMode',
+    en: 'Visual performance',
+    label: '视觉性能模式',
+    note: '自动模式保留完整玻璃效果；低负载模式关闭大面积背景模糊，保留颜色、边缘和布局，适合低性能设备。',
+    hint: '只影响视觉合成，不改变功能和数据',
+  },
 ];
 
 /* 一行 = 说明 + 一组互斥按钮。用 role=radiogroup / role=radio 而不是一堆普通按钮：

@@ -44,7 +44,9 @@ import { formatTravelMessage } from '../travel.js';
 
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
 import { applyPrefClick } from '../settings.js';
-import { handleDevelopmentNotesButton } from '../dev-notes.js';
+
+let devNotesModulePromise;
+const loadDevNotes = () => (devNotesModulePromise ||= import('../dev-notes.js'));
 
 /* ------------------------------------------------------------------ status */
 
@@ -416,10 +418,28 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     wireRail(options);
   };
 
-  /* Both panels, from scratch.  Needed when returning from a page, since a page
+  /* Both panels, from scratch. Needed when returning from a page, since a page
      replaces the column rather than sitting on top of it. */
   const paintBase = ({ restoreScroll = true } = {}) => {
     setSafeHTML(content, statusPanel() + girlsPanel(open));
+    wireRail({ restoreScroll });
+  };
+
+  /* Live snapshots do not need to discard the content wrapper or both panels at once.
+     Updating each stable panel separately reduces node churn and keeps the stage's
+     ResizeObserver from seeing an unnecessarily large replacement subtree. */
+  const refreshLiveBase = ({ restoreScroll = true } = {}) => {
+    if (workspace) return;
+    const currentStatus = content.querySelector('[data-panel="status"]');
+    const currentGirls = content.querySelector('[data-panel="girls"]');
+    const nextStatus = safeFirstElement(statusPanel());
+    const nextGirls = safeFirstElement(girlsPanel(open));
+    if (!currentStatus || !currentGirls || !nextStatus || !nextGirls) {
+      paintBase({ restoreScroll });
+      return;
+    }
+    currentStatus.replaceWith(nextStatus);
+    currentGirls.replaceWith(nextGirls);
     wireRail({ restoreScroll });
   };
 
@@ -710,7 +730,12 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       return;
     }
     const devNotes = event.target.closest('[data-dev-notes-action]');
-    if (devNotes) { handleDevelopmentNotesButton(devNotes); return; }
+    if (devNotes) {
+      loadDevNotes()
+        .then(({ handleDevelopmentNotesButton }) => handleDevelopmentNotesButton(devNotes))
+        .catch((error) => console.error('[dev-notes] lazy load', error));
+      return;
+    }
     const devOpen = event.target.closest('[data-dev-part]');
     if (devOpen) {
       const tile = devOpen.parentElement;
@@ -844,7 +869,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
   onLive(() => {
     if (!document.querySelector('.viewport')?.classList.contains('is-portrait')) return;
     if (workspace && workspace !== 'map' && workspace !== 'arcade') return;
-    paintBase({ restoreScroll: true });
+    refreshLiveBase({ restoreScroll: true });
   });
 
   return {

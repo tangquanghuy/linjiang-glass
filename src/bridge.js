@@ -8,6 +8,20 @@ let seq = 0;
 let started = false;
 let autoscrollActive = false;
 let bridgeContext = { chatKey: null, epoch: 0 };
+let pendingSnapshot = null;
+let snapshotRaf = 0;
+
+function scheduleSnapshot(statData) {
+  if (!statData || typeof statData !== 'object') return;
+  pendingSnapshot = statData;
+  if (snapshotRaf) return;
+  snapshotRaf = requestAnimationFrame(() => {
+    snapshotRaf = 0;
+    const next = pendingSnapshot;
+    pendingSnapshot = null;
+    if (next) applyStatData(next);
+  });
+}
 
 const parentOrigin = (() => {
   try { return document.referrer ? new URL(document.referrer).origin : '*'; }
@@ -62,6 +76,11 @@ function resetContext(next) {
   if (moneyTimer) clearTimeout(moneyTimer);
   moneyTimer = 0;
   pendingMoney = null;
+  pendingSnapshot = null;
+  if (snapshotRaf) {
+    cancelAnimationFrame(snapshotRaf);
+    snapshotRaf = 0;
+  }
   settleMoneyWaiters(false);
   for (const [id, wait] of pending) {
     if (wait.action === 'handshake') continue;
@@ -138,10 +157,15 @@ function onMessage(event) {
     resetContext(data.context);
     return;
   }
+  if (data.kind === 'event' && data.type === 'layoutMode') {
+    const mode = data.payload?.mode === 'portrait' ? 'portrait' : 'landscape';
+    dispatchEvent(new CustomEvent('linjiang:layout-mode', { detail: { mode } }));
+    return;
+  }
   if (data.kind === 'event' && data.type === 'snapshot') {
     if (data.context) resetContext(data.context);
     if (data.context && !sameContext(data.context, bridgeContext)) return;
-    applyStatData(data.payload?.stat_data);
+    scheduleSnapshot(data.payload?.stat_data);
     return;
   }
   if (data.kind === 'event' && data.type === 'cgUnlock') {
@@ -360,7 +384,7 @@ export function startBridge() {
        而不是先画好再跳一次。 */
     reportDockDefault(pref('dockDefault'));
     return rpc('getSnapshot');
-  }).then((payload) => applyStatData(payload?.stat_data)).catch((err) => {
+  }).then((payload) => scheduleSnapshot(payload?.stat_data)).catch((err) => {
     console.warn('[hud] bridge', err);
   });
 }

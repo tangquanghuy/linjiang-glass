@@ -46,7 +46,7 @@
   const HUD_URL = 'https://tangquanghuy.github.io/linjiang-glass/?v=20260823-cg-bridge-v1';
   // const HUD_URL = 'http://127.0.0.1:5173/';
   const CHANNEL = 'linjiang-hud';
-  const POLL_MS = 3000;
+  const POLL_MS = 10000;
 
   const localHudFrame = document.getElementById('hud');
   let hudFrame = localHudFrame;
@@ -282,6 +282,15 @@
     if (!target) return;
     try { target.postMessage(payload, hudOrigin === '*' ? '*' : hudOrigin); }
     catch (e) {}
+  };
+
+  const postHudMode = (mode) => {
+    postToHud({
+      channel: CHANNEL,
+      kind: 'event',
+      type: 'layoutMode',
+      payload: { mode: mode === 'portrait' ? 'portrait' : 'landscape' },
+    });
   };
 
   let lastSnap = '';
@@ -629,6 +638,9 @@
         frame.referrerPolicy = 'strict-origin-when-cross-origin';
         frame.allow = 'clipboard-read; clipboard-write';
         frame.dataset.linjiangManaged = '1';
+        frame.addEventListener('load', () => {
+          if (this.hudFrame === frame && this.hudMode) postHudMode(this.hudMode);
+        });
         this.hudFrame = frame;
         this.hudMode = '';
         return frame;
@@ -1408,9 +1420,17 @@
 
   const syncHudSrc = () => {
     const mode = portraitHud() ? 'portrait' : 'landscape';
-    if (manager.hudMode === mode && hudFrame.getAttribute('src')) return;
+    const hasSrc = !!hudFrame.getAttribute('src');
+    if (!hasSrc) {
+      manager.hudMode = mode;
+      hudFrame.src = hudSrc();
+      return;
+    }
+    if (manager.hudMode === mode) return;
     manager.hudMode = mode;
-    hudFrame.src = hudSrc();
+    /* Keep the managed iframe/document alive across orientation changes. The HUD
+       bridge applies this host decision and schedules its own local layout switch. */
+    postHudMode(mode);
   };
 
   const fitParentFrame = () => {
@@ -1441,6 +1461,15 @@
     });
   };
 
+  const followNow = () => {
+    if (!isOwner()) return;
+    if (followTick) {
+      cancelAnimationFrame(followTick);
+      followTick = 0;
+    }
+    try { followHud(); } catch (e) {}
+  };
+
   /* A moving top-level iframe forces every backdrop-filter inside it to be
      recomposited against a new screen position. Temporarily ask the HUD to use
      its flat glass fills while the tavern scrolls; restore the blur shortly
@@ -1448,6 +1477,7 @@
      downgrade is hard to notice in motion but removes the expensive blur pass. */
   let hostScrollIdleTimer = 0;
   let hostScrollActive = false;
+  let lastScrollEventStamp = -1;
   const setHostScrollActive = (next) => {
     const activeNow = !!next;
     if (hostScrollActive === activeNow) return;
@@ -1460,15 +1490,20 @@
       payload: { active: activeNow },
     });
   };
-  const noteHostScroll = () => {
+  const noteHostScroll = (event) => {
     if (!isOwner()) return;
+    const stamp = Number(event?.timeStamp);
+    if (Number.isFinite(stamp) && stamp === lastScrollEventStamp) return;
+    if (Number.isFinite(stamp)) lastScrollEventStamp = stamp;
     setHostScrollActive(true);
     clearTimeout(hostScrollIdleTimer);
     hostScrollIdleTimer = setTimeout(() => {
       hostScrollIdleTimer = 0;
       setHostScrollActive(false);
     }, 160);
-    requestFollow();
+    /* Native scrollbar dragging updates #chat before the next animation frame.
+       Follow synchronously so the detached fixed HUD never trails the slot by one frame. */
+    followNow();
   };
 
   const wheelPixels = (payload, win) => {
@@ -1889,7 +1924,7 @@
        detached fixed HUD in the same task instead of waiting one more animation
        frame for a scroll event; that extra frame was the visible jump/jitter. */
     if (Math.abs(remaining - dy) > 0.01) {
-      try { followHud(); } catch (e) {}
+      followNow();
     }
   };
 

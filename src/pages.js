@@ -12,11 +12,13 @@ import { icons } from './icons.js';
 import { collapseHud, openPhone, reportOverlay, requestClockIn, sendChat } from './bridge.js';
 import { formatTravelMessage } from './travel.js';
 import { applyPrefClick, settingsBody } from './settings.js';
+
+let devNotesModulePromise;
+const loadDevNotes = () => (devNotesModulePromise ||= import('./dev-notes.js'));
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 import { isCgOpen, mountCgOverlay } from './cg.js';
 import { insertSafeHTML, setSafeHTML } from './dom.js';
-import { handleDevelopmentNotesButton } from './dev-notes.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
 
@@ -1002,7 +1004,12 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
       return;
     }
     const devNotes = event.target.closest('[data-dev-notes-action]');
-    if (devNotes) { handleDevelopmentNotesButton(devNotes); return; }    if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
+    if (devNotes) {
+      loadDevNotes()
+        .then(({ handleDevelopmentNotesButton }) => handleDevelopmentNotesButton(devNotes))
+        .catch((error) => console.error('[dev-notes] lazy load', error));
+      return;
+    }    if (event.target.closest('[data-dev-close]')) { closeNote(); return; }
     const tile = event.target.closest('[data-dev-part]');
     if (tile) { openNote(tile.dataset.devName, tile.dataset.devPart); return; }
     if (event.target.closest('[data-dock-close]')) { closeAll(); return; }

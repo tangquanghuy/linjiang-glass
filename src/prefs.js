@@ -31,6 +31,8 @@ const DEFAULTS = {
      壳层与 HUD 不同源，读不到这里的 localStorage，所以这个值是 HUD 开机后通过
      postMessage 通报过去的（bridge.js 的 reportDockDefault）。 */
   dockDefault: 'page',
+  /* Disable backdrop sampling on weaker devices while preserving fills, edges and layout. */
+  performanceMode: 'auto',
 };
 
 /* The label pairs live here rather than in the page so the enum and the control that
@@ -43,6 +45,10 @@ export const PREF_CHOICES = {
   dockDefault: [
     ['page', '适配宽度'],
     ['embedded', '收进嵌入框'],
+  ],
+  performanceMode: [
+    ['auto', '完整效果'],
+    ['low', '低负载'],
   ],
 };
 

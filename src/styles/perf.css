@@ -85,3 +85,23 @@ html.host-scroll-active *::after {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* Optional low-compositing mode. It keeps tint/rims and interaction affordances
+   but removes expensive backdrop sampling on weaker devices. */
+html[data-hud-performance=low] .glass-blur,
+html[data-hud-performance=low] .dock-blur,
+html[data-hud-performance=low] .drawer-blur,
+html[data-hud-performance=low] .pg-blur,
+html[data-hud-performance=low] .dest-btn,
+html[data-hud-performance=low] .card-glass,
+html[data-hud-performance=low] .page-modal,
+html[data-hud-performance=low] .gift-confirm,
+html[data-hud-performance=low] .gift-toast,
+html[data-hud-performance=low] .dev-sheet,
+html[data-hud-performance=low] .map-legend,
+html[data-hud-performance=low] .arcade-panel,
+html[data-hud-performance=low] .cg-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
