@@ -94,7 +94,6 @@ const CATEGORIES=['杂谈','游戏','唱歌','ASMR','绘画','舞蹈','户外','
 const FREE_OPENING_DETAIL=[
 '玩家刚结束一天的工作，回到家中。',
 '简单收拾之后，玩家打开直播平台，进入自己关注的{{目标主播}}直播间。',
-'不要限定玩家的具体职业、工作地点、住宅类型、家中环境或所在城区。',
 '从一次普通、自然的直播观看与弹幕互动开始，后续剧情自由发展。'
 ].join('\n');
 const OPENING_ONE_DETAIL=[
@@ -177,7 +176,6 @@ const OPENING_TWO_DETAIL=[
 '```'
 ].join('\n');
 const OPENINGS=[
-{id:'none',title:'无',summary:'无',detail:'无'},
 {id:'opening-1',title:'回家看直播',summary:'玩家结束一天的工作，回家进入关注主播的直播间。',detail:FREE_OPENING_DETAIL},
 {id:'opening-2',title:'意外碰面',summary:'一次短暂离开直播间的取件，让线上注视与线下现实意外重叠。',detail:OPENING_ONE_DETAIL},
 {id:'opening-3',title:'小号约见',summary:'玩家在同城软件上偶然约到刚刚下播的目标主播。',detail:OPENING_TWO_DETAIL},
@@ -186,7 +184,7 @@ const OPENINGS=[
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
 const ARCHIVE_KEY='linjiang-opening-streamer-archives-v1';
 const ARCHIVE_ART_MAX=1536*1024;
-const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'none',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
+const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'opening-1',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const value=id=>$(id).value.trim();

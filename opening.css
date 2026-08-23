@@ -1222,3 +1222,11 @@ body.compact-step .custom-opening textarea{min-height:60px}
   .oshi-pagination{width:min(230px,76%);margin-top:11px}
   body.oshi-step .opening-picker,body.oshi-step .opening-picker.custom-active{min-height:0;max-height:none}
 }
+
+/* PC 端我推页按内容自然增高，页脚跟在内容之后，避免开局卡被定高容器裁掉。 */
+@media(min-width:1051px){
+  body.oshi-step .shell{height:auto;min-height:calc(100vh - var(--frame)*2)}
+  body.oshi-step .main{min-height:0;overflow:visible}
+  body.oshi-step .panel[data-panel="3"].active{height:auto;min-height:0}
+  body.oshi-step .opening-picker{flex:none}
+}
