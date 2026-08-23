@@ -27,7 +27,7 @@
 
 import {
   NO_STATUS, PRIVACY, THRESHOLDS,
-  characterDetails, fanLine, giftLabel, giftScenes, girls, homeState, player, protagonist, tools, workBadge, workState, world,
+  characterDetails, dailyEvents, fanLine, giftLabel, giftScenes, girls, homeState, player, protagonist, tools, workBadge, workState, world,
 } from '../data.js';
 import { buildGift } from '../data.js';
 import { isPinned, orderedGirls, placeCardArts, togglePin } from '../content.js';
@@ -674,6 +674,24 @@ export function mountPortraitContent(stage, { onPage } = {}) {
        not a re-render: the reader keeps their place in a page that may be several
        screens long.  Only one open at a time -- four expanded notes is the wall of text
        the tiles exist to avoid. */
+    const eventHandle = event.target.closest('[data-event-handle]');
+    if (eventHandle) {
+      const id = decodeURIComponent(eventHandle.dataset.eventHandle || '');
+      const item = dailyEvents.find((row) => row.id === id);
+      if (!item) return;
+      const original = eventHandle.textContent;
+      eventHandle.disabled = true;
+      eventHandle.textContent = '发送中…';
+      sendChat(`去处理：${item.summary}`).then((ok) => {
+        eventHandle.textContent = ok ? '已发送' : '发送失败';
+      }).catch((err) => {
+        console.warn('[events] send failed', err);
+        eventHandle.textContent = '发送失败';
+      }).finally(() => {
+        setTimeout(() => { eventHandle.disabled = false; eventHandle.textContent = original; }, 1000);
+      });
+      return;
+    }
     const devNotes = event.target.closest('[data-dev-notes-action]');
     if (devNotes) { handleDevelopmentNotesButton(devNotes); return; }
     const devOpen = event.target.closest('[data-dev-part]');

@@ -405,8 +405,6 @@ function schedulePage() {
 
 function eventsPage() {
   const cards = sortedEvents().map((event) => {
-    /* 体力上限 is a ceiling and 需携带道具 is a name, so a blanket "≥" would state
-       the opposite of the rule for one and nonsense for the other. */
     const conditions = Object.entries(event.conditions || {})
       .map(([key, value]) => {
         const text = Array.isArray(value) ? value.join(' / ')
@@ -414,27 +412,32 @@ function eventsPage() {
             : key === '体力上限' ? `≤ ${value}`
               : `≥ ${value}`;
         return `<span>${key} ${text}</span>`;
-      })
-      .join('');
+      }).join('');
+    const notice = event.notice === true;
+    const top = notice
+      ? '<div class="event-top"><span>事件提示</span><em>待处理</em></div>'
+      : `<div class="event-top"><span>${Array.isArray(event.category) ? event.category.join(' · ') : event.category}</span><em>优先级 ${event.priority}</em></div>`;
+    const location = event.area
+      ? `<div class="event-location">${ic('mapPin')}<span>${event.area}${event.place ? ` · ${event.place}` : ''}</span></div>`
+      : '';
     return `
-    <article class="event-card ${event.status === '可触发' ? 'is-ready' : ''}">
-      <div class="event-top"><span>${Array.isArray(event.category) ? event.category.join(' · ') : event.category}</span><em>优先级 ${event.priority}</em></div>
+    <article class="event-card${event.status === '可触发' || notice ? ' is-ready' : ''}">
+      ${top}
       <h3>${event.title}</h3>
       <p>${event.summary}</p>
-      <div class="event-cond">${conditions}</div>
-      <div class="event-location">${ic('mapPin')}<span>${event.area}${event.place ? ` · ${event.place}` : ''}</span></div>
-      <button type="button">${event.status}</button>
+      ${conditions ? `<div class="event-cond">${conditions}</div>` : ''}
+      ${location}
+      <button type="button" data-event-handle="${encodeURIComponent(event.id)}">去处理</button>
     </article>`;
   }).join('');
 
   return pageShell('Event Notices', '事件提示', `
     <div class="page-summary">
-      <div><span>${world.calendar.full} · ${world.time.period}</span><b>${dailyEvents.length} 条事件线索</b></div>
+      <div><span>${world.calendar.full} · ${world.time.period}</span><b>${dailyEvents.length} 条待处理事件</b></div>
     </div>
     <div class="event-grid">${cards}</div>
   `, 'events-page');
 }
-
 function yen(n) {
   return `￥${Number(n || 0).toLocaleString('en-US')}`;
 }
@@ -959,6 +962,24 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     const destroy = event.target.closest('[data-inv-destroy]');
     if (destroy) {
       destroySelectedInventory();
+      return;
+    }
+    const eventHandle = event.target.closest('[data-event-handle]');
+    if (eventHandle) {
+      const id = decodeURIComponent(eventHandle.dataset.eventHandle || '');
+      const item = dailyEvents.find((row) => row.id === id);
+      if (!item) return;
+      const original = eventHandle.textContent;
+      eventHandle.disabled = true;
+      eventHandle.textContent = '发送中…';
+      sendChat(`去处理：${item.summary}`).then((ok) => {
+        eventHandle.textContent = ok ? '已发送' : '发送失败';
+      }).catch((err) => {
+        console.warn('[events] send failed', err);
+        eventHandle.textContent = '发送失败';
+      }).finally(() => {
+        setTimeout(() => { eventHandle.disabled = false; eventHandle.textContent = original; }, 1000);
+      });
       return;
     }
     const devNotes = event.target.closest('[data-dev-notes-action]');

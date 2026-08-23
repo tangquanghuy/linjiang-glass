@@ -43,7 +43,7 @@
 (function () {
   /* 粘进角色卡「状态栏」。本页与酒馆同源，所以能摸到 parent.Mvu。
      玻璃 HUD 本身在跨域 iframe 里，只通过 postMessage 和这里说话。 */
-  const HUD_URL = 'https://tangquanghuy.github.io/linjiang-glass/';
+  const HUD_URL = 'https://tangquanghuy.github.io/linjiang-glass/?v=20260823-cg-bridge-v1';
   // const HUD_URL = 'http://127.0.0.1:5173/';
   const CHANNEL = 'linjiang-hud';
   const POLL_MS = 3000;
@@ -374,6 +374,45 @@
     if (done) done();
   };
 
+  /* 正文插图和 HUD / 小手机分别住在不同 iframe 与 origin，localStorage 不共享。
+     正文在图片 load 后向酒馆顶层发 record；当前状态栏 owner 负责持久转发：
+       1. 走 HUD bridge，让 Pages origin 写入自己的 unlocked_cg；
+       2. 向整棵 frame tree 广播 apply，让正在运行的小手机立即同步。 */
+  const CG_UNLOCK_CHANNEL = 'linjiang-cg-unlock';
+  const seenCGUnlocks = new Set();
+  const onCGUnlockRecord = (event) => {
+    const data = event.data;
+    if (!isOwner() || !data || data.channel !== CG_UNLOCK_CHANNEL || data.type !== 'record') return;
+    const character = String(data.character || '').trim();
+    const scene = String(data.scene || '').trim();
+    const count = Math.max(1, Math.floor(Number(data.count) || 1));
+    if (!character || !scene) return;
+    const id = String(data.id || `${character}/${scene}/${count}`);
+    if (seenCGUnlocks.has(id)) return;
+    seenCGUnlocks.add(id);
+    if (seenCGUnlocks.size > 300) {
+      const oldest = seenCGUnlocks.values().next().value;
+      seenCGUnlocks.delete(oldest);
+    }
+    const payload = {
+      id,
+      category: data.category === 'SFW' ? 'SFW' : 'NSFW',
+      character,
+      scene,
+      count
+    };
+    postToHud({
+      channel: CHANNEL,
+      kind: 'event',
+      type: 'cgUnlock',
+      context: manager.context(),
+      payload
+    });
+    const applyMessage = { channel: CG_UNLOCK_CHANNEL, type: 'apply', ...payload };
+    phoneWindows().forEach((win) => {
+      try { win.postMessage(applyMessage, '*'); } catch (e) {}
+    });
+  };
   const openPhonePanel = async () => {
     const launch = findPhoneLauncher();
     if (launch) {
@@ -1868,6 +1907,7 @@
     /* 小手机的 ack 回到发信的那个窗口（也就是本页），但顺手也在酒馆窗口上听一份：
        多绑一次没有副作用，phoneAcks 认 id，先到的那条把它取走。 */
     listen(win, 'message', onPhoneAck);
+    listen(win, 'message', onCGUnlockRecord);
   };
 
   const clearHostListeners = () => {

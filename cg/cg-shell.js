@@ -105,7 +105,14 @@ const CGShell = (() => {
 
   const onHostMessage = (event) => {
     const data = event.data;
-    if (!data || data.type !== `${CHANNEL}:data`) return;
+    if (!data) return;
+    if (data.type === `${CHANNEL}:unlock`) {
+      const unlock = data.unlock || {};
+      unlockCG(unlock.character, unlock.scene, unlock.count);
+      if (navigationStack.length === 0 && !viewerOpen()) paintRoot();
+      return;
+    }
+    if (data.type !== `${CHANNEL}:data`) return;
     currentPhoneData = { 羁绊列表: data.bonds && typeof data.bonds === 'object' ? data.bonds : {} };
     /* 只在根页面重绘：正在翻某个角色的场景网格时把人踢回列表，比好感度晚一拍更烦。 */
     if (navigationStack.length === 0 && !viewerOpen()) paintRoot();

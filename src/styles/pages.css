@@ -511,6 +511,7 @@
 .event-location .ic { margin-top:2px; color:#f2cdbf; }
 .event-card button { position:absolute; left:28px; right:28px; bottom:26px; height:38px; border:1px solid rgba(232,226,249,.3); border-radius:20px; background:rgba(132,142,199,.18); color:rgba(248,244,253,.78); cursor:pointer; }
 .event-card.is-ready button { background:linear-gradient(135deg, rgba(228,145,193,.46), rgba(143,131,204,.42)); border-color:rgba(255,220,238,.5); color:#fff; }
+.event-card button:disabled { opacity:.55; cursor:wait; }
 
 /* inventory */
 .inventory-layout { display:grid; grid-template-columns:220px 1fr; gap:28px; min-height:100%; }

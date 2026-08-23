@@ -402,62 +402,41 @@ export function giftPage(name) {
 export function eventsPage() {
   const events = sortedEvents();
   const cards = events.map((event) => {
-    /* 体力上限 is a ceiling and 需携带道具 is a name, so a blanket "≥" would state the
-       opposite of the rule for one and nonsense for the other. */
+    const notice = event.notice === true;
     const conditions = Object.entries(event.conditions || {}).map(([key, value]) => {
       const text = Array.isArray(value) ? value.join(' / ')
         : typeof value === 'string' ? value
-          : key === '体力上限' ? `≤ ${value}`
-            : `≥ ${value}`;
+          : key === '体力上限' ? `≤ ${value}` : `≥ ${value}`;
       return `<span>${key} ${text}</span>`;
     }).join('');
-    const ready = event.status === '可触发';
-    const here = event.area === world.location.area;
-    /* 分类 is declared in the schema as one value of an enum, but the authored pool has an
-       event carrying two, so both shapes have to render.  Joined into one chip with a
-       middot rather than split into two, to match what the landscape page does -- the
-       failure either way was interpolating the field directly, which rendered
-       Array.toString ("纯爱,调教") instead of a label. */
-    const category = Array.isArray(event.category) ? event.category.join(' · ') : event.category;
-
+    const here = !!event.area && event.area === world.location.area;
+    const category = notice ? '事件提示' : (Array.isArray(event.category) ? event.category.join(' · ') : event.category);
     return `
-    <article class="pevt${ready ? ' is-ready' : ''}">
+    <article class="pevt${event.status === '可触发' || notice ? ' is-ready' : ''}">
       <div class="pevt-top">
         <span class="pevt-cat">${category}</span>
-        <em>优先级 ${event.priority}</em>
-        <b class="pevt-status${ready ? ' is-ready' : ''}">${event.status}</b>
+        ${notice ? '' : `<em>优先级 ${event.priority}</em>`}
+        <b class="pevt-status${event.status === '可触发' || notice ? ' is-ready' : ''}">${notice ? '待处理' : event.status}</b>
       </div>
       <h3>${event.title}</h3>
       <p>${event.summary}</p>
-      <div class="pevt-where${here ? ' is-here' : ''}">
-        ${ic('mapPin')}<span>${event.area}${event.place ? ` · ${event.place}` : ''}</span>
-        ${here ? '<em>当前所在</em>' : ''}
-      </div>
-      <details class="pevt-cond">
-        <summary>触发条件 <i>${Object.keys(event.conditions || {}).length}</i></summary>
-        <div>${conditions}</div>
-      </details>
+      ${event.area ? `<div class="pevt-where${here ? ' is-here' : ''}">${ic('mapPin')}<span>${event.area}${event.place ? ` · ${event.place}` : ''}</span>${here ? '<em>当前所在</em>' : ''}</div>` : ''}
+      ${conditions ? `<details class="pevt-cond"><summary>触发条件 <i>${Object.keys(event.conditions || {}).length}</i></summary><div>${conditions}</div></details>` : ''}
+      <button class="pevt-handle" type="button" data-event-handle="${encodeURIComponent(event.id)}">去处理</button>
     </article>`;
   }).join('');
 
-  const ready = events.filter((e) => e.status === '可触发').length;
   return `
 <section class="ppanel is-page" data-panel="page" role="dialog" aria-label="事件提示">
   ${head('Today', '事件提示')}
   <button class="pclose" type="button" data-page-close aria-label="返回">×</button>
-
   <div class="pevt-sum">
-    <div><b>${events.length}</b><span>条事件线索</span></div>
-    <div><b class="is-ready">${ready}</b><span>可触发</span></div>
+    <div><b>${events.length}</b><span>条待处理事件</span></div>
     <em>${world.calendar.full} · ${world.time.period}</em>
   </div>
-
-  ${cards}
+  ${cards || '<p class="ppage-note">当前没有待处理事件。</p>'}
 </section>`;
 }
-
-/* ------------------------------------------------------------- schedule */
-
 function portraitScheduleRun(row) {
   return row.days.map((day) => {
     const state = day.state ? SLOT_STATES[day.state] : null;

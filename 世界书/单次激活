@@ -776,13 +776,45 @@
 
 对象信息:
 <%_
-const __aiObjects = _.cloneDeep((getMessageVar('stat_data', { defaults: {} }) || {}).对象信息 || {});
-Object.values(__aiObjects).forEach(obj => {
-  const dev = obj && obj.开发度;
-  if (!dev || typeof dev !== 'object') return;
-  Object.values(dev).forEach(part => {
-    if (part && typeof part === 'object') delete part.评语;
+const __rawObjects = (getMessageVar('stat_data', { defaults: {} }) || {}).对象信息 || {};
+const __experienceKeys = ['露出经验','自慰经验','排泄调教经验','道具调教经验','凌辱调教经验','隐奸经验','青奸经验','睡奸经验','催眠奸经验','情趣扮演经验','盗摄经验','性直播经验'];
+const __parts = ['口腔','胸','小穴','肛门'];
+const __aiObjects = {};
+Object.entries(__rawObjects).forEach(([name, raw]) => {
+  const obj = raw || {};
+  const expRaw = obj.性经历 || {};
+  const exp = { 近期性经验次数: Number(expRaw.近期性经验次数) || 0 };
+  __experienceKeys.forEach(key => {
+    const item = expRaw[key] || {};
+    exp[key] = { 次数: Number(item.次数) || 0, 可更新: item.可更新 !== false };
   });
+  const devRaw = obj.开发度 || {};
+  const dev = {};
+  __parts.forEach(key => {
+    const part = devRaw[key] || {};
+    dev[key] = {
+      档位: Number(part.档位) || 0,
+      进度: Number(part.进度) || 0,
+      可更新: part.可更新 !== false
+    };
+  });
+  const bond = obj.羁绊 || {};
+  const loc = obj.位置 || {};
+  const phy = obj.生理 || {};
+  const stream = obj.直播 || {};
+  __aiObjects[name] = {
+    羁绊: { 好感度: Number(bond.好感度) || 0, 顺从度: Number(bond.顺从度) || 0, 心情: String(bond.心情 || '') },
+    位置: { 区域: String(loc.区域 || ''), 场所: String(loc.场所 || ''), 私密度: Number(loc.私密度) || 0 },
+    性经历: exp,
+    开发度: dev,
+    生理: {
+      性欲度: Number(phy.性欲度) || 0,
+      体力: Number(phy.体力) || 0,
+      尿意: Number(phy.尿意) || 0,
+      异常状态: _.cloneDeep(phy.异常状态 || {})
+    },
+    直播: { 开播: stream.开播 === true, 标题: String(stream.标题 || ''), 热度: Number(stream.热度) || 0, 粉丝数: Number(stream.粉丝数) || 0 }
+  };
 });
 _%>
 <%= JSON.stringify(__aiObjects, null, 2) %>

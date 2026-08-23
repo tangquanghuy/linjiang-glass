@@ -54,6 +54,12 @@ export function mountCgOverlay(host, { onClose } = {}) {
     try { iframe.contentWindow?.postMessage({ type: `${CHANNEL}:data`, bonds: bondMap() }, '*'); }
     catch (_) {}
   };
+  const pushUnlock = (event) => {
+    const unlock = event?.detail;
+    if (!unlock) return;
+    try { iframe.contentWindow?.postMessage({ type: `${CHANNEL}:unlock`, unlock }, '*'); }
+    catch (_) {}
+  };
   const onFrameMsg = (event) => {
     if (event.source !== iframe.contentWindow) return;
     const type = event.data?.type;
@@ -65,11 +71,13 @@ export function mountCgOverlay(host, { onClose } = {}) {
   };
   iframe.addEventListener('load', push);
   addEventListener('message', onFrameMsg);
+  addEventListener('linjiang:cg-unlock', pushUnlock);
   const offLive = onLive(push);
 
   return () => {
     offLive();
     removeEventListener('message', onFrameMsg);
+    removeEventListener('linjiang:cg-unlock', pushUnlock);
     layer.remove();
     if (!document.querySelector('.cg-layer')) document.documentElement.classList.remove('has-cg');
   };

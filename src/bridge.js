@@ -97,6 +97,26 @@ function rpc(action, payload = {}, timeoutMs = 8000) {
   });
 }
 
+function applyCGUnlock(payload) {
+  const character = String(payload?.character || '').trim();
+  const scene = String(payload?.scene || '').trim();
+  const count = Math.max(1, Math.floor(Number(payload?.count) || 1));
+  if (!character || !scene) return false;
+  let unlocked = {};
+  try { unlocked = JSON.parse(localStorage.getItem('unlocked_cg') || '{}') || {}; }
+  catch { unlocked = {}; }
+  if (!unlocked[character] || typeof unlocked[character] !== 'object') unlocked[character] = {};
+  const previous = Number(unlocked[character][scene]) || 0;
+  if (previous < count) {
+    unlocked[character][scene] = count;
+    try { localStorage.setItem('unlocked_cg', JSON.stringify(unlocked)); }
+    catch (error) { console.warn('[hud] CG unlock storage', error); }
+  }
+  dispatchEvent(new CustomEvent('linjiang:cg-unlock', {
+    detail: { ...payload, character, scene, count }
+  }));
+  return true;
+}
 function onMessage(event) {
   if (!validParentMessage(event)) return;
   const data = event.data;
@@ -122,6 +142,10 @@ function onMessage(event) {
     if (data.context) resetContext(data.context);
     if (data.context && !sameContext(data.context, bridgeContext)) return;
     applyStatData(data.payload?.stat_data);
+    return;
+  }
+  if (data.kind === 'event' && data.type === 'cgUnlock') {
+    applyCGUnlock(data.payload);
     return;
   }
   if (data.kind === 'event' && data.type === 'autoscrollState') {

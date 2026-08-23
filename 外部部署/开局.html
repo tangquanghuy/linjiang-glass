@@ -323,7 +323,7 @@
   /* 粘进角色卡的「开局」楼层。本页与酒馆同源，能摸到 parent.Mvu / TavernHelper；
      开局页本身托管在 GitHub Pages（跨域），只通过 postMessage 和这里说话。
      这里只做三件事：全屏挂起开局页、代跑人设生成、把 commitPreview 写回酒馆。 */
-  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260823-multi-custom-v2';
+  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260823-opening-two-v6';
   // const OPENING_URL = 'http://127.0.0.1:5173/opening.html';
   const CHANNEL = 'linjiang-opening';
   const OVERLAY_ID = 'linjiang-opening-overlay';
@@ -952,6 +952,27 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
     } catch (e) { return false; }
   };
 
+  const sendStartMessage = (message) => {
+    const text = String(message || '').trim();
+    if (!text) return false;
+    try {
+      const win = getCoreWindow();
+      const doc = (win && win.document) ? win.document : document;
+      const area = doc.getElementById('send_textarea');
+      const sendButton = doc.getElementById('send_but');
+      if (!area || !sendButton) return false;
+      const current = String(area.value || '').trim();
+      area.value = current && current.indexOf(text) === -1 ? (current + '\n\n' + text) : text;
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      area.dispatchEvent(new Event('change', { bubbles: true }));
+      sendButton.click();
+      return true;
+    } catch (error) {
+      console.error('[临江开局] 发送开局消息失败', error);
+      return false;
+    }
+  };
+
   const commit = async (payload) => {
     const notes = [];
     try {
@@ -978,10 +999,17 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
       try { book = await writeWorldbooks(books); }
       catch (e) { book = false; }
       if (book) notes.push('你所期待的相遇已经准备好了');
-      else if (stashWorldbookText(books)) notes.push('人物故事已为你放入输入框，请保留后继续');
+      else if (stashWorldbookText(books)) notes.push('人物故事已放入本次开局消息');
       else notes.push('人物故事暂未保存，请在离开前复制留存');
     }
-    say(notes.join('；') + '。', 'ok');
+    const sent = sendStartMessage(payload && payload.startMessage);
+    if (sent) notes.push('玩家出身配置与开局内容已经发送');
+    else {
+      const startMessage = String(payload && payload.startMessage || '').trim();
+      if (startMessage && navigator.clipboard) navigator.clipboard.writeText(startMessage).catch(() => {});
+      if (startMessage) notes.push('开局内容已复制，可直接粘贴发送');
+    }
+    say(notes.join('；') + '。', sent ? 'ok' : 'warn');
     closeOverlay();
   };
 

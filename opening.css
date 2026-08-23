@@ -1010,3 +1010,39 @@ body.confirm-step .book-entry pre{flex:1 1 auto;min-height:0;max-height:none}
 @media(min-width:1051px){
   body.compact-step .archive-panel{position:static;left:auto;right:auto;margin-top:8px;padding:10px 0 0;border:0;border-top:1px solid rgba(235,239,255,.10);border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
 }
+
+/* 开局选择：单卡左右切换，减少固定主播步骤的纵向占用。 */
+.opening-picker{margin-top:14px;padding:14px 16px 15px;border-radius:18px}
+.opening-picker-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:10px}
+.opening-picker-head h3{margin-top:5px;font-size:16px;font-weight:600;letter-spacing:.06em}
+.opening-picker-head>span{max-width:560px;color:var(--faint);font-size:10px;line-height:1.5;text-align:right}
+.opening-switcher{display:grid;grid-template-columns:38px minmax(0,1fr) 38px;align-items:stretch;gap:8px}
+.opening-arrow{display:grid;place-items:center;min-height:58px;border:1px solid rgba(235,239,255,.16);border-radius:12px;background:rgba(8,12,31,.22);color:rgba(255,255,255,.72);font:300 26px/1 'Outfit',sans-serif;cursor:pointer;transition:.18s ease}
+.opening-arrow:hover{border-color:rgba(255,255,255,.38);color:#fff;background:rgba(255,255,255,.12)}
+.opening-arrow:active{transform:translateY(1px)}
+.opening-slide{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:14px;min-height:58px;padding:9px 16px;border:1px solid rgba(226,205,246,.46);border-radius:13px;background:linear-gradient(145deg,rgba(255,204,226,.13),rgba(181,215,255,.09));box-shadow:inset 0 1px rgba(255,255,255,.08)}
+.opening-slide.custom{border-color:rgba(255,211,230,.66);background:linear-gradient(145deg,rgba(255,194,221,.19),rgba(190,218,255,.13))}
+.opening-index{display:grid;place-items:center;align-self:stretch;border-right:1px solid rgba(235,239,255,.12);color:rgba(231,224,247,.55);font:500 10px/1 'Outfit';letter-spacing:.12em}
+.opening-slide>div{display:grid;min-width:0;gap:3px}
+.opening-slide b{overflow:hidden;color:#fff;font-size:13px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.opening-slide p{overflow:hidden;color:var(--faint);font-size:10px;line-height:1.45;text-overflow:ellipsis;white-space:nowrap}
+.custom-opening{position:relative;margin-top:9px;padding-top:9px;border-top:1px solid rgba(235,239,255,.11)}
+.custom-opening label{display:block;margin:0 0 6px 2px;color:rgba(255,255,255,.72);font-size:10.5px;letter-spacing:.06em}
+.custom-opening textarea{min-height:76px;padding:10px 12px;resize:vertical;font-size:11px;line-height:1.6}
+.custom-opening small{position:absolute;right:10px;bottom:7px;color:var(--faint);font-size:9px}
+.custom-opening.hidden{display:none}
+body.compact-step .opening-picker{margin-top:8px;padding:10px 12px 11px}
+body.compact-step .opening-picker-head{margin-bottom:7px}
+body.compact-step .opening-picker-head h3{font-size:14px}
+body.compact-step .opening-arrow{min-height:48px}
+body.compact-step .opening-slide{min-height:48px;padding-top:6px;padding-bottom:6px}
+body.compact-step .custom-opening textarea{min-height:60px}
+@media(max-width:700px){
+  .opening-picker-head{display:block}
+  .opening-picker-head>span{display:block;margin-top:6px;text-align:left}
+  .opening-switcher{grid-template-columns:34px minmax(0,1fr) 34px;gap:6px}
+  .opening-arrow{min-height:62px}
+  .opening-slide{grid-template-columns:48px minmax(0,1fr);gap:10px;min-height:62px;padding:9px 11px}
+  .opening-slide p{white-space:normal}
+  .custom-opening textarea{min-height:110px}
+}

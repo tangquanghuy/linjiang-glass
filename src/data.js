@@ -1410,7 +1410,7 @@ function mapEvents(pool) {
     if (typeof ev === 'string') {
       return {
         id, area: '', place: '', title: id, category: '日常',
-        priority: 50, status: '待处理', conditions: {}, summary: ev,
+        priority: 50, status: '待处理', conditions: {}, summary: ev, notice: true,
       };
     }
     return {

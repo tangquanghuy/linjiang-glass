@@ -1932,6 +1932,12 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
   font-style: normal;
 }
 .pevt-cond > div { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-2); }
+.pevt-handle {
+  width: 100%; min-height: 42px; margin-top: var(--sp-3); border: 1px solid rgba(255, 220, 238, .42);
+  border-radius: 21px; background: linear-gradient(135deg, rgba(228,145,193,.42), rgba(143,131,204,.38));
+  color: #fff; font: 500 var(--fs-caption)/1 'Noto Sans SC'; cursor: pointer;
+}
+.pevt-handle:disabled { opacity: .55; cursor: wait; }
 .pevt-cond span {
   padding: 6px 15px 7px;
   border: 2px solid rgba(226, 230, 255, .16);

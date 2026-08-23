@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./opening.css?v=20260823-multi-custom-v2">
+<link rel="stylesheet" href="./opening.css?v=20260823-opening-two-v6">
 </head>
 <body>
 <div class="app"><div class="shell">
@@ -51,9 +51,28 @@
 <section class="panel" data-panel="3">
   <div class="section-head">
     <div><div class="eyebrow">03 / Oshi</div><h2>挑出你推的主播</h2></div>
-    <div class="oshi-counter"><span>已选</span><b id="oshi-count">0</b><i>/ 3</i></div>
+    <div class="oshi-counter"><span>已选</span><b id="oshi-count">0</b><i>/ 1</i></div>
   </div>
   <div class="oshi-grid" id="oshi-grid"></div>
+  <div class="card opening-picker">
+    <div class="opening-picker-head">
+      <div><div class="eyebrow">OPENING SCENE</div><h3>选择开局</h3></div>
+      <span>预留标题、简介与详细内容，之后可直接补充正式开局。</span>
+    </div>
+    <div class="opening-switcher">
+      <button class="opening-arrow" id="opening-prev" type="button" aria-label="上一个开局">‹</button>
+      <div class="opening-slide" id="opening-slide">
+        <span class="opening-index" id="opening-index">01 / 05</span>
+        <div><b id="opening-title">无</b><p id="opening-summary">无</p></div>
+      </div>
+      <button class="opening-arrow" id="opening-next" type="button" aria-label="下一个开局">›</button>
+    </div>
+    <div class="custom-opening hidden" id="custom-opening-box">
+      <label for="custom-opening-text">自定义开局内容</label>
+      <textarea class="control" id="custom-opening-text" maxlength="2000" placeholder="直接输入希望故事从哪里、以什么事件开始……"></textarea>
+      <small><span id="custom-opening-count">0</span> / 2000</small>
+    </div>
+  </div>
 </section>
 <section class="panel" data-panel="4">
   <div class="section-head">
@@ -109,5 +128,5 @@
 </div></div>
 <div class="map-modal" id="map-modal"><div class="map-dialog"><div class="map-head"><div><h3 id="map-title">选择住所</h3><p>在地图中点击地点；标准住所也可从下方快速选择。</p></div><button class="icon-btn" id="map-close" type="button">×</button></div><div class="map-frame"><iframe id="map-iframe" title="临江市地图" loading="eager"></iframe></div><div class="map-foot" id="quick-homes"></div></div></div>
 <div class="toast" id="toast"></div>
-<script src="./opening.js?v=20260823-multi-custom-v2"></script>
+<script src="./opening.js?v=20260823-opening-two-v6"></script>
 </body></html>

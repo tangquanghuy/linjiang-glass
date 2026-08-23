@@ -7936,6 +7936,30 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
       return { characterKey, sceneKey, numbers, maxNumber: numbers.length };
     }
 
+    const CG_UNLOCK_CHANNEL = 'linjiang-cg-unlock';
+
+    function publishCGUnlock(category, entry) {
+      const payload = {
+        channel: CG_UNLOCK_CHANNEL,
+        type: 'record',
+        id: `cg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        category,
+        character: entry.characterKey,
+        scene: entry.sceneKey,
+        count: entry.maxNumber
+      };
+      const targets = [];
+      try { if (window.parent) targets.push(window.parent); } catch (e) {}
+      try { if (window.top && !targets.includes(window.top)) targets.push(window.top); } catch (e) {}
+      const send = () => targets.forEach(target => {
+        try { target.postMessage(payload, '*'); } catch (e) {}
+      });
+      send();
+      // 状态栏可能正处于楼层交接，短暂重发；接收端按 id 去重。
+      setTimeout(send, 300);
+      setTimeout(send, 1200);
+    }
+
     window.recordCGUnlock = function (imgSrc) {
       try {
         const parsed = new URL(String(imgSrc || ''), window.location.href);
@@ -7952,9 +7976,13 @@ body[data-theme="dark"] .name-initial-${CSS.escape(name)} { color: ${darkColor};
         let unlocked = {};
         try { unlocked = JSON.parse(localStorage.getItem('unlocked_cg') || '{}') || {}; } catch (e) {}
         if (!unlocked[entry.characterKey]) unlocked[entry.characterKey] = {};
-        if (unlocked[entry.characterKey][entry.sceneKey]) return;
-        unlocked[entry.characterKey][entry.sceneKey] = entry.maxNumber;
-        localStorage.setItem('unlocked_cg', JSON.stringify(unlocked));
+        const previous = Number(unlocked[entry.characterKey][entry.sceneKey]) || 0;
+        if (previous < entry.maxNumber) {
+          unlocked[entry.characterKey][entry.sceneKey] = entry.maxNumber;
+          try { localStorage.setItem('unlocked_cg', JSON.stringify(unlocked)); } catch (e) {}
+        }
+        // 即使正文自己的 localStorage 已记录，也继续通知 HUD，补齐旧版本漏掉的跨域同步。
+        publishCGUnlock(category, entry);
       } catch (e) { console.error('CG unlock record failed:', e); }
     };
 

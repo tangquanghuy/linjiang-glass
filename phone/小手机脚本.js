@@ -6698,18 +6698,46 @@ function saveUnlockedCG(data, isVirtual = false) {
  * @param {number} maxCount - 该场景的最大CG数量
  */
 function unlockCG(characterName, sceneType, maxCount) {
+    const character = String(characterName || '').trim();
+    const scene = String(sceneType || '').trim();
+    if (!character || !scene || !CG_LIST[character]?.[scene]) return false;
     const unlocked = getUnlockedCG();
-    if (!unlocked[characterName]) {
-        unlocked[characterName] = {};
+    if (!unlocked[character]) {
+        unlocked[character] = {};
     }
-    if (!(sceneType in unlocked[characterName])) {
-        // 如果没传maxCount，从CG_LIST获取
-        const count = maxCount || CG_LIST[characterName]?.[sceneType] || 1;
-        unlocked[characterName][sceneType] = count;
-        saveUnlockedCG(unlocked);
-    }
+    const count = Math.max(1, Math.floor(Number(maxCount) || CG_LIST[character][scene] || 1));
+    const previous = Number(unlocked[character][scene]) || 0;
+    if (previous >= count) return false;
+    unlocked[character][scene] = count;
+    saveUnlockedCG(unlocked);
+    return true;
 }
 
+const CG_UNLOCK_MESSAGE_CHANNEL = 'linjiang-cg-unlock';
+
+function refreshVisibleCGCollection() {
+    setTimeout(() => {
+        try {
+            if (typeof currentPanel !== 'undefined' && currentPanel !== 'gallery') return;
+            if (typeof navigationStack !== 'undefined' && navigationStack.length > 0) return;
+            if (typeof generateGalleryPanel !== 'function') return;
+            const $body = $('#phone-app-body');
+            if (!$body.length) return;
+            $body.html(generateGalleryPanel(typeof currentPhoneData === 'undefined' ? null : currentPhoneData));
+            if (typeof bindCGGalleryEvents === 'function') bindCGGalleryEvents();
+        } catch (e) {
+            console.warn('[CG收集] 实时刷新失败:', e);
+        }
+    }, 0);
+}
+
+function onCGUnlockMessage(event) {
+    const data = event.data;
+    if (!data || data.channel !== CG_UNLOCK_MESSAGE_CHANNEL || data.type !== 'apply') return;
+    if (unlockCG(data.character, data.scene, data.count)) refreshVisibleCGCollection();
+}
+
+addEventListener('message', onCGUnlockMessage);
 /**
  * 一键解锁角色的所有CG
  * @param {string} characterName - 角色名称

@@ -1,39 +1,131 @@
-# 以下是当前支撑世界允许的数值变量，请以变量为基准考虑相关内容
+<%_
+;(() => {
+const data = _.cloneDeep(getMessageVar('stat_data', { defaults: {} }));
+if (!data || (!data.世界信息 && !data.玩家信息 && !data.对象信息)) { _%>
 <current_world_state>
-世界信息:
-  年历: {{get_message_variable::stat_data.世界信息.年历}}
-  日期: {{get_message_variable::stat_data.世界信息.日期显示.星期}} ({{get_message_variable::stat_data.世界信息.日期显示.季节}} 第{{get_message_variable::stat_data.世界信息.日期显示.年内周次}}周)
-  时间: {{get_message_variable::stat_data.世界信息.时间.时钟}} [{{get_message_variable::stat_data.世界信息.时间.时段}}]
-  位置:
-    区域: {{get_message_variable::stat_data.世界信息.位置.区域}}
-    场所: {{get_message_variable::stat_data.世界信息.位置.场所}}
-    私密度: {{get_message_variable::stat_data.世界信息.位置.私密度}}
-  当日事件:
-{{format_message_variable::stat_data.世界信息.事件池.当日事件}}
-
-玩家信息:
-  体力: {{get_message_variable::stat_data.玩家信息.体力}}/100
-  金钱: ￥{{get_message_variable::stat_data.玩家信息.金钱}}
-  同行状态: {{get_message_variable::stat_data.玩家信息.同行}}
-  居住地: {{get_message_variable::stat_data.玩家信息.居住地}}
-  工作:
-    职业: {{get_message_variable::stat_data.玩家信息.工作.职业}}
-    地点: {{get_message_variable::stat_data.玩家信息.工作.地点}}
-    日收入: {{get_message_variable::stat_data.玩家信息.工作.日收入}}
-    今日已上班: {{get_message_variable::stat_data.玩家信息.工作.今日已上班}}
-  所在直播间: {{get_message_variable::stat_data.玩家信息.所在直播间}}
-  房产清单:
-{{format_message_variable::stat_data.玩家信息.房产}}
-  粉丝身份:
-{{format_message_variable::stat_data.玩家信息.粉丝身份}}
-  背包:
-    素材:
-{{format_message_variable::stat_data.玩家信息.背包.素材}}
-    消耗品:
-{{format_message_variable::stat_data.玩家信息.背包.消耗品}}
-    用品:
-{{format_message_variable::stat_data.玩家信息.背包.用品}}
-
-对象信息:
-{{format_message_variable::stat_data.对象信息}}
+数据为空
 </current_world_state>
+<%_ } else {
+
+// 与“当前变量显示”保持一致：统一整理为对象后输出 YAML，避免局部 JSON 混排。
+const safeStringify = (obj) => {
+  if (typeof YAML !== 'undefined' && YAML && typeof YAML.stringify === 'function') {
+    return YAML.stringify(obj, { blockQuote: 'literal' }).trim();
+  }
+  return JSON.stringify(obj, null, 2);
+};
+
+const current = {};
+
+// ========== 世界信息 ==========
+const world = data.世界信息 || {};
+current.世界信息 = {
+  年历: world.年历,
+  星期: _.get(world, '日期显示.星期'),
+  时间: {
+    时钟: _.get(world, '时间.时钟'),
+    时段: _.get(world, '时间.时段')
+  },
+  位置: {
+    区域: _.get(world, '位置.区域'),
+    场所: _.get(world, '位置.场所'),
+    私密度: _.get(world, '位置.私密度')
+  },
+  事件提示: _.cloneDeep(world.事件提示 || {})
+};
+
+// ========== 玩家信息 ==========
+const player = data.玩家信息 || {};
+current.玩家信息 = {
+  体力: player.体力,
+  金钱: player.金钱,
+  同行: player.同行,
+  居住地: player.居住地,
+  工作: _.cloneDeep(player.工作 || {}),
+  所在直播间: player.所在直播间,
+  房产: _.cloneDeep(player.房产 || {}),
+  生活固定支出: _.cloneDeep(player.生活固定支出 || {}),
+  粉丝身份: _.cloneDeep(player.粉丝身份 || {}),
+  背包: {
+    素材: _.cloneDeep(_.get(player, '背包.素材', {})),
+    消耗品: _.cloneDeep(_.get(player, '背包.消耗品', {})),
+    用品: _.cloneDeep(_.get(player, '背包.用品', {}))
+  }
+};
+
+// ========== 对象信息 ==========
+// 只保留 AI 可见稿中的字段；开发度的“评语”等脚本侧扩展字段不进入变量提示。
+const experienceKeys = [
+  '露出经验', '自慰经验', '排泄调教经验', '道具调教经验',
+  '凌辱调教经验', '隐奸经验', '青奸经验', '睡奸经验',
+  '催眠奸经验', '情趣扮演经验', '盗摄经验', '性直播经验'
+];
+const developmentParts = ['口腔', '胸', '小穴', '肛门'];
+const objects = data.对象信息 || {};
+
+current.对象信息 = _.mapValues(objects, raw => {
+  const obj = raw || {};
+  const expRaw = obj.性经历 || {};
+  const developmentRaw = obj.开发度 || {};
+
+  const experiences = {
+    近期性经验次数: Number(expRaw.近期性经验次数) || 0
+  };
+  experienceKeys.forEach(key => {
+    const item = expRaw[key] || {};
+    experiences[key] = {
+      次数: Number(item.次数) || 0,
+      可更新: item.可更新 !== false
+    };
+  });
+
+  const development = {};
+  developmentParts.forEach(key => {
+    const part = developmentRaw[key] || {};
+    development[key] = {
+      档位: Number(part.档位) || 0,
+      进度: Number(part.进度) || 0,
+      可更新: part.可更新 !== false
+    };
+  });
+
+  const bond = obj.羁绊 || {};
+  const location = obj.位置 || {};
+  const physiology = obj.生理 || {};
+  const stream = obj.直播 || {};
+
+  return {
+    羁绊: {
+      好感度: Number(bond.好感度) || 0,
+      顺从度: Number(bond.顺从度) || 0,
+      心情: String(bond.心情 || '')
+    },
+    位置: {
+      区域: String(location.区域 || ''),
+      场所: String(location.场所 || ''),
+      私密度: Number(location.私密度) || 0
+    },
+    性经历: experiences,
+    开发度: development,
+    生理: {
+      性欲度: Number(physiology.性欲度) || 0,
+      体力: Number(physiology.体力) || 0,
+      尿意: Number(physiology.尿意) || 0,
+      异常状态: _.cloneDeep(physiology.异常状态 || {})
+    },
+    直播: {
+      开播: stream.开播 === true,
+      标题: String(stream.标题 || ''),
+      热度: Number(stream.热度) || 0,
+      粉丝数: Number(stream.粉丝数) || 0
+    }
+  };
+});
+_%>
+
+# 以下是当前支撑世界运行的变量，请以此为准
+<current_world_state>
+<%= safeStringify(current) %>
+</current_world_state>
+<%_ }
+})(); _%>

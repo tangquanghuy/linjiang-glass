@@ -25,7 +25,7 @@ const OSHI=[
 {name:'时雨羽衣',cover:'时雨羽衣',medal:'雨户',slot:'周更型 22:00–00:30',area:'鼓岭区 · 梧桐里',tags:['绘画','杂谈'],followers:130000,blurb:'画师主播，一周只播两三次，播了就是长夜画稿加碎嘴。'},
 {name:'斯黛拉',cover:'斯黛拉',medal:'小猪',slot:'傍晚电台 18:30–21:30',area:'落霞区 · 学府七舍天台',tags:['ASMR','杂谈'],followers:90000,blurb:'声音又轻又小的女学生，凌晨那段哄睡 ASMR 是招牌。'},
 {name:'璃亚梦',cover:'梦见璃亚梦',medal:'病友',slot:'深夜互动 23:00–02:00',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],followers:60000,blurb:'炎上体质的偶像兼主播，深夜小作文和突发开播都是常事。'}];
-const OSHI_MAX=3;
+const OSHI_MAX=1;
 const OSHI_FAVOR=300;    // 选中即加的好感，叠在 变量初始化 给的 80 上
 const OSHI_BADGE=8;      // 目标牌子等级
 /* 牌子等级是 累计打赏 的函数，不是独立字段：辅助计算脚本.js 每次变量更新都会用
@@ -91,11 +91,118 @@ const JOBS=[
 {name:'半山茶舍服务员',place:'青屏山风景区 · 半山听松古茶舍',node:'qp_teahouse',monthly:4200,daily:190,hours:'09:00-18:00',kind:'service'},
 {name:'洋房咖啡师',place:'鼓岭区 · 青砖记洋房咖啡',node:'gl_cafe',monthly:4600,daily:210,hours:'08:00-17:00',kind:'craft'}];
 const CATEGORIES=['杂谈','游戏','唱歌','ASMR','绘画','舞蹈','户外','美食','虚拟主播','综合内容'];
+const OPENING_ONE_DETAIL=[
+'### 一、 标题拟定（提供三组不同侧重风格供选）',
+'',
+'1. 写实白描向：《意外碰面》',
+'2. 管人圈反差向：《下播以后》',
+'3. 都市悬疑/情色微澜向：《屏幕之外》',
+'',
+'---',
+'',
+'### 二、 故事简介（白描质感）',
+'',
+'> 结束一天的奔波后，玩家带着尚未散去的疲惫回到自己的落脚处。',
+'> 简单收拾后打开手机，屏幕里熟悉的{{目标主播}}正就着简陋的麦克风与弹幕闲聊。',
+'> 临近午夜，耳机里传来她“中途离开几分钟去取急件”的交代，背景里是椅子拖动的摩擦声与门锁轻响。',
+'> 玩家也因临时需要短暂外出。',
+'> 在夜色与仍未熄灭的灯光之间，一个穿着宽松常服、踩着拖鞋正费力辨认快递单号的身影映入眼帘——那张被冷白灯光照亮的素颜，以及低声报出取件码的声线，与几分钟前耳机里的回响分毫不差。',
+'',
+'---',
+'',
+'### 三、 完整开局大纲',
+'',
+'```text',
+'#### 【第一幕：沉闷的都市现实与线上的赛博温床】',
+'- 节点 1：一天结束后的肉体疲惫',
+'  - 情节：交代玩家结束一天行程后的日常状态。写实刻画身体的疲惫感与卸下白天社会人格后的松弛，但不指定玩家的职业、居住环境、城区、通勤路线或任何具体地点。',
+'  - 细节：简单洗漱、喝水、放下随身物品，让身体从白天的紧绷里慢慢退出来。',
+'- 节点 2：进入直播间与单向注视',
+'  - 情节：玩家打开直播平台，进入目标主播{{目标主播}}的直播间。弹幕飞速滚动，主播正开着虚拟形象进行日常杂谈或下播前的碎碎念。',
+'  - 细节：还原真实的管人圈生态（念SC、跟弹幕互怼、因设备杂音或网速卡顿的轻微抱怨）。玩家作为千百条弹幕中不起眼的“路人白嫖怪/普通牌子粉”，体会着单向窥视的安全感与距离感。',
+'',
+'#### 【第二幕：现实与虚拟的微妙重叠】',
+'- 节点 3：突发的暂离借口与时空同步',
+'  - 情节：{{目标主播}}在麦克风前忽然叹气，表示收到了催取件的短信（生鲜/贵重设备/生活必需品），宣布“切个暂离垫乐，五分钟后回来”，随后听到现实中推开房门、走廊拖鞋声的微弱底噪。',
+'  - 细节：直播间弹幕开始刷“主播去哪了”、“速去速回”、“是不是偷偷去吃宵夜”。',
+'- 节点 4：玩家短暂外出与动线交汇',
+'  - 情节：玩家因口渴、烟瘾或其他临时需求，顺手抓起手机和钥匙短暂外出。不要指定玩家从什么住宅出发，也不要写死要前往的具体店铺或地点。',
+'  - 细节：夜晚的风声与手机后台隐约播放的直播间垫乐形成奇妙对照。',
+'',
+'#### 【第三幕：现实照面的失真对撞（核心高潮）】',
+'- 节点 5：毫无防备的视线聚焦',
+'  - 情节：在取件动线附近，玩家看见一个戴着兜帽或简单扎着头发的年轻女性。不要写死偶遇发生在哪一家店、哪条街或哪个城区。',
+'  - 视觉白描：冷白灯光斜切在她脸上，勾勒出与动捕虚拟形象一模一样的五官轮廓（泪痣/脸型/下颌线），身上穿着极度居家的旧宽松T恤与短裤，双腿修长白皙却踩着不合脚的拖鞋，毫无镜头前的偶像包袱。',
+'- 节点 6：声音的绝对实锤与心理震颤',
+'  - 情节：她正一边揉着脖颈，一边用那辨识度极高、刚刚还在耳机里回荡的独特声线，略带不耐烦地报出手机尾号：“尾号XXXX，一个大箱子。”',
+'  - 心理张力：玩家的手指僵在冰凉的易拉罐拉环或随手拿起的物品上。没有神仙特效，没有戏剧化的音乐，只有“原来万众瞩目的那个人，此刻就以最普通的样子出现在眼前”的巨大荒谬与隐秘快感。',
+'',
+'#### 【第四幕：试探、擦肩与隐秘的锁链】',
+'- 节点 7：第一次近距离接触与掩饰',
+'  - 情节：两人在有限的通行空间里错身而过。她抱着沉重的快递箱，因为箱体遮挡视线险些撞上玩家，下意识轻呼并道歉；玩家顺势搭手帮她托了一下箱底，产生极短暂的皮肤/指尖接触。',
+'  - 角色反应：对方维持着普通人面对陌生人的戒备与客套，抱着快递很快离开玩家的视线。',
+'- 节点 8：余波与游戏主线切入',
+'  - 情节：玩家回到自己的落脚处，重新打开手机屏幕。耳机里传来她气喘吁吁重新坐回椅子上的动静，直播间画面亮起：“呼……累死了，刚才那个箱子好沉，差点摔倒。”',
+'  - 收尾定调：看着弹幕刷过去的“辛苦了”、“主播多喝热水”，玩家看着自己刚刚碰到她箱底和手腕的指尖，彻底打破了屏幕内外的单向认知，正式拉开线下交集与后续隐秘互动的序幕。',
+'```'
+].join('\n');
+const OPENING_TWO_DETAIL=[
+'# 《小号约见》开局设计（通用适配版）',
+'',
+'---',
+'',
+'### 二、 故事简介（通用白描质感）',
+'',
+'> 连续数日的机械式日常与屏幕劳碌，积压着难以言说的空虚与浮躁。',
+'> 屏幕另一端的{{目标主播}}在结束了漫长的杂谈后，伸着懒腰向弹幕随口交代了一句“下午有点私事要出门透气”，随后光速切断了推流。',
+'> 玩家合上直播窗口，无聊地刷着同城约会软件的动态广场。一条刚刚发布的极简动态跃入眼帘——没有露全脸，只有一张戴着帽子、遮住大半面容的侧影自拍与略带烦躁的文字：【刚忙完，想找人出门走走，不查户口的来】。',
+'> 怀着排遣无聊的心态，玩家随手发去了私信，竟意外收到了秒回的碰面信息。',
+'> 当玩家如约抵达约定的碰面位置，看着那个戴着严实口罩、缩着肩膀快步走来的娇小身影时，她拉下半截口罩警惕四顾露出的眉眼，以及开口压低声音对暗号的第一句话，让玩家的思维瞬间陷入了停滞——那张毫无修饰的面孔与原汁原味的声线，分毫不差地击碎了刚刚才在直播间关闭的虚拟投影。',
+'',
+'---',
+'',
+'### 三、 完整分幕大纲（四幕结构）',
+'',
+'```text',
+'#### 【第一幕：隐秘渴求与投石问路（暗线伏笔）】',
+'- 节点 1：高压日常与私密宣泄的空缺',
+'  - 情节：{{目标主播}}在独处空间内经历漫长赶工或直播后的极度疲惫，伴随着难以排解的生理/心理空虚（如独自宣泄无法获得满足、被公众形象深度绑架的窒息感）。',
+'  - 动机：迫切渴望在不暴露真实身份的前提下，以“普通女人”的身份与一个完全不知道自己是谁的陌生人发生纯粹的现实接触。',
+'- 节点 2：备用小号的同城动态',
+'  - 情节：{{目标主播}}切换到从未公开的同城社交软件小号，发布了一条带着模糊侧影自拍与定位的简短动态，怀着紧张、羞耻与刺激的心态等待回应。',
+'',
+'#### 【第二幕：赛博错位与盲盒接线（玩家视角）】',
+'- 节点 3：直播间的“出门请假条”',
+'  - 情节：玩家在观看{{目标主播}}的日常直播时，听到她在下播前向弹幕随口提及“下午/晚点要出门办点私事”，弹幕如常刷着“注意安全”、“去吃大餐”后黑屏。',
+'- 节点 4：动态广场的偶然匹配',
+'  - 情节：玩家退出直播后随手刷同城软件，刚好刷到了那条刚发出的带定位动态。',
+'  - 盲盒状态：玩家完全不知道对方的真实身份，仅被照片中展露的体态轮廓与神秘感吸引，顺手发送了打招呼的私信；双方迅速敲定了附近的碰面位置。',
+'',
+'#### 【第三幕：约见与失真重叠（核心高潮）】',
+'- 节点 5：赴约与戒备观察',
+'  - 情节：玩家准时到达约定的碰面位置。一个全副武装（帽子、口罩、宽松常服）的身影战战兢兢地出现，四下张望确认没有熟人。不要写死约见发生在哪条街、哪家店或哪个城区。',
+'- 节点 6：口罩滑落与声线暴击（绝对实锤）',
+'  - 视觉冲击：对方快步走近，在背光或拉下口罩透气的瞬间，露出了毫无滤镜修饰的素颜。标志性的眼眸轮廓、鼻梁弧度与脸型，让玩家当场产生强烈的既视感。',
+'  - 听觉实锤：她压低嗓音略带紧张地开口确认身份：“……是你吗？先离开这，别站在显眼的地方。”那极具辨识度、几十分钟前还在耳机里回响的独特音色，直接坐实了对方正是刚刚下播的{{目标主播}}本人。',
+'- 节点 7：极度反差与心理震荡',
+'  - 心理张力：万众瞩目、在直播间里被无数粉丝奉为偶像/难以触及的角色，此刻正作为一个毫无防备、有些局促不安的普通女孩站在玩家面前，甚至主动拉着玩家的衣角快步离开显眼区域。',
+'',
+'#### 【第四幕：暗流涌动与私密契约（剧情切入）】',
+'- 节点 8：心照不宣的伪装同行',
+'  - 情节：对方完全以为玩家只是个普通的同城路人，一边抱怨着生活压力，一边提出去更私密的地方坐坐，甚至做出轻微越界的肢体试探。',
+'```'
+].join('\n');
+const OPENINGS=[
+{id:'none',title:'无',summary:'无',detail:'无'},
+{id:'opening-1',title:'意外碰面',summary:'一次短暂离开直播间的取件，让线上注视与线下现实意外重叠。',detail:OPENING_ONE_DETAIL},
+{id:'opening-2',title:'小号约见',summary:'玩家在同城软件上偶然约到刚刚下播的目标主播。',detail:OPENING_TWO_DETAIL},
+{id:'opening-3',title:'空开局 03',summary:'无',detail:'无'},
+{id:'custom',title:'自定义开局',summary:'由玩家直接输入开局内容',detail:''}];
 /* 人设不再是一组固定字段，而是一整段「角色详情」YAML —— 跟 世界书/红蔷薇、斯黛拉、
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
 const ARCHIVE_KEY='linjiang-opening-streamer-archives-v1';
 const ARCHIVE_ART_MAX=1536*1024;
-const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
+const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'none',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const value=id=>$(id).value.trim();
@@ -151,7 +258,7 @@ function setJob(job){if(!job)return;state.job=job;var api=openingMapApi();try{if
 function oshiOf(name){return OSHI.find(function(o){return o.name===name})||null}
 function oshiPicked(){return state.oshi.map(oshiOf).filter(Boolean)}
 function renderOshi(){var grid=document.querySelector('#oshi-grid');if(!grid)return;
-  grid.innerHTML=OSHI.map(function(o){var on=state.oshi.indexOf(o.name)>=0,full=!on&&state.oshi.length>=OSHI_MAX;
+  grid.innerHTML=OSHI.map(function(o){var on=state.oshi.indexOf(o.name)>=0,full=false;
     /* 推满之后剩下的卡只压暗、不 disabled：点了会给一句"先取消一个"，
        比一个没有反馈的死按钮好懂，键盘和读屏也照样能到。 */
     return '<button type="button" class="oshi-card'+(on?' on':'')+(full?' full':'')+'" data-oshi="'+esc(o.name)+'" aria-pressed="'+(on?'true':'false')+'">'
@@ -169,11 +276,17 @@ function renderOshi(){var grid=document.querySelector('#oshi-grid');if(!grid)ret
       +'</span></button>'}).join('');
   grid.querySelectorAll('[data-oshi]').forEach(function(btn){btn.onclick=function(){toggleOshi(btn.dataset.oshi)}});
   var count=document.querySelector('#oshi-count');if(count)count.textContent=state.oshi.length}
-function toggleOshi(name){var i=state.oshi.indexOf(name);
-  if(i>=0){state.oshi.splice(i,1);toast('已取消：'+name)}
-  else if(state.oshi.length>=OSHI_MAX){toast('最多只能推 '+OSHI_MAX+' 个，先取消一个');return}
-  else{state.oshi.push(name);toast('已推：'+name+' / 好感 +'+OSHI_FAVOR+' / '+oshiOf(name).medal+' Lv.'+OSHI_BADGE)}
+function toggleOshi(name){var i=state.oshi.indexOf(name),previous=state.oshi[0];
+  if(i>=0){state.oshi=[];toast('已取消：'+name)}
+  else{state.oshi=[name];toast((previous?'已改推：':'已推：')+name+' / 好感 +'+OSHI_FAVOR+' / '+oshiOf(name).medal+' Lv.'+OSHI_BADGE)}
   renderOshi()}
+function selectedOpening(){var base=OPENINGS.find(function(o){return o.id===state.openingId})||OPENINGS[0];var detail=base.id==='custom'?(state.customOpeningText.trim()||'无'):base.detail;return{id:base.id,title:base.title,summary:base.summary,detail:detail,custom:base.id==='custom'}}
+function openingTargetCandidates(){var fixed=oshiPicked().map(function(o){return{name:o.name,source:'固定主播'}}),customs=state.customs.map(normalizeCustom).filter(function(c){return c.name&&c.yaml}).map(function(c){return{name:c.name,source:'自定义主播'}});if(fixed.length&&customs.length)return fixed.concat(customs);if(fixed.length)return fixed;if(customs.length)return customs;return OSHI.map(function(o){return{name:o.name,source:'随机主播'}})}
+function pickOpeningTarget(){var candidates=openingTargetCandidates(),signature=candidates.map(function(c){return c.source+':'+c.name}).join('|');if(state.openingTargetSignature!==signature||!state.openingTarget){state.openingTargetSignature=signature;state.openingTarget=candidates[Math.floor(Math.random()*candidates.length)]||null}return state.openingTarget}
+function resolvedOpening(){var opening=selectedOpening();if(opening.id!=='opening-1'&&opening.id!=='opening-2')return Object.assign({},opening,{targetStreamer:null});var target=pickOpeningTarget(),name=target?target.name:'随机主播';return Object.assign({},opening,{detail:opening.detail.split('{{目标主播}}').join(name),targetStreamer:target})}
+function renderOpenings(){var current=selectedOpening(),index=Math.max(0,OPENINGS.findIndex(function(o){return o.id===current.id}));$('#opening-index').textContent=String(index+1).padStart(2,'0')+' / '+String(OPENINGS.length).padStart(2,'0');$('#opening-title').textContent=current.title;$('#opening-summary').textContent=current.summary;$('#opening-slide').classList.toggle('custom',current.custom);$('#custom-opening-box').classList.toggle('hidden',!current.custom);$('#custom-opening-count').textContent=state.customOpeningText.length}
+function selectOpening(id){if(!OPENINGS.some(function(o){return o.id===id}))return;state.openingId=id;renderOpenings()}
+function shiftOpening(offset){var index=OPENINGS.findIndex(function(o){return o.id===state.openingId});index=(index+offset+OPENINGS.length)%OPENINGS.length;selectOpening(OPENINGS[index].id)}
 function customId(){return'custom-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)}
 function cloneHome(home){return home?{id:home.id||'',name:home.name||'',fullName:home.fullName||'',district:home.district||'',tenure:home.tenure||'租住',note:home.note||'',rent:+home.rent||0,deposit:+home.deposit||0,cost:home.cost||''}:null}
 function normalizeCustom(raw){raw=raw||{};var start=String(raw.hoursStart||''),end=String(raw.hoursEnd||'');if((!start||!end)&&raw.hours){var m=String(raw.hours).match(/^(\d{2}:\d{2})\s*-\s*(?:次日\s*)?(\d{2}:\d{2}|24:00)$/);if(m){start=m[1];end=m[2]==='24:00'?'00:00':m[2]}}var tier=clampTier(raw.tier??raw.scale?.tier??42),homeData=cloneHome(raw.homeData);return{id:raw.id||customId(),name:String(raw.name||''),handle:String(raw.handle||''),age:+raw.age||23,home:String(raw.home||(homeData&&homeData.fullName)||''),homeData:homeData,categories:Array.isArray(raw.categories)&&raw.categories.length?raw.categories.slice():['杂谈'],tier:tier,scale:streamScale(tier),hoursStart:start,hoursEnd:end,hours:String(raw.hours||''),tone:String(raw.tone||''),seed:String(raw.seed||''),medal:String(raw.medal||''),art:{type:String(raw.art&&raw.art.type||''),src:String(raw.art&&raw.art.src||'')},yaml:String(raw.yaml||''),updatedAt:+raw.updatedAt||0}}
@@ -287,8 +400,8 @@ async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){
   setTimeout(()=>{renderProfile();var saved=saveCurrentCustom({quiet:true});btn.disabled=false;btn.textContent='重新生成';status.textContent=saved?'已加入本次开局，可继续修改':'请检查主播资料'},450)}
 function updateBookPreview(){if(state.yaml)$('#generated-meta').textContent='角色详情：'+(value('#streamer-name')||'—')}
 function syncInputs(){const n=value('#streamer-name'),h=value('#streamer-handle');$('#art-name').textContent=n||'新主播';$('#art-handle').textContent=(h||'STREAMER').toUpperCase();$('#art-monogram').textContent=(n||h||'S').slice(0,1);updateBookPreview()}
-function validate(step){if(step===1&&!value('#player-name')){toast('请填写玩家姓名或常用称呼');return false}if(step===2&&!state.home){toast('请先从地图选择初始住所');return false}if(step===4){var touched=!!(value('#streamer-name')||value('#streamer-handle')||state.yaml);if(touched&&!state.yaml){toast('当前主播还没生成人设档案');return false}if(state.yaml&&!saveCurrentCustom({quiet:true}))return false}return true}
-function renderConfirm(){var player=value('#player-name')||'未命名玩家',handle=value('#player-handle')||'未设置网名',job=state.job,home=state.home,customs=state.customs;document.querySelector('#confirm-player').textContent=player;document.querySelector('#confirm-lines').innerHTML=[['玩家档案',player+' / '+state.gender+' / '+(value('#player-age')||24)+'岁'],['直播网名',handle],['初始住所',home?home.fullName+' / '+homeCostText(home):'未选择'],['初始工作',job.name],['收入与时间',job.monthly?'月薪约 RMB '+job.monthly.toLocaleString()+' / '+job.hours:'无固定收入'],['通勤估算',job.monthly?jobCommuteText(job):'无需通勤'],['我推的主播',oshiPicked().length?oshiPicked().map(function(o){return o.name}).join('、'):'未选择'],['自定义主播',customs.length?customs.map(function(c){return c.name+'（'+c.handle+'）'}).join('、'):'未追加']].map(function(row){return'<div class="confirm-line"><span>'+row[0]+'</span><b>'+esc(row[1])+'</b></div>'}).join('')}
+function validate(step){if(step===1&&!value('#player-name')){toast('请填写玩家姓名或常用称呼');return false}if(step===2&&!state.home){toast('请先从地图选择初始住所');return false}if(step===3&&state.openingId==='custom'&&!state.customOpeningText.trim()){toast('请输入自定义开局内容');return false}if(step===4){var touched=!!(value('#streamer-name')||value('#streamer-handle')||state.yaml);if(touched&&!state.yaml){toast('当前主播还没生成人设档案');return false}if(state.yaml&&!saveCurrentCustom({quiet:true}))return false}return true}
+function renderConfirm(){var player=value('#player-name')||'未命名玩家',handle=value('#player-handle')||'未设置网名',job=state.job,home=state.home,customs=state.customs,opening=resolvedOpening(),detailPreview=opening.detail.length>120?opening.detail.slice(0,120)+'…':opening.detail,rows=[['玩家档案',player+' / '+state.gender+' / '+(value('#player-age')||24)+'岁'],['直播网名',handle],['初始住所',home?home.fullName+' / '+homeCostText(home):'未选择'],['初始工作',job.name],['收入与时间',job.monthly?'月薪约 RMB '+job.monthly.toLocaleString()+' / '+job.hours:'无固定收入'],['通勤估算',job.monthly?jobCommuteText(job):'无需通勤'],['我推的主播',oshiPicked().length?oshiPicked().map(function(o){return o.name}).join('、'):'未选择'],['选择开局',opening.title+' / '+opening.summary]];if(opening.targetStreamer)rows.push(['目标主播',opening.targetStreamer.name]);rows.push(['开局详情',detailPreview],['自定义主播',customs.length?customs.map(function(c){return c.name+'（'+c.handle+'）'}).join('、'):'未追加']);document.querySelector('#confirm-player').textContent=player;document.querySelector('#confirm-lines').innerHTML=rows.map(function(row){return'<div class="confirm-line"><span>'+row[0]+'</span><b>'+esc(row[1])+'</b></div>'}).join('')}
 function skipStep(){return false}
 function nextStep(from){return Math.min(LAST_STEP,from+1)}
 function prevStep(from){return Math.max(1,from-1)}
@@ -300,7 +413,7 @@ function go(step,direct){if(step>state.step&&!validate(state.step))return;step=M
   /* 05 跟 02 一样要"撑满一屏"：左边档案、右边世界书正文各自内部滚，
      而不是让整页跟着最长的那一列长。 */
   document.body.classList.toggle('confirm-step',state.step===LAST_STEP);
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'生成开局配置':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2)setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80);scrollTo({top:0,behavior:'smooth'})}
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'出发':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2)setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80);scrollTo({top:0,behavior:'smooth'})}
 function emptyExperience(){var item=()=>({次数:0,可更新:true});return{近期性经验次数:0,露出经验:item(),自慰经验:item(),排泄调教经验:item(),道具调教经验:item(),凌辱调教经验:item(),隐奸经验:item(),青奸经验:item(),睡奸经验:item(),催眠奸经验:item(),情趣扮演经验:item(),盗摄经验:item(),性直播经验:item()}}
 function emptyDevelopment(){return{口腔:{档位:0,进度:0,可更新:true,评语:''},胸:{档位:0,进度:0,可更新:true,评语:''},小穴:{档位:0,进度:0,可更新:true,评语:''},肛门:{档位:0,进度:0,可更新:true,评语:''}}}
 function commuteForCurrentJob(){return state.job&&state.job.node?quoteFor(state.job):null}
@@ -314,15 +427,21 @@ function openingPayload(){var pname=value('#player-name'),job=state.job,commute=
   customs.forEach(function(d){girls[d.name]={'羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home||'','场所':'家中','私密度':5},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':{}},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};rooms[d.name]={'档期':d.hours||'不固定','牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}};books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:String(d.yaml).trim()});uis.push({name:d.name,handle:d.handle,art:d.art})});
   if(Object.keys(girls).length)mvu['对象信息']=girls;
   if(Object.keys(rooms).length)mvu['系统配置']={'直播间':rooms};
-  return{mvu:mvu,oshi:picked.map(function(o){return{name:o.name,medal:o.medal,badge:OSHI_BADGE,favor:80+OSHI_FAVOR,tipped:OSHI_TIPPED}}),worldbook:books[books.length-1]||null,worldbooks:books,ui:uis[0]||null,uis:uis}}
-function finish(){const payload=openingPayload();if(window.parent!==window)parent.postMessage({channel:'linjiang-opening',kind:'event',type:'commitPreview',payload},'*');navigator.clipboard?.writeText(JSON.stringify(payload,null,2)).catch(()=>{});console.log('[临江开局配置]',payload);toast('准备完成，临江生活即将开始')}
-loadArchives();renderSteps();renderMapInspector();renderOshi();clearCustomEditor();go(1);var initialMap=document.querySelector('#opening-map-iframe');if(initialMap&&!initialMap.getAttribute('src')){initialMap.src=MAP_URL+'&target=home';initialMap.addEventListener('load',function(){setTimeout(bindOpeningFrame,200)})}
+  return{mvu:mvu,oshi:picked.map(function(o){return{name:o.name,medal:o.medal,badge:OSHI_BADGE,favor:80+OSHI_FAVOR,tipped:OSHI_TIPPED}}),opening:resolvedOpening(),worldbook:books[books.length-1]||null,worldbooks:books,ui:uis[0]||null,uis:uis}}
+function playerOriginConfig(payload){var info=payload.mvu['玩家信息'],world=payload.mvu['世界信息'];return{'玩家档案':info['档案'],'初始日期':world['年历'],'初始时间':world['时间'],'初始位置':world['位置'],'初始体力':info['体力'],'初始金钱':info['金钱'],'初始住所':info['居住地'],'初始房产':info['房产'],'初始工作':info['工作'],'我推的主播':payload.oshi.map(function(o){return o.name}),'自定义主播':payload.uis.map(function(u){return{name:u.name,网名:u.handle}})}}
+function buildStartMessage(payload){var opening=payload.opening,target=opening.targetStreamer?opening.targetStreamer.name:'未指定';return '请根据以下玩家出身配置和开局内容，完成初始化并直接开始临江市的故事。\n\n【玩家出身配置】\n'+JSON.stringify(playerOriginConfig(payload),null,2)+'\n\n【选择的开局】\n标题：'+opening.title+'\n简介：'+opening.summary+'\n目标主播：'+target+'\n详细内容：\n'+opening.detail+'\n\n请保持上述出身信息一致；若开局内容为“无”，则从玩家初次入住临江的普通清晨自然展开。'}
+function sendMessageToChat(message){try{var doc=document;if(window.parent&&window.parent!==window){try{doc=window.parent.document}catch(_){}}var area=doc.getElementById('send_textarea'),button=doc.getElementById('send_but');if(!area||!button)return false;area.value=message;area.dispatchEvent(new Event('input',{bubbles:true}));area.dispatchEvent(new Event('change',{bubbles:true}));button.click();return true}catch(_){return false}}
+function finish(){const payload=openingPayload();payload.startMessage=buildStartMessage(payload);if(window.parent!==window)parent.postMessage({channel:'linjiang-opening',kind:'event',type:'commitPreview',payload},'*');else sendMessageToChat(payload.startMessage);navigator.clipboard?.writeText(payload.startMessage).catch(()=>{});console.log('[临江开局配置]',payload);toast('开局配置已发送，临江生活即将开始')}
+loadArchives();renderSteps();renderMapInspector();renderOshi();renderOpenings();clearCustomEditor();go(1);var initialMap=document.querySelector('#opening-map-iframe');if(initialMap&&!initialMap.getAttribute('src')){initialMap.src=MAP_URL+'&target=home';initialMap.addEventListener('load',function(){setTimeout(bindOpeningFrame,200)})}
 $('#gender-segment').onclick=e=>{const b=e.target.closest('button');if(!b)return;state.gender=b.dataset.value;$('#gender-segment').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
 document.querySelectorAll('[data-open-map]').forEach(b=>b.onclick=()=>openMap(b.dataset.openMap));
 $('#map-close').onclick=closeMap;$('#map-modal').onclick=e=>{if(e.target===$('#map-modal'))closeMap()};
 renderMapQuick();
 $('#map-iframe').addEventListener('load',()=>setTimeout(bindFrame,350));document.querySelector('#map-home-mode').onclick=()=>setOpeningTarget('player');document.querySelector('#map-work-mode').onclick=()=>setOpeningTarget('work');document.querySelector('#change-home').onclick=()=>setOpeningTarget('player');document.querySelector('#change-work').onclick=()=>setOpeningTarget('work');document.querySelector('#map-fullscreen').onclick=toggleMapFullscreen;document.addEventListener('fullscreenchange',syncMapFullscreen);
 addEventListener('message',e=>{const d=e.data;if(d?.channel==='linjiang-map'&&d.type==='pick')handleMapPick(d.payload)});
+$('#opening-prev').onclick=()=>shiftOpening(-1);
+$('#opening-next').onclick=()=>shiftOpening(1);
+$('#custom-opening-text').addEventListener('input',e=>{state.customOpeningText=e.target.value;renderOpenings()});
 $('#streamer-tier').oninput=renderScale;
 $('#streamer-hours-presets').onclick=e=>{const b=e.target.closest('button');if(!b)return;setStreamerHours(b.dataset.start,b.dataset.end)};
 ['#streamer-hours-start','#streamer-hours-end'].forEach(id=>$(id).addEventListener('input',renderStreamerHours));
