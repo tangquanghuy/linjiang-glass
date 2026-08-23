@@ -30,6 +30,7 @@
     "arcade:rotated": "node scripts/check-arcade-rotated.mjs",
     "embed": "node scripts/check-embed.mjs",
     "tavern:real": "node scripts/check-tavern-real.mjs",
+    "tavern:perf": "node scripts/check-hud-scroll-perf.mjs",
     "tavern:pages": "node scripts/check-tavern-mobile-pages.mjs",
     "split": "node scripts/check-split.mjs",
     "phone:build": "node phone/build.mjs",

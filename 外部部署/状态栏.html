@@ -1399,7 +1399,7 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body23');
+      url.searchParams.set('v', 'body24');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -1439,6 +1439,36 @@
       followTick = 0;
       try { followHud(); } catch (e) {}
     });
+  };
+
+  /* A moving top-level iframe forces every backdrop-filter inside it to be
+     recomposited against a new screen position. Temporarily ask the HUD to use
+     its flat glass fills while the tavern scrolls; restore the blur shortly
+     after the last scroll event. The tint/rims stay visible, so the transient
+     downgrade is hard to notice in motion but removes the expensive blur pass. */
+  let hostScrollIdleTimer = 0;
+  let hostScrollActive = false;
+  const setHostScrollActive = (next) => {
+    const activeNow = !!next;
+    if (hostScrollActive === activeNow) return;
+    hostScrollActive = activeNow;
+    postToHud({
+      channel: CHANNEL,
+      kind: 'event',
+      type: 'hostScrollState',
+      context: manager.context(),
+      payload: { active: activeNow },
+    });
+  };
+  const noteHostScroll = () => {
+    if (!isOwner()) return;
+    setHostScrollActive(true);
+    clearTimeout(hostScrollIdleTimer);
+    hostScrollIdleTimer = setTimeout(() => {
+      hostScrollIdleTimer = 0;
+      setHostScrollActive(false);
+    }, 160);
+    requestFollow();
   };
 
   const wheelPixels = (payload, win) => {
@@ -1816,6 +1846,7 @@
     const tavern = tavernWin();
     const dy = wheelPixels(payload, tavern);
     if (!dy) return;
+    noteHostScroll();
 
     let remaining = dy;
     try {
@@ -1962,6 +1993,9 @@
 
   const deactivate = () => {
     if (!active) { collapseAnchor(); return; }
+    clearTimeout(hostScrollIdleTimer);
+    hostScrollIdleTimer = 0;
+    setHostScrollActive(false);
     active = false;
     portraitPageOpen = false;
     try { unlockTavernScroll(); } catch (e) {}
@@ -2006,13 +2040,13 @@
       listen(tavern, 'resize', fitParentFrame);
       listen(tavern, 'orientationchange', fitParentFrame);
       if (tavern.visualViewport) listen(tavern.visualViewport, 'resize', fitParentFrame, { passive: true });
-      listen(tavern, 'scroll', requestFollow, opts);
-      listen(tavern.document, 'scroll', requestFollow, opts);
+      listen(tavern, 'scroll', noteHostScroll, opts);
+      listen(tavern.document, 'scroll', noteHostScroll, opts);
       const chat = tavern.document.getElementById('chat');
-      if (chat) listen(chat, 'scroll', requestFollow, opts);
+      if (chat) listen(chat, 'scroll', noteHostScroll, opts);
       if (window.parent && window.parent !== window && window.parent !== tavern) {
-        listen(window.parent, 'scroll', requestFollow, opts);
-        listen(window.parent.document, 'scroll', requestFollow, opts);
+        listen(window.parent, 'scroll', noteHostScroll, opts);
+        listen(window.parent.document, 'scroll', noteHostScroll, opts);
         listen(window.parent, 'resize', fitParentFrame);
       }
       const frame = window.frameElement;

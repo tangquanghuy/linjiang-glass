@@ -1230,3 +1230,24 @@ body.compact-step .custom-opening textarea{min-height:60px}
   body.oshi-step .panel[data-panel="3"].active{height:auto;min-height:0}
   body.oshi-step .opening-picker{flex:none}
 }
+
+/* Mobile finish guard: keep the final action inside the visible iframe viewport.
+   The host opens this page in a full-screen iframe; on short screens the final
+   profile can be taller than the iframe, so the action bar follows the scroll
+   edge instead of sitting below the last visible line. */
+@media(max-width:900px){
+  body.confirm-step .shell{overflow:visible}
+  body.confirm-step .footer{
+    position:sticky;
+    bottom:0;
+    z-index:20;
+    padding:10px 15px max(12px,env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(47,45,91,.94),rgba(28,29,67,.98));
+    box-shadow:0 -14px 34px rgba(12,10,35,.24),inset 0 1px rgba(255,255,255,.12);
+    backdrop-filter:blur(20px) saturate(1.2);
+    -webkit-backdrop-filter:blur(20px) saturate(1.2)
+  }
+  body.confirm-step .footer-note{display:none}
+  body.confirm-step .footer-actions{display:grid;width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  body.confirm-step .footer-actions button{min-height:48px}
+}

@@ -150,6 +150,10 @@ function onMessage(event) {
   }
   if (data.kind === 'event' && data.type === 'autoscrollState') {
     autoscrollActive = !!data.payload?.active;
+    return;
+  }
+  if (data.kind === 'event' && data.type === 'hostScrollState') {
+    document.documentElement.classList.toggle('host-scroll-active', !!data.payload?.active);
   }
 }
 
