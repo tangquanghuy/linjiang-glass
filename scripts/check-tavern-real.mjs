@@ -147,23 +147,28 @@ console.log(`  ${'-'.repeat(112)}`);
   const preset = { ...base, vw: 1001, vh: 1400, mobile: true, touch: true };
   const page = await openPreset(preset, { tauriMobile: true });
   const initial = await page.evaluate(() => {
-    const hud = document.getElementById('linjiang-hud-live');
+    const hud = window.__linjiangTavernReal.liveHud();
     return {
       portrait: getComputedStyle(hud.contentDocument.querySelector('.pstage')).display !== 'none',
       host: new URL(hud.src).searchParams.get('host'),
       performance: hud.contentDocument.documentElement.dataset.hudPerformance,
+      inline: !document.getElementById('linjiang-hud-live'),
     };
   });
   check('tt-mobile-wide', initial.portrait, 'wide portrait Tauri host selected landscape HUD');
+  check('tt-mobile-wide', initial.inline, 'Tauri mobile HUD was detached from its message iframe');
   check('tt-mobile-wide', initial.host === 'tauritavern-mobile', `host query ${initial.host}`);
-  check('tt-mobile-wide', initial.performance === 'low', `performance mode ${initial.performance}`);
+  check('tt-mobile-wide', initial.performance === 'auto', `performance mode ${initial.performance}`);
 
-  const hud = page.frameLocator('#linjiang-hud-live');
+  const statusElement = await page.locator('.fixture-status-message .TH-render > iframe').first().elementHandle();
+  const statusFrame = await statusElement.contentFrame();
+  const hudElement = await statusFrame.locator('#hud').elementHandle();
+  const hud = await hudElement.contentFrame();
   await hud.locator('.pbtn-ghost[data-page="profile"]').click();
   await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
   await page.waitForTimeout(250);
   const opened = await page.evaluate(() => {
-    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
     return {
       x: frame.x, y: frame.y, width: frame.width, height: frame.height,
       viewportWidth: innerWidth, viewportHeight: innerHeight,
@@ -178,15 +183,80 @@ console.log(`  ${'-'.repeat(112)}`);
   await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
   await page.waitForTimeout(250);
   const closed = await page.evaluate(() => {
-    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
     return { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
   });
   const restored = closed.width < opened.viewportWidth - 20 && closed.y > 1;
   check('tt-mobile-page-close', restored, JSON.stringify(closed));
-  console.log(`  ${initial.portrait && initial.performance === 'low' && fillsViewport && restored ? 'ok  ' : 'FAIL'}  `
+
+  /* The global dock setting must have a visible mobile effect now: embedded uses
+     the message slot width, page mode breaks out to the portrait column width. */
+  await hud.locator('[data-page="settings"]').last().click();
+  await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
+  await hud.locator('[data-pref-set="dockDefault"][data-pref-value="embedded"]').click();
+  await hud.locator('[data-page-close]').first().click();
+  await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
+  await page.waitForTimeout(250);
+  const embedded = await page.evaluate(() => {
+    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const host = window.__linjiangTavernReal.statusFrame.parentElement.getBoundingClientRect();
+    return { width: frame.width, hostWidth: host.width, x: frame.x };
+  });
+  const embeddedApplied = Math.abs(embedded.width - embedded.hostWidth) <= 2;
+  check('tt-mobile-dock-embedded', embeddedApplied, JSON.stringify(embedded));
+
+  /* Restore the fixture preference so later desktop checks remain deterministic. */
+  await hud.locator('[data-page="settings"]').last().click();
+  await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
+  await hud.locator('[data-pref-set="dockDefault"][data-pref-value="page"]').click();
+  await hud.locator('[data-page-close]').first().click();
+  await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
+
+  /* Emulate TauriTavern auto/mobile-safe parking without importing or modifying
+     its runtime manager. The entire outer iframe may reload during the DOM move;
+     after restoration the card must rebuild inline, never leave a body overlay. */
+  await page.evaluate(() => {
+    const frame = window.__linjiangTavernReal.statusFrame;
+    window.__linjiangParkingProbe = { parent: frame.parentNode, next: frame.nextSibling };
+    const lot = document.createElement('div');
+    lot.id = 'linjiang-parking-probe';
+    lot.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;';
+    document.body.append(lot);
+    lot.append(frame);
+  });
+  await page.waitForTimeout(180);
+  await page.evaluate(() => {
+    const frame = window.__linjiangTavernReal.statusFrame;
+    const { parent, next } = window.__linjiangParkingProbe;
+    if (next?.parentNode === parent) parent.insertBefore(frame, next);
+    else parent.append(frame);
+    document.getElementById('linjiang-parking-probe')?.remove();
+  });
+  await page.waitForFunction(async () => {
+    try {
+      const result = await window.__linjiangTavernReal.waitUntilReady(100);
+      return result.liveHudCount === 1 && !document.getElementById('linjiang-hud-live')
+        && Math.abs(result.alignment || 0) <= 1;
+    } catch { return false; }
+  }, { timeout: 10000 });
+  const parked = await page.evaluate(() => {
+    const result = window.__linjiangTavernReal.measure();
+    return {
+      liveHudCount: result.liveHudCount,
+      alignment: result.alignment,
+      inline: !document.getElementById('linjiang-hud-live')
+        && !!window.__linjiangTavernReal.statusFrame.contentDocument?.getElementById('hud'),
+    };
+  });
+  const parkingRecovered = parked.inline && parked.liveHudCount === 1 && Math.abs(parked.alignment) <= 1;
+  check('tt-mobile-runtime-parking', parkingRecovered, JSON.stringify(parked));
+
+  console.log(`  ${initial.portrait && initial.performance === 'auto' && fillsViewport && restored && embeddedApplied && parkingRecovered ? 'ok  ' : 'FAIL'}  `
     + `wide portrait=${initial.portrait} perf=${initial.performance} page `
     + `${Math.round(opened.width)}x${Math.round(opened.height)} of ${opened.viewportWidth}x${opened.viewportHeight}, `
-    + `restored ${Math.round(closed.width)}x${Math.round(closed.height)} @ ${Math.round(closed.y)}`);
+    + `restored ${Math.round(closed.width)}x${Math.round(closed.height)} @ ${Math.round(closed.y)}, `
+    + `embedded ${Math.round(embedded.width)}/${Math.round(embedded.hostWidth)}, `
+    + `parking inline=${parked.inline} align=${parked.alignment}`);
   await page.close();
 }
 
