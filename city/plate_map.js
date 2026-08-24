@@ -662,6 +662,9 @@
 
   function rebuildGraph() {
     G = NET ? NET.build({ nodeWorld: NODE_W, nameOf: id => (byId[id] && byId[id].name) || id, anchorOf: id => byId[id]?.custom ? byId[id].anchorId : '' }) : null;
+    /* localEdges() 会把 G.E 的本地支路压成屏幕绘制缓存。只换 G 而不清它，
+       删除节点后旧接驳线仍会继续画，直到整个地图 iframe 重载。 */
+    localCache = null;
     customRevision++;
     lastKey = '';
   }
@@ -711,8 +714,13 @@
       byId[n.id] = n;
       customIds.add(n.id);
     });
-    if (TRIP.to && !NODE_W[TRIP.to]) clearTrip();
     rebuildGraph();
+    /* 图结构一变，旧行程的 pts/legs 也属于旧图。终点或起点消失就清空，
+       两端仍存在则按新图重算，避免 Canvas 留着删除前的路线光带。 */
+    if (TRIP.to) {
+      if (!NODE_W[TRIP.to] || !NODE_W[STATE.player.at]) clearTrip();
+      else recompute();
+    }
   }
 
   /**
@@ -2768,7 +2776,13 @@
     petals(on) { petalEls.forEach(el => el.style.display = on ? '' : 'none'); },
     view: () => ({ ...view }),
     // 调阈值用的读数
-    debug: () => ({ ...view, phase, zMin: +zMin().toFixed(4), ratios: Object.keys(M.PLATES).reduce((o, k) => (o[k] = +ratio(k).toFixed(3), o), {}) })
+    debug: () => ({
+      ...view, phase, zMin: +zMin().toFixed(4),
+      graphEdges: G ? G.E.length : 0,
+      localEdges: G ? localEdges().length : 0,
+      customNodes: customIds.size,
+      ratios: Object.keys(M.PLATES).reduce((o, k) => (o[k] = +ratio(k).toFixed(3), o), {})
+    })
   };
   window.PLATE_MAP = API;
 

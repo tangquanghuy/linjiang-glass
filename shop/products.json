@@ -357,26 +357,27 @@
     {
       "id": "item-15",
       "name": "城市规划蓝图",
-      "grade": "S",
-      "storageBucket": "消耗品",
-      "category": "日用",
-      "price": 135,
-      "rarity": "S级",
-      "icon": "../assets/items/consumable-daily-3.png",
-      "description": "使用后，使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。",
-      "effect": "使用后，使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。",
+      "grade": "A",
+      "storageBucket": "用品",
+      "category": "器材",
+      "price": 180,
+      "rarity": "A级",
+      "icon": "../assets/items/goods-equipment-3.png",
+      "description": "使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。",
+      "effect": "使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。",
       "unlock": {
         "minGames": 3,
-        "minAdvanced": 2
+        "minAdvanced": 1
       },
       "goods": {
         "名称": "城市规划蓝图",
-        "类别": "日用",
+        "类别": "器材",
         "数量": 1,
-        "强度": 5,
-        "描述": "使用后，使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。"
+        "品级": "A级",
+        "佩戴": false,
+        "描述": "使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。"
       },
-      "referenceNonConsumablePrice": 135
+      "referenceNonConsumablePrice": 180
     },
     {
       "id": "item-16",

@@ -630,7 +630,7 @@ function profilePage() {
 function itemCard(item, kind, selected = new Map()) {
   const meta = kind === 'material' ? item.source
     : kind === 'consumable' ? `强度 ${item.potency} / 5`
-      : (item.worn ? '佩戴中' : '未佩戴');
+      : [item.rarity, item.worn ? '佩戴中' : '未佩戴'].filter(Boolean).join(' · ');
   /* The same cell the drawer and the portrait rows use: category art, with the hue-derived
      gem behind it as the drop-in fallback -- the <img> removes itself when the file is
      absent.  This page used to draw only the gem, which meant the one place with room to

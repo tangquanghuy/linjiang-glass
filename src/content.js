@@ -344,6 +344,23 @@ function toolPod() {
   return region('pod', 'pane-pod', buttons);
 }
 
+function syncToolBadges(root) {
+  const buttons = new Map([...root.querySelectorAll('.pane-pod .tool-btn[data-page]')]
+    .map((button) => [button.dataset.page, button]));
+  tools.forEach((tool) => {
+    const button = buttons.get(tool.page || '');
+    if (!button) return;
+    const dot = button.querySelector(':scope > .dot');
+    if (tool.badge && !dot) {
+      const next = document.createElement('span');
+      next.className = 'dot';
+      button.append(next);
+    } else if (!tool.badge) {
+      dot?.remove();
+    }
+  });
+}
+
 /* ------------------------------------------------------------- 去处一条轨 */
 /* 带标签的去处横向铺一排，位置在主角面板上沿之上。
    ------------------------------------------------------------------
@@ -491,6 +508,7 @@ export function renderContent(root) {
 
   onLive(() => {
     if (document.querySelector('.viewport')?.classList.contains('is-portrait')) return;
+    syncToolBadges(root);
     const pane = root.querySelector('.pane-status');
     if (pane) {
       const nextPane = safeFirstElement(statusPane());

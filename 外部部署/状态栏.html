@@ -506,13 +506,13 @@
     if (bucket === '消耗品') {
       bag.消耗品 = bag.消耗品 && typeof bag.消耗品 === 'object' ? bag.消耗品 : {};
       const current = bag.消耗品[name] && typeof bag.消耗品[name] === 'object' ? bag.消耗品[name] : null;
-      bag.消耗品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 强度: Math.max(1, Math.min(5, Math.floor(Number(product?.goods?.['强度']) || Number(current?.强度) || 1))), 描述: description || String(current?.描述 || '') };
+      bag.消耗品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 品级: String(product?.goods?.['品级'] || product?.rarity || current?.品级 || '').trim(), 强度: Math.max(1, Math.min(5, Math.floor(Number(product?.goods?.['强度']) || Number(current?.强度) || 1))), 描述: description || String(current?.描述 || '') };
       mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
       return { bucket, item: bag.消耗品[name] };
     }
     bag.用品 = bag.用品 && typeof bag.用品 === 'object' ? bag.用品 : {};
     const current = bag.用品[name] && typeof bag.用品[name] === 'object' ? bag.用品[name] : null;
-    bag.用品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 佩戴: category === '器材' ? false : !!current?.佩戴, 描述: description || String(current?.描述 || '') };
+    bag.用品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 品级: String(product?.goods?.['品级'] || product?.rarity || current?.品级 || '').trim(), 佩戴: category === '器材' ? false : !!current?.佩戴, 描述: description || String(current?.描述 || '') };
     mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
     return { bucket, item: bag.用品[name] };
   };

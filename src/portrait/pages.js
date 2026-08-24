@@ -44,7 +44,7 @@ const BUCKET_NOTE = {
    weakest of the three. */
 function tags(item) {
   const third = item.bucket === 'consumable' ? `强度 ${item.potency} / 5`
-    : item.bucket === 'goods' ? (item.worn ? '佩戴中' : '未佩戴')
+    : item.bucket === 'goods' ? [item.rarity, item.worn ? '佩戴中' : '未佩戴'].filter(Boolean).join(' · ')
       : item.source;
   return [item.icon.label, third]
     .filter(Boolean)

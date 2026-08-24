@@ -215,7 +215,6 @@ export const player = {
       { name: '项圈与牵引绳', category: '器具', quantity: 1, worn: false, description: '细软皮革项圈配一条短绳，扣上后便于近距离带着走。' },
       { name: '无线遥控跳蛋', category: '器具', quantity: 1, worn: true, description: '静音款遥控跳蛋，放入后可远距离调节强度。' },
       { name: '护士服与白丝', category: '服装', quantity: 1, worn: false, description: '短款护士服配白色长袜，适合诊疗扮演。' },
-      { name: MAP_MARKER_ITEM, category: '器材', quantity: 1, worn: false, description: '打开临江市地图，在当前存档中登记或管理玩家自建地点。' },
     ],
   },
 };
@@ -970,7 +969,7 @@ export function streamSchedule() {
    靠图形认——所以只适合这种按熟了的高频项。需要读一下名字才知道是什么的去处，
    都在 destinations 里带着标签。 */
 export const tools = [
-  { icon: 'mail', label: '事件提示', page: 'events', badge: true },
+  { icon: 'mail', label: '事件提示', page: 'events', get badge() { return dailyEvents.length > 0; } },
   { icon: 'memo', label: '背包', page: 'inventory' },
   { icon: 'mapPin', label: '地图', page: 'map' },
   /* 从托盘提上来的：手机是这批里唯一"随时会摸一下"的，其余三个是特意去一趟的。 */
@@ -1416,6 +1415,7 @@ function mapBag(obj, kind) {
         category: asStr(item.类别, '其他'),
         quantity: asNum(item.数量, 0),
         description: asStr(item.描述),
+        rarity: asStr(item.品级),
       };
       if (kind === 'materials') row.source = asStr(item.来源);
       if (kind === 'consumables') row.potency = asNum(item.强度, 1);
@@ -1532,12 +1532,6 @@ export function applyStatData(stat) {
   player.inventory.materials = mapBag(bag.素材, 'materials');
   player.inventory.consumables = mapBag(bag.消耗品, 'consumables');
   player.inventory.goods = mapBag(bag.用品, 'goods');
-  if (!player.inventory.goods.some(item => item.name === MAP_MARKER_ITEM)) {
-    player.inventory.goods.push({
-      name: MAP_MARKER_ITEM, category: '器材', quantity: 1, worn: false,
-      description: '打开临江市地图，在当前存档中登记或管理玩家自建地点。',
-    });
-  }
   resetItemArt();
 
   const events = mapEvents(info.事件提示);

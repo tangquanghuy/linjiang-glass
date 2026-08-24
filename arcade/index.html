@@ -539,9 +539,18 @@ function writeBalance(value, { fromHost = false } = {}) {
   return v;
 }
 
+function gameEventDetail(d) {
+  if (!d || typeof d !== 'object') return {};
+  if (d.detail && typeof d.detail === 'object') return d.detail;
+  // Backward compatibility for the old fishing page, which posted its detail
+  // fields at the message root instead of under `detail`.
+  const { type, ...detail } = d;
+  return detail;
+}
+
 function pickBalance(d) {
   if (!d || typeof d !== 'object') return NaN;
-  const bag = d.detail && typeof d.detail === 'object' ? d.detail : {};
+  const bag = gameEventDetail(d);
   const candidates = [bag.balance, bag.balanceAfter, bag.after, d.balance, d.balanceAfter, d.after];
   for (const c of candidates) {
     if (c == null || c === '') continue;
@@ -855,13 +864,13 @@ addEventListener('message', (e) => {
   }
   if (e.source !== el.frame.contentWindow) return;
   if (typeof d.type !== 'string' || d.type.indexOf('airp-') !== 0) return;
-  if (/:settled$/.test(d.type) && embedded) {
-    const detail = d.detail && typeof d.detail === 'object' ? d.detail : {};
-    try { parent.postMessage({ type: 'airp-arcade:event', event: { game: current.id, type: d.type, detail } }, '*'); }
-    catch (_) {}
-  }
   if (/:settled$/.test(d.type)) {
-    try { dispatchEvent(new CustomEvent(d.type, { detail: d.detail || {} })); } catch (_) {}
+    const detail = gameEventDetail(d);
+    if (embedded) {
+      try { parent.postMessage({ type: 'airp-arcade:event', event: { game: current.id, type: d.type, detail } }, '*'); }
+      catch (_) {}
+    }
+    try { dispatchEvent(new CustomEvent(d.type, { detail })); } catch (_) {}
   }
   const b = pickBalance(d);
   if (Number.isFinite(b) && hostReady) writeBalance(b);
