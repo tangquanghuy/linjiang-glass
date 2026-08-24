@@ -175,10 +175,68 @@ const OPENING_TWO_DETAIL=[
 '  - 情节：对方完全以为玩家只是个普通的同城路人，一边抱怨着生活压力，一边提出去更私密的地方坐坐，甚至做出轻微越界的肢体试探。',
 '```'
 ].join('\n');
+const OPENING_THREE_DETAIL=[
+'> 清晨的老洋房还浸在薄薄的晨光里。玩家在自己的落脚处阳台通风纳凉，楼上则隐约传来洗漱与推拉晾衣架的声响。',
+'> 一阵晨风掠过，一件刚甩干、带着一丝温热与独特洗剂香气的衣物从上方坠落，不偏不倚地蒙在玩家脸上。玩家扯下衣物后发现，它特殊的款式、专属色系与蕾丝刺绣细节，竟与平时见过的{{目标主播}}专属风格高度重叠。',
+'> 正上方随即传来衣架落地的脆响、拖鞋踩过木地板的凌乱脚步，以及一道被刻意压低却异常熟悉的懊恼轻呼。玩家抬头时，正好撞上扶着栏杆向下搜寻的女孩；晨光里的素颜轮廓与失控时脱口而出的招牌声线，共同坐实了她的身份。',
+'> 片刻后，她不得不跑下楼完成这场尴尬的归还交接。门扉重新关上，楼板另一侧的真实生活动静仍清晰可闻，作为普通观众的距离感也被这件从天而降的私密物彻底打破。',
+'```text',
+'### 完整开局大纲',
+'',
+'#### 【第一幕：老洋房的清晨与从天而降的私密物】',
+'',
+'- 节点 1：老洋房晨间日常与空间建立',
+'',
+'  - 情节：清晨时分，玩家在落脚处的阳台通风纳凉或整理琐碎。通过对老式木窗、铁艺栏杆与纵向阳台交叠结构的白描，确立“上下楼邻里动静清晰可闻、极易发生意外交集”的物理空间基础。',
+'  - 细节：玩家享受着难得的片刻清闲，楼上隐约传来洗漱与推拉晾衣架的微弱金属摩擦声。',
+'',
+'- 节点 2：高空坠物与视线剥夺',
+'',
+'  - 情节：一阵晨风掠过，一件刚甩干、带有一丝温热与独特洗剂香气的衣物从上方晾衣绳脱落，不偏不倚正好蒙在玩家脸上。',
+'  - 细节：纯粹的感官特写——布料的触感、极具个性的剪裁与色彩搭配，带来荒谬与猝不及防的生理刺激。',
+'',
+'#### 【第二幕：细节锚定与线上线下的微妙重合】',
+'',
+'- 节点 3：款式的视觉确认与既视感',
+'',
+'  - 情节：玩家扯下蒙在脸上的衣物，定睛观察。其特殊的款式、专属色系搭配或独特的蕾丝刺绣细节，与平时在直播、动态或周边照片中见过的{{目标主播}}专属风格产生高度重叠。',
+'  - 细节：玩家产生强烈的既视感与认知冲击——这绝非大众量贩款，但玩家维持理性与克制，并未直接得出结论，而是处于“高度怀疑与荒诞”的悬疑状态。',
+'',
+'- 节点 4：楼上的慌乱声响与时空锁定',
+'',
+'  - 情节：与此同时，正上方阳台骤然传来衣架掉落的脆响，紧接着是拖鞋急促踩过木地板的凌乱脚步声，以及隐约压低嗓音的懊恼轻呼。',
+'  - 细节：声音的音色与平日直播间里听到的声线产生第一层物理重叠，上方阳台边缘隐约探出试图向下张望的影子。',
+'',
+'#### 【第三幕：阳台对峙与现实真容的初次捕获（核心高潮）】',
+'',
+'- 节点 5：下意识的抬头与视线交汇',
+'',
+'  - 情节：玩家捏着衣物抬头望向斜上方，正好撞上正扶着栏杆、探出半个身子焦急搜寻的女孩。',
+'  - 视觉白描：晨光斜切在她未施粉黛的脸上，勾勒出与动捕虚拟形象几乎完全一致的五官轮廓（眼型、鼻梁与下颌线条）；她身穿凌乱宽松的居家睡衣，头发随意挽起，毫无镜头前精心打光后的偶像包袱。',
+'',
+'- 节点 6：绝对社死与声线的现场证实',
+'',
+'  - 情节：视线在半空中死死撞在一起。对方看清了玩家手中正捏着的贴身物件，瞬间破防，原本试图掩饰的声线彻底失控，脱口而出极具个人特色的慌乱质问或惊叫，与直播间里的招牌反应如出一辙。',
+'  - 心理张力：屏幕里万众瞩目的虚拟偶像，此刻在现实中因一件掉落的内裤陷入社死与窘迫。',
+'',
+'#### 【第四幕：交涉、归还与隐秘锁链的形成】',
+'',
+'- 节点 7：楼道交接与防线试探',
+'',
+'  - 情节：对方被迫蹬蹬蹬跑下楼梯敲门，或在楼梯拐角完成交接。两人面对面站立，物理距离拉近到一米之内。',
+'  - 细节：她努力维持普通邻里间的客气，试探玩家是否已经认出自己；玩家则在克制、装作若无其事与暗中确认身份之间寻找回应。',
+'',
+'- 节点 8：余波回荡与隐秘同盟的契机',
+'',
+'  - 情节：交接结束，门扉关上。玩家回到房间，听到楼上再次传来关门的闷响。',
+'  - 收尾定调：玩家看着自己刚才接触过布料与对方指尖的手，听着楼上隔板传来的真实生活动静，彻底打破了作为普通观众的距离感，线上与线下之间也形成了一个只有双方知晓的隐秘契机。',
+'```'
+].join('\n');
 const OPENINGS=[
 {id:'opening-1',title:'回家看直播',summary:'玩家结束一天的工作，回家进入关注主播的直播间。',detail:FREE_OPENING_DETAIL},
 {id:'opening-2',title:'意外碰面',summary:'一次短暂离开直播间的取件，让线上注视与线下现实意外重叠。',detail:OPENING_ONE_DETAIL},
 {id:'opening-3',title:'小号约见',summary:'玩家在同城软件上偶然约到刚刚下播的目标主播。',detail:OPENING_TWO_DETAIL},
+{id:'opening-4',title:'天降之物',summary:'老洋房阳台的一件私密衣物意外坠落，让玩家与楼上的目标主播第一次在现实中正面相遇。',detail:OPENING_THREE_DETAIL},
 {id:'custom',title:'自定义开局',summary:'由玩家直接输入开局内容',detail:''}];
 /* 人设不再是一组固定字段，而是一整段「角色详情」YAML —— 跟 世界书/红蔷薇、斯黛拉、
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
@@ -265,7 +323,7 @@ function toggleOshi(name){var i=state.oshi.indexOf(name),previous=state.oshi[0];
 function selectedOpening(){var base=OPENINGS.find(function(o){return o.id===state.openingId})||OPENINGS[0];var detail=base.id==='custom'?(state.customOpeningText.trim()||'无'):base.detail;return{id:base.id,title:base.title,summary:base.summary,detail:detail,custom:base.id==='custom'}}
 function openingTargetCandidates(){var fixed=oshiPicked().map(function(o){return{name:o.name,source:'固定主播'}}),customs=state.customs.map(normalizeCustom).filter(function(c){return c.name&&c.yaml}).map(function(c){return{name:c.name,source:'自定义主播'}});if(fixed.length&&customs.length)return fixed.concat(customs);if(fixed.length)return fixed;if(customs.length)return customs;return OSHI.map(function(o){return{name:o.name,source:'随机主播'}})}
 function pickOpeningTarget(){var candidates=openingTargetCandidates(),signature=candidates.map(function(c){return c.source+':'+c.name}).join('|');if(state.openingTargetSignature!==signature||!state.openingTarget){state.openingTargetSignature=signature;state.openingTarget=candidates[Math.floor(Math.random()*candidates.length)]||null}return state.openingTarget}
-function resolvedOpening(){var opening=selectedOpening();if(opening.id!=='opening-1'&&opening.id!=='opening-2'&&opening.id!=='opening-3')return Object.assign({},opening,{targetStreamer:null});var target=pickOpeningTarget(),name=target?target.name:'随机主播';return Object.assign({},opening,{detail:opening.detail.split('{{目标主播}}').join(name),targetStreamer:target})}
+function resolvedOpening(){var opening=selectedOpening();if(opening.id==='custom')return Object.assign({},opening,{targetStreamer:null});var target=pickOpeningTarget(),name=target?target.name:'随机主播';return Object.assign({},opening,{detail:opening.detail.split('{{目标主播}}').join(name),targetStreamer:target})}
 function renderOpenings(){var current=selectedOpening(),index=Math.max(0,OPENINGS.findIndex(function(o){return o.id===current.id})),prev=OPENINGS[(index-1+OPENINGS.length)%OPENINGS.length],next=OPENINGS[(index+1)%OPENINGS.length];$('#opening-index').textContent=String(index+1).padStart(2,'0');$('#opening-total').textContent=String(OPENINGS.length).padStart(2,'0');$('#opening-title').textContent=current.title;$('#opening-summary').textContent=current.summary;$('#opening-prev-title').textContent=prev.title;$('#opening-prev-summary').textContent=prev.summary;$('#opening-next-title').textContent=next.title;$('#opening-next-summary').textContent=next.summary;$('#opening-dots').innerHTML=OPENINGS.map(function(_,i){return '<i class="'+(i===index?'on':'')+'"></i>'}).join('');$('#opening-slide').classList.toggle('custom',current.custom);$('#opening-picker').classList.toggle('custom-active',current.custom);$('#custom-opening-box').classList.toggle('hidden',!current.custom);$('#custom-opening-count').textContent=state.customOpeningText.length}
 function selectOpening(id){if(!OPENINGS.some(function(o){return o.id===id}))return;state.openingId=id;renderOpenings()}
 function shiftOpening(offset){var index=OPENINGS.findIndex(function(o){return o.id===state.openingId});index=(index+offset+OPENINGS.length)%OPENINGS.length;selectOpening(OPENINGS[index].id)}
