@@ -360,7 +360,7 @@
       "grade": "A",
       "storageBucket": "用品",
       "category": "器材",
-      "price": 180,
+      "price": 280,
       "rarity": "A级",
       "icon": "../assets/items/goods-equipment-3.png",
       "description": "使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。",
@@ -377,7 +377,7 @@
         "佩戴": false,
         "描述": "使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。"
       },
-      "referenceNonConsumablePrice": 180
+      "referenceNonConsumablePrice": 280
     },
     {
       "id": "item-16",

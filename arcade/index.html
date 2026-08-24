@@ -60,7 +60,6 @@ a{color:inherit}
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
 }
 html.is-hud .topbar{padding-right:58px}
-html.is-hud .wallet-mint{display:none!important}
 
 .tabs{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
@@ -111,13 +110,6 @@ html.is-hud .wallet-mint{display:none!important}
 }
 .pop h3{margin:0 0 3px;font-size:12px;letter-spacing:.08em}
 .pop p{margin:0 0 10px;color:var(--muted);font-size:10px;line-height:1.5}
-.pop-row{display:flex;gap:6px;margin-bottom:7px}
-.pop-row button{
-  flex:1;padding:7px 0;border:1px solid var(--line);border-radius:9px;
-  background:#ffffff0b;cursor:pointer;font-size:11px;font-weight:800;
-}
-.pop-row button:hover{background:#ffffff1a;border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
-.pop .danger{color:var(--bad)}
 .pop-themes{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   margin-top:10px;padding-top:10px;border-top:1px solid var(--line);
@@ -380,14 +372,6 @@ html.is-force-landscape[data-game=fishing] .stage{height:100%}
       <div class="pop" id="walletPop" hidden>
         <h3>共享钱包</h3>
         <p id="walletHint">四个游戏共用同一份余额，数据保存在本机浏览器中。</p>
-        <div class="pop-row wallet-mint">
-          <button type="button" data-add="1000">+1,000</button>
-          <button type="button" data-add="5000">+5,000</button>
-        </div>
-        <div class="pop-row">
-          <button type="button" class="wallet-mint" data-set="1000">重置余额</button>
-          <button type="button" class="danger" data-reset-game="1">重开本局</button>
-        </div>
         <div class="pop-themes">
           <span>主题</span>
           <div class="themes" id="themes" role="group" aria-label="主题切换"></div>
@@ -819,23 +803,6 @@ document.addEventListener('click', (e) => {
 });
 addEventListener('keydown', (e) => { if (e.key === 'Escape') { togglePop(false); toggleMilestones(false); } });
 
-el.walletPop.addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  if (b.dataset.add) {
-    writeBalance(readBalance() + Number(b.dataset.add));
-    toast('已充值 ' + fmt(b.dataset.add));
-  } else if (b.dataset.set) {
-    writeBalance(Number(b.dataset.set));
-    toast('余额已重置为 ' + fmt(b.dataset.set));
-  } else if (b.dataset.resetGame) {
-    send(current.ns + ':reset-command', {});
-    toast('已请求重开：' + current.title);
-  } else {
-    return;
-  }
-  togglePop(false);
-});
 
 addEventListener('airp-token:unlock', (event) => {
   const names = { fishing: '捕鱼代币', scratch: '刮刮乐代币', slots: '幸运机代币' };
