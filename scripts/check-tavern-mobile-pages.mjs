@@ -1,4 +1,4 @@
-﻿/* Every portrait page inside the real SillyTavern/JS-Slash-Runner fixture.
+/* Every portrait page inside the real SillyTavern/JS-Slash-Runner fixture.
    Captures a vertically stitched image at the true 390x844 mobile viewport and
    audits horizontal overflow, clipped text, section-title wrapping and the
    portrait type floor. */
@@ -54,11 +54,17 @@ async function revealStatus() {
 }
 
 async function closeWorkspace() {
-  const map = await hud.locator('.map-layer').count();
-  if (map) {
-    await hud.locator('[data-map-close]').click();
-    await hud.locator('.map-layer').waitFor({ state: 'detached', timeout: 5000 });
-    await page.waitForTimeout(180);
+  for (const overlay of [
+    ['.map-layer', '[data-map-close]'],
+    ['.arcade-layer', '[data-arcade-close]'],
+    ['.shop-layer', '[data-shop-close]'],
+    ['.cg-layer', '[data-cg-close]'],
+  ]) {
+    if (await hud.locator(overlay[0]).count()) {
+      await hud.locator(overlay[1]).click();
+      await hud.locator(overlay[0]).waitFor({ state: 'detached', timeout: 5000 });
+      await page.waitForTimeout(180);
+    }
   }
   const opened = await hud.locator('html.is-page-open').count();
   if (opened) {
@@ -76,7 +82,7 @@ async function closeWorkspace() {
 
 async function openRoute(route) {
   await closeWorkspace();
-  if (route.kind === 'direct') {
+  if (route.kind === 'direct' || route.kind === 'overlay') {
     await hud.locator(route.trigger).click();
   } else if (route.kind === 'profile-child') {
     await hud.locator('.pbtn-ghost[data-page="profile"]').click();
@@ -91,8 +97,8 @@ async function openRoute(route) {
     await hud.locator('.ppanel.is-preview').waitFor({ timeout: 5000 });
     await hud.locator('[data-gift-page]').evaluate((element) => element.click());
   }
-  if (route.name === 'map') {
-    await hud.locator('.map-layer').waitFor({ timeout: 5000 });
+  if (route.kind === 'overlay') {
+    await hud.locator(route.layer).waitFor({ timeout: 5000 });
   } else {
     await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
   }
@@ -193,25 +199,29 @@ async function stitchedScreenshot(path) {
 }
 
 const routes = [
-  { name: 'events', label: '当日事件', kind: 'direct', trigger: '.ptool[data-page="events"]' },
-  { name: 'inventory', label: '背包', kind: 'direct', trigger: '.ptool[data-page="inventory"]' },
-  { name: 'map', label: '地图', kind: 'direct', trigger: '.ptool[data-page="map"]' },
-  { name: 'profile', label: '主角档案', kind: 'direct', trigger: '.pbtn-ghost[data-page="profile"]' },
-  { name: 'relations', label: '羁绊总览', kind: 'profile-child', trigger: '[data-page="relations"]' },
-  { name: 'schedule', label: '开播日程', kind: 'profile-child', trigger: '[data-page="schedule"]' },
-  { name: 'character', label: '女主角档案', kind: 'character' },
-  { name: 'gift', label: '送礼', kind: 'gift' },
+  { name: 'events', label: 'events', kind: 'direct', trigger: '.ptool[data-page="events"]' },
+  { name: 'inventory', label: 'inventory', kind: 'direct', trigger: '.ptool[data-page="inventory"]' },
+  { name: 'map', label: 'map', kind: 'overlay', trigger: '.ptool[data-page="map"]', layer: '.map-layer', frame: '.map-frame' },
+  { name: 'arcade', label: 'arcade', kind: 'overlay', trigger: '.pdest-btn[data-page="arcade"]', layer: '.arcade-layer', frame: '.arcade-frame' },
+  { name: 'shop', label: 'shop', kind: 'overlay', trigger: '.pdest-btn[data-page="shop"]', layer: '.shop-layer', frame: '.shop-frame' },
+  { name: 'cg', label: 'CG', kind: 'overlay', trigger: '.pdest-btn[data-page="cg"]', layer: '.cg-layer', frame: '.cg-frame' },
+  { name: 'profile', label: 'profile', kind: 'direct', trigger: '.pbtn-ghost[data-page="profile"]' },
+  { name: 'relations', label: 'relations', kind: 'profile-child', trigger: '[data-page="relations"]' },
+  { name: 'schedule', label: 'schedule', kind: 'direct', trigger: '.pdest-btn[data-page="schedule"]' },
+  { name: 'settings', label: 'settings', kind: 'direct', trigger: '.pdest-btn[data-page="settings"]' },
+  { name: 'character', label: 'character', kind: 'character' },
+  { name: 'gift', label: 'gift', kind: 'gift' },
 ];
 
 console.log('\n  real tavern mobile page audit · 390x844 @2x');
 console.log(`  ${'-'.repeat(104)}`);
 for (const route of routes) {
   await openRoute(route);
-  if (route.name === 'map') {
-    const mapOk = await hud.locator('.map-layer iframe').count();
-    console.log(`  ${mapOk ? 'ok  ' : 'FAIL'}  ${route.label.padEnd(8)} overlay`);
-    if (!mapOk) problems.push('map: overlay iframe missing');
-    await page.screenshot({ path: 'artifacts/tavern-mobile-pages/map.png' });
+  if (route.kind === 'overlay') {
+    const overlayOk = await hud.locator(`${route.layer} ${route.frame}`).count();
+    console.log(`  ${overlayOk ? 'ok  ' : 'FAIL'}  ${route.label.padEnd(8)} overlay`);
+    if (!overlayOk) problems.push(`${route.name}: overlay iframe missing`);
+    await page.screenshot({ path: `artifacts/tavern-mobile-pages/${route.name}.png` });
     continue;
   }
   const result = await auditPage(route.name);
@@ -232,11 +242,13 @@ for (const route of routes) {
   await stitchedScreenshot(`artifacts/tavern-mobile-pages/${shotName}.png`);
 
   if (route.name === 'inventory') {
-    for (const [index, bucket] of [[1, 'consumable'], [2, 'material']]) {
+    const tabs = await hud.locator('[data-inventory-page]').count();
+    for (let index = 1; index < tabs; index += 1) {
       await hud.locator(`[data-inventory-page="${index}"]`).click();
       await page.waitForTimeout(350);
       const tabState = await hud.locator('body').evaluate((_, selected) => ({
         selected: document.querySelector('[data-inventory-page][aria-selected="true"]')?.dataset.inventoryPage,
+        label: document.querySelector(`[data-inventory-page="${selected}"] b`)?.textContent.trim() || `page-${selected + 1}`,
         visibleGroups: [...document.querySelectorAll('[data-inventory-page-panel]')]
           .filter((group) => !group.hidden).map((group) => group.dataset.inventoryPagePanel),
         visibleRows: [...document.querySelectorAll('[data-inventory-page-panel]')]
@@ -246,9 +258,9 @@ for (const route of routes) {
       const tabOk = Number(tabState.selected) === index
         && tabState.visibleGroups.join() === String(index)
         && tabState.visibleRows > 0;
-      console.log(`        ${tabOk ? 'ok  ' : 'FAIL'}  inventory page ${index + 1}/3 ${bucket} rows=${tabState.visibleRows} h=${tabState.height}`);
-      if (!tabOk) problems.push(`inventory-${bucket}: ${JSON.stringify(tabState)}`);
-      await stitchedScreenshot(`artifacts/tavern-mobile-pages/inventory-${bucket}.png`);
+      console.log(`        ${tabOk ? 'ok  ' : 'FAIL'}  inventory page ${index + 1}/${tabs} ${tabState.label} rows=${tabState.visibleRows} h=${tabState.height}`);
+      if (!tabOk) problems.push(`inventory-${tabState.label}: ${JSON.stringify(tabState)}`);
+      await stitchedScreenshot(`artifacts/tavern-mobile-pages/inventory-${index}.png`);
     }
   }
 }

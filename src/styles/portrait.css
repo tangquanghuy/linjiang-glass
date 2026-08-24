@@ -1619,10 +1619,19 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
    the thing worth seeing. */
 .pdev-note-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin: calc(var(--sp-2) * -1) 0 var(--sp-3); }
 .pdev-note-actions button {
-  min-height: 34px; padding: 0 var(--sp-3); border: 1px solid rgba(255,226,244,.22);
-  border-radius: 17px; background: rgba(218,164,205,.10); color: rgba(248,235,246,.78);
-  font: 500 12px/1 'Noto Sans SC'; cursor: pointer;
+  position: relative;
+  min-height: 76px;
+  padding: 0 var(--sp-3);
+  border: 1px solid rgba(255,226,244,.22);
+  border-radius: 24px;
+  background: rgba(218,164,205,.10);
+  color: rgba(248,235,246,.78);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC';
+  cursor: pointer;
 }
+/* Keep these infrequent actions readable and give them a 44px vertical hit area
+   after the portrait canvas is scaled down on a 320-390px phone. */
+.pdev-note-actions button::after { content: ''; position: absolute; inset: -23px 0; }
 .pdev-note-actions button:disabled { opacity: .48; cursor: wait; }
 .pdev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
 .pdev-tile {
@@ -2312,4 +2321,18 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 .pprofile-schedule b { font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.9); }
 .pprofile-schedule > .ic { flex:none; font-size:var(--icon-sm); color:rgba(240,236,250,.52); }
 
-.pinv-use{margin-top:12px;border:1px solid rgba(165,208,255,.34);border-radius:12px;padding:10px 14px;background:linear-gradient(180deg,rgba(211,235,255,.96),rgba(143,191,239,.92));color:#13243c;font:700 20px/1 'Noto Sans SC',sans-serif;box-shadow:0 9px 24px rgba(40,104,178,.2)}
+.pinv-use {
+  position: relative;
+  min-height: 64px;
+  margin-top: 12px;
+  border: 1px solid rgba(165, 208, 255, .34);
+  border-radius: 16px;
+  padding: 0 20px;
+  background: linear-gradient(180deg, rgba(211, 235, 255, .96), rgba(143, 191, 239, .92));
+  color: #13243c;
+  font: 700 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  box-shadow: 0 9px 24px rgba(40, 104, 178, .2);
+}
+/* The portrait canvas is scaled to about .36-.47. Keep the visual button compact,
+   but enlarge its hit box to a real 44px target on the narrowest supported phone. */
+.pinv-use::after { content: ''; position: absolute; inset: -30px -12px; }

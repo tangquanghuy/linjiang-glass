@@ -517,6 +517,242 @@
     return { bucket, item: bag.用品[name] };
   };
 
+  /* ============ 玩家自建地图节点 ============ */
+  const customMapHelper = () => {
+    const core = getCoreWindow();
+    return [core, window.parent, window.top, window].map((win) => {
+      try { return win?.TavernHelper; } catch (e) { return null; }
+    }).find((helper) => helper && (
+      typeof helper.getWorldbook === 'function'
+      || typeof helper.getLorebookEntries === 'function'
+      || typeof helper.createWorldbookEntries === 'function'
+      || typeof helper.createLorebookEntries === 'function'
+    ));
+  };
+
+  const customMapBookName = async (helper) => {
+    try {
+      const names = typeof helper.getCharWorldbookNames === 'function'
+        ? helper.getCharWorldbookNames('current') : null;
+      if (names?.primary) return names.primary;
+      if (Array.isArray(names?.additional) && names.additional.length) return names.additional[0];
+    } catch (e) {}
+    for (const fn of ['getOrCreateChatWorldbook', 'getOrCreateChatLorebook']) {
+      try {
+        if (typeof helper[fn] !== 'function') continue;
+        const name = await helper[fn]('current');
+        if (name) return name;
+      } catch (e) {}
+    }
+    return null;
+  };
+
+  const readCustomMapEntries = async (helper, bookName) => {
+    for (const fn of ['getWorldbook', 'getLorebookEntries']) {
+      try {
+        if (typeof helper[fn] !== 'function') continue;
+        const rows = await helper[fn](bookName);
+        if (Array.isArray(rows)) return rows;
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  const customMapScalar = (value) => JSON.stringify(String(value ?? ''));
+  const customMapWorldbookPayload = (node) => {
+    const keys = [...new Set([node.name, ...(node.aliases || [])]
+      .map(value => String(value || '').trim()).filter(Boolean))];
+    const flags = [];
+    if (node.features.canDate) flags.push('约会');
+    if (node.features.canGather) flags.push('采集');
+    if (node.features.canWork) flags.push('工作');
+    if (node.features.hasShop) flags.push('商店');
+    const lines = [
+      `${node.name}:`,
+      '  来源: 玩家自建地点',
+      `  区域: ${customMapScalar(node.district)}`,
+      `  类型: ${customMapScalar(node.archetype)}`,
+      `  私密度: ${node.privacy}`,
+      `  开放: [${node.openHours.map(customMapScalar).join(', ')}]`,
+      `  详情: ${customMapScalar(node.intro)}`,
+      `  看点: ${customMapScalar(node.draw)}`,
+      `  功能: [${flags.map(customMapScalar).join(', ')}]`,
+      '  地图接驳:',
+      `    节点: ${customMapScalar(node.anchorName || node.anchorId)}`,
+      `    步行距离: ${node.accessKm}km`,
+    ];
+    if (node.special.length) {
+      lines.push('  特殊:');
+      node.special.forEach(value => lines.push(`    - ${customMapScalar(value)}`));
+    }
+    return {
+      name: `玩家地点 - ${node.name}`,
+      comment: `玩家地点 - ${node.name}`,
+      enabled: true,
+      keys,
+      key: keys,
+      content: lines.join('\n'),
+      strategy: {
+        type: 'selective', keys,
+        keys_secondary: { logic: 'and_any', keys: [] },
+        scan_depth: 'same_as_global',
+      },
+      position: { type: 'after_character_definition', role: 'system', depth: 0, order: 34 },
+      probability: 100,
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until: null },
+      effect: { sticky: null, cooldown: null, delay: null },
+      extra: { linjiangCustomMapNode: { id: node.id, version: 1 } },
+    };
+  };
+
+  const syncCustomMapWorldbook = async (node) => {
+    const helper = customMapHelper();
+    if (!helper) return { synced: false, uid: null };
+    const bookName = await customMapBookName(helper);
+    if (!bookName) return { synced: false, uid: null };
+    const rows = await readCustomMapEntries(helper, bookName);
+    const existing = rows.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '') === node.id);
+    const payload = customMapWorldbookPayload(node);
+    if (existing && typeof helper.updateWorldbookWith === 'function') {
+      await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
+        .map(entry => entry?.uid === existing.uid ? { ...entry, ...payload } : entry));
+      return { synced: true, uid: existing.uid };
+    }
+    if (existing && typeof helper.setLorebookEntries === 'function') {
+      await helper.setLorebookEntries(bookName, [{ uid: existing.uid, ...payload }]);
+      return { synced: true, uid: existing.uid };
+    }
+    for (const fn of ['createWorldbookEntries', 'createLorebookEntries']) {
+      if (typeof helper[fn] !== 'function') continue;
+      await helper[fn](bookName, [payload], { render: 'immediate' });
+      const next = await readCustomMapEntries(helper, bookName);
+      const created = next.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '') === node.id);
+      return { synced: true, uid: created?.uid ?? null };
+    }
+    return { synced: false, uid: null };
+  };
+
+  const removeCustomMapWorldbook = async (id) => {
+    const helper = customMapHelper();
+    if (!helper) return false;
+    const bookName = await customMapBookName(helper);
+    if (!bookName) return false;
+    const rows = await readCustomMapEntries(helper, bookName);
+    const existing = rows.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '') === id);
+    if (!existing) return true;
+    if (typeof helper.updateWorldbookWith === 'function') {
+      await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
+        .filter(entry => entry?.uid !== existing.uid));
+      return true;
+    }
+    if (typeof helper.setLorebookEntries === 'function') {
+      await helper.setLorebookEntries(bookName, [{
+        ...existing, uid: existing.uid, enabled: false, keys: [], key: [], content: '',
+      }]);
+      return true;
+    }
+    return false;
+  };
+
+  const saveCustomMapNode = async (draft) => {
+    if (!mvuState.ready && !mvuState.check()) throw new Error('MVU 未就绪');
+    const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+    if (!mvuData?.stat_data) throw new Error('MVU 数据为空');
+    const stat = mvuData.stat_data;
+    stat.系统配置 = stat.系统配置 && typeof stat.系统配置 === 'object' ? stat.系统配置 : {};
+    stat.系统配置.地图 = stat.系统配置.地图 && typeof stat.系统配置.地图 === 'object' ? stat.系统配置.地图 : {};
+    stat.系统配置.地图.版本 = 1;
+    const saved = stat.系统配置.地图.自建节点;
+    stat.系统配置.地图.自建节点 = saved && typeof saved === 'object' ? saved : {};
+    const nodes = stat.系统配置.地图.自建节点;
+    const id = String(draft?.id || `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`).trim();
+    const name = String(draft?.name || '').trim().slice(0, 30);
+    if (!name) throw new Error('地点名称为空');
+    const pos = Array.isArray(draft?.localPos) ? draft.localPos.map(Number) : [];
+    if (pos.length < 2 || !pos.every(Number.isFinite)) throw new Error('节点坐标无效');
+    const duplicate = Object.entries(nodes).find(([key, value]) => key !== id && String(value?.名称 || '').trim() === name);
+    if (duplicate) throw new Error('已有同名玩家节点');
+    const aliases = Array.isArray(draft.aliases)
+      ? draft.aliases.map(value => String(value || '').trim()).filter(Boolean).slice(0, 8) : [];
+    const hours = Array.isArray(draft.openHours)
+      ? draft.openHours.filter(value => ['朝', '昼', '暮', '夜', '深夜'].includes(value)) : [];
+    const node = {
+      id, name, aliases,
+      district: String(draft.district || '').trim(),
+      plate: String(draft.plate || '').trim(),
+      localPos: [Math.max(0, Math.min(1, pos[0])), Math.max(0, Math.min(1, pos[1]))],
+      anchorId: String(draft.anchorId || '').trim(),
+      anchorName: String(draft.anchorName || '').trim(),
+      accessKm: Math.max(0, Math.round((Number(draft.accessKm) || 0) * 100) / 100),
+      archetype: String(draft.archetype || 'living').trim() || 'living',
+      privacy: Math.max(0, Math.min(5, Math.round(Number(draft.privacy) || 0))),
+      openHours: hours.length ? hours : ['朝', '昼', '暮', '夜', '深夜'],
+      intro: String(draft.intro || '').trim().slice(0, 500),
+      draw: String(draft.draw || '').trim().slice(0, 300),
+      special: Array.isArray(draft.special)
+        ? draft.special.map(value => String(value || '').trim()).filter(Boolean).slice(0, 12) : [],
+      features: {
+        canDate: !!draft.features?.canDate,
+        canGather: !!draft.features?.canGather,
+        canWork: !!draft.features?.canWork,
+        hasShop: !!draft.features?.hasShop,
+      },
+      createdAt: `${String(stat.世界信息?.年历 || '').trim()} ${String(stat.世界信息?.时间?.时钟 || '').trim()}`.trim(),
+    };
+    let worldbook = { synced: false, uid: null };
+    try { worldbook = await syncCustomMapWorldbook(node); }
+    catch (error) { console.warn('[临江地图] 地点世界书同步失败', error); }
+    nodes[id] = {
+      名称: node.name, 别名: node.aliases, 区域: node.district, 底板: node.plate,
+      区内坐标: node.localPos, 锚点: node.anchorId, 锚点名称: node.anchorName,
+      接驳距离: node.accessKm, 类型: node.archetype, 私密度: node.privacy,
+      开放时段: node.openHours,
+      功能: {
+        可约会: node.features.canDate, 可采集: node.features.canGather,
+        可工作: node.features.canWork, 有商店: node.features.hasShop,
+      },
+      简介: node.intro, 看点: node.draw, 特殊: node.special, 创建时间: node.createdAt,
+      世界书同步: { 状态: worldbook.synced ? '已同步' : '由地图加载动态注入', 条目UID: worldbook.uid },
+    };
+    mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+    return { node, worldbook };
+  };
+
+  const deleteCustomMapNode = async (id) => {
+    const nodeId = String(id || '').trim();
+    if (!nodeId) throw new Error('节点 ID 为空');
+    if (!mvuState.ready && !mvuState.check()) throw new Error('MVU 未就绪');
+    const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+    const stat = mvuData?.stat_data;
+    const nodes = stat?.系统配置?.地图?.自建节点;
+    if (!nodes?.[nodeId]) return true;
+    const row = nodes[nodeId];
+    const needsWorldbook = String(row?.世界书同步?.状态 || '') === '已同步';
+    let removed = false;
+    try { removed = await removeCustomMapWorldbook(nodeId); }
+    catch (error) { console.warn('[临江地图] 删除地点世界书失败', error); }
+    if (needsWorldbook && !removed) throw new Error('地点世界书暂时未删除，请稍后重试');
+    const deletedName = String(row?.名称 || '').trim();
+    const fallbackArea = [String(row?.区域 || '').trim(), String(row?.锚点名称 || '').trim()]
+      .filter(Boolean).join(' · ');
+    const pointsAtDeleted = value => deletedName && String(value || '').includes(deletedName);
+    if (pointsAtDeleted(stat?.世界信息?.位置?.区域) && fallbackArea) {
+      stat.世界信息.位置.区域 = fallbackArea;
+      stat.世界信息.位置.场所 = '地图接驳点';
+    }
+    if (pointsAtDeleted(stat?.玩家信息?.居住地) && fallbackArea) stat.玩家信息.居住地 = fallbackArea;
+    if (pointsAtDeleted(stat?.玩家信息?.工作?.地点) && fallbackArea) stat.玩家信息.工作.地点 = fallbackArea;
+    Object.values(stat?.对象信息 || {}).forEach(obj => {
+      if (pointsAtDeleted(obj?.位置?.区域) && fallbackArea) {
+        obj.位置.区域 = fallbackArea;
+        obj.位置.场所 = '地图接驳点';
+      }
+    });
+    delete nodes[nodeId];
+    mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+    return true;
+  };
+
   const handleRequest = (action, payload) => {
     switch (action) {
       case 'handshake':
@@ -1470,7 +1706,7 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body26-touch-screen-scroll');
+      url.searchParams.set('v', 'body27-custom-map-save');
       return url.toString();
     } catch (e) {
       return HUD_URL;
