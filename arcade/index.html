@@ -415,6 +415,7 @@ html.is-force-landscape[data-game=fishing] .stage{height:100%}
   <iframe class="frame" id="frame" title="游戏画面" allow="autoplay"></iframe>
 </main>
 
+<script src="token-system.js"></script>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
 
@@ -827,6 +828,12 @@ el.walletPop.addEventListener('click', (e) => {
   togglePop(false);
 });
 
+addEventListener('airp-token:unlock', (event) => {
+  const names = { fishing: '捕鱼代币', scratch: '刮刮乐代币', slots: '幸运机代币' };
+  const game = event.detail?.game;
+  toast(`代币掉落解锁：${names[game] || game}`);
+});
+
 /* ---------------- inbound game events ---------------- */
 addEventListener('message', (e) => {
   const d = e.data || {};
@@ -852,6 +859,9 @@ addEventListener('message', (e) => {
     const detail = d.detail && typeof d.detail === 'object' ? d.detail : {};
     try { parent.postMessage({ type: 'airp-arcade:event', event: { game: current.id, type: d.type, detail } }, '*'); }
     catch (_) {}
+  }
+  if (/:settled$/.test(d.type)) {
+    try { dispatchEvent(new CustomEvent(d.type, { detail: d.detail || {} })); } catch (_) {}
   }
   const b = pickBalance(d);
   if (Number.isFinite(b) && hostReady) writeBalance(b);

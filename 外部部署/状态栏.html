@@ -485,6 +485,38 @@
     const response = await helper.generate({ user_input: userInput, max_chat_history: 10 });
     return writeDevelopmentNotes(name, parseDevelopmentNotes(response));
   };
+  const purchaseShopProduct = (product) => {
+    const bucket = String(product?.storageBucket || '用品').trim();
+    const name = String(product?.goods?.['名称'] || product?.name || '').trim();
+    const category = String(product?.goods?.['类别'] || '').trim();
+    const description = String(product?.goods?.['描述'] || product?.description || '').trim();
+    const goodsCats = ['服装', '饰品', '器具', '器材', '其他'];
+    const consumableCats = ['食物', '饮料', '药物', '日用', '其他'];
+    if (!name) throw new Error('商品名称为空');
+    if (bucket !== '用品' && bucket !== '消耗品') throw new Error('商品存储分类无效');
+    if (bucket === '用品' && !goodsCats.includes(category)) throw new Error('用品类别无效');
+    if (bucket === '消耗品' && !consumableCats.includes(category)) throw new Error('消耗品类别无效');
+    if (!mvuState.ready && !mvuState.check()) throw new Error('MVU 未就绪');
+    const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+    if (!mvuData?.stat_data) throw new Error('MVU 数据为空');
+    const stat = mvuData.stat_data;
+    stat.玩家信息 = stat.玩家信息 && typeof stat.玩家信息 === 'object' ? stat.玩家信息 : {};
+    stat.玩家信息.背包 = stat.玩家信息.背包 && typeof stat.玩家信息.背包 === 'object' ? stat.玩家信息.背包 : {};
+    const bag = stat.玩家信息.背包;
+    if (bucket === '消耗品') {
+      bag.消耗品 = bag.消耗品 && typeof bag.消耗品 === 'object' ? bag.消耗品 : {};
+      const current = bag.消耗品[name] && typeof bag.消耗品[name] === 'object' ? bag.消耗品[name] : null;
+      bag.消耗品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 强度: Math.max(1, Math.min(5, Math.floor(Number(product?.goods?.['强度']) || Number(current?.强度) || 1))), 描述: description || String(current?.描述 || '') };
+      mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+      return { bucket, item: bag.消耗品[name] };
+    }
+    bag.用品 = bag.用品 && typeof bag.用品 === 'object' ? bag.用品 : {};
+    const current = bag.用品[name] && typeof bag.用品[name] === 'object' ? bag.用品[name] : null;
+    bag.用品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 佩戴: category === '器材' ? false : !!current?.佩戴, 描述: description || String(current?.描述 || '') };
+    mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
+    return { bucket, item: bag.用品[name] };
+  };
+
   const handleRequest = (action, payload) => {
     switch (action) {
       case 'handshake':
@@ -503,6 +535,12 @@
         return clockIn();
       case 'arcadeEvent':
         return recordArcadeEvent(payload?.event || {});
+      case 'purchaseShopProduct':
+        return purchaseShopProduct(payload?.product || {});
+      case 'saveCustomMapNode':
+        return saveCustomMapNode(payload?.node || {});
+      case 'deleteCustomMapNode':
+        return deleteCustomMapNode(payload?.id);
       case 'sendMessage':
         return sendMessage(payload?.text);
       case 'collapseHud':
@@ -536,7 +574,7 @@
     try {
       const payload = await handleRequest(data.action, data.payload || {});
       event.source?.postMessage({ ...reply, ok: true, payload }, event.origin);
-      if (data.action === 'handshake' || data.action === 'patch' || data.action === 'clockIn' || data.action === 'arcadeEvent') {
+      if (data.action === 'handshake' || data.action === 'patch' || data.action === 'clockIn' || data.action === 'arcadeEvent' || data.action === 'purchaseShopProduct' || data.action === 'saveCustomMapNode' || data.action === 'deleteCustomMapNode') {
         pushSnapshot(true);
       }
     } catch (error) {
@@ -1194,17 +1232,19 @@
      reading pane. Hiding as soon as the slot's top 32px left the pane made the
      whole HUD vanish after one small wheel/touch scroll while its blank spacer
      remained, which was especially destructive on portrait phones. */
-  const applySlotVisibility = (view, box) => {
+  const applySlotVisibility = (view, box, paneRect = null) => {
     if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'page') {
       hudFrame.style.removeProperty('clip-path');
       hudFrame.style.visibility = 'visible';
       hudFrame.style.pointerEvents = 'auto';
       return;
     }
-    const pane = readingPane();
-    const rr = pane ? pane.getBoundingClientRect() : {
-      left: 0, top: 0, right: view.vw, bottom: view.vh,
-    };
+    const rr = paneRect || (() => {
+      const pane = readingPane();
+      return pane ? pane.getBoundingClientRect() : {
+        left: 0, top: 0, right: view.vw, bottom: view.vh,
+      };
+    })();
     const hudBottom = view.top + box.height;
     const visibleTop = Math.max(view.top, rr.top);
     const visibleBottom = Math.min(hudBottom, rr.bottom);
@@ -1227,7 +1267,7 @@
     }
   };
 
-  const moveHud = (view, box) => {
+  const moveHud = (view, box, paneRect = null) => {
     const align = hudFrame._linjiangAlign || 'window';
     let x = (view.vw - box.width) / 2;
     if (align === 'slot') {
@@ -1243,7 +1283,7 @@
     hudFrame.style.transform = 'none';
     hudFrame.style.left = `${x}px`;
     hudFrame.style.top = `${view.top}px`;
-    applySlotVisibility(view, box);
+    applySlotVisibility(view, box, paneRect);
     if (align === 'slot') {
       try { hideChromeButtons(); } catch (e) {}
     } else if (hudFrame.style.visibility !== 'hidden') {
@@ -1307,7 +1347,10 @@
 
        compacted 和竖屏/手机是同一种排版（align 'slot'，浮层跟着栏位走），本来就该走
        同一条跟随路径，唯一的差别在下面那三行。 */
-    moveHud(viewportPoint(frame), box);
+    const view = viewportPoint(frame);
+    const pane = readingPane();
+    const paneRect = pane ? pane.getBoundingClientRect() : null;
+    moveHud(view, box, paneRect);
     /* moveHud 对 align 'slot' 一律收掉全屏/缩小钮 —— 竖屏用不到它们。但"收回嵌入框"
        恰恰必须留着缩小钮，否则没有任何入口能再展开回去。所以这里补放一次，
        并且只在 applySlotVisibility 判定 HUD 还看得见时补：滚出阅读区时保持藏起来。 */
@@ -1427,7 +1470,7 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body25-touch-scroll');
+      url.searchParams.set('v', 'body26-touch-screen-scroll');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -1494,6 +1537,9 @@
   let hostScrollIdleTimer = 0;
   let hostScrollActive = false;
   let lastScrollEventStamp = -1;
+  /* A forwarded touch keeps scrolling the same host pane even though the lifted
+     HUD moves under the finger during the gesture. */
+  let touchScrollPoint = null;
   const setHostScrollActive = (next) => {
     const activeNow = !!next;
     if (hostScrollActive === activeNow) return;
@@ -1517,9 +1563,11 @@
       hostScrollIdleTimer = 0;
       setHostScrollActive(false);
     }, 160);
-    /* Native scrollbar dragging updates #chat before the next animation frame.
-       Follow synchronously so the detached fixed HUD never trails the slot by one frame. */
-    followNow();
+    /* Scroll and layout in one animation frame. Calling followHud synchronously
+       from every scroll event forces a frame -> layout -> style cycle on phones,
+       and touch forwarding can call this twice for one gesture update. */
+    if (portraitHud()) requestFollow();
+    else followNow();
   };
 
   const wheelPixels = (payload, win) => {
@@ -1893,15 +1941,17 @@
     if (autoscroll.active && event.key === 'Escape') stopAutoscroll();
   };
 
-  const scrollReading = (payload) => {
+  const scrollReading = (payload, stablePoint = null) => {
     const tavern = tavernWin();
     const dy = wheelPixels(payload, tavern);
     if (!dy) return;
+    const pane = readingPane();
+    const paneBefore = Number(pane?.scrollTop) || 0;
     noteHostScroll();
 
     let remaining = dy;
     try {
-      const point = hudPointerPoint(payload);
+      const point = stablePoint || hudPointerPoint(payload);
       const stack = tavern.document.elementsFromPoint(point.x, point.y) || [];
       for (let i = 0; i < stack.length && Math.abs(remaining) > 0.01; i++) {
         let el = stack[i];
@@ -1936,11 +1986,19 @@
       }
     }
 
-    /* Programmatic scrolling happens in this message task.  Reposition the
-       detached fixed HUD in the same task instead of waiting one more animation
-       frame for a scroll event; that extra frame was the visible jump/jitter. */
+    /* On portrait the chat scroll delta is already known. Move the detached
+       iframe by that delta immediately without a layout read, then reconcile its
+       exact geometry/clip once in RAF. This keeps the compositor-facing layer on
+       the finger while avoiding synchronous getBoundingClientRect work. */
     if (Math.abs(remaining - dy) > 0.01) {
-      followNow();
+      if (portraitHud()) {
+        const paneDelta = (Number(pane?.scrollTop) || 0) - paneBefore;
+        const top = Number.parseFloat(hudFrame.style.top);
+        if (paneDelta && Number.isFinite(top) && hudFrame._linjiangAlign === 'slot') {
+          hudFrame.style.top = `${top - paneDelta}px`;
+        }
+        requestFollow();
+      } else followNow();
     }
   };
 
@@ -1981,12 +2039,20 @@
 
   const onHudWheel = (event) => {
     const data = event.data;
-    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event'
-        || (data.type !== 'wheel' && data.type !== 'touchScroll')) return;
+    if (!isOwner() || !data || data.channel !== CHANNEL || data.kind !== 'event') return;
     if (event.source !== hudFrame.contentWindow) return;
     if (hudOrigin !== '*' && event.origin !== hudOrigin) return;
+    if (data.type === 'touchScrollEnd') {
+      touchScrollPoint = null;
+      return;
+    }
+    if (data.type !== 'wheel' && data.type !== 'touchScroll') return;
     if (autoscroll.active) stopAutoscroll();
-    scrollReading(data.payload || {});
+    const payload = data.payload || {};
+    if (data.type === 'touchScroll' && (payload.gestureStart || !touchScrollPoint)) {
+      touchScrollPoint = hudPointerPoint(payload);
+    }
+    scrollReading(payload, data.type === 'touchScroll' ? touchScrollPoint : null);
   };
 
   let pollTimer = 0;

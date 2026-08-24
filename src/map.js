@@ -13,9 +13,10 @@
    uses: 世界信息.位置 and 对象信息.{名}.位置, already adapted onto world.location
    and characterDetails[name].location by applyStatData. */
 
-import { characterDetails, girls, onLive, world } from './data.js';
+import { characterDetails, customMapNodes, girls, onLive, world } from './data.js';
+import { deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
 
-const MAP_REV = '20260821-requirements-v3';
+const MAP_REV = '20260823-custom-nodes-v1';
 
 const DISTRICT_KEY = {
   乌溪区: 'wuxi',
@@ -120,29 +121,31 @@ export function mapRuntime(nodes = []) {
   };
 }
 
-function applyToFrame(iframe, { resetView, onTravel } = {}) {
+function applyToFrame(iframe, { resetView, onTravel, onCustomCreate, onCustomDelete, createMode } = {}) {
   let api;
   try { api = iframe.contentWindow?.PLATE_MAP; } catch { return false; }
   if (!api) return false;
-  /* The route panel belongs to the map iframe, but the action belongs to the HUD.
-     Wire it as soon as PLATE_MAP exists so a click on ?? cannot disappear into the
-     self-contained map page. */
-  if (typeof onTravel === 'function' && typeof api.onTravel === 'function') {
-    api.onTravel(onTravel);
-  }
+  if (typeof onTravel === 'function' && typeof api.onTravel === 'function') api.onTravel(onTravel);
+  if (typeof onCustomCreate === 'function' && typeof api.onCustomCreate === 'function') api.onCustomCreate(onCustomCreate);
+  if (typeof onCustomDelete === 'function' && typeof api.onCustomDelete === 'function') api.onCustomDelete(onCustomDelete);
+  if (typeof api.setCustomNodes === 'function') api.setCustomNodes(customMapNodes);
   const nodes = iframe.contentWindow.CITY_MAP_DATA?.nodes || [];
   const period = world.time.period;
   api.setPhase(PHASE_ALIAS[period] || period);
-  api.setState(mapRuntime(nodes));
+  api.setState(mapRuntime(nodes.concat(customMapNodes)));
   if (resetView) api.fitAll(0);
+  if (createMode && !iframe.dataset.customCreateStarted && typeof api.enterCustomMode === 'function') {
+    iframe.dataset.customCreateStarted = '1';
+    api.enterCustomMode(createMode);
+  }
   return true;
 }
 
-function bindFrame(iframe, { onTravel } = {}) {
+function bindFrame(iframe, options = {}) {
   if (!iframe) return;
   let tries = 0;
   const apply = (resetView) => {
-    if (applyToFrame(iframe, { resetView, onTravel })) return;
+    if (applyToFrame(iframe, { ...options, resetView })) return;
     if (tries++ < 40) setTimeout(() => apply(resetView), 50);
   };
   iframe.addEventListener('load', () => apply(true));
@@ -163,16 +166,21 @@ export function mapOverlay() {
 </div>`;
 }
 
-export function mountMapOverlay(host, { onClose, onTravel } = {}) {
+export function mountMapOverlay(host, { onClose, onTravel, createMode = null } = {}) {
   const root = host || document.body;
   document.querySelectorAll('.map-layer').forEach((el) => el.remove());
   root.insertAdjacentHTML('beforeend', mapOverlay());
   const layer = root.querySelector(':scope > .map-layer') || document.querySelector('.map-layer');
   const iframe = layer.querySelector('[data-map-frame]');
-  bindFrame(iframe, { onTravel });
+  const handleCreate = async (draft) => {
+    const result = await saveCustomMapNode(draft);
+    return result?.node || result || draft;
+  };
+  const handleDelete = async (node) => deleteCustomMapNode(node?.id || node);
+  bindFrame(iframe, { onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete });
   layer.querySelector('[data-map-close]').addEventListener('click', () => onClose?.());
   document.documentElement.classList.add('has-map');
-  const offLive = onLive(() => applyToFrame(iframe, { resetView: false }));
+  const offLive = onLive(() => applyToFrame(iframe, { resetView: false, onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete }));
   return () => {
     offLive();
     layer.remove();

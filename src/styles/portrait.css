@@ -2311,3 +2311,5 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
 .pprofile-schedule { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); width:100%; margin-top:var(--sp-5); padding:var(--sp-3) var(--sp-4); border:2px solid rgba(226,230,255,.14); border-radius:var(--sp-3); background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(30,34,70,.18)); color:inherit; text-align:left; }
 .pprofile-schedule b { font:500 var(--fs-body)/1 'Noto Sans SC',sans-serif; color:rgba(255,255,255,.9); }
 .pprofile-schedule > .ic { flex:none; font-size:var(--icon-sm); color:rgba(240,236,250,.52); }
+
+.pinv-use{margin-top:12px;border:1px solid rgba(165,208,255,.34);border-radius:12px;padding:10px 14px;background:linear-gradient(180deg,rgba(211,235,255,.96),rgba(143,191,239,.92));color:#13243c;font:700 20px/1 'Noto Sans SC',sans-serif;box-shadow:0 9px 24px rgba(40,104,178,.2)}

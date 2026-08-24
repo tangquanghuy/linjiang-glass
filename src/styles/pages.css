@@ -1125,3 +1125,7 @@
 .profile-schedule-link small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 11px/1 'Noto Sans SC',sans-serif; color:rgba(226,226,244,.5); }
 .profile-schedule-link > .ic { color:rgba(240,236,250,.52); }
 @media (hover:hover) { .profile-schedule-link:hover { border-color:rgba(255,214,236,.44); transform:translateX(2px); } }
+
+/* 城市规划蓝图是少数由 HUD 直接执行的系统用品。 */
+.item-use{align-self:center;border:1px solid rgba(162,207,255,.32);border-radius:10px;padding:8px 12px;background:linear-gradient(180deg,rgba(204,231,255,.92),rgba(139,189,241,.88));color:#15263e;font:700 12px/1 'Noto Sans SC',sans-serif;cursor:pointer;box-shadow:0 7px 18px rgba(42,105,180,.18)}
+.item-use:hover{filter:brightness(1.08)}

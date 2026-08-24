@@ -79,6 +79,27 @@ stat_data:
               "[经验项]": int
             近期事件时间: int[]
 
+    地图:
+      版本: int
+      自建节点:
+        "[节点ID]":
+          名称: str
+          别名: str[]
+          区域: str
+          底板: str
+          区内坐标: [number, number]
+          锚点: str
+          锚点名称: str
+          接驳距离: number
+          类型: str
+          私密度: int
+          开放时段: str[]
+          功能: object
+          简介: str
+          看点: str
+          特殊: str[]
+          创建时间: str
+          世界书同步: object
     直播间: object
     街机: object
 

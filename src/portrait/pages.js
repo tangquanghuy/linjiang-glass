@@ -26,7 +26,7 @@ import devMatrix from '../dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, GUARD_DAYS, NO_STATUS, NOTICE, PRIVACY, THRESHOLDS,
   characterDetails, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
-  homeState, inventoryRail, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
+  homeState, inventoryRail, MAP_MARKER_ITEM, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
 import { head, ic, meter, pct, section } from './parts.js';
 import { settingsBody } from '../settings.js';
@@ -80,19 +80,20 @@ function row(item, selected = new Map()) {
     quantity: item.quantity,
   }));
   return `
-  <label class="pinv-row b-${item.bucket}${item.worn ? ' is-worn' : ''}"
+  <div class="pinv-row b-${item.bucket}${item.worn ? ' is-worn' : ''}"
     data-item="${item.name}" data-set="${item.icon.set}" data-placing="${item.icon.placing}"
     style="--hue:${item.icon.hue}; --tilt:${item.icon.tilt}deg; --scale:${item.icon.scale}${
       item.bucket === 'consumable' ? `; --potency:${item.potency}` : ''}"
     aria-label="${item.icon.label} · ${item.name}，数量 ${item.quantity}">
-    <span class="pinv-select"><input type="checkbox" data-inv-select="${payload}" ${selected.has(key) ? 'checked' : ''} aria-label="选择销毁 ${item.name}"><i></i></span>
+    <label class="pinv-select"><input type="checkbox" data-inv-select="${payload}" ${selected.has(key) ? 'checked' : ''} aria-label="选择销毁 ${item.name}"><i></i></label>
     ${cell(item)}
     <span class="pinv-copy">
       <b>${item.name}</b>
       <span class="pinv-tags">${tags(item)}</span>
       <p>${item.description}</p>
+      ${item.name === MAP_MARKER_ITEM ? '<button class="pinv-use" type="button" data-map-marker-use>使用城市规划蓝图</button>' : ''}
     </span>
-  </label>`;
+  </div>`;
 }
 
 function group(g, index, selected = new Map()) {

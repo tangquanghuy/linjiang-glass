@@ -9,6 +9,7 @@ import './styles/map.css';
 import './styles/arcade.css';
 /* 跟着 arcade.css：CG 鉴赏是同一种覆盖层，样式也是照它写的。 */
 import './styles/cg.css';
+import './styles/shop.css';
 import './styles/dock.css';
 import './styles/drawer.css';
 /* After drawer.css: the gift tray is the drawer's panel with different cells, so its

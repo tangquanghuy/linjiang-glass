@@ -150,6 +150,9 @@ function fan({ follow = false, tipped = 0, tier = '无', days = 0, mod = false, 
   };
 }
 
+export const MAP_MARKER_ITEM = '城市规划蓝图';
+export const customMapNodes = [];
+
 export const world = {
   /* 季节 and 周次 are separate fields, not one string: the landscape pane's 何时 line has
      room for 周几 and 季节 but not the week number, while 主角档案 and the portrait column
@@ -212,6 +215,7 @@ export const player = {
       { name: '项圈与牵引绳', category: '器具', quantity: 1, worn: false, description: '细软皮革项圈配一条短绳，扣上后便于近距离带着走。' },
       { name: '无线遥控跳蛋', category: '器具', quantity: 1, worn: true, description: '静音款遥控跳蛋，放入后可远距离调节强度。' },
       { name: '护士服与白丝', category: '服装', quantity: 1, worn: false, description: '短款护士服配白色长袜，适合诊疗扮演。' },
+      { name: MAP_MARKER_ITEM, category: '器材', quantity: 1, worn: false, description: '打开临江市地图，在当前存档中登记或管理玩家自建地点。' },
     ],
   },
 };
@@ -1005,6 +1009,10 @@ export const destinations = [
     note: '刮刮乐、老虎机、钓鱼、祈愿',
   },
   {
+    icon: 'shop', label: '代币商店', short: '商店', page: 'shop',
+    note: '用街机代币兑换用品',
+  },
+  {
     icon: 'gallery', label: 'CG 鉴赏', short: 'CG', page: 'cg',
     note: '已解锁的场景回看',
   },
@@ -1370,6 +1378,34 @@ function shortDate(full) {
   return match ? `${match[1]}月${match[2]}日` : asStr(full);
 }
 
+function mapCustomNodes(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+  return Object.entries(obj).map(([id, raw]) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const name = String(raw.名称 || '').trim();
+    const plate = String(raw.底板 || '').trim();
+    const pos = Array.isArray(raw.区内坐标) ? raw.区内坐标.map(Number) : [];
+    if (!id || !name || !plate || pos.length < 2 || !pos.every(Number.isFinite)) return null;
+    const aliases = Array.isArray(raw.别名) ? raw.别名.map(v => String(v || '').trim()).filter(Boolean) : [];
+    const hours = Array.isArray(raw.开放时段) ? raw.开放时段.map(v => String(v || '').trim()).filter(Boolean) : [];
+    const special = Array.isArray(raw.特殊) ? raw.特殊.map(v => String(v || '').trim()).filter(Boolean) : [];
+    const features = raw.功能 && typeof raw.功能 === 'object' ? raw.功能 : {};
+    return {
+      id: String(id), name, aliases,
+      district: String(raw.区域 || '').trim(), plate,
+      localPos: [Math.max(0, Math.min(1, pos[0])), Math.max(0, Math.min(1, pos[1]))],
+      anchorId: String(raw.锚点 || '').trim(), anchorName: String(raw.锚点名称 || '').trim(),
+      accessKm: Math.max(0, Number(raw.接驳距离) || 0),
+      archetype: String(raw.类型 || 'living').trim() || 'living',
+      privacy: Math.max(0, Math.min(5, Math.round(Number(raw.私密度) || 0))),
+      openHours: hours.length ? hours : ['朝', '昼', '暮', '夜', '深夜'],
+      intro: String(raw.简介 || '').trim(), draw: String(raw.看点 || '').trim(), special,
+      features: { canGather: !!features.可采集, canDate: !!features.可约会, canWork: !!features.可工作, hasShop: !!features.有商店 },
+      createdAt: String(raw.创建时间 || '').trim(), custom: true,
+    };
+  }).filter(Boolean);
+}
+
 function mapBag(obj, kind) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
   return Object.values(obj)
@@ -1478,6 +1514,7 @@ export function applyStatData(stat) {
   world.location.privacy = asNum(loc.私密度, world.location.privacy);
 
   applyArcadeProfile(stat.系统配置?.街机, { notify: false });
+  customMapNodes.splice(0, customMapNodes.length, ...mapCustomNodes(stat.系统配置?.地图?.自建节点));
 
   const me = stat.玩家信息 || {};
   const work = me.工作 || {};
@@ -1495,6 +1532,12 @@ export function applyStatData(stat) {
   player.inventory.materials = mapBag(bag.素材, 'materials');
   player.inventory.consumables = mapBag(bag.消耗品, 'consumables');
   player.inventory.goods = mapBag(bag.用品, 'goods');
+  if (!player.inventory.goods.some(item => item.name === MAP_MARKER_ITEM)) {
+    player.inventory.goods.push({
+      name: MAP_MARKER_ITEM, category: '器材', quantity: 1, worn: false,
+      description: '打开临江市地图，在当前存档中登记或管理玩家自建地点。',
+    });
+  }
   resetItemArt();
 
   const events = mapEvents(info.事件提示);

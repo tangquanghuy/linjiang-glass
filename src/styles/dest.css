@@ -12,7 +12,12 @@
   z-index: 4;
   display: flex;
   gap: 10px;
+  max-width: 1160px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+
+.dest-rail::-webkit-scrollbar { display:none; }
 
 .dest-btn {
   position: relative;
@@ -81,7 +86,7 @@
 /* 单位全是竖屏画布单位；整块画布再被 k 缩到视口里。 */
 .pdest {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 

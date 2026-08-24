@@ -36,6 +36,10 @@ export const icons = {
                <circle cx="8.4" cy="7.6" r="2.7"/>
                <path d="M13.8 15.4v-2.6M16.8 12.2h.01M11.2 12.2h.01" stroke-width="1.9"/>`),
 
+  shop: svg(`<path d="M4 7.4h16l-1.2 12.8H5.2L4 7.4Z"/>
+            <path d="M7.2 7.4V5.8a4.8 4.8 0 0 1 9.6 0v1.6"/>
+            <path d="M8.2 11.2h.01M15.8 11.2h.01" stroke-width="2.3"/>`),
+
   moon: svg(`<path d="M18.6 14.4A7.4 7.4 0 0 1 9 5.1a7.8 7.8 0 1 0 9.6 9.3Z"
                  fill="currentColor" stroke="none"/>`),
 

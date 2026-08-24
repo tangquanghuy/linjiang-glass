@@ -91,6 +91,12 @@ const out = {
     note: '由 city_mapdata.js + city_net.js + plate_map.js 自动提炼，勿手改；改源数据后重跑 scripts/export-ai-map.mjs 与 scripts/build-worldbook-map.mjs'
   },
   // 出行参数（照抄 city_net.js，供 AI 自己估算未列出的路线）
+  runtimeCustom: {
+    source: 'stat_data.系统配置.地图.自建节点',
+    idPrefix: 'usr_',
+    routeRule: '每个玩家节点通过锚点与固定路网接驳；地图加载负责运行时合并，静态矩阵保持不变',
+    detailRule: '对应详情由状态栏运行时创建为“玩家地点 - {名称}”世界书条目'
+  },
   travel: {
     speed: { 步行: 4.5, 公交: 18, 地铁: 35, 驾车干道: 34, 驾车快速路: 58, 出租: 34 },
     wait: { 公交候车: 6, 进出站: 2.5, 打车等车: 4, 取车找位: 8 },
@@ -200,6 +206,7 @@ lines.push('//   功能标记：' + out.meta.flagLegend);
 lines.push('//   这两栏都是压缩存的，《地图加载》负责展开成人话再给 AI，AI 看不到这里的单字。');
 lines.push('var LJ_MAP_DATA = {');
 lines.push('  meta: ' + j(out.meta) + ',');
+lines.push('  runtimeCustom: ' + j(out.runtimeCustom) + ',');
 lines.push('  travel: ' + j(out.travel) + ',');
 lines.push('  districts: [');
 out.districts.forEach(d => lines.push('    ' + j(d) + ','));

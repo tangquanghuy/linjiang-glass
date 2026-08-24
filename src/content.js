@@ -1,9 +1,9 @@
-﻿import geo from './geometry.json';
+import geo from './geometry.json';
 import spritesRaw from './sprites.json';
 import { rebaseRecord } from './asset.js';
 import { pinImg } from './pin-art.js';
 import {
-  characterDetails, destinations, girls, homeState, onLive, player, protagonist, tools, workBadge, workState, world,
+  characterDetails, destinations, girls, homeState, MAP_MARKER_ITEM, onLive, player, protagonist, tools, workBadge, workState, world,
 } from './data.js';
 import { mountPages } from './pages.js';
 import { mountDrawer } from './drawer.js';
@@ -439,7 +439,10 @@ export function renderContent(root) {
      not everyone's idea of browsing, so `inventoryOpen: 'page'` sends the button
      straight to the full page and the drawer never appears. */
   const drawer = mountDrawer(root.parentElement, {
-    onItem: () => pages.open('inventory'),
+    onItem: (name) => {
+      if (name === MAP_MARKER_ITEM) { drawer.close(); pages.openMapCreate(); return; }
+      pages.open('inventory');
+    },
   });
   /* 去处轨。和 pod 里的环走同一套逻辑：礼物盘和抽屉都占底部那条带，所以任何去处开之前
      先把它们清掉 —— 以前这件事是托盘的 onOpen 在做。 */
@@ -511,5 +514,3 @@ function placeBlossom(stage) {
   el.src = s.src;
   el.style.cssText = `left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.h}px`;
 }
-
-

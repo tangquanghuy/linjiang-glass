@@ -220,6 +220,29 @@ export async function recordArcadeEvent(event) {
   return rpc('arcadeEvent', { event });
 }
 
+export async function purchaseShopProduct(product) {
+  if (!isEmbedded()) throw new Error('????????????');
+  return rpc('purchaseShopProduct', { product });
+}
+
+export async function saveCustomMapNode(node) {
+  if (!isEmbedded()) {
+    console.info('[hud] saveCustomMapNode (standalone)', node);
+    return { node };
+  }
+  return rpc('saveCustomMapNode', { node }, 30000);
+}
+
+export async function deleteCustomMapNode(id) {
+  const nodeId = String(id || '').trim();
+  if (!nodeId) return false;
+  if (!isEmbedded()) {
+    console.info('[hud] deleteCustomMapNode (standalone)', nodeId);
+    return true;
+  }
+  return rpc('deleteCustomMapNode', { id: nodeId }, 30000);
+}
+
 export async function requestClockIn() {
   if (!isEmbedded()) {
     console.info('[hud] clockIn (standalone)');
@@ -375,6 +398,7 @@ export function startBridge() {
     forwarding: false,
     pendingY: 0,
     pendingPoint: null,
+    pendingGestureStart: false,
     raf: 0,
   };
   const resetTouchScroll = (keepPending = false) => {
@@ -384,6 +408,7 @@ export function startBridge() {
     if (!keepPending) {
       touchScroll.pendingY = 0;
       touchScroll.pendingPoint = null;
+      touchScroll.pendingGestureStart = false;
       if (touchScroll.raf) cancelAnimationFrame(touchScroll.raf);
       touchScroll.raf = 0;
     }
@@ -418,16 +443,19 @@ export function startBridge() {
     const root = document.scrollingElement || document.documentElement;
     return !seen.has(root) && elementCanConsumeTouch(root, deltaY);
   };
-  const queueTouchScroll = (point, deltaY) => {
+  const queueTouchScroll = (point, deltaY, gestureStart = false) => {
     touchScroll.pendingY += deltaY;
     touchScroll.pendingPoint = { clientX: point.clientX, clientY: point.clientY };
+    touchScroll.pendingGestureStart ||= gestureStart;
     if (touchScroll.raf) return;
     touchScroll.raf = requestAnimationFrame(() => {
       touchScroll.raf = 0;
       const dy = touchScroll.pendingY;
       const current = touchScroll.pendingPoint;
+      const gestureStart = touchScroll.pendingGestureStart;
       touchScroll.pendingY = 0;
       touchScroll.pendingPoint = null;
+      touchScroll.pendingGestureStart = false;
       if (!current || Math.abs(dy) < 0.01) return;
       postEvent('touchScroll', {
         deltaX: 0,
@@ -435,6 +463,7 @@ export function startBridge() {
         deltaMode: 0,
         clientX: current.clientX,
         clientY: current.clientY,
+        gestureStart,
       });
     });
   };
@@ -445,8 +474,14 @@ export function startBridge() {
     }
     const touch = event.touches[0];
     touchScroll.id = touch.identifier;
-    touchScroll.startX = touchScroll.lastX = touch.clientX;
-    touchScroll.startY = touchScroll.lastY = touch.clientY;
+    /* clientY is relative to this iframe's viewport. The fixed HUD moves while
+       the forwarded gesture scrolls the host, so clientY jumps back and forth
+       even when the finger moves in one direction. screenX/screenY stay in the
+       device coordinate space and remain monotonic for the whole gesture. */
+    const touchX = Number.isFinite(touch.screenX) ? touch.screenX : touch.clientX;
+    const touchY = Number.isFinite(touch.screenY) ? touch.screenY : touch.clientY;
+    touchScroll.startX = touchScroll.lastX = touchX;
+    touchScroll.startY = touchScroll.lastY = touchY;
     touchScroll.axis = null;
     touchScroll.forwarding = false;
   }, { capture: true, passive: true });
@@ -454,26 +489,33 @@ export function startBridge() {
     if (touchScroll.id == null || event.touches.length !== 1) return;
     const touch = touchById(event.touches, touchScroll.id);
     if (!touch) return;
-    const totalX = touch.clientX - touchScroll.startX;
-    const totalY = touch.clientY - touchScroll.startY;
+    const touchX = Number.isFinite(touch.screenX) ? touch.screenX : touch.clientX;
+    const touchY = Number.isFinite(touch.screenY) ? touch.screenY : touch.clientY;
+    const totalX = touchX - touchScroll.startX;
+    const totalY = touchY - touchScroll.startY;
     if (!touchScroll.axis) {
       if (Math.max(Math.abs(totalX), Math.abs(totalY)) < 6) return;
       touchScroll.axis = Math.abs(totalY) >= Math.abs(totalX) ? 'y' : 'x';
     }
-    const deltaY = touchScroll.lastY - touch.clientY;
-    touchScroll.lastX = touch.clientX;
-    touchScroll.lastY = touch.clientY;
+    const deltaY = touchScroll.lastY - touchY;
+    touchScroll.lastX = touchX;
+    touchScroll.lastY = touchY;
     if (touchScroll.axis !== 'y' || !deltaY) return;
     if (!touchScroll.forwarding && hudCanConsumeTouch(event, deltaY)) return;
+    const gestureStart = !touchScroll.forwarding;
     touchScroll.forwarding = true;
     if (event.cancelable) event.preventDefault();
-    queueTouchScroll(touch, deltaY);
+    queueTouchScroll(touch, deltaY, gestureStart);
   }, { capture: true, passive: false });
   addEventListener('touchend', (event) => {
     if (touchScroll.id == null || touchById(event.touches, touchScroll.id)) return;
+    if (touchScroll.forwarding) postEvent('touchScrollEnd', {});
     resetTouchScroll(true);
   }, { capture: true, passive: true });
-  addEventListener('touchcancel', () => resetTouchScroll(), { capture: true, passive: true });
+  addEventListener('touchcancel', () => {
+    if (touchScroll.forwarding) postEvent('touchScrollEnd', {});
+    resetTouchScroll();
+  }, { capture: true, passive: true });
 
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;

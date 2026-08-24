@@ -4,7 +4,7 @@ import { rebaseRecord } from './asset.js';
 import devMatrix from './dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, NO_STATUS, PRIVACY, THRESHOLDS,
-  characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon,
+  characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon, MAP_MARKER_ITEM,
   itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
@@ -18,6 +18,7 @@ const loadDevNotes = () => (devNotesModulePromise ||= import('./dev-notes.js'));
 import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 import { isCgOpen, mountCgOverlay } from './cg.js';
+import { isShopOpen, mountShopOverlay } from './shop.js';
 import { insertSafeHTML, setSafeHTML } from './dom.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
@@ -651,6 +652,7 @@ function itemCard(item, kind, selected = new Map()) {
         ${potencyNotches(kind === 'consumable' ? item.potency : 0)}
       </div>
       <div class="item-copy"><h3>${item.name}</h3><p>${item.description}</p><span>${icon.label} · ${meta}</span></div>
+      ${item.name === MAP_MARKER_ITEM ? '<button class="item-use" type="button" data-map-marker-use>使用</button>' : ''}
       <b>${kind === 'goods' ? (item.worn ? '装备' : `×${item.quantity}`) : `×${item.quantity}`}</b>
     </article>`;
 }
@@ -754,14 +756,15 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   let unmountMap = null;
   let unmountArcade = null;
   let unmountCg = null;
+  let unmountShop = null;
   let dockName = null;
   let inventoryLeaf = 0;
   const inventorySelection = new Map();
   let inventoryNotice = '';
   const has = (sel) => !!layer.querySelector(sel);
   const drop = (sel) => layer.querySelectorAll(sel).forEach((el) => el.remove());
-  const overlayOpen = () => !!unmountMap || !!unmountArcade || !!unmountCg
-    || isMapOpen() || isArcadeOpen() || isCgOpen();
+  const overlayOpen = () => !!unmountMap || !!unmountArcade || !!unmountCg || !!unmountShop
+    || isMapOpen() || isArcadeOpen() || isCgOpen() || isShopOpen();
 
   const sync = () => {
     const dock = has('.dock-root');
@@ -796,10 +799,14 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     unmountCg?.();
     unmountCg = null;
   };
+  const closeShop = () => {
+    unmountShop?.();
+    unmountShop = null;
+  };
 
   /* 三层覆盖层互斥，而且每个入口都得先把另外两层清掉 —— 以前是每处各写两行，
      加第三层的时候就是三行乘六处。 */
-  const closeOverlays = () => { closeMap(); closeArcade(); closeCg(); };
+  const closeOverlays = () => { closeMap(); closeArcade(); closeCg(); closeShop(); };
 
   const closeNote = () => { drop('.dev-sheet, .dev-sheet-shade'); sync(); };
   const closePage = () => {
@@ -847,11 +854,12 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     }
   };
 
-  const openMap = () => {
-    unmountMap = openOverlay(mountMapOverlay, { onTravel: onMapTravel });
+  const openMap = (createMode = null) => {
+    unmountMap = openOverlay(mountMapOverlay, { onTravel: onMapTravel, createMode });
   };
   const openArcade = () => { unmountArcade = openOverlay(mountArcadeOverlay); };
   const openCg = () => { unmountCg = openOverlay(mountCgOverlay); };
+  const openShop = () => { unmountShop = openOverlay(mountShopOverlay); };
 
   const openCharacter = (name) => {
     const girl = girls.find((item) => item.name === name) || girls[0];
@@ -945,8 +953,10 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
       return;
     }
     if (page === 'map') { openMap(); return; }
+    if (page === 'map-create') { openMap({ source: '城市规划蓝图' }); return; }
     if (page === 'arcade') { openArcade(); return; }
     if (page === 'cg') { openCg(); return; }
+    if (page === 'shop') { openShop(); return; }
     if (page === 'inventory') {
       inventoryLeaf = 0;
       inventorySelection.clear();
@@ -980,6 +990,8 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
       paintInventoryLeaf(Number(invTurn.dataset.invStep) || 0);
       return;
     }
+    const mapMarker = event.target.closest('[data-map-marker-use]');
+    if (mapMarker) { openMap({ source: MAP_MARKER_ITEM }); return; }
     const destroy = event.target.closest('[data-inv-destroy]');
     if (destroy) {
       destroySelectedInventory();
@@ -1063,5 +1075,5 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     });
   }
 
-  return { open, openCharacter, close: closeAll, openedCharacter: () => dockName };
+  return { open, openCharacter, openMapCreate: () => openMap({ source: '城市规划蓝图' }), close: closeAll, openedCharacter: () => dockName };
 }

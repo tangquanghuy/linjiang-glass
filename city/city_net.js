@@ -499,6 +499,7 @@
   function build(opts) {
     const nodeWorld = opts.nodeWorld;        // { id: [x, y] }
     const nameOf = opts.nameOf || (id => id);
+    const anchorOf = opts.anchorOf || (() => '');
 
     const V = new Map();   // vid -> { id, x, y, kind, label }
     const E = [];          // { a, b, kind, km, line? }
@@ -622,6 +623,7 @@
     let cutWater = 0;
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
+        if (anchorOf(pois[i].id) || anchorOf(pois[j].id)) continue;
         const dij = D[i][j];
         let keep = true;
         for (let k = 0; k < n; k++) {
@@ -636,11 +638,16 @@
     LINKS.forEach(l => {
       if (nodeWorld[l.a] && nodeWorld[l.b]) edge('p:' + l.a, 'p:' + l.b, l.kind || 'local');
     });
+    Object.keys(nodeWorld).forEach(id => {
+      const anchor = String(anchorOf(id) || '');
+      if (anchor && nodeWorld[anchor]) edge('p:' + id, 'p:' + anchor, 'local');
+    });
 
     // ---- 接驳：每个地点接到最近的干道折点 ----
     /* 只接一个不够——最近那个可能在江对面，被水挡掉之后这个点就上不了车。
        所以按距离试前几个，接上两条能过的就停。 */
     pois.forEach(p => {
+      if (anchorOf(p.id)) return;
       const cand = wv.map((q, i) => ({ i, d: kmOf(p.at, q) })).sort((a, b) => a.d - b.d);
       let got = 0;
       for (const c of cand) {
@@ -654,6 +661,7 @@
     // ---- 接驳：每个地点接到 2.2 km 内最近的站厅 ----
     const halls = [...stations.values()];
     pois.forEach(p => {
+      if (anchorOf(p.id)) return;
       let best = null, bd = Infinity;
       halls.forEach(s => {
         if (s.vid === p.vid) return;

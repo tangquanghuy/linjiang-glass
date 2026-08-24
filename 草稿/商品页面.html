@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道具商店 · 商品页小样</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   道具商店 · 商品页
+   ------------------------------------------------------------
+   沿用 glass-hud 的玻璃配方：薄白填充 + 亮边 + backdrop-filter，
+   颜色让背景给，卡片不再往上叠深色板。
+   稀有度只用一条左侧光边 + 一个字标表达，不做整卡染色，
+   这样十几张卡并排时页面不会花。
+   ============================================================ */
+:root{
+  --ink:#fff;
+  --mute:rgba(255,255,255,.76);
+  --faint:rgba(255,255,255,.52);
+  --line:rgba(255,255,255,.16);
+  --rim:rgba(255,255,255,.30);
+
+  --glass:rgba(255,255,255,.07);
+  --glass-hi:rgba(255,255,255,.11);
+  --lift:inset 0 1px 0 rgba(255,255,255,.30);
+  --shadow:0 24px 60px -28px rgba(10,8,30,.72);
+
+  --gold:#ffd9a0;
+  --pink:#ffa3c9;
+  --blue:#a9d6ff;
+  --ok:#9ff0cd;
+
+  /* 稀有度 */
+  --r-s:#ffc86b;
+  --r-a:#c9a6ff;
+  --r-b:#8fc8ff;
+  --r-c:#9adfc4;
+
+  --radius:20px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  font-family:'Noto Sans SC',system-ui,sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(ellipse 58% 42% at 14% 4%,rgba(255,148,190,.22),transparent 62%),
+    radial-gradient(ellipse 54% 44% at 88% 16%,rgba(120,152,255,.22),transparent 64%),
+    radial-gradient(ellipse 66% 40% at 60% 100%,rgba(255,186,140,.14),transparent 66%),
+    linear-gradient(168deg,#161c38 0%,#0d1124 48%,#080a15 100%);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid rgba(169,214,255,.7);outline-offset:2px}
+
+.wrap{width:min(100%,1180px);margin:0 auto;padding:38px clamp(14px,3.4vw,32px) 90px}
+
+/* ---------- 页头 ---------- */
+.top{
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  padding-bottom:20px;margin-bottom:26px;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand .mk{
+  width:46px;height:46px;flex:0 0 auto;display:grid;place-items:center;
+  border-radius:50%;border:1px solid rgba(255,255,255,.42);
+  background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.42),rgba(255,255,255,.08));
+  box-shadow:0 0 24px rgba(255,178,212,.22),inset 0 1px 0 rgba(255,255,255,.6);
+  font:400 25px/1 'Pinyon Script',cursive;color:#ffe9f2;
+}
+.brand h1{font-size:19px;font-weight:500;letter-spacing:.1em}
+.brand p{
+  margin-top:5px;color:var(--faint);
+  font:400 11px/1 'Outfit',sans-serif;letter-spacing:.2em;text-transform:uppercase;
+}
+.purse{
+  display:flex;align-items:center;gap:11px;flex:0 0 auto;
+  padding:10px 17px;border-radius:999px;
+  border:1px solid rgba(255,217,160,.32);background:rgba(255,217,160,.08);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.purse i{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.purse small{color:var(--faint);font-size:11px;letter-spacing:.1em}
+.purse b{color:var(--gold);font:500 19px/1 'Outfit',sans-serif}
+
+/* ---------- 工具条 ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}
+.tab{
+  padding:9px 16px;border-radius:999px;
+  border:1px solid var(--line);background:var(--glass);color:var(--mute);
+  font-size:13px;transition:.2s;
+}
+.tab:hover{border-color:var(--rim);color:var(--ink)}
+.tab.on{
+  color:#1a2038;border-color:transparent;font-weight:500;
+  background:linear-gradient(135deg,#ffd7e6,#bcdcff);
+  box-shadow:0 8px 22px -8px rgba(120,150,220,.6);
+}
+.search{
+  position:relative;flex:0 1 240px;
+}
+.search input{
+  width:100%;min-height:42px;padding:0 15px 0 38px;
+  border-radius:12px;border:1px solid var(--line);
+  background:var(--glass);transition:.2s;
+}
+.search input::placeholder{color:var(--faint)}
+.search input:hover,.search input:focus{border-color:var(--rim);background:var(--glass-hi)}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.5}
+
+/* ---------- 布局 ---------- */
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 318px;gap:22px;align-items:start}
+
+/* ---------- 商品网格 ---------- */
+.goods{display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:14px}
+.good{
+  position:relative;overflow:hidden;text-align:left;
+  display:flex;flex-direction:column;gap:11px;
+  padding:17px 18px 16px;
+  border-radius:var(--radius);border:1px solid var(--line);
+  background:var(--glass);
+  backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);
+  box-shadow:var(--lift);
+  transition:transform .22s,border-color .22s,background .22s;
+}
+.good:before{  /* 稀有度光边 */
+  content:'';position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;
+  background:var(--rc);box-shadow:0 0 14px var(--rc);opacity:.9;
+}
+.good:hover{transform:translateY(-3px);border-color:var(--rim);background:var(--glass-hi)}
+.good.sel{
+  border-color:rgba(255,163,201,.55);
+  background:linear-gradient(150deg,rgba(255,163,201,.12),rgba(255,255,255,.09));
+}
+.good .row1{display:flex;align-items:center;gap:8px}
+.rank{
+  flex:0 0 auto;width:22px;height:22px;display:grid;place-items:center;
+  border-radius:7px;border:1px solid var(--rc);color:var(--rc);
+  font:600 11px/1 'Outfit',sans-serif;
+}
+.kind{color:var(--faint);font-size:11px;letter-spacing:.08em}
+.good h3{font-size:15px;font-weight:500;line-height:1.4}
+.good .eff{
+  color:var(--mute);font-size:12px;line-height:1.75;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.good .row2{
+  margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;
+  padding-top:11px;border-top:1px solid rgba(255,255,255,.10);
+}
+.price{display:flex;align-items:baseline;gap:5px;color:var(--gold)}
+.price b{font:500 19px/1 'Outfit',sans-serif}
+.price span{font-size:10px;color:var(--faint);letter-spacing:.08em}
+.add{
+  padding:8px 13px;border-radius:10px;
+  border:1px solid rgba(169,214,255,.30);background:rgba(169,214,255,.10);
+  font-size:12px;color:var(--ink);transition:.2s;
+}
+.add:hover{background:rgba(169,214,255,.2);transform:translateY(-1px)}
+.stock{color:var(--faint);font-size:11px}
+.good.out{opacity:.5}
+.good.out .add{pointer-events:none;border-color:var(--line);background:transparent;color:var(--faint)}
+
+.void{
+  grid-column:1/-1;padding:52px 0;text-align:center;
+  color:var(--faint);font-size:13px;
+}
+
+/* ---------- 侧栏 ---------- */
+.side{position:sticky;top:26px;display:grid;gap:14px}
+.panel{
+  overflow:hidden;border-radius:var(--radius);border:1px solid var(--line);
+  background:var(--glass);
+  backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);
+  box-shadow:var(--lift),var(--shadow);
+}
+.ph{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding:15px 18px;border-bottom:1px solid var(--line);
+}
+.ph b{font-size:14px;font-weight:500;letter-spacing:.06em}
+.ph em{
+  font-style:normal;color:var(--faint);
+  font:400 10px/1 'Outfit',sans-serif;letter-spacing:.16em;text-transform:uppercase;
+}
+.pb{padding:17px 18px}
+
+/* 详情 */
+#detailBody .dhead{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+#detailBody h4{font-size:16px;font-weight:500}
+#detailBody .dtxt{color:var(--mute);font-size:12px;line-height:1.85}
+.meta{display:grid;gap:9px;margin-top:15px}
+.mrow{
+  display:flex;justify-content:space-between;gap:14px;
+  padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;
+}
+.mrow:last-child{border:0;padding-bottom:0}
+.mrow span{color:var(--faint)}
+.blank{padding:8px 0 4px;color:var(--faint);font-size:12px;line-height:1.85}
+
+/* 购物袋 */
+.bag{display:grid;gap:10px}
+.bitem{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:12px}
+.bitem b{font-weight:500}
+.bitem .bq{color:var(--faint);font:400 11px/1 'Outfit',sans-serif;letter-spacing:.06em}
+.bitem .bp{color:var(--gold);font:500 13px/1 'Outfit',sans-serif;text-align:right}
+.bitem .del{color:var(--faint);font-size:15px;line-height:1;padding:2px 4px;transition:.2s}
+.bitem .del:hover{color:var(--pink)}
+.sum{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-top:15px;padding-top:14px;border-top:1px solid var(--line);
+}
+.sum span{color:var(--faint);font-size:12px}
+.sum b{color:var(--gold);font:500 22px/1 'Outfit',sans-serif}
+.pay{
+  width:100%;min-height:46px;margin-top:14px;border-radius:13px;
+  color:#1a2038;font-weight:600;letter-spacing:.04em;
+  background:linear-gradient(135deg,#ffd7e6,#bcdcff);
+  box-shadow:0 12px 28px -12px rgba(120,150,220,.8);
+  transition:.2s;
+}
+.pay:hover{transform:translateY(-1px);filter:brightness(1.04)}
+.pay:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+
+/* ---------- 提示 ---------- */
+.toast{
+  position:fixed;z-index:20;left:50%;bottom:32px;transform:translate(-50%,18px);
+  opacity:0;pointer-events:none;transition:.25s;
+  padding:11px 18px;border-radius:999px;
+  border:1px solid var(--rim);background:rgba(16,20,44,.86);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  font-size:12px;box-shadow:var(--shadow);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:940px){
+  .cols{grid-template-columns:1fr}
+  .side{position:static}
+}
+@media(max-width:560px){
+  .wrap{padding:24px 14px 70px}
+  .top{flex-direction:column;align-items:flex-start;gap:16px}
+  .goods{grid-template-columns:1fr}
+  .search{flex:1 1 100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="mk">S</div>
+      <div>
+        <h1>次元杂货店</h1>
+        <p>Sundry &amp; Curios</p>
+      </div>
+    </div>
+    <div class="purse">
+      <i></i>
+      <small>余额</small>
+      <b id="purse">12,400</b>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-k="all">全部</button>
+      <button class="tab" data-k="消耗品">消耗品</button>
+      <button class="tab" data-k="器械">器械</button>
+      <button class="tab" data-k="装备">装备</button>
+      <button class="tab" data-k="特殊">特殊</button>
+    </div>
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
+      </svg>
+      <input id="q" type="search" placeholder="搜索道具名称或效果" aria-label="搜索商品">
+    </label>
+  </div>
+
+  <div class="cols">
+    <main class="goods" id="goods" aria-live="polite"></main>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="ph"><b>商品详情</b><em>Detail</em></div>
+        <div class="pb" id="detailBody">
+          <p class="blank">从左侧选一件商品，这里会显示它的完整效果说明与购买条件。</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="ph"><b>购物袋</b><em id="bagCount">0 件</em></div>
+        <div class="pb">
+          <div class="bag" id="bag">
+            <p class="blank">还没有加入任何商品。</p>
+          </div>
+          <div class="sum"><span>合计</span><b id="total">0</b></div>
+          <button class="pay" id="pay" disabled>结 算</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ── 商品数据（取自 草稿/道具设计v2 中的非限制条目） ───────────── */
+const RANK = { S:'var(--r-s)', A:'var(--r-a)', B:'var(--r-b)', C:'var(--r-c)' };
+
+const GOODS = [
+  { id:'watch',  name:'咔哒作响的机械怀表', rank:'S', kind:'特殊',   price:9800, stock:1,
+    eff:'时间冻结。按下表冠发出清脆的“咔哒”声后，除使用者自身，整个世界的流速瞬间静止，持续到使用者主动放弃。',
+    use:'一次性消耗品', limit:'每周限购 1 件' },
+  { id:'blue',   name:'城市规划蓝图',       rank:'S', kind:'特殊',   price:8600, stock:2,
+    eff:'世界修改。使用后可在地图与世界书中添加属于自己的地图节点，并自动将其登记为个人资产。',
+    use:'一次性消耗品', limit:'需完成「地籍备案」前置' },
+  { id:'key',    name:'万能备用钥匙',       rank:'B', kind:'器械',   price:2400, stock:5,
+    eff:'无痕入侵。可随时将其复制为目光所及任意一把锁的完美备用钥匙，像使用原配一般顺滑地转动门锁。',
+    use:'非消耗品',     limit:'无' },
+  { id:'glass',  name:'粗黑框眼镜',         rank:'B', kind:'装备',   price:2600, stock:3,
+    eff:'情报读取。镜片会实时显示视线内其他人当下「最渴望的事情」，推一下镜框可切换显示层级。',
+    use:'非消耗品（装备）', limit:'无' },
+  { id:'oil',    name:'特调推拿精油',       rank:'C', kind:'消耗品', price:520,  stock:24,
+    eff:'体力润滑。借由推拿按摩迅速将目标体力条填满至 100，香气还能在无形中微弱提升好感与顺从度。',
+    use:'一次性消耗品', limit:'无' },
+  { id:'sleep',  name:'超次元安眠药',       rank:'B', kind:'消耗品', price:1800, stock:8,
+    eff:'绝对休眠。无视空间锁定目标，使其体力值瞬间降为 10 并当场陷入深度昏迷，效果维持整夜。',
+    use:'一次性消耗品', limit:'需持有「配药许可」' },
+  { id:'corn',   name:'玉米投手的种子',     rank:'A', kind:'器械',   price:4200, stock:4,
+    eff:'物理定身。种入花盆后三日长成，听从指令向目标投射玉米粒；有概率发射黄油，命中头部即造成完全瘫痪。',
+    use:'一次性消耗品', limit:'需一只空花盆' },
+  { id:'tea',    name:'特制红茶',           rank:'B', kind:'消耗品', price:1500, stock:12,
+    eff:'无限弹药。仅对男性生效，饮用后体力强行锁死在 100 满值，无视生理疲劳，持续三日。',
+    use:'一次性消耗品', limit:'无' },
+  { id:'scroll', name:'锁死房间的羊皮纸',   rank:'B', kind:'特殊',   price:3100, stock:0,
+    eff:'极权密室。将任意一间房屋转化为绝对密室，门上会随机生成通行条件，未达成前无法离开。',
+    use:'一次性消耗品', limit:'补货中' },
+  { id:'patch',  name:'感官共享贴片',       rank:'B', kind:'消耗品', price:1900, stock:6,
+    eff:'体验复刻。一张正反两面的胶带，分别贴在两人身上即建立感官桥梁，触觉一比一互通。',
+    use:'一次性消耗品', limit:'无' },
+  { id:'bear',   name:'闪烁红光的小熊玩偶', rank:'C', kind:'器械',   price:780,  stock:15,
+    eff:'本我监控。伪装成毛绒玩具的远程摄像头，微弱红光会逐渐瓦解被监控者的心理防备。',
+    use:'非消耗品',     limit:'无' },
+  { id:'glove',  name:'无形手套',           rank:'A', kind:'装备',   price:5400, stock:2,
+    eff:'幽灵抚摸。戴上后伸手即可无视空间接触脑海中所想之人，对方无法看到或抓住这只手。',
+    use:'非消耗品（装备）', limit:'每人限购 1 件' },
+];
+
+/* ── 状态 ─────────────────────────────────────────────────── */
+const PURSE = 12400;
+let filter = 'all', query = '', selected = null;
+const cart = new Map();   // id -> qty
+
+const $ = s => document.querySelector(s);
+const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n; };
+const money = n => n.toLocaleString('en-US');
+
+/* ── 商品列表 ─────────────────────────────────────────────── */
+function visible() {
+  const q = query.trim().toLowerCase();
+  return GOODS.filter(g => {
+    if (filter !== 'all' && g.kind !== filter) return false;
+    if (!q) return true;
+    return (g.name + g.eff).toLowerCase().includes(q);
+  });
+}
+
+function renderGoods() {
+  const box = $('#goods');
+  box.textContent = '';
+  const list = visible();
+
+  if (!list.length) {
+    const v = el('p', 'void');
+    v.textContent = '没有匹配的商品，换个关键词试试。';
+    box.appendChild(v);
+    return;
+  }
+
+  list.forEach(g => {
+    const card = el('button', 'good' + (g.stock ? '' : ' out') + (selected === g.id ? ' sel' : ''));
+    card.style.setProperty('--rc', RANK[g.rank]);
+    card.type = 'button';
+    card.setAttribute('aria-pressed', selected === g.id);
+
+    const r1 = el('div', 'row1');
+    const rk = el('i', 'rank'); rk.textContent = g.rank;
+    const kd = el('span', 'kind'); kd.textContent = g.kind;
+    r1.append(rk, kd);
+
+    const h = el('h3'); h.textContent = g.name;
+    const p = el('p', 'eff'); p.textContent = g.eff;
+
+    const r2 = el('div', 'row2');
+    const pr = el('div', 'price');
+    const pb = el('b'); pb.textContent = money(g.price);
+    const ps = el('span'); ps.textContent = 'CR';
+    pr.append(pb, ps);
+
+    if (g.stock) {
+      const add = el('span', 'add');
+      add.textContent = '加入';
+      add.dataset.add = g.id;
+      r2.append(pr, add);
+    } else {
+      const so = el('span', 'stock'); so.textContent = '暂时缺货';
+      r2.append(pr, so);
+    }
+
+    card.append(r1, h, p, r2);
+    card.addEventListener('click', e => {
+      if (e.target.dataset.add) { addToCart(g.id); return; }
+      selected = g.id;
+      renderGoods();
+      renderDetail();
+    });
+    box.appendChild(card);
+  });
+}
+
+/* ── 详情 ─────────────────────────────────────────────────── */
+function renderDetail() {
+  const body = $('#detailBody');
+  body.textContent = '';
+  const g = GOODS.find(x => x.id === selected);
+
+  if (!g) {
+    const p = el('p', 'blank');
+    p.textContent = '从左侧选一件商品，这里会显示它的完整效果说明与购买条件。';
+    body.appendChild(p);
+    return;
+  }
+
+  const head = el('div', 'dhead');
+  const rk = el('i', 'rank'); rk.textContent = g.rank;
+  rk.style.setProperty('--rc', RANK[g.rank]);
+  const kd = el('span', 'kind'); kd.textContent = g.kind;
+  head.append(rk, kd);
+
+  const h = el('h4'); h.textContent = g.name;
+  const t = el('p', 'dtxt'); t.textContent = g.eff;
+
+  const meta = el('div', 'meta');
+  [['类型', g.use], ['单价', money(g.price) + ' CR'],
+   ['库存', g.stock ? g.stock + ' 件' : '缺货'], ['限制', g.limit]]
+  .forEach(([k, v]) => {
+    const row = el('div', 'mrow');
+    const s = el('span'); s.textContent = k;
+    const b = el('b'); b.textContent = v;
+    row.append(s, b);
+    meta.appendChild(row);
+  });
+
+  body.append(head, h, t, meta);
+}
+
+/* ── 购物袋 ───────────────────────────────────────────────── */
+function addToCart(id) {
+  const g = GOODS.find(x => x.id === id);
+  const have = cart.get(id) || 0;
+  if (have >= g.stock) { toast('已达该商品库存上限'); return; }
+  cart.set(id, have + 1);
+  renderCart();
+  toast(`已加入 ${g.name}`);
+}
+
+function renderCart() {
+  const bag = $('#bag');
+  bag.textContent = '';
+  let total = 0, count = 0;
+
+  if (!cart.size) {
+    const p = el('p', 'blank');
+    p.textContent = '还没有加入任何商品。';
+    bag.appendChild(p);
+  } else {
+    cart.forEach((qty, id) => {
+      const g = GOODS.find(x => x.id === id);
+      total += g.price * qty;
+      count += qty;
+
+      const row = el('div', 'bitem');
+      const left = el('div');
+      const b = el('b'); b.textContent = g.name;
+      const q = el('div', 'bq'); q.textContent = '× ' + qty;
+      left.append(b, q);
+
+      const right = el('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '8px';
+      const p = el('div', 'bp'); p.textContent = money(g.price * qty);
+      const del = el('button', 'del');
+      del.type = 'button';
+      del.textContent = '×';
+      del.setAttribute('aria-label', '移除 ' + g.name);
+      del.addEventListener('click', () => {
+        const n = cart.get(id) - 1;
+        n > 0 ? cart.set(id, n) : cart.delete(id);
+        renderCart();
+      });
+      right.append(p, del);
+
+      row.append(left, right);
+      bag.appendChild(row);
+    });
+  }
+
+  $('#total').textContent = money(total);
+  $('#bagCount').textContent = count + ' 件';
+  const over = total > PURSE;
+  $('#pay').disabled = !count || over;
+  $('#pay').textContent = over ? '余额不足' : '结 算';
+}
+
+/* ── 提示 ─────────────────────────────────────────────────── */
+let tid;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(tid);
+  tid = setTimeout(() => t.classList.remove('on'), 1900);
+}
+
+/* ── 事件 ─────────────────────────────────────────────────── */
+$('#tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+  filter = btn.dataset.k;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === btn));
+  renderGoods();
+});
+
+$('#q').addEventListener('input', e => { query = e.target.value; renderGoods(); });
+
+$('#pay').addEventListener('click', () => {
+  let total = 0;
+  cart.forEach((q, id) => total += GOODS.find(x => x.id === id).price * q);
+  toast(`结算完成，扣除 ${money(total)} CR`);
+  cart.clear();
+  renderCart();
+});
+
+$('#purse').textContent = money(PURSE);
+renderGoods();
+renderCart();
+</script>
+</body>
+</html>

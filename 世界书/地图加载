@@ -66,14 +66,37 @@ function 拆区域(t) {
 }
 const 区域 = 拆区域(区域原文);
 
-const NODES = MAP.nodes;
+const 自建原 = _.get(data, '系统配置.地图.自建节点', {}) || {};
+const 自建 = {};
+const NODES = { ...(MAP.nodes || {}) };
+Object.entries(自建原).forEach(([id, raw]) => {
+  if (!raw || typeof raw !== 'object' || !String(raw.名称 || '').trim()) return;
+  const 功能 = raw.功能 || {};
+  const flag = `${功能.可采集 ? '采' : ''}${功能.可约会 ? '约' : ''}${功能.可工作 ? '工' : ''}${功能.有商店 ? '店' : ''}`;
+  const hours = (Array.isArray(raw.开放时段) ? raw.开放时段 : ['朝', '昼', '暮', '夜', '深夜'])
+    .map(v => v === '深夜' ? '深' : String(v || '').slice(0, 1)).join('');
+  const node = {
+    id, name: String(raw.名称).trim(), aliases: Array.isArray(raw.别名) ? raw.别名 : [],
+    plate: String(raw.底板 || '').trim(), district: String(raw.区域 || '').trim(),
+    arch: String(raw.类型 || 'living').trim(), privacy: Math.max(0, Math.min(5, Number(raw.私密度) || 0)),
+    hours, flag, anchor: String(raw.锚点 || '').trim(), anchorName: String(raw.锚点名称 || '').trim(),
+    accessKm: Math.max(0, Number(raw.接驳距离) || 0), intro: String(raw.简介 || '').trim(),
+    draw: String(raw.看点 || '').trim(), special: Array.isArray(raw.特殊) ? raw.特殊 : [], custom: true,
+  };
+  自建[id] = node;
+  NODES[id] = [node.name, node.plate, node.arch, node.privacy, node.hours, node.flag];
+});
 const 全部ID = Object.keys(NODES);
 function 节点(id) {
+  if (自建[id]) return 自建[id];
   const a = NODES[id];
   if (!a) return null;
-  return { id, name: a[0], plate: a[1], arch: a[2], privacy: a[3], hours: a[4], flag: a[5] || '' };
+  return { id, name: a[0], plate: a[1], arch: a[2], privacy: a[3], hours: a[4], flag: a[5] || '', custom: false };
 }
-function 别名(id) { return [NODES[id][0], id]; }
+function 别名(id) {
+  const n = 节点(id);
+  return n ? [n.name, id, ...(n.aliases || [])] : [id];
+}
 /** 精确 → 包含 → 打分。地图节点名和变量里写的区域名常常只是部分重合 */
 function 找节点(候选) {
   const list = 候选.map(x => String(x || '').trim()).filter(Boolean);
@@ -163,8 +186,36 @@ function 枢纽行文(r) {
 }
 
 /* ---- 周边 ---- */
-const 直连 = (当前 && MAP.link[当前.id]) ? MAP.link[当前.id] : [];
-const 步行圈 = (当前 && MAP.near[当前.id]) ? MAP.near[当前.id] : [];
+function 自建接驳行(id) {
+  const n = 自建[id];
+  if (!n || !n.anchor || !NODES[n.anchor]) return [];
+  const km = Math.max(0.05, n.accessKm || 0.05);
+  const walk = Math.max(1, Math.ceil(km / 4.5 * 60));
+  const stamina = Math.max(1, Math.ceil(km * 4));
+  const taxiMin = Math.max(4, Math.ceil(km / 34 * 60) + 4);
+  const taxiYuan = Math.ceil(11 + Math.max(0, km - 3) * 2.6);
+  return [[n.anchor, Math.round(km * 10) / 10, walk, stamina, 0, 0, 0, taxiMin, taxiYuan]];
+}
+function 节点直连(id) {
+  const rows = [...((MAP.link && MAP.link[id]) || [])];
+  if (自建[id]) rows.push(...自建接驳行(id));
+  Object.values(自建).forEach(n => {
+    if (n.anchor !== id) return;
+    const row = 自建接驳行(n.id)[0];
+    if (row) rows.push([n.id, ...row.slice(1)]);
+  });
+  return rows;
+}
+const 直连 = 当前 ? 节点直连(当前.id) : [];
+const 步行圈 = (() => {
+  const rows = (当前 && MAP.near && MAP.near[当前.id]) ? [...MAP.near[当前.id]] : [];
+  if (当前) Object.values(自建).forEach(n => {
+    if (n.anchor !== 当前.id) return;
+    const r = 自建接驳行(n.id)[0];
+    if (r) rows.push([n.id, r[2], r[3]]);
+  });
+  return rows;
+})();
 /** 次邻：沿直连支路走两跳，去掉直连和自己，按两段直线里程之和排序 */
 const 次邻 = (() => {
   if (!当前) return [];
@@ -172,7 +223,7 @@ const 次邻 = (() => {
   const best = new Map();
   直连.forEach(a => {
     const mid = a[0];
-    (MAP.link[mid] || []).forEach(b => {
+    节点直连(mid).forEach(b => {
       const far = b[0];
       if (far === 当前.id || 直.has(far)) return;
       const km = Math.round((a[1] + b[1]) * 10) / 10;
@@ -224,7 +275,8 @@ const 本区地铁 = (MAP.metro || []).filter(m =>
 /* ---- 跨区通勤 ---- */
 const 跨区 = (() => {
   if (!当前) return [];
-  const row = MAP.hub[当前.id] || {};
+  const baseId = 自建[当前.id]?.anchor || 当前.id;
+  const row = MAP.hub[baseId] || {};
   return (MAP.districts || [])
     .filter(d => d.key !== 当前.plate)
     .map(d => ({ d, r: row[d.key] || null }))
@@ -277,8 +329,16 @@ _%>
 时间：<%= 年历 %> <%= 时钟 %>，时段「<%= 时段 %>」
 时段划分：<%= MAP.meta.periods %>
 位置：<%= 区域原文 || '未知' %><% if (场所) { %> · <%= 场所 %><% } %>
+<%_ const 自建列表 = Object.values(自建).slice(0, 40); if (自建列表.length) { _%>
+玩家自建节点（属于当前存档，可作为正式地点使用）：
+<%_ 自建列表.forEach(n => { _%>
+- <%= n.name %>｜<%= n.district || 区名(n.plate) %>｜接驳 <%= n.anchorName || 名(n.anchor) %> <%= n.accessKm %>km｜<%= 类型名[n.arch] || n.arch %>｜私密度<%= n.privacy %><% if (功能文(n.flag)) { %>｜<%= 功能文(n.flag) %><% } %>
+<%_ }); _%>
+<%_ } _%>
 <%_ if (当前) { _%>
-节点：<%= 当前.name %>（<%= 类型名[当前.arch] || 当前.arch %>｜<%= 所在区 ? 所在区.name + '·' + 所在区.label : '' %>）｜开放 <%= 时段文(当前.hours) %>｜私密度 <%= 当前.privacy %>／5 <%= 私密说明[当前.privacy] || '' %><% if (功能文(当前.flag)) { %>｜<%= 功能文(当前.flag) %><% } %><% if (开放中(当前.hours) === false) { %>
+节点：<%= 当前.name %>（<%= 类型名[当前.arch] || 当前.arch %>｜<%= 所在区 ? 所在区.name + '·' + 所在区.label : '' %>）｜开放 <%= 时段文(当前.hours) %>｜私密度 <%= 当前.privacy %>／5 <%= 私密说明[当前.privacy] || '' %><% if (功能文(当前.flag)) { %>｜<%= 功能文(当前.flag) %><% } %><% if (当前.custom) { %>
+玩家自建资料：<%= 当前.intro || '未填写简介' %><% if (当前.draw) { %>｜看点：<%= 当前.draw %><% } %><% if (当前.special.length) { %>｜特殊：<%= 当前.special.join('；') %><% } %>
+接驳规则：先步行 <%= 当前.accessKm %>km 到「<%= 当前.anchorName || 名(当前.anchor) %>」，再进入固定路网。<% } %><% if (开放中(当前.hours) === false) { %>
 ※当前「<%= 时段 %>」不在开放时段，正文要处理闭门、值班或另找地方<% } %><% if (私密度变量 !== null && Number(私密度变量) !== Number(当前.privacy)) { %>
 ※变量私密度写的是 <%= 私密度变量 %>，与节点默认值不同，按变量走<% } %>
 

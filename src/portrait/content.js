@@ -40,6 +40,7 @@ import { pinImg } from '../pin-art.js';
 import { mountMapOverlay } from '../map.js';
 import { mountArcadeOverlay } from '../arcade.js';
 import { mountCgOverlay } from '../cg.js';
+import { mountShopOverlay } from '../shop.js';
 import { formatTravelMessage } from '../travel.js';
 
 import { insertSafeHTML, safeFirstElement, setSafeHTML } from '../dom.js';
@@ -368,6 +369,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     map: mountMapOverlay,
     arcade: mountArcadeOverlay,
     cg: mountCgOverlay,
+    shop: mountShopOverlay,
   };
   let unmountOverlay = null;
   const closeOverlay = () => {
@@ -460,7 +462,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     paintBase();
   };
 
-  const openOverlay = (name) => {
+  const openOverlay = (name, overlayOptions = {}) => {
     /* An overlay can now be launched over a page -- the column underneath it still
        holds that page's DOM. */
     overlayOverPage = !!workspace && !OVERLAYS[workspace];
@@ -473,7 +475,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     document.documentElement.classList.add('is-page-open');
     reportPortraitPage(true);
     closeOverlay();
-    const options = name === 'map' ? { onTravel: onMapTravel } : {};
+    const options = name === 'map' ? { onTravel: onMapTravel, ...overlayOptions } : overlayOptions;
     unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage, ...options });
   };
 
@@ -755,6 +757,8 @@ export function mountPortraitContent(stage, { onPage } = {}) {
       return;
     }
 
+    const mapMarker = event.target.closest('[data-map-marker-use]');
+    if (mapMarker) { openOverlay('map', { createMode: { source: '城市规划蓝图' } }); return; }
     const destroy = event.target.closest('[data-inv-destroy]');
     if (destroy) {
       destroySelectedInventory();

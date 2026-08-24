@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -1149,6 +1149,16 @@
 .spot-opening-top{display:flex;align-items:baseline;gap:9px;margin-bottom:7px}.spot-opening-top span{font:400 17px/1 'Pinyon Script',cursive;color:rgba(255,224,239,.78)}.spot-opening-top b{font-size:11px;letter-spacing:.10em;color:rgba(255,249,255,.88)}
 .spot-opening strong{display:block;color:#ffe4ad;font:600 14px/1.35 'Outfit','Noto Sans SC',sans-serif}.spot-opening p{margin-top:5px;color:rgba(242,238,255,.66);font-size:11px;line-height:1.55}.spot-opening-job strong{color:#cfe8ff}
 </style>
+
+<style>
+/* 玩家自建节点：由状态栏里的城市规划蓝图开启。 */
+#custom-modebar{position:absolute;z-index:30;left:50%;top:18px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:10px 13px 10px 17px;border:1px solid rgba(218,232,255,.3);border-radius:18px;background:rgba(8,14,31,.76);box-shadow:0 12px 36px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(18px);color:#edf5ff;font-size:12px;letter-spacing:.03em}
+#custom-modebar[hidden]{display:none}.custom-mode-copy b{display:block;font-size:13px}.custom-mode-copy span{display:block;margin-top:2px;color:rgba(222,232,255,.65);font-size:10px}.custom-mode-x{width:28px;height:28px;border:0;border-radius:10px;background:rgba(255,255,255,.09);color:#fff;font-size:19px;cursor:pointer}
+html.custom-placing #plates{cursor:crosshair}.np.custom .ni{box-shadow:0 0 0 2px rgba(255,213,122,.88),0 0 25px rgba(255,177,83,.72),inset 0 0 0 1px rgba(255,255,255,.35)}.np.custom .nl{background:linear-gradient(180deg,rgba(255,250,228,.96),rgba(243,224,178,.92));color:#3a2a16}.np.custom .nl:after{content:'玩家标记';display:block;color:#9c6b26;font-size:9px;font-weight:700;letter-spacing:.08em}
+#custom-editor{position:absolute;inset:0;z-index:60;display:grid;place-items:center;padding:18px;background:rgba(2,5,14,.56);backdrop-filter:blur(7px)}#custom-editor[hidden]{display:none}.custom-sheet{width:min(520px,calc(100vw - 24px));max-height:min(760px,calc(100vh - 24px));overflow:auto;padding:22px;border:1px solid rgba(225,233,255,.28);border-radius:24px;background:linear-gradient(150deg,rgba(24,31,57,.97),rgba(8,13,31,.98));box-shadow:0 28px 80px rgba(0,0,0,.55),inset 0 1px rgba(255,255,255,.12);color:#eef3ff}.custom-sheet h2{font-size:20px}.custom-sheet>p{margin:5px 0 16px;color:rgba(221,229,249,.65);font-size:11px}.custom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.custom-field{display:flex;flex-direction:column;gap:6px}.custom-field.wide{grid-column:1/-1}.custom-field span{font-size:11px;color:rgba(220,230,251,.72)}.custom-field input,.custom-field select,.custom-field textarea{width:100%;border:1px solid rgba(219,228,255,.18);border-radius:11px;background:rgba(255,255,255,.065);color:#f5f7ff;padding:10px 11px;font:500 13px/1.5 inherit;outline:none}.custom-field textarea{min-height:72px;resize:vertical}.custom-field input:focus,.custom-field select:focus,.custom-field textarea:focus{border-color:rgba(143,194,255,.62);box-shadow:0 0 0 3px rgba(87,151,255,.11)}.custom-field option{background:#10162b}.custom-flags{display:flex;flex-wrap:wrap;gap:7px}.custom-flags label{display:flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid rgba(220,229,255,.15);border-radius:10px;color:rgba(235,240,255,.78);font-size:11px}.custom-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.custom-actions button,.spot-delete{border:0;border-radius:11px;padding:10px 16px;font-weight:700;cursor:pointer}.custom-cancel{background:rgba(255,255,255,.09);color:#e7edff}.custom-save{background:linear-gradient(180deg,#dcecff,#a9cdf9);color:#14233b}.custom-save[disabled]{opacity:.45}.spot-custom-actions{display:flex;gap:8px;margin-top:10px}.spot-delete{background:rgba(224,75,91,.15);border:1px solid rgba(255,124,139,.28);color:#ffb8c0}.spot-edit{background:rgba(255,213,122,.14);border:1px solid rgba(255,213,122,.28);color:#ffe0a0}
+@media(max-width:600px){.custom-grid{grid-template-columns:1fr}.custom-field.wide{grid-column:auto}#custom-modebar{top:10px;width:calc(100vw - 92px)}.custom-sheet{padding:18px}}
+</style>
+
 </head>
 
 <body>
@@ -1191,6 +1201,30 @@
     <div id="dev" hidden>
       <div class="devrow glass" id="dev-plate"></div>
       <div class="devrow glass" id="dev-zoom"></div>
+    </div>
+
+
+    <div id="custom-modebar" hidden>
+      <div class="custom-mode-copy"><b>登记新地点</b><span>点击区底板放置节点；拖动与缩放仍可使用</span></div>
+      <button class="custom-mode-x" type="button" id="custom-mode-close" aria-label="退出标记模式">×</button>
+    </div>
+
+    <div id="custom-editor" hidden>
+      <section class="custom-sheet" role="dialog" aria-modal="true" aria-labelledby="custom-title">
+        <h2 id="custom-title">登记玩家地点</h2>
+        <p id="custom-anchor-note">选择名称与资料，保存后会写入当前存档及地点世界书。</p>
+        <div class="custom-grid">
+          <label class="custom-field wide"><span>地点名称</span><input id="custom-name" maxlength="30" placeholder="例如：海风旧仓库"></label>
+          <label class="custom-field wide"><span>别名（逗号分隔）</span><input id="custom-aliases" maxlength="80" placeholder="旧仓库，海风仓库"></label>
+          <label class="custom-field"><span>地点类型</span><select id="custom-type"><option value="living">生活起居</option><option value="commercial">商业</option><option value="nature">自然山水</option><option value="academy">院校科研</option><option value="live">演艺直播</option><option value="medical">医疗</option><option value="hotspring">温泉汤院</option><option value="adult">成人场所</option></select></label>
+          <label class="custom-field"><span>私密度 0–5</span><input id="custom-privacy" type="number" min="0" max="5" value="3"></label>
+          <label class="custom-field wide"><span>简介</span><textarea id="custom-intro" maxlength="500" placeholder="说明这个地点是什么、如何被发现。"></textarea></label>
+          <label class="custom-field wide"><span>看点</span><textarea id="custom-draw" maxlength="300" placeholder="这里适合做什么。"></textarea></label>
+          <label class="custom-field wide"><span>特殊说明（每行一条）</span><textarea id="custom-special" maxlength="600" placeholder="门能从内部反锁&#10;二层可以临时休息"></textarea></label>
+          <div class="custom-field wide"><span>功能</span><div class="custom-flags"><label><input id="custom-date" type="checkbox">可约会</label><label><input id="custom-gather" type="checkbox">可采集</label><label><input id="custom-work" type="checkbox">可工作</label><label><input id="custom-shop" type="checkbox">有商店</label></div></div>
+        </div>
+        <div class="custom-actions"><button class="custom-cancel" id="custom-cancel" type="button">取消</button><button class="custom-save" id="custom-save" type="button">保存节点</button></div>
+      </section>
     </div>
 
     <div id="spot" hidden>

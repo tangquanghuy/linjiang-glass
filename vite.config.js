@@ -28,6 +28,11 @@ function copyCg(destRoot) {
   cpSync('cg', join(destRoot, 'cg'), { recursive: true });
 }
 
+function copyShop(destRoot) {
+  if (!existsSync('shop')) return;
+  cpSync('shop', join(destRoot, 'shop'), { recursive: true });
+}
+
 function copyOpening(destRoot) {
   for (const file of ['opening.html', 'opening.css', 'opening.js']) {
     if (existsSync(file)) cpSync(file, join(destRoot, file));
@@ -45,6 +50,7 @@ export default defineConfig({
       copyCityMap('dist');
       copyArcade('dist');
       copyCg('dist');
+      copyShop('dist');
       copyOpening('dist');
     },
   }],

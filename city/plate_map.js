@@ -558,6 +558,9 @@
 
   const byId = {};
   D.nodes.forEach(n => byId[n.id] = n);
+  const STATIC_IDS = new Set(D.nodes.map(n => n.id));
+  const customIds = new Set();
+  let customRevision = 0;
 
   // ============ Runtime state ============
   /**
@@ -565,7 +568,7 @@
    * PLATE_MAP.setState. Keeping demo actors here makes stale people flash while
    * an iframe is loading and masks integration failures.
    */
-  const MAP_REV = '20260823-opening-pan-v3';
+  const MAP_REV = '20260823-custom-nodes-v1';
   const STATE = {
     district: '',
     player: { at: '' },
@@ -584,6 +587,10 @@
    */
   const TRIP = { to: '', mode: 'transit', all: null, result: null };
   let onTravel = null;
+  let onCustomCreate = null;
+  let onCustomDelete = null;
+  let customMode = false;
+  let customDraft = null;
 
   const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
   /** 线性斜坡，两端夹住。所有淡入淡出都走它 */
@@ -646,10 +653,67 @@
 
   // ============ 路网 ============
   const NET = window.CITY_NET;
-  const G = NET ? NET.build({
+  const STATIC_NODE_W = { ...NODE_W };
+  let G = NET ? NET.build({
     nodeWorld: NODE_W,
-    nameOf: id => (byId[id] && byId[id].name) || id
+    nameOf: id => (byId[id] && byId[id].name) || id,
+    anchorOf: id => byId[id]?.custom ? byId[id].anchorId : ''
   }) : null;
+
+  function rebuildGraph() {
+    G = NET ? NET.build({ nodeWorld: NODE_W, nameOf: id => (byId[id] && byId[id].name) || id, anchorOf: id => byId[id]?.custom ? byId[id].anchorId : '' }) : null;
+    customRevision++;
+    lastKey = '';
+  }
+
+  function normalizeCustomNode(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = String(raw.id || '').trim();
+    const plate = String(raw.plate || '').trim();
+    const frame = M.PLATES[plate] && M.PLATES[plate].frame;
+    const pos = Array.isArray(raw.localPos) ? raw.localPos.map(Number) : [];
+    if (!id || !String(raw.name || '').trim() || !frame || pos.length < 2 || !pos.every(Number.isFinite)) return null;
+    return {
+      id,
+      name: String(raw.name).trim(),
+      aliases: Array.isArray(raw.aliases) ? raw.aliases.map(v => String(v || '').trim()).filter(Boolean) : [],
+      fullName: `${String(raw.district || M.PLATES[plate].district || '').trim()} · ${String(raw.name).trim()}`,
+      district: String(raw.district || M.PLATES[plate].district || '').trim(),
+      archetype: String(raw.archetype || 'living').trim() || 'living',
+      privacy: clamp(Number(raw.privacy) || 0, 0, 5),
+      openHours: Array.isArray(raw.openHours) && raw.openHours.length ? raw.openHours.slice() : ['朝', '昼', '暮', '夜', '深夜'],
+      intro: String(raw.intro || '').trim(),
+      draw: String(raw.draw || '').trim(),
+      special: Array.isArray(raw.special) ? raw.special.slice() : [],
+      features: { canGather: !!raw.features?.canGather, canDate: !!raw.features?.canDate, canWork: !!raw.features?.canWork, hasShop: !!raw.features?.hasShop },
+      plate, localPos: [clamp(pos[0], 0, 1), clamp(pos[1], 0, 1)],
+      anchorId: String(raw.anchorId || '').trim(), anchorName: String(raw.anchorName || '').trim(),
+      accessKm: Math.max(0, Number(raw.accessKm) || 0), createdAt: String(raw.createdAt || '').trim(), custom: true,
+    };
+  }
+
+  function setCustomNodes(rows) {
+    customIds.forEach(id => {
+      const plate = PLATE_OF[id];
+      if (plate && M.PLACE[plate]) delete M.PLACE[plate][id];
+      delete PLATE_OF[id]; delete NODE_W[id]; delete byId[id];
+      pool.get('N:' + id)?.el?.remove(); pool.delete('N:' + id);
+    });
+    customIds.clear();
+    (Array.isArray(rows) ? rows : []).forEach(raw => {
+      const n = normalizeCustomNode(raw);
+      if (!n || STATIC_IDS.has(n.id)) return;
+      const f = M.PLATES[n.plate].frame;
+      if (!M.PLACE[n.plate]) M.PLACE[n.plate] = {};
+      M.PLACE[n.plate][n.id] = n.localPos.slice();
+      PLATE_OF[n.id] = n.plate;
+      NODE_W[n.id] = [f.x + n.localPos[0] * f.w, f.y + n.localPos[1] * f.w];
+      byId[n.id] = n;
+      customIds.add(n.id);
+    });
+    if (TRIP.to && !NODE_W[TRIP.to]) clearTrip();
+    rebuildGraph();
+  }
 
   /**
    * 区底板是矩形 footprint，彼此之间留得开——明湖南沿和乌溪北沿中间
@@ -955,7 +1019,7 @@
    */
   let lastKey = '';
   function render() {
-    const key = `${view.cx.toFixed(5)}|${view.cy.toFixed(5)}|${view.z.toFixed(5)}|${vw()}x${vh()}|${phase}`;
+    const key = `${view.cx.toFixed(5)}|${view.cy.toFixed(5)}|${view.z.toFixed(5)}|${vw()}x${vh()}|${phase}|c${customRevision}`;
     if (key !== lastKey) { lastKey = key; renderNodes(); drawScale(); }
     drawCanvas();
   }
@@ -1125,6 +1189,7 @@
            选工作时留在场的每个牌子都是岗位，说了也是废话 */
         (!OPENING_MODE && n.features && n.features.canWork ? '<div class="nj">可打工</div>' : ''));
       it.el.style.setProperty('--nc', okind === 'work' ? '#4b9bdd' : okind === 'home' ? '#e0559a' : k.color);
+      it.el.classList.toggle('custom', !!n.custom);
       if (it._ok !== okind) { it._ok = okind; it.el.dataset.opening = okind; }
       it.n = n;
       if (!it.bound) {
@@ -1779,6 +1844,153 @@
     ctx.restore();
   }
 
+  // ============ 玩家自建节点 ============
+  const customModebar = document.getElementById('custom-modebar');
+  const customEditor = document.getElementById('custom-editor');
+  const customSave = document.getElementById('custom-save');
+
+  function plateAtWorld(w) {
+    return Object.entries(M.PLATES)
+      .filter(([key, pl]) => key !== 'overview' && pl.frame
+        && w.x >= pl.frame.x && w.x <= pl.frame.x + pl.frame.w
+        && w.y >= pl.frame.y && w.y <= pl.frame.y + pl.frame.w)
+      .sort((a, b) => a[1].frame.w - b[1].frame.w)[0] || null;
+  }
+
+  function enterCustomMode() {
+    if (OPENING_MODE) return false;
+    customMode = true;
+    closeSpot();
+    clearTrip();
+    customModebar.hidden = false;
+    document.documentElement.classList.add('custom-placing');
+    return true;
+  }
+
+  function exitCustomMode() {
+    customMode = false;
+    customDraft = null;
+    customModebar.hidden = true;
+    customEditor.hidden = true;
+    document.documentElement.classList.remove('custom-placing');
+  }
+
+  function closeCustomEditor() {
+    customEditor.hidden = true;
+    customDraft = null;
+  }
+
+  function openCustomEditorAt(sx, sy) {
+    const w = toWorld(sx, sy);
+    const hit = plateAtWorld(w);
+    if (!hit) {
+      customModebar.querySelector('span').textContent = '请先放大并点击某个城区的底板';
+      return false;
+    }
+    const [plate, pl] = hit;
+    const localPos = [clamp((w.x - pl.frame.x) / pl.frame.w, 0, 1), clamp((w.y - pl.frame.y) / pl.frame.w, 0, 1)];
+    const anchor = NET ? NET.nearest(STATIC_NODE_W, w.x, w.y) : null;
+    customDraft = {
+      plate, localPos, district: pl.district || pl.label || '',
+      anchorId: anchor?.id || '', anchorName: anchor ? ((byId[anchor.id] && byId[anchor.id].name) || anchor.id) : '',
+      accessKm: anchor ? Math.round(anchor.km * 100) / 100 : 0,
+    };
+    document.getElementById('custom-name').value = '';
+    document.getElementById('custom-aliases').value = '';
+    document.getElementById('custom-type').value = 'living';
+    document.getElementById('custom-privacy').value = '3';
+    document.getElementById('custom-intro').value = '';
+    document.getElementById('custom-draw').value = '';
+    document.getElementById('custom-special').value = '';
+    ['custom-date', 'custom-gather', 'custom-work', 'custom-shop'].forEach(id => { document.getElementById(id).checked = false; });
+    document.getElementById('custom-anchor-note').textContent = anchor
+      ? `${customDraft.district} · 接驳到「${customDraft.anchorName}」，约 ${customDraft.accessKm} km`
+      : `${customDraft.district} · 附近没有可用接驳节点`;
+    customSave.disabled = false;
+    customSave.textContent = '保存节点';
+    customEditor.hidden = false;
+    setTimeout(() => document.getElementById('custom-name').focus(), 0);
+    return true;
+  }
+
+  function customRowsWith(next, removeId = '') {
+    const rows = [...customIds].filter(id => id !== removeId).map(id => byId[id]).filter(Boolean);
+    if (next) {
+      const i = rows.findIndex(n => n.id === next.id);
+      if (i >= 0) rows[i] = next; else rows.push(next);
+    }
+    return rows;
+  }
+
+  async function saveCustomDraft() {
+    if (!customDraft) return;
+    const name = document.getElementById('custom-name').value.trim();
+    if (!name) { document.getElementById('custom-name').focus(); return; }
+    const normalized = name.normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+    const conflict = Object.values(byId).find(n => n && n.name
+      && String(n.name).normalize('NFKC').replace(/\s+/g, '').toLowerCase() === normalized);
+    if (conflict) {
+      document.getElementById('custom-anchor-note').textContent = `名称已被「${conflict.name}」使用，请换一个名称。`;
+      return;
+    }
+    const draft = {
+      ...customDraft, name,
+      aliases: document.getElementById('custom-aliases').value.split(/[,，]/).map(v => v.trim()).filter(Boolean),
+      archetype: document.getElementById('custom-type').value,
+      privacy: clamp(Math.round(Number(document.getElementById('custom-privacy').value) || 0), 0, 5),
+      openHours: ['朝', '昼', '暮', '夜', '深夜'],
+      intro: document.getElementById('custom-intro').value.trim(),
+      draw: document.getElementById('custom-draw').value.trim(),
+      special: document.getElementById('custom-special').value.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
+      features: {
+        canDate: document.getElementById('custom-date').checked,
+        canGather: document.getElementById('custom-gather').checked,
+        canWork: document.getElementById('custom-work').checked,
+        hasShop: document.getElementById('custom-shop').checked,
+      },
+      custom: true,
+    };
+    customSave.disabled = true;
+    customSave.textContent = '正在写入…';
+    try {
+      const saved = onCustomCreate ? await onCustomCreate(draft) : { ...draft, id: `usr_${Date.now().toString(36)}` };
+      const node = normalizeCustomNode(saved);
+      if (!node) throw new Error('宿主返回的节点资料不完整');
+      setCustomNodes(customRowsWith(node));
+      customEditor.hidden = true;
+      customDraft = null;
+      exitCustomMode();
+      API.goto(node.id);
+      setTimeout(() => openSpot(byId[node.id]), 420);
+    } catch (error) {
+      document.getElementById('custom-anchor-note').textContent = `保存失败：${error?.message || error}`;
+      customSave.disabled = false;
+      customSave.textContent = '重新保存';
+    }
+  }
+
+  async function deleteCustomNode(n) {
+    if (!n?.custom || !customIds.has(n.id)) return false;
+    if (!confirm(`删除玩家节点「${n.name}」？地图与对应地点世界书会一起停用。`)) return false;
+    const button = document.getElementById('spot-delete');
+    if (button) { button.disabled = true; button.textContent = '删除中…'; }
+    try {
+      if (onCustomDelete) await onCustomDelete(n);
+      setCustomNodes(customRowsWith(null, n.id));
+      closeSpot();
+      return true;
+    } catch (error) {
+      if (button) { button.disabled = false; button.textContent = '删除节点'; }
+      alert(`删除失败：${error?.message || error}`);
+      return false;
+    }
+  }
+
+  document.getElementById('custom-mode-close').onclick = exitCustomMode;
+  document.getElementById('custom-cancel').onclick = closeCustomEditor;
+  customSave.onclick = saveCustomDraft;
+  customEditor.addEventListener('click', e => { if (e.target === customEditor) closeCustomEditor(); });
+
   // ============ 视野控制 ============
   /**
    * 平移边界：视野不许越出世界。
@@ -1834,6 +2046,7 @@
   }
 
   let drag = null;
+  let placementGesture = null;
   const pointers = new Map();
   let pinch = null;
 
@@ -1858,6 +2071,7 @@
 
   platesHost.addEventListener('pointerdown', e => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (customMode && e.button === 0) placementGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     platesHost.setPointerCapture(e.pointerId);
     platesHost.classList.add('grabbing');
     if (pointers.size >= 2) {
@@ -1872,12 +2086,13 @@
     // 长按标点。触屏上没有右键，这是唯一的入口
     pressAt = { x: e.clientX, y: e.clientY };
     cancelPress();
-    pressT = setTimeout(() => { pressT = 0; markAt(pressAt.x, pressAt.y); }, 520);
+    if (!customMode) pressT = setTimeout(() => { pressT = 0; markAt(pressAt.x, pressAt.y); }, 520);
   });
   platesHost.addEventListener('pointermove', e => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pressT && pressAt && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 8) cancelPress();
+    if (placementGesture && placementGesture.id === e.pointerId && Math.hypot(e.clientX - placementGesture.x, e.clientY - placementGesture.y) > 8) placementGesture.moved = true;
     if (pinch && pointers.size >= 2) {
       const pts = [...pointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
@@ -1897,6 +2112,8 @@
   });
   const endPointer = e => {
     cancelPress();
+    const place = customMode && placementGesture && placementGesture.id === e.pointerId && !placementGesture.moved;
+    placementGesture = null;
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (pointers.size === 1) {
@@ -1906,6 +2123,7 @@
     }
     drag = null;
     platesHost.classList.remove('grabbing');
+    if (place) openCustomEditorAt(e.clientX, e.clientY);
   };
   platesHost.addEventListener('pointerup', endPointer);
   platesHost.addEventListener('pointercancel', endPointer);
@@ -1918,7 +2136,8 @@
   stage.addEventListener('contextmenu', e => {
     if (e.target.closest('#spot, #trip, #ctl, #phase, #dev')) return;
     e.preventDefault();
-    markAt(e.clientX, e.clientY);
+    if (customMode) openCustomEditorAt(e.clientX, e.clientY);
+    else markAt(e.clientX, e.clientY);
   });
 
   /** 滚轮以光标为锚点缩放：光标下那块地方缩放前后停在原处。
@@ -2123,6 +2342,9 @@
     const nav = here
       ? `<span class="spot-nav-here">你在这里</span>`
       : (G && NODE_W[n.id] ? `<button class="spot-nav" type="button" id="spot-nav">到这里去</button>` : '');
+    const customActions = n.custom
+      ? `<div class="spot-custom-actions"><button class="spot-delete" type="button" id="spot-delete">删除节点</button></div>`
+      : '';
 
     document.getElementById('spot-head').innerHTML =
       `<span class="spot-eye">${esc(n.district || '')}${n.archetype ? '  ·  ' + (ARCH_LABEL[n.archetype] || n.archetype) : ''}</span>` +
@@ -2131,10 +2353,12 @@
       `<div class="spot-meta"><div class="spot-hours">${hours}</div>` +
       `<span class="spot-priv">${esc(PRIVACY_LABEL[priv] || '私密')}` +
       `<i><b style="width:${(priv / 5) * 100}%"></b></i></span></div>` +
-      (nav ? `<div class="spot-navrow">${nav}</div>` : '');
+      (nav ? `<div class="spot-navrow">${nav}</div>` : '') + customActions;
 
     const navBtn = document.getElementById('spot-nav');
     if (navBtn) navBtn.onclick = () => { plan(n.id); closeSpot(); };
+    const deleteBtn = document.getElementById('spot-delete');
+    if (deleteBtn) deleteBtn.onclick = () => deleteCustomNode(n);
 
     document.getElementById('spot-body').innerHTML =
       openingInfo(n) +
@@ -2502,6 +2726,11 @@
     },
     onPick(fn) { onPick = fn; },
     onTravel(fn) { onTravel = fn; },
+    onCustomCreate(fn) { onCustomCreate = fn; },
+    onCustomDelete(fn) { onCustomDelete = fn; },
+    setCustomNodes,
+    enterCustomMode,
+    exitCustomMode,
 
     /** 干道 + 轨道那一层在不在。默认在（淡的那一档） */
     showNetwork(on) { showNet = !!on; invalidate(); return showNet; },
