@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./opening.css?v=20260824-opening-five-v16-local-cover">
+<link rel="stylesheet" href="./opening.css?v=20260824-opening-five-v18-local-cover">
 </head>
 <body>
 <div class="app"><div class="shell">
@@ -111,6 +111,7 @@
         </div>
       </div><small class="tier-hint">拖动档位即可自动计算。</small></div>
       <div class="field"><label>&#x6C14;&#x8D28;&#x5173;&#x952E;&#x8BCD;&#xFF08;&#x9009;&#x586B;&#xFF09;</label><input class="control" id="streamer-tone" placeholder="例如：慢热、生活感强"></div>
+      <div class="field wide theme-field"><label>代表色（选填）</label><div class="theme-options" id="streamer-theme-options" aria-label="自定义主播代表色"></div><small>用于主 HUD 角色卡与状态栏染色；自动会按主播姓名固定分配。</small></div>
       <div class="field time-field"><label>常用直播时间（选填）</label><div class="time-picker" id="streamer-hours-picker">
         <div class="time-range-row"><label class="time-slot"><span>开始</span><input id="streamer-hours-start" type="time" step="1800" aria-label="直播开始时间"></label><i aria-hidden="true">至</i><label class="time-slot"><span>结束</span><input id="streamer-hours-end" type="time" step="1800" aria-label="直播结束时间"></label></div>
         <div class="time-presets" id="streamer-hours-presets"><button type="button" data-start="" data-end="">不固定</button><button type="button" data-start="18:00" data-end="22:00">傍晚</button><button type="button" data-start="20:00" data-end="00:00">晚间</button><button type="button" data-start="22:00" data-end="02:00">深夜</button></div>
@@ -138,5 +139,5 @@
 </div></div>
 <div class="map-modal" id="map-modal"><div class="map-dialog"><div class="map-head"><div><h3 id="map-title">选择住所</h3><p>在地图中点击地点；标准住所也可从下方快速选择。</p></div><button class="icon-btn" id="map-close" type="button">×</button></div><div class="map-frame"><iframe id="map-iframe" title="临江市地图" loading="eager"></iframe></div><div class="map-foot" id="quick-homes"></div></div></div>
 <div class="toast" id="toast"></div>
-<script src="./opening.js?v=20260824-opening-five-v16-local-cover"></script>
+<script src="./opening.js?v=20260824-opening-five-v18-local-cover"></script>
 </body></html>

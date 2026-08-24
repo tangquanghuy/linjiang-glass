@@ -27,6 +27,7 @@ const OSHI=[
 {name:'璃亚梦',cover:'梦见璃亚梦',medal:'病友',slot:'深夜互动 23:00–02:00',area:'鼓岭区 · 云庭公寓',tags:['杂谈','唱歌'],followers:60000,blurb:'炎上体质的偶像兼主播，深夜小作文和突发开播都是常事。'}];
 const OSHI_MAX=1;
 const OSHI_FAVOR=300;    // 选中即加的好感，叠在 变量初始化 给的 80 上
+const CUSTOM_INITIAL_FAVOR=80; // 自定义主播与普通已定稿主播使用相同的基础好感
 const OSHI_BADGE=8;      // 目标牌子等级
 /* 牌子等级是 累计打赏 的函数，不是独立字段：辅助计算脚本.js 每次变量更新都会用
    floor(20*(打赏/200000)^(1/3.5)) 重算它。想稳定拿到 8 级，只能把打赏写成
@@ -91,6 +92,17 @@ const JOBS=[
 {name:'半山茶舍服务员',place:'青屏山风景区 · 半山听松古茶舍',node:'qp_teahouse',monthly:4200,daily:190,hours:'09:00-18:00',kind:'service'},
 {name:'洋房咖啡师',place:'鼓岭区 · 青砖记洋房咖啡',node:'gl_cafe',monthly:4600,daily:210,hours:'08:00-17:00',kind:'craft'}];
 const CATEGORIES=['杂谈','游戏','唱歌','ASMR','绘画','舞蹈','户外','美食','虚拟主播','综合内容'];
+const STREAMER_THEMES=[
+{id:'',label:'自动',source:'按姓名固定分配',swatch:'linear-gradient(135deg,#ff3d9a,#27d7ff,#9b5cff,#ffd12f,#42e6a4)'},
+{id:'rose',label:'桃粉',source:'塔菲配色',swatch:'#ff3d9a'},
+{id:'ice',label:'冰蓝',source:'东雪莲配色',swatch:'#27d7ff'},
+{id:'violet',label:'紫罗兰',source:'斯黛拉配色',swatch:'#9b5cff'},
+{id:'gold',label:'金色',source:'时雨羽衣配色',swatch:'#ffd12f'},
+{id:'crimson',label:'绯红',source:'沙花叉配色',swatch:'#ff355d'},
+{id:'scarlet',label:'橙红',source:'红蔷薇配色',swatch:'#ff7a2f'},
+{id:'candy',label:'薄荷',source:'璃亚梦配色',swatch:'#42e6a4'}];
+const STREAMER_THEME_IDS=new Set(STREAMER_THEMES.map(x=>x.id));
+function normalizeStreamerTheme(value){value=String(value||'').trim().toLowerCase();return STREAMER_THEME_IDS.has(value)?value:''}
 const FREE_OPENING_DETAIL=[
 '玩家刚结束一天的工作，回到家中。',
 '简单收拾之后，玩家打开直播平台，进入自己关注的{{目标主播}}直播间。',
@@ -242,7 +254,7 @@ const OPENINGS=[
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
 const ARCHIVE_KEY='linjiang-opening-streamer-archives-v1';
 const ARCHIVE_ART_MAX=1536*1024;
-const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'opening-1',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null};
+const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'opening-1',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null,streamerTheme:''};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const value=id=>$(id).value.trim();
@@ -329,13 +341,13 @@ function selectOpening(id){if(!OPENINGS.some(function(o){return o.id===id}))retu
 function shiftOpening(offset){var index=OPENINGS.findIndex(function(o){return o.id===state.openingId});index=(index+offset+OPENINGS.length)%OPENINGS.length;selectOpening(OPENINGS[index].id)}
 function customId(){return'custom-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)}
 function cloneHome(home){return home?{id:home.id||'',name:home.name||'',fullName:home.fullName||'',district:home.district||'',tenure:home.tenure||'租住',note:home.note||'',rent:+home.rent||0,deposit:+home.deposit||0,cost:home.cost||''}:null}
-function normalizeCustom(raw){raw=raw||{};var start=String(raw.hoursStart||''),end=String(raw.hoursEnd||'');if((!start||!end)&&raw.hours){var m=String(raw.hours).match(/^(\d{2}:\d{2})\s*-\s*(?:次日\s*)?(\d{2}:\d{2}|24:00)$/);if(m){start=m[1];end=m[2]==='24:00'?'00:00':m[2]}}var tier=clampTier(raw.tier??raw.scale?.tier??42),homeData=cloneHome(raw.homeData);return{id:raw.id||customId(),name:String(raw.name||''),handle:String(raw.handle||''),age:+raw.age||23,home:String(raw.home||(homeData&&homeData.fullName)||''),homeData:homeData,categories:Array.isArray(raw.categories)&&raw.categories.length?raw.categories.slice():['杂谈'],tier:tier,scale:streamScale(tier),hoursStart:start,hoursEnd:end,hours:String(raw.hours||''),tone:String(raw.tone||''),seed:String(raw.seed||''),medal:String(raw.medal||''),art:{type:String(raw.art&&raw.art.type||''),src:String(raw.art&&raw.art.src||'')},yaml:String(raw.yaml||''),updatedAt:+raw.updatedAt||0}}
+function normalizeCustom(raw){raw=raw||{};var start=String(raw.hoursStart||''),end=String(raw.hoursEnd||'');if((!start||!end)&&raw.hours){var m=String(raw.hours).match(/^(\d{2}:\d{2})\s*-\s*(?:次日\s*)?(\d{2}:\d{2}|24:00)$/);if(m){start=m[1];end=m[2]==='24:00'?'00:00':m[2]}}var tier=clampTier(raw.tier??raw.scale?.tier??42),homeData=cloneHome(raw.homeData);return{id:raw.id||customId(),name:String(raw.name||''),handle:String(raw.handle||''),age:+raw.age||23,home:String(raw.home||(homeData&&homeData.fullName)||''),homeData:homeData,categories:Array.isArray(raw.categories)&&raw.categories.length?raw.categories.slice():['杂谈'],tier:tier,scale:streamScale(tier),hoursStart:start,hoursEnd:end,hours:String(raw.hours||''),tone:String(raw.tone||''),seed:String(raw.seed||''),medal:String(raw.medal||''),theme:normalizeStreamerTheme(raw.theme||raw.代表色),art:{type:String(raw.art&&raw.art.type||''),src:String(raw.art&&raw.art.src||'')},yaml:String(raw.yaml||''),updatedAt:+raw.updatedAt||0}}
 function loadArchives(){try{var list=JSON.parse(localStorage.getItem(ARCHIVE_KEY)||'[]');state.archives=Array.isArray(list)?list.map(normalizeCustom).filter(x=>x.name&&x.yaml):[]}catch(_){state.archives=[]}}
 function persistArchives(){try{localStorage.setItem(ARCHIVE_KEY,JSON.stringify(state.archives));return true}catch(_){toast('主播存档保存失败');return false}}
 function currentCustomData(){var d=streamerInput();return normalizeCustom(Object.assign({},d,{id:state.activeCustomId||customId(),art:state.art,yaml:state.yaml,homeData:cloneHome(state.streamerHome)}))}
 function renderCustomManager(){var roster=$('#custom-roster'),archive=$('#archive-list');$('#custom-count').textContent=state.customs.length;$('#archive-count').textContent=state.archives.length;$('#archive-panel').classList.toggle('hidden',!state.archiveOpen);$('#archive-toggle').classList.toggle('on',state.archiveOpen);roster.innerHTML=state.customs.length?state.customs.map(function(c){return'<div class="custom-roster-item'+(c.id===state.activeCustomId?' on':'')+'"><button type="button" data-custom-load="'+esc(c.id)+'"><i>'+esc((c.name||c.handle||'S').slice(0,1))+'</i><span><b>'+esc(c.name||'未命名')+'</b><small>'+esc(c.handle||'未设置网名')+'</small></span></button><button type="button" class="custom-remove" data-custom-remove="'+esc(c.id)+'" title="移除">×</button></div>'}).join(''):'<span class="custom-empty">尚未添加自定义主播</span>';archive.innerHTML=state.archives.length?state.archives.map(function(c){return'<div class="archive-item"><button type="button" data-archive-use="'+esc(c.id)+'"><i>'+esc((c.name||c.handle||'S').slice(0,1))+'</i><span><b>'+esc(c.name)+'</b><small>'+esc(c.handle||'未设置网名')+' · '+esc(c.hours||'不固定')+'</small></span></button><button type="button" data-archive-delete="'+esc(c.id)+'">删除</button></div>'}).join(''):'<span class="custom-empty">还没有主播存档</span>'}
-function clearCustomEditor(){state.activeCustomId=null;state.categories=new Set(['杂谈']);state.yaml='';state.art={type:'',src:''};state.streamerHome=null;['#streamer-name','#streamer-handle','#streamer-tone','#streamer-seed','#streamer-medal','#art-url'].forEach(id=>$(id).value='');$('#streamer-age').value='23';$('#streamer-tier').value='42';$('#streamer-home').textContent='从地图选择住所';$('#profile-yaml').value='';$('#art-file').value='';updateArt('','');setStreamerHours('','');renderTags();renderScale();syncInputs();renderProfile();$('#generate-profile').textContent='生成人设档案';setGenerateStatus('调用结果与错误会显示在这里');$('#save-custom').disabled=true;renderCustomManager()}
-function loadCustomEditor(raw){var c=normalizeCustom(raw);state.activeCustomId=c.id;state.categories=new Set(c.categories);state.streamerHome=c.homeData||c.home?c.homeData||{fullName:c.home,name:c.home}:null;state.yaml=c.yaml;state.art=c.art;$('#streamer-name').value=c.name;$('#streamer-handle').value=c.handle;$('#streamer-age').value=c.age;$('#streamer-tier').value=c.tier;$('#streamer-tone').value=c.tone;$('#streamer-seed').value=c.seed;$('#streamer-medal').value=c.medal;$('#streamer-home').textContent=c.home||'从地图选择住所';$('#art-url').value=/^https?:/i.test(c.art.src)?c.art.src:'';$('#profile-yaml').value=c.yaml;renderTags();renderScale();setStreamerHours(c.hoursStart,c.hoursEnd);updateArt(c.art.src,c.art.type);syncInputs();renderProfile();$('#generate-profile').textContent=c.yaml?'重新生成':'生成人设档案';setGenerateStatus(c.yaml?'已载入，可继续修改':'填写后生成人设档案');$('#save-custom').disabled=!c.yaml;renderCustomManager()}
+function clearCustomEditor(){state.activeCustomId=null;state.categories=new Set(['杂谈']);state.yaml='';state.art={type:'',src:''};state.streamerHome=null;state.streamerTheme='';['#streamer-name','#streamer-handle','#streamer-tone','#streamer-seed','#streamer-medal','#art-url'].forEach(id=>$(id).value='');$('#streamer-age').value='23';$('#streamer-tier').value='42';$('#streamer-home').textContent='从地图选择住所';$('#profile-yaml').value='';$('#art-file').value='';updateArt('','');setStreamerHours('','');renderTags();renderThemeChoices();renderScale();syncInputs();renderProfile();$('#generate-profile').textContent='生成人设档案';setGenerateStatus('调用结果与错误会显示在这里');$('#save-custom').disabled=true;renderCustomManager()}
+function loadCustomEditor(raw){var c=normalizeCustom(raw);state.activeCustomId=c.id;state.categories=new Set(c.categories);state.streamerHome=c.homeData||c.home?c.homeData||{fullName:c.home,name:c.home}:null;state.streamerTheme=c.theme;state.yaml=c.yaml;state.art=c.art;$('#streamer-name').value=c.name;$('#streamer-handle').value=c.handle;$('#streamer-age').value=c.age;$('#streamer-tier').value=c.tier;$('#streamer-tone').value=c.tone;$('#streamer-seed').value=c.seed;$('#streamer-medal').value=c.medal;$('#streamer-home').textContent=c.home||'从地图选择住所';$('#art-url').value=/^https?:/i.test(c.art.src)?c.art.src:'';$('#profile-yaml').value=c.yaml;renderTags();renderThemeChoices();renderScale();setStreamerHours(c.hoursStart,c.hoursEnd);updateArt(c.art.src,c.art.type);syncInputs();renderProfile();$('#generate-profile').textContent=c.yaml?'重新生成':'生成人设档案';setGenerateStatus(c.yaml?'已载入，可继续修改':'填写后生成人设档案');$('#save-custom').disabled=!c.yaml;renderCustomManager()}
 function saveCurrentCustom(options){options=options||{};var d=currentCustomData();if(!d.name||!d.handle){if(!options.quiet)toast('先填写主播姓名和网名');return null}if(!d.yaml){if(!options.quiet)toast('请先生成人设档案');return null}if(OSHI.some(o=>o.name===d.name)){toast('主播姓名与现有主播重复');return null}var duplicate=state.customs.find(c=>c.name===d.name&&c.id!==d.id);if(duplicate){toast('本次开局里已经有同名主播');return null}var index=state.customs.findIndex(c=>c.id===d.id);if(index>=0)state.customs[index]=d;else state.customs.push(d);state.activeCustomId=d.id;$('#save-custom').disabled=false;renderCustomManager();if(!options.quiet)toast('已保存：'+d.name);return d}
 function newCustom(){if(state.yaml&&!saveCurrentCustom({quiet:true}))return;clearCustomEditor();toast('可以填写下一位主播了')}
 function removeCustom(id){var c=state.customs.find(x=>x.id===id);state.customs=state.customs.filter(x=>x.id!==id);if(state.activeCustomId===id)clearCustomEditor();else renderCustomManager();if(c)toast('已移除：'+c.name)}
@@ -351,6 +363,8 @@ function renderScale(){var s=streamScale($('#streamer-tier').value);
   $('#tier-base').textContent=bigNum(s.base);
   $('#tier-guards').textContent=guardText(s);
   updateBookPreview()}
+function renderThemeChoices(){const box=$('#streamer-theme-options');if(!box)return;box.innerHTML=STREAMER_THEMES.map(t=>'<button type="button" class="theme-choice '+(state.streamerTheme===t.id?'on':'')+'" data-streamer-theme="'+t.id+'" aria-pressed="'+(state.streamerTheme===t.id?'true':'false')+'" title="'+t.source+'"><i style="--theme-swatch:'+t.swatch+'"></i><span>'+t.label+'</span></button>').join('')}
+function setStreamerTheme(theme){state.streamerTheme=normalizeStreamerTheme(theme);renderThemeChoices()}
 function renderTags(){$('#category-tags').innerHTML=CATEGORIES.map(c=>`<button type="button" class="tag ${state.categories.has(c)?'on':''}" data-cat="${c}">${c}</button>`).join('');document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{const c=b.dataset.cat;state.categories.has(c)?state.categories.delete(c):state.categories.add(c);if(!state.categories.size)state.categories.add('杂谈');renderTags()})}
 function setHome(home,target){if(!home)return;target=target||state.mapTarget;if(target==='player'){state.home=home;var api=openingMapApi();try{if(api){api.setState({district:home.district||'',player:{at:home.id},actors:[],events:[]});if(state.job&&state.job.node)api.plan(state.job.node);else if(api.clearTrip)api.clearTrip()}}catch(_){}renderMapInspector();setOpeningTarget('work');toast('初始住所已选择：'+home.name)}else if(target==='work'){setJob(home);return}else{state.streamerHome=home;document.querySelector('#streamer-home').textContent=home.fullName;closeMap()}}
 function bindFrame(){var frame=document.querySelector('#map-iframe');try{var api=frame.contentWindow.PLATE_MAP;if(api)api.onPick(function(node){handleMapPick(node)})}catch(_){} }
@@ -380,9 +394,12 @@ function streamerHoursValue(){const start=value('#streamer-hours-start'),end=val
 function renderStreamerHours(){const start=value('#streamer-hours-start'),end=value('#streamer-hours-end'),picker=$('#streamer-hours-picker'),summary=$('#streamer-hours-summary');picker.classList.toggle('invalid',!!(start||end)&&(!start||!end||start===end));if(!start&&!end)summary.textContent='未设置时按不固定处理';else if(!start||!end)summary.textContent='请选择完整的开始与结束时间';else if(start===end)summary.textContent='开始与结束时间不能相同';else summary.textContent=streamerHoursValue();document.querySelectorAll('#streamer-hours-presets button').forEach(b=>b.classList.toggle('on',b.dataset.start===start&&b.dataset.end===end))}
 function setStreamerHours(start,end){$('#streamer-hours-start').value=start||'';$('#streamer-hours-end').value=end||'';renderStreamerHours()}
 function validateStreamerHours(){const start=value('#streamer-hours-start'),end=value('#streamer-hours-end');if(!start&&!end)return true;if(!start||!end){renderStreamerHours();toast('请选择完整的直播开始与结束时间');return false}if(start===end){renderStreamerHours();toast('直播开始与结束时间不能相同');return false}return true}
-function streamerInput(){const tier=clampTier($('#streamer-tier').value),s=streamScale(tier);return{name:value('#streamer-name'),handle:value('#streamer-handle'),age:+value('#streamer-age')||23,home:state.streamerHome?.fullName||'',homeData:cloneHome(state.streamerHome),categories:[...state.categories],tier:tier,scale:s,hoursStart:value('#streamer-hours-start'),hoursEnd:value('#streamer-hours-end'),hours:streamerHoursValue(),tone:value('#streamer-tone'),seed:value('#streamer-seed'),medal:value('#streamer-medal')}}
+function streamerInput(){const tier=clampTier($('#streamer-tier').value),s=streamScale(tier);return{name:value('#streamer-name'),handle:value('#streamer-handle'),age:+value('#streamer-age')||23,home:state.streamerHome?.fullName||'',homeData:cloneHome(state.streamerHome),categories:[...state.categories],tier:tier,scale:s,hoursStart:value('#streamer-hours-start'),hoursEnd:value('#streamer-hours-end'),hours:streamerHoursValue(),tone:value('#streamer-tone'),seed:value('#streamer-seed'),medal:value('#streamer-medal'),theme:state.streamerTheme}}
 function renderProfile(){var on=!!state.yaml;$('#generated').classList.toggle('on',on);if(on){var box=$('#profile-yaml');if(box.value!==state.yaml)box.value=state.yaml;$('#generated-meta').textContent='角色详情：'+(value('#streamer-name')||'—')}$('#save-custom').disabled=!on}
+const PROFILE_GENERATION_TIMEOUT_MS=5*60*1000;
 function setGenerateStatus(text,tone){const el=$('#generate-status');el.textContent=text||'';el.title=text||'';el.classList.remove('working','ok','error');if(tone)el.classList.add(tone)}
+function formatGenerateElapsed(ms){const total=Math.max(0,Math.floor(ms/1000)),minutes=Math.floor(total/60),seconds=total%60;return String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')}
+function startGenerateClock(){const startedAt=Date.now(),limit=formatGenerateElapsed(PROFILE_GENERATION_TIMEOUT_MS);function paint(){setGenerateStatus('正在调用人设生成 API… 已等待 '+formatGenerateElapsed(Date.now()-startedAt)+' / 超时上限 '+limit,'working')}paint();const timer=setInterval(paint,1000);return()=>clearInterval(timer)}
 function validateGeneratedProfileYaml(value){
   const yaml=String(value||'').trim();
   if(!yaml)throw new Error('宿主响应标记为成功，但 payload.yaml 为空。');
@@ -395,7 +412,7 @@ function validateGeneratedProfileYaml(value){
 function requestHostGeneration(payload){
   if(window.parent===window)return Promise.reject(new Error('当前页面未连接开局宿主：generateStreamerProfile 请求没有发送。请从酒馆中的开局入口打开本页。'));
   return new Promise((resolve,reject)=>{
-    const id='profile-'+Date.now(),timeoutMs=120000;
+    const id='profile-'+Date.now(),timeoutMs=PROFILE_GENERATION_TIMEOUT_MS;
     const timer=setTimeout(()=>{removeEventListener('message',on);reject(new Error('人设生成请求超时：宿主在 '+Math.round(timeoutMs/1000)+' 秒内没有返回 generateStreamerProfile 响应。'))},timeoutMs);
     function finish(){clearTimeout(timer);removeEventListener('message',on)}
     function on(e){
@@ -411,7 +428,7 @@ function requestHostGeneration(payload){
     catch(error){finish();reject(new Error('向开局宿主发送 generateStreamerProfile 请求时出错：'+(error?.message||String(error))))}
   })}
 async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){toast('先填写主播姓名和网名');return}if(!validateStreamerHours())return;if(OSHI.some(o=>o.name===d.name)){toast('主播姓名与现有主播重复');return}
-  const btn=$('#generate-profile');btn.disabled=true;btn.textContent='生成中…';setGenerateStatus('正在调用人设生成 API…','working');
+  const btn=$('#generate-profile');btn.disabled=true;btn.textContent='生成中…';const stopClock=startGenerateClock();
   try{
     const yaml=await requestHostGeneration(d);
     state.yaml=yaml;renderProfile();
@@ -424,7 +441,7 @@ async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){
     setGenerateStatus('生成失败：'+message,'error');
     toast('人设生成失败，详细原因已显示在按钮下方')
   }finally{
-    btn.disabled=false;btn.textContent=state.yaml?'重新生成':'生成人设档案'
+    stopClock();btn.disabled=false;btn.textContent=state.yaml?'重新生成':'生成人设档案'
   }}
 function updateBookPreview(){if(state.yaml)$('#generated-meta').textContent='角色详情：'+(value('#streamer-name')||'—')}
 function syncInputs(){const n=value('#streamer-name'),h=value('#streamer-handle');$('#art-name').textContent=n||'新主播';$('#art-handle').textContent=(h||'STREAMER').toUpperCase();$('#art-monogram').textContent=(n||h||'S').slice(0,1);updateBookPreview()}
@@ -452,7 +469,7 @@ function fanRecord(){return{'关注':true,'累计打赏':OSHI_TIPPED,'牌子等�
 function openingPayload(){var pname=value('#player-name'),job=state.job,commute=commuteForCurrentJob(),picked=oshiPicked(),customs=state.customs.map(normalizeCustom).filter(c=>c.name&&c.yaml),mvu={'世界信息':{'年历':'2026年4月1日','时间':{'时钟':'08:00','时段':'朝'},'位置':{'区域':state.home.fullName,'场所':'家中'},'事件提示':{}},'玩家信息':{'档案':{'姓名':pname,'性别':state.gender,'年龄':+value('#player-age')||24,'网名':value('#player-handle'),'补充设定':value('#player-note')},'体力':100,'金钱':20000,'工作':{'职业':job.place?job.name:null,'地点':job.place,'日收入':job.daily,'工作时间':job.place?job.hours:null,'今日已上班':false,'通勤':commute?{'方式':'公交优先','分钟':commute.min,'距离公里':commute.km,'费用':commute.yuan}:null},'居住地':state.home.fullName,'房产':{[state.home.name]:{'名称':state.home.name,'区域':state.home.fullName,'产权':state.home.tenure,'描述':state.home.note,'月租':state.home.rent||0,'押金':state.home.deposit||0,'售价':state.home.sale||0,'费用说明':homeCostText(state.home)}},'生活固定支出':Object.assign({'日常生活费':{'金额':60,'支付周期':'每日'}},state.home.rent?{[state.home.name+'房租']:{'金额':state.home.rent,'支付周期':'每月'}}:{}),'粉丝身份':{}}};
   var girls={},rooms={},books=[],uis=[];
   picked.forEach(function(o){mvu['玩家信息']['粉丝身份'][o.name]=fanRecord();girls[o.name]={'羁绊':{'好感度':80+OSHI_FAVOR}}});
-  customs.forEach(function(d){girls[d.name]={'羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home||'','场所':'家中','私密度':5},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':{}},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};rooms[d.name]={'自定义':true,'主播网名':d.handle||'','封面':d.art&&d.art.type==='url'&&/^https?:\/\//i.test(d.art.src||'')?d.art.src:'','封面类型':d.art&&d.art.type==='url'?'url':'','档期':d.hours||'不固定','牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}};books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:String(d.yaml).trim()});uis.push({name:d.name,handle:d.handle,art:d.art})});
+  customs.forEach(function(d){girls[d.name]={'羁绊':{'好感度':CUSTOM_INITIAL_FAVOR,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home||'','场所':'家中','私密度':5},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':{}},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};rooms[d.name]={'自定义':true,'代表色':d.theme||'','主播网名':d.handle||'','封面':d.art&&d.art.type==='url'&&/^https?:\/\//i.test(d.art.src||'')?d.art.src:'','封面类型':d.art&&d.art.type==='url'?'url':'','档期':d.hours||'不固定','牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}};books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:String(d.yaml).trim()});uis.push({name:d.name,handle:d.handle,theme:d.theme,art:d.art})});
   if(Object.keys(girls).length)mvu['对象信息']=girls;
   if(Object.keys(rooms).length)mvu['系统配置']={'直播间':rooms};
   return{mvu:mvu,oshi:picked.map(function(o){return{name:o.name,medal:o.medal,badge:OSHI_BADGE,favor:80+OSHI_FAVOR,tipped:OSHI_TIPPED}}),opening:resolvedOpening(),worldbook:books[books.length-1]||null,worldbooks:books,ui:uis[0]||null,uis:uis}}
@@ -487,6 +504,7 @@ $('#opening-prev').onclick=$('#opening-prev-preview').onclick=()=>shiftOpening(-
 $('#opening-next').onclick=$('#opening-next-preview').onclick=()=>shiftOpening(1);
 $('#custom-opening-text').addEventListener('input',e=>{state.customOpeningText=e.target.value;renderOpenings()});
 $('#streamer-tier').oninput=renderScale;
+$('#streamer-theme-options').onclick=e=>{const b=e.target.closest('[data-streamer-theme]');if(b)setStreamerTheme(b.dataset.streamerTheme)};
 $('#streamer-hours-presets').onclick=e=>{const b=e.target.closest('button');if(!b)return;setStreamerHours(b.dataset.start,b.dataset.end)};
 ['#streamer-hours-start','#streamer-hours-end'].forEach(id=>$(id).addEventListener('input',renderStreamerHours));
 $('#new-custom').onclick=newCustom;

@@ -1412,6 +1412,11 @@ function customTheme(name) {
   return CUSTOM_THEMES[stableHash(name) % CUSTOM_THEMES.length];
 }
 
+function configuredCustomTheme(room, name) {
+  const selected = String(room?.代表色 || room?.主题色 || '').trim().toLowerCase();
+  return CUSTOM_THEMES.includes(selected) ? selected : customTheme(name);
+}
+
 function placeholderCharacterArt(name, theme = customTheme(name)) {
   const palette = {
     rose: ['#48152d', '#f45b9f'], ice: ['#123849', '#57d8ff'], violet: ['#291842', '#a879ff'],
@@ -1469,7 +1474,7 @@ function scheduleFromRoom(room, fallback = null) {
 }
 
 function createDynamicCharacter(name, room, ui) {
-  const theme = customTheme(name);
+  const theme = configuredCustomTheme(room, name);
   const coverArt = room?.封面 || pickNamed(ui?.characterCovers, name);
   const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, name);
   const c = {
@@ -1495,10 +1500,11 @@ function createDynamicCharacter(name, room, ui) {
 
 function syncDynamicPresentation(c, room, ui) {
   if (!c.custom) return;
+  c.theme = configuredCustomTheme(room, c.name);
   const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, c.name);
   if (handle != null && String(handle).trim()) c.romaji = asStr(handle, c.romaji || 'CUSTOM');
   const coverArt = room?.封面 || pickNamed(ui?.characterCovers, c.name);
-  c.art = safeCharacterArt(coverArt, c.art || placeholderCharacterArt(c.name, c.theme));
+  c.art = safeCharacterArt(coverArt, placeholderCharacterArt(c.name, c.theme));
   c.stream.schedule = scheduleFromRoom(room, c.stream.schedule);
 }
 

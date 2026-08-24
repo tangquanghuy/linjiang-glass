@@ -1257,3 +1257,15 @@ body.compact-step .custom-opening textarea{min-height:60px}
 .generate-row #generate-status.working{color:#b9d8ff}
 .generate-row #generate-status.ok{color:#9fe2c5}
 .generate-row #generate-status.error{flex:1 1 100%;padding:9px 11px;border:1px solid rgba(255,118,146,.34);border-radius:10px;color:#ffb4c4;background:rgba(106,18,46,.22);font-size:12px;white-space:pre-wrap}
+
+/* Existing main-HUD character themes, exposed as an optional custom-streamer palette. */
+.theme-field>small{display:block;margin-top:7px;color:var(--faint);font-size:10px;line-height:1.5}
+.theme-options{display:flex;flex-wrap:wrap;gap:7px}
+.theme-choice{display:inline-flex;align-items:center;gap:7px;min-height:31px;padding:5px 9px;border:1px solid rgba(230,235,255,.16);border-radius:10px;color:var(--mute);background:rgba(7,12,31,.22);cursor:pointer;transition:.18s}
+.theme-choice:hover{color:var(--ink);border-color:rgba(230,235,255,.32);transform:translateY(-1px)}
+.theme-choice i{width:14px;height:14px;flex:0 0 auto;border:1px solid rgba(255,255,255,.48);border-radius:50%;background:var(--theme-swatch);box-shadow:0 0 10px rgba(255,255,255,.18)}
+.theme-choice span{font-size:11px;white-space:nowrap}
+.theme-choice.on{color:#fff;border-color:rgba(255,255,255,.48);background:rgba(255,255,255,.13);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.theme-choice.on i{box-shadow:0 0 0 3px rgba(255,255,255,.12),0 0 16px rgba(255,255,255,.28)}
+body.compact-step .theme-options{gap:5px}
+body.compact-step .theme-choice{min-height:27px;padding:3px 7px}

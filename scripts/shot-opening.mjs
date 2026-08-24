@@ -59,16 +59,19 @@ console.log('跳过时下一步落在:', await page.evaluate(() => {
 await page.waitForTimeout(500);
 await page.click('.step-tab[data-step="4"]');
 await page.waitForTimeout(400);
-await page.click('#custom-toggle button[data-value="on"]');
-await page.waitForTimeout(400);
 await page.fill('#streamer-name', '沈遥');
 await page.fill('#streamer-handle', '遥夜');
 await page.fill('#streamer-medal', '遥夜众');
 await page.fill('#streamer-tier', '64');
 await page.dispatchEvent('#streamer-tier', 'input');
-await page.waitForTimeout(300);
-await page.click('#generate-profile');
-await page.waitForTimeout(1500);
+await page.click('[data-streamer-theme="violet"]');
+await page.evaluate(() => {
+  const yaml = document.querySelector('#profile-yaml');
+  yaml.value = '---\n角色详情:\n  沈遥:\n    age: 23岁';
+  yaml.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await page.click('#save-custom');
+await page.waitForTimeout(400);
 await page.screenshot({ path: `${OUT}/step4-custom.png`, fullPage: true });
 console.log('体量读数:', await page.evaluate(() => ['tier-value', 'tier-label', 'tier-followers', 'tier-base', 'tier-guards']
   .map(id => id + '=' + document.getElementById(id).textContent).join('  ')));
@@ -176,9 +179,15 @@ writeFileSync(`${OUT}/payload.json`, payloadJson, 'utf8');
 const parsed = JSON.parse(payloadJson);
 console.log('\npayload 落盘 ->', `${OUT}/payload.json`);
 console.log('  对象信息.沈遥 的块:', Object.keys(parsed.mvu.对象信息.沈遥).join(' / '));
+const customInitialFavor = parsed.mvu.对象信息.沈遥.羁绊.好感度;
+if (customInitialFavor !== 80) throw new Error(`自定义主播初始好感应为 80，实际为 ${customInitialFavor}`);
+console.log('  对象信息.沈遥.羁绊.好感度 =', customInitialFavor);
 console.log('  对象信息.沈遥.直播 =', JSON.stringify(parsed.mvu.对象信息.沈遥.直播));
 console.log('  对象信息.沈遥.位置 =', JSON.stringify(parsed.mvu.对象信息.沈遥.位置));
 console.log('  系统配置.直播间.沈遥 =', JSON.stringify(parsed.mvu.系统配置.直播间.沈遥));
+const customTheme = parsed.mvu.系统配置.直播间.沈遥.代表色;
+if (customTheme !== 'violet') throw new Error(`自定义主播代表色应为 violet，实际为 ${customTheme}`);
+console.log('  系统配置.直播间.沈遥.代表色 =', customTheme);
 /* 拿 变量初始化 里塔菲的形状当基准，比一遍新主播缺不缺块 */
 const canonShape = ['羁绊', '位置', '性经历', '开发度', '生理', '直播'];
 const missing = canonShape.filter(k => !parsed.mvu.对象信息.沈遥[k]);
@@ -206,7 +215,6 @@ await phone.waitForTimeout(700);
 await phone.screenshot({ path: `${OUT}/m-step3-oshi.png`, fullPage: true });
 await phone.evaluate(() => { document.querySelector('.step-tab[data-step="4"]').click(); });
 await phone.waitForTimeout(400);
-await phone.click('#custom-toggle button[data-value="on"]');
 await phone.waitForTimeout(400);
 await phone.screenshot({ path: `${OUT}/m-step4-custom.png`, fullPage: true });
 
