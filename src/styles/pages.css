@@ -568,44 +568,12 @@
 .inventory-page .stamina-card > b { font-size: 32px; }
 .inventory-page .inventory-content h3 { font-size: 18px; }
 .inventory-page .inventory-content header span { font-size: 13px; }
-.inventory-page .item-grid { align-content: start; }
-.inventory-page .item-card {
-  min-height: 0;
-  height: 132px;
-  align-items: center;
-  overflow: hidden;
-}
-.inventory-page .item-copy { min-width: 0; }
-.inventory-page .item-copy h3 {
-  display: -webkit-box;
-  overflow: hidden;
-  margin-bottom: 10px;
-  font-size: 18px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
+.inventory-page .item-card { min-height: 132px; }
+.inventory-page .item-copy h3 { font-size: 18px; }
+.inventory-page .item-copy p { font-size: 14px; line-height: 1.65; color: rgba(229,229,244,.62); }
 .inventory-page .item-copy span { font-size: 13px; }
-.inventory-page .item-card > b { align-self: center; font-size: 18px; }
+.inventory-page .item-card > b { font-size: 18px; }
 .inventory-page .item-card.is-worn > b { font-size: 14px; }
-.item-open {
-  display: block;
-  padding: 0;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-}
-.item-open:focus-visible {
-  outline: 2px solid rgba(216, 205, 255, .88);
-  outline-offset: 3px;
-}
-@media (hover: hover) {
-  .item-open:hover {
-    filter: brightness(1.12);
-    box-shadow: inset 0 2px 4px rgba(4,6,18,.5), inset 0 -1px 0 rgba(255,242,232,.22), inset 0 0 0 1px rgba(235,238,255,.36), 0 0 18px hsl(var(--hue) 88% 72% / .18);
-  }
-}
 .inventory-page .page-modal-body {
   display: flex;
   flex-direction: column;
@@ -620,14 +588,6 @@
 }
 .inventory-board {
   position: relative;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.inventory-pages {
-  position: relative;
-  flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -693,7 +653,6 @@
   overflow: hidden;
   padding: 0 52px 32px;
 }
-
 .inventory-empty {
   flex: 1;
   display: grid;
@@ -737,154 +696,6 @@
   letter-spacing: .16em;
   color: rgba(226, 226, 244, .48);
   pointer-events: none;
-}
-
-.inventory-detail-shade {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  pointer-events: auto;
-  background: rgba(7, 8, 24, .42);
-  backdrop-filter: blur(3px) saturate(.92);
-  -webkit-backdrop-filter: blur(3px) saturate(.92);
-  animation: page-fade .18s ease both;
-}
-.inventory-detail {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 9;
-  width: 720px;
-  max-height: min(640px, calc(var(--hud-band-bottom) - var(--hud-band-top) - 34px));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  pointer-events: auto;
-  transform: translate(-50%, -50%);
-  border: 1px solid rgba(233, 231, 255, .42);
-  border-radius: 30px;
-  background: rgba(39, 48, 92, .62);
-  backdrop-filter: blur(24px) saturate(1.28);
-  -webkit-backdrop-filter: blur(24px) saturate(1.28);
-  box-shadow: 0 28px 70px rgba(5, 7, 24, .48), 0 0 28px hsl(var(--hue) 82% 72% / .14), inset 0 1px 0 rgba(255,255,255,.30);
-  animation: inventory-detail-in .22s cubic-bezier(.2,.82,.25,1) both;
-}
-@keyframes inventory-detail-in {
-  from { opacity: 0; transform: translate(-50%, -46%) scale(.985); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-.inventory-detail-head,
-.inventory-detail-body { position: relative; z-index: 1; }
-.inventory-detail-close {
-  position: absolute;
-  right: 22px;
-  top: 20px;
-  z-index: 3;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(235, 237, 255, .34);
-  border-radius: 50%;
-  background: rgba(28, 34, 70, .64);
-  color: rgba(255,255,255,.88);
-  font: 300 25px/1 'Outfit', sans-serif;
-  cursor: pointer;
-}
-.inventory-detail-head {
-  min-height: 142px;
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) auto;
-  gap: 22px;
-  align-items: center;
-  padding: 26px 78px 24px 32px;
-  border-bottom: 1px solid rgba(226, 231, 255, .14);
-  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent);
-}
-.inventory-detail-icon { width: 88px; height: 88px; border-radius: 23px; }
-.inventory-detail-icon .item-icon { left: 6px; top: 4px; width: 76px; height: 76px; }
-.inventory-detail-icon .item-gem { left: 12px; top: 11px; width: 64px; height: 64px; border-radius: 20px; }
-.inventory-detail-head > div:nth-child(2) { min-width: 0; }
-.inventory-detail-head span {
-  display: block;
-  margin-bottom: 9px;
-  color: rgba(219, 217, 242, .52);
-  font-size: 13px;
-  letter-spacing: .08em;
-}
-.inventory-detail-head h3 {
-  overflow-wrap: anywhere;
-  color: rgba(255,255,255,.96);
-  font-size: 27px;
-  line-height: 1.28;
-  letter-spacing: .04em;
-}
-.inventory-detail-head > b {
-  color: rgba(255,255,255,.78);
-  font: 500 19px/1 'Outfit', sans-serif;
-}
-.inventory-detail-body {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 28px;
-  padding: 28px 32px 34px;
-}
-.inventory-detail-body dl {
-  align-self: start;
-  overflow: hidden;
-  border: 1px solid rgba(226, 231, 255, .13);
-  border-radius: 18px;
-  background: rgba(16, 22, 54, .20);
-}
-.inventory-detail-body dl > div {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 10px;
-  padding: 13px 15px;
-}
-.inventory-detail-body dl > div + div { border-top: 1px solid rgba(226, 231, 255, .09); }
-.inventory-detail-body dt { color: rgba(220, 222, 244, .42); font-size: 12px; }
-.inventory-detail-body dd { overflow-wrap: anywhere; color: rgba(247, 246, 255, .82); font-size: 13px; line-height: 1.45; }
-.inventory-detail-copy {
-  min-width: 0;
-  min-height: 0;
-  max-height: 340px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(218, 220, 248, .32) transparent;
-}
-.inventory-detail-copy::-webkit-scrollbar { width: 6px; }
-.inventory-detail-copy::-webkit-scrollbar-thumb { border-radius: 4px; background: rgba(218, 220, 248, .32); }
-.inventory-detail-copy h4 {
-  margin-bottom: 14px;
-  color: rgba(255,255,255,.90);
-  font-size: 15px;
-  letter-spacing: .12em;
-}
-.inventory-detail-copy p {
-  color: rgba(235, 234, 249, .72);
-  font-size: 16px;
-  line-height: 1.9;
-  letter-spacing: .025em;
-  white-space: pre-wrap;
-}
-.inventory-detail-use {
-  min-height: 38px;
-  margin-top: 24px;
-  padding: 0 18px;
-  border: 1px solid rgba(190, 220, 255, .42);
-  border-radius: 19px;
-  background: linear-gradient(135deg, rgba(157, 197, 242, .42), rgba(133, 144, 214, .36));
-  color: rgba(255,255,255,.92);
-  cursor: pointer;
-}
-@media (hover: hover) {
-  .inventory-detail-close:hover,
-  .inventory-detail-use:hover { filter: brightness(1.12); }
 }
 
 /* 羁绊总览 的样式随页面一起删了（见 pages.js 里那条注释）。竖屏那版用的是 .prel-*，
