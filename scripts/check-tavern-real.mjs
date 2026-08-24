@@ -63,7 +63,18 @@ async function openPreset(preset, extra = {}) {
   return page;
 }
 
-const probe = (page) => page.evaluate(() => window.__linjiangTavernReal.measure());
+const probe = (page) => page.evaluate(() => {
+  const result = window.__linjiangTavernReal.measure();
+  const hud = document.getElementById('linjiang-hud-live');
+  const chrome = ['linjiang-hud-fs', 'linjiang-hud-shrink']
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+  return {
+    ...result,
+    hudMobileSurface: hud?.getAttribute('data-tt-mobile-surface') || '',
+    chromeMobileSurfaces: chrome.map((element) => element.getAttribute('data-tt-mobile-surface') || ''),
+  };
+});
 
 console.log('\n  real tavern embed geometry');
 console.log(`  ${'-'.repeat(112)}`);
@@ -86,6 +97,11 @@ for (const preset of geometryPresets) {
   check(preset.id, m.slotW > 80 && m.slotH > 100, `invalid helper iframe ${m.slotW}x${m.slotH}`);
   check(preset.id, m.hudW > 100 && m.hudH > 100, `invalid HUD ${m.hudW}x${m.hudH}`);
   check(preset.id, m.liveHudCount === 1, `live HUD count ${m.liveHudCount}`);
+  check(preset.id, m.hudMobileSurface === 'none',
+    `HUD mobile surface declaration is ${m.hudMobileSurface || '(missing)'}`);
+  check(preset.id, m.chromeMobileSurfaces.length === 2
+    && m.chromeMobileSurfaces.every((surface) => surface === 'none'),
+  `HUD chrome mobile surface declarations are ${m.chromeMobileSurfaces.join(',') || '(missing)'}`);
   if (expectedMode !== 'mobile-landscape') {
     check(preset.id, m.lifted, 'production HUD was not lifted to tavern body');
   }

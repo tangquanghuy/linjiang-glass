@@ -913,6 +913,10 @@
         frame.referrerPolicy = 'strict-origin-when-cross-origin';
         frame.allow = 'clipboard-read; clipboard-write';
         frame.dataset.linjiangManaged = '1';
+        /* TauriTavern mobile classifies unmarked fixed body children as host overlays.
+           This iframe owns its own slot-following geometry, so host safe-area rules
+           must leave its left/top/width/height untouched. */
+        frame.dataset.ttMobileSurface = 'none';
         frame.addEventListener('load', () => {
           if (this.hudFrame === frame && this.hudMode) postHudMode(this.hudMode);
         });
@@ -1341,10 +1345,13 @@
       btn.id = id;
       btn.type = 'button';
       btn.dataset.linjiangOwner = INSTANCE_ID;
+      btn.dataset.ttMobileSurface = 'none';
       btn.style.visibility = 'hidden';
       doc.body.appendChild(btn);
       listen(btn, 'click', onClick);
     }
+    /* Also repair buttons retained by the current controller. */
+    btn.dataset.ttMobileSurface = 'none';
     return btn;
   };
 
@@ -2433,6 +2440,11 @@
     overlayOpen = false;
     hudFrame = manager.ensureHudFrame();
     hudFrame.dataset.linjiangOwner = INSTANCE_ID;
+    /* Repair a managed frame that survived a message-floor handover from an
+       earlier controller before the mobile-surface opt-out was introduced. */
+    hudFrame.dataset.ttMobileSurface = 'none';
+    hudFrame.removeAttribute('data-tt-mobile-surface-admitted');
+    hudFrame.style.removeProperty('--tt-original-top');
     try { localHudFrame.remove(); } catch (e) {}
     bindActiveRuntime();
     fitParentFrame();
