@@ -334,8 +334,8 @@ function loadArchives(){try{var list=JSON.parse(localStorage.getItem(ARCHIVE_KEY
 function persistArchives(){try{localStorage.setItem(ARCHIVE_KEY,JSON.stringify(state.archives));return true}catch(_){toast('主播存档保存失败');return false}}
 function currentCustomData(){var d=streamerInput();return normalizeCustom(Object.assign({},d,{id:state.activeCustomId||customId(),art:state.art,yaml:state.yaml,homeData:cloneHome(state.streamerHome)}))}
 function renderCustomManager(){var roster=$('#custom-roster'),archive=$('#archive-list');$('#custom-count').textContent=state.customs.length;$('#archive-count').textContent=state.archives.length;$('#archive-panel').classList.toggle('hidden',!state.archiveOpen);$('#archive-toggle').classList.toggle('on',state.archiveOpen);roster.innerHTML=state.customs.length?state.customs.map(function(c){return'<div class="custom-roster-item'+(c.id===state.activeCustomId?' on':'')+'"><button type="button" data-custom-load="'+esc(c.id)+'"><i>'+esc((c.name||c.handle||'S').slice(0,1))+'</i><span><b>'+esc(c.name||'未命名')+'</b><small>'+esc(c.handle||'未设置网名')+'</small></span></button><button type="button" class="custom-remove" data-custom-remove="'+esc(c.id)+'" title="移除">×</button></div>'}).join(''):'<span class="custom-empty">尚未添加自定义主播</span>';archive.innerHTML=state.archives.length?state.archives.map(function(c){return'<div class="archive-item"><button type="button" data-archive-use="'+esc(c.id)+'"><i>'+esc((c.name||c.handle||'S').slice(0,1))+'</i><span><b>'+esc(c.name)+'</b><small>'+esc(c.handle||'未设置网名')+' · '+esc(c.hours||'不固定')+'</small></span></button><button type="button" data-archive-delete="'+esc(c.id)+'">删除</button></div>'}).join(''):'<span class="custom-empty">还没有主播存档</span>'}
-function clearCustomEditor(){state.activeCustomId=null;state.categories=new Set(['杂谈']);state.yaml='';state.art={type:'',src:''};state.streamerHome=null;['#streamer-name','#streamer-handle','#streamer-tone','#streamer-seed','#streamer-medal','#art-url'].forEach(id=>$(id).value='');$('#streamer-age').value='23';$('#streamer-tier').value='42';$('#streamer-home').textContent='从地图选择住所';$('#profile-yaml').value='';$('#art-file').value='';updateArt('','');setStreamerHours('','');renderTags();renderScale();syncInputs();renderProfile();$('#generate-profile').textContent='生成人设档案';$('#generate-status').textContent='生成后会加入本次开局';$('#save-custom').disabled=true;renderCustomManager()}
-function loadCustomEditor(raw){var c=normalizeCustom(raw);state.activeCustomId=c.id;state.categories=new Set(c.categories);state.streamerHome=c.homeData||c.home?c.homeData||{fullName:c.home,name:c.home}:null;state.yaml=c.yaml;state.art=c.art;$('#streamer-name').value=c.name;$('#streamer-handle').value=c.handle;$('#streamer-age').value=c.age;$('#streamer-tier').value=c.tier;$('#streamer-tone').value=c.tone;$('#streamer-seed').value=c.seed;$('#streamer-medal').value=c.medal;$('#streamer-home').textContent=c.home||'从地图选择住所';$('#art-url').value=/^https?:/i.test(c.art.src)?c.art.src:'';$('#profile-yaml').value=c.yaml;renderTags();renderScale();setStreamerHours(c.hoursStart,c.hoursEnd);updateArt(c.art.src,c.art.type);syncInputs();renderProfile();$('#generate-profile').textContent=c.yaml?'重新生成':'生成人设档案';$('#generate-status').textContent=c.yaml?'已载入，可继续修改':'填写后生成人设档案';$('#save-custom').disabled=!c.yaml;renderCustomManager()}
+function clearCustomEditor(){state.activeCustomId=null;state.categories=new Set(['杂谈']);state.yaml='';state.art={type:'',src:''};state.streamerHome=null;['#streamer-name','#streamer-handle','#streamer-tone','#streamer-seed','#streamer-medal','#art-url'].forEach(id=>$(id).value='');$('#streamer-age').value='23';$('#streamer-tier').value='42';$('#streamer-home').textContent='从地图选择住所';$('#profile-yaml').value='';$('#art-file').value='';updateArt('','');setStreamerHours('','');renderTags();renderScale();syncInputs();renderProfile();$('#generate-profile').textContent='生成人设档案';setGenerateStatus('调用结果与错误会显示在这里');$('#save-custom').disabled=true;renderCustomManager()}
+function loadCustomEditor(raw){var c=normalizeCustom(raw);state.activeCustomId=c.id;state.categories=new Set(c.categories);state.streamerHome=c.homeData||c.home?c.homeData||{fullName:c.home,name:c.home}:null;state.yaml=c.yaml;state.art=c.art;$('#streamer-name').value=c.name;$('#streamer-handle').value=c.handle;$('#streamer-age').value=c.age;$('#streamer-tier').value=c.tier;$('#streamer-tone').value=c.tone;$('#streamer-seed').value=c.seed;$('#streamer-medal').value=c.medal;$('#streamer-home').textContent=c.home||'从地图选择住所';$('#art-url').value=/^https?:/i.test(c.art.src)?c.art.src:'';$('#profile-yaml').value=c.yaml;renderTags();renderScale();setStreamerHours(c.hoursStart,c.hoursEnd);updateArt(c.art.src,c.art.type);syncInputs();renderProfile();$('#generate-profile').textContent=c.yaml?'重新生成':'生成人设档案';setGenerateStatus(c.yaml?'已载入，可继续修改':'填写后生成人设档案');$('#save-custom').disabled=!c.yaml;renderCustomManager()}
 function saveCurrentCustom(options){options=options||{};var d=currentCustomData();if(!d.name||!d.handle){if(!options.quiet)toast('先填写主播姓名和网名');return null}if(!d.yaml){if(!options.quiet)toast('请先生成人设档案');return null}if(OSHI.some(o=>o.name===d.name)){toast('主播姓名与现有主播重复');return null}var duplicate=state.customs.find(c=>c.name===d.name&&c.id!==d.id);if(duplicate){toast('本次开局里已经有同名主播');return null}var index=state.customs.findIndex(c=>c.id===d.id);if(index>=0)state.customs[index]=d;else state.customs.push(d);state.activeCustomId=d.id;$('#save-custom').disabled=false;renderCustomManager();if(!options.quiet)toast('已保存：'+d.name);return d}
 function newCustom(){if(state.yaml&&!saveCurrentCustom({quiet:true}))return;clearCustomEditor();toast('可以填写下一位主播了')}
 function removeCustom(id){var c=state.customs.find(x=>x.id===id);state.customs=state.customs.filter(x=>x.id!==id);if(state.activeCustomId===id)clearCustomEditor();else renderCustomManager();if(c)toast('已移除：'+c.name)}
@@ -365,79 +365,67 @@ function handleMapPick(node){if(!node||!node.id)return;var knownHome=HOMES.find(
    写成 fullName 会让 位置.区域 的子区域对不上节点名，地图和状态栏都定位不到。 */
 if(knownHome){var hn=node.name||knownHome.name,hd=node.district||knownHome.district;return setHome(Object.assign({},knownHome,{name:hn,district:hd,fullName:hd+' · '+hn}))}toast('请点击地图上的粉色住宅节点');return}if(state.mapTarget==='work'){var knownJob=JOBS.find(function(j){return j.node===node.id});if(knownJob)return setJob(knownJob);toast('请选择已加入开局岗位池的工作节点');return}if(state.mapTarget==='streamer'&&node.archetype==='living')return setHome({id:node.id,name:node.name,fullName:node.district+' · '+node.name,district:node.district,tenure:'租住',note:node.draw||'从地图选择的居住地点',rent:0,deposit:0,cost:'费用由开局后设定'},'streamer');toast('请选择住所类地点')}
 function updateArt(src,type){state.art={src,type};const box=$('#art-preview'),img=$('#art-img');if(src){img.src=src;box.classList.add('has')}else{img.removeAttribute('src');box.classList.remove('has')}}
+async function compactArtFile(file){
+  const fallback=()=>new Promise(function(resolve,reject){const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=reject;r.readAsDataURL(file)});
+  if(!file||!/^image\//i.test(file.type||''))return fallback();
+  try{
+    const bitmap=await createImageBitmap(file),maxW=900,maxH=1350,scale=Math.min(1,maxW/bitmap.width,maxH/bitmap.height),w=Math.max(1,Math.round(bitmap.width*scale)),h=Math.max(1,Math.round(bitmap.height*scale)),canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(bitmap,0,0,w,h);bitmap.close?.();
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.82));
+    if(!blob)return fallback();
+    return await new Promise(function(resolve,reject){const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=reject;r.readAsDataURL(blob)});
+  }catch(_){return fallback()}
+}
 function streamerHoursValue(){const start=value('#streamer-hours-start'),end=value('#streamer-hours-end');if(!start||!end||start===end)return'';let shownEnd=end;if(end==='00:00'&&start!=='00:00')shownEnd='24:00';else if(end<start)shownEnd='次日 '+end;return start+' - '+shownEnd}
 function renderStreamerHours(){const start=value('#streamer-hours-start'),end=value('#streamer-hours-end'),picker=$('#streamer-hours-picker'),summary=$('#streamer-hours-summary');picker.classList.toggle('invalid',!!(start||end)&&(!start||!end||start===end));if(!start&&!end)summary.textContent='未设置时按不固定处理';else if(!start||!end)summary.textContent='请选择完整的开始与结束时间';else if(start===end)summary.textContent='开始与结束时间不能相同';else summary.textContent=streamerHoursValue();document.querySelectorAll('#streamer-hours-presets button').forEach(b=>b.classList.toggle('on',b.dataset.start===start&&b.dataset.end===end))}
 function setStreamerHours(start,end){$('#streamer-hours-start').value=start||'';$('#streamer-hours-end').value=end||'';renderStreamerHours()}
 function validateStreamerHours(){const start=value('#streamer-hours-start'),end=value('#streamer-hours-end');if(!start&&!end)return true;if(!start||!end){renderStreamerHours();toast('请选择完整的直播开始与结束时间');return false}if(start===end){renderStreamerHours();toast('直播开始与结束时间不能相同');return false}return true}
 function streamerInput(){const tier=clampTier($('#streamer-tier').value),s=streamScale(tier);return{name:value('#streamer-name'),handle:value('#streamer-handle'),age:+value('#streamer-age')||23,home:state.streamerHome?.fullName||'',homeData:cloneHome(state.streamerHome),categories:[...state.categories],tier:tier,scale:s,hoursStart:value('#streamer-hours-start'),hoursEnd:value('#streamer-hours-end'),hours:streamerHoursValue(),tone:value('#streamer-tone'),seed:value('#streamer-seed'),medal:value('#streamer-medal')}}
-/* 模型不可用时的兜底草稿。格式和字段跟 世界书/红蔷薇 那几条一致（也就是
-   参考/底部状态栏.html 的 角色详情 YAML），只是内容是模板化的、等玩家自己改。
-   「直播设定」只放质性的东西：网名、分类、常用时间、直播风格、对观众的态度。
-   粉丝数、热度、大航海、牌子名不写在这里——那些进 MVU。 */
-function yamlLine(text){return String(text==null?'':text).replace(/\r?\n/g,' ').trim()}
-function localYaml(d){const focus=d.categories.join('、'),s=d.scale;
-  return ['---',
-'角色详情:',
-'  '+yamlLine(d.name)+':',
-'    线上常用名/主播网名: '+yamlLine(d.handle||d.name),
-'    gender: 女',
-'    age: '+d.age+'岁',
-'    identity:',
-'      public: 临江市的'+focus+'类主播',
-'      hidden: 待补充——写一条只有她自己知道的处境或动机',
-'    current_state:',
-'      - '+(d.home?('居住在'+yamlLine(d.home)+'，开播和日常都在这里'):'住处待定'),
-'      - 常用直播时间 '+yamlLine(d.hours||'不固定')+'，内容以'+focus+'为主',
-'      - '+yamlLine(d.seed||'有完整的工作与私人生活，不会只围绕某个观众行动'),
-'',
-'    直播设定:',
-'      平台网名: '+yamlLine(d.handle||d.name),
-'      直播分类: ['+d.categories.join(', ')+']',
-'      常用直播时间: '+yamlLine(d.hours||'不固定'),
-'      直播风格: 常用内容为'+focus+'；节奏由她自己控，不追着单条弹幕走',
-'      对观众的态度: 记得住长期发言的ID，但公开场合一律平等对待，不给单人特殊待遇',
-'      线上线下差异: 镜头前更善于维持情绪和节奏；线下表达更直接，也有疲惫和不想社交的时候',
-'',
-'    social_connection:',
-'      观众:',
-'        relationship: 待补充——她把直播间当成什么，观众大致是哪一类人',
-'',
-'    appearance:',
-'      overview: 外貌以玩家提供的立绘为准，这里补充身形、发色瞳色和辨识特征',
-'      attire:',
-'        daily: 待补充',
-'        直播: 待补充',
-'      feature:',
-'        - 待补充——一到三条一眼能记住的特征',
-'',
-'    对白风格:',
-'      描述: '+yamlLine(d.tone?('整体气质偏'+d.tone+'；'):'')+'语气自然，回应会接住上一句的内容，不是各说各话',
-'      禁止写法:',
-'        - 禁止写成随时随地照顾玩家情绪的角色：她开播是工作，下播有自己的事',
-'        - 禁止把打赏、关注或牌子等级写成能换取私人关系',
-'',
-'    内部描述:',
-'      爱好:',
-'        - 待补充',
-'      个人特长: 待补充',
-'      本职: '+focus+'类主播'+(d.home?'':'（另有本职待补充）'),
-'',
-'    角色细节:',
-'      日常: 开播前做基础准备；下播后先处理设备、消息和第二天的安排',
-'      社交: 对熟人放松得慢，对越界要求会直接把话说明白',
-'      复杂反差: 待补充',
-'',
-'    行为指导:',
-'      行为红线禁令:',
-'        - 不把她写成只围绕玩家存在的人',
-'        - 当前所在位置、直播开关、好感和生理状态一律以MVU动态数据为准'].join('\n')}
 function renderProfile(){var on=!!state.yaml;$('#generated').classList.toggle('on',on);if(on){var box=$('#profile-yaml');if(box.value!==state.yaml)box.value=state.yaml;$('#generated-meta').textContent='角色详情：'+(value('#streamer-name')||'—')}$('#save-custom').disabled=!on}
-function requestHostGeneration(payload){if(window.parent===window)return Promise.resolve(null);return new Promise(resolve=>{const id='profile-'+Date.now(),timer=setTimeout(()=>{removeEventListener('message',on);resolve(null)},12000);function on(e){const d=e.data;if(d?.channel==='linjiang-opening'&&d.kind==='response'&&d.id===id){clearTimeout(timer);removeEventListener('message',on);resolve(d.ok?d.payload?.yaml:null)}}addEventListener('message',on);parent.postMessage({channel:'linjiang-opening',kind:'request',id,action:'generateStreamerProfile',payload},'*')})}
+function setGenerateStatus(text,tone){const el=$('#generate-status');el.textContent=text||'';el.title=text||'';el.classList.remove('working','ok','error');if(tone)el.classList.add(tone)}
+function validateGeneratedProfileYaml(value){
+  const yaml=String(value||'').trim();
+  if(!yaml)throw new Error('宿主响应标记为成功，但 payload.yaml 为空。');
+  if(!yaml.startsWith('---'))throw new Error('宿主返回的 YAML 格式校验失败：正文必须以 --- 开头。');
+  if(!/^角色详情\s*:/m.test(yaml))throw new Error('宿主返回的 YAML 格式校验失败：缺少顶层“角色详情:”字段。');
+  if(/^\s*current_state\s*:/m.test(yaml))throw new Error('宿主返回的内容校验失败：角色档案含 current_state 运行态字段。');
+  if(/(待补充|住处待定|稍后补充|TODO|TBD|以MVU动态数据为准)/i.test(yaml))throw new Error('宿主返回的内容校验失败：角色档案仍含占位文本或 MVU 系统说明。');
+  return yaml
+}
+function requestHostGeneration(payload){
+  if(window.parent===window)return Promise.reject(new Error('当前页面未连接开局宿主：generateStreamerProfile 请求没有发送。请从酒馆中的开局入口打开本页。'));
+  return new Promise((resolve,reject)=>{
+    const id='profile-'+Date.now(),timeoutMs=120000;
+    const timer=setTimeout(()=>{removeEventListener('message',on);reject(new Error('人设生成请求超时：宿主在 '+Math.round(timeoutMs/1000)+' 秒内没有返回 generateStreamerProfile 响应。'))},timeoutMs);
+    function finish(){clearTimeout(timer);removeEventListener('message',on)}
+    function on(e){
+      const d=e.data;
+      if(d?.channel!=='linjiang-opening'||d.kind!=='response'||d.id!==id)return;
+      finish();
+      if(!d.ok){reject(new Error(String(d.error||'宿主返回生成失败，但没有附带错误信息。')));return}
+      try{resolve(validateGeneratedProfileYaml(d.payload?.yaml))}
+      catch(error){reject(error)}
+    }
+    addEventListener('message',on);
+    try{parent.postMessage({channel:'linjiang-opening',kind:'request',id,action:'generateStreamerProfile',payload},'*')}
+    catch(error){finish();reject(new Error('向开局宿主发送 generateStreamerProfile 请求时出错：'+(error?.message||String(error))))}
+  })}
 async function generateProfile(){const d=streamerInput();if(!d.name||!d.handle){toast('先填写主播姓名和网名');return}if(!validateStreamerHours())return;if(OSHI.some(o=>o.name===d.name)){toast('主播姓名与现有主播重复');return}
-  const btn=$('#generate-profile'),status=$('#generate-status');btn.disabled=true;btn.textContent='生成中…';status.textContent='正在生成人设档案';
-  let external=null;try{external=await requestHostGeneration(d)}catch(_){}
-  state.yaml=external||localYaml(d);
-  setTimeout(()=>{renderProfile();var saved=saveCurrentCustom({quiet:true});btn.disabled=false;btn.textContent='重新生成';status.textContent=saved?'已加入本次开局，可继续修改':'请检查主播资料'},450)}
+  const btn=$('#generate-profile');btn.disabled=true;btn.textContent='生成中…';setGenerateStatus('正在调用人设生成 API…','working');
+  try{
+    const yaml=await requestHostGeneration(d);
+    state.yaml=yaml;renderProfile();
+    const saved=saveCurrentCustom({quiet:true});
+    if(!saved)throw new Error('YAML 已生成，但保存到本次开局时校验失败。请检查角色名称和档案内容。');
+    setGenerateStatus('API 返回并解析成功，已加入本次开局，可继续修改。','ok')
+  }catch(error){
+    const message=error?.message||String(error);
+    console.error('[临江开局] 自定义主播人设生成失败',error);
+    setGenerateStatus('生成失败：'+message,'error');
+    toast('人设生成失败，详细原因已显示在按钮下方')
+  }finally{
+    btn.disabled=false;btn.textContent=state.yaml?'重新生成':'生成人设档案'
+  }}
 function updateBookPreview(){if(state.yaml)$('#generated-meta').textContent='角色详情：'+(value('#streamer-name')||'—')}
 function syncInputs(){const n=value('#streamer-name'),h=value('#streamer-handle');$('#art-name').textContent=n||'新主播';$('#art-handle').textContent=(h||'STREAMER').toUpperCase();$('#art-monogram').textContent=(n||h||'S').slice(0,1);updateBookPreview()}
 function validate(step){if(step===1&&!value('#player-name')){toast('请填写玩家姓名或常用称呼');return false}if(step===2&&!state.home){toast('请先从地图选择初始住所');return false}if(step===3&&state.openingId==='custom'&&!state.customOpeningText.trim()){toast('请输入自定义开局内容');return false}if(step===4){var touched=!!(value('#streamer-name')||value('#streamer-handle')||state.yaml);if(touched&&!state.yaml){toast('当前主播还没生成人设档案');return false}if(state.yaml&&!saveCurrentCustom({quiet:true}))return false}return true}
@@ -464,7 +452,7 @@ function fanRecord(){return{'关注':true,'累计打赏':OSHI_TIPPED,'牌子等�
 function openingPayload(){var pname=value('#player-name'),job=state.job,commute=commuteForCurrentJob(),picked=oshiPicked(),customs=state.customs.map(normalizeCustom).filter(c=>c.name&&c.yaml),mvu={'世界信息':{'年历':'2026年4月1日','时间':{'时钟':'08:00','时段':'朝'},'位置':{'区域':state.home.fullName,'场所':'家中'},'事件提示':{}},'玩家信息':{'档案':{'姓名':pname,'性别':state.gender,'年龄':+value('#player-age')||24,'网名':value('#player-handle'),'补充设定':value('#player-note')},'体力':100,'金钱':20000,'工作':{'职业':job.place?job.name:null,'地点':job.place,'日收入':job.daily,'工作时间':job.place?job.hours:null,'今日已上班':false,'通勤':commute?{'方式':'公交优先','分钟':commute.min,'距离公里':commute.km,'费用':commute.yuan}:null},'居住地':state.home.fullName,'房产':{[state.home.name]:{'名称':state.home.name,'区域':state.home.fullName,'产权':state.home.tenure,'描述':state.home.note,'月租':state.home.rent||0,'押金':state.home.deposit||0,'售价':state.home.sale||0,'费用说明':homeCostText(state.home)}},'生活固定支出':Object.assign({'日常生活费':{'金额':60,'支付周期':'每日'}},state.home.rent?{[state.home.name+'房租']:{'金额':state.home.rent,'支付周期':'每月'}}:{}),'粉丝身份':{}}};
   var girls={},rooms={},books=[],uis=[];
   picked.forEach(function(o){mvu['玩家信息']['粉丝身份'][o.name]=fanRecord();girls[o.name]={'羁绊':{'好感度':80+OSHI_FAVOR}}});
-  customs.forEach(function(d){girls[d.name]={'羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home||'','场所':'家中','私密度':5},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':{}},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};rooms[d.name]={'自定义':true,'主播网名':d.handle||'','档期':d.hours||'不固定','牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}};books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:String(d.yaml).trim()});uis.push({name:d.name,handle:d.handle,art:d.art})});
+  customs.forEach(function(d){girls[d.name]={'羁绊':{'好感度':0,'顺从度':0,'心情':'开朗'},'位置':{'区域':d.home||'','场所':'家中','私密度':5},'性经历':emptyExperience(),'开发度':emptyDevelopment(),'生理':{'性欲度':0,'体力':100,'尿意':20,'异常状态':{}},'直播':{'开播':false,'标题':'','热度':0,'粉丝数':d.scale.followers}};rooms[d.name]={'自定义':true,'主播网名':d.handle||'','封面':d.art&&d.art.type==='url'&&/^https?:\/\//i.test(d.art.src||'')?d.art.src:'','封面类型':d.art&&d.art.type==='url'?'url':'','档期':d.hours||'不固定','牌子名':d.medal||d.handle||d.name,'体量档位':d.scale.tier,'底盘热度':d.scale.base,'本场热度':0,'高能榜':[],'大航海':{'舰长':d.scale.guards,'提督':d.scale.admirals,'总督':d.scale.governors,'名单':[]}};books.push({sourceName:d.name,name:d.name,keys:[d.name,d.handle].filter(Boolean),content:String(d.yaml).trim()});uis.push({name:d.name,handle:d.handle,art:d.art})});
   if(Object.keys(girls).length)mvu['对象信息']=girls;
   if(Object.keys(rooms).length)mvu['系统配置']={'直播间':rooms};
   return{mvu:mvu,oshi:picked.map(function(o){return{name:o.name,medal:o.medal,badge:OSHI_BADGE,favor:80+OSHI_FAVOR,tipped:OSHI_TIPPED}}),opening:resolvedOpening(),worldbook:books[books.length-1]||null,worldbooks:books,ui:uis[0]||null,uis:uis}}
@@ -506,9 +494,9 @@ $('#archive-toggle').onclick=()=>{state.archiveOpen=!state.archiveOpen;renderCus
 $('#archive-save').onclick=saveCurrentArchive;
 $('#custom-roster').onclick=e=>{const remove=e.target.closest('[data-custom-remove]'),load=e.target.closest('[data-custom-load]');if(remove)return removeCustom(remove.dataset.customRemove);if(load){if(state.yaml&&!saveCurrentCustom({quiet:true}))return;var c=state.customs.find(x=>x.id===load.dataset.customLoad);if(c)loadCustomEditor(c)}};
 $('#archive-list').onclick=e=>{const del=e.target.closest('[data-archive-delete]'),use=e.target.closest('[data-archive-use]');if(del)return deleteArchive(del.dataset.archiveDelete);if(use)return useArchive(use.dataset.archiveUse)};
-$('#profile-yaml').addEventListener('input',e=>{state.yaml=e.target.value;$('#save-custom').disabled=!state.yaml;$('#generate-status').textContent='内容已修改，保存后生效';updateBookPreview()});
+$('#profile-yaml').addEventListener('input',e=>{state.yaml=e.target.value;$('#save-custom').disabled=!state.yaml;setGenerateStatus('内容已修改，保存后生效');updateBookPreview()});
 ['#streamer-name','#streamer-handle'].forEach(id=>$(id).addEventListener('input',syncInputs));
 $('#apply-art-url').onclick=()=>{const u=value('#art-url');if(!u)return toast('先填写网络立绘链接');updateArt(u,'url')};
-$('#art-file').onchange=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>updateArt(r.result,'upload-preview');r.readAsDataURL(f)};
+$('#art-file').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;setGenerateStatus('正在压缩立绘…','working');try{updateArt(await compactArtFile(f),'upload-preview');setGenerateStatus('立绘已处理，保存在当前浏览器','ok')}catch(_){setGenerateStatus('立绘读取失败','error')}};
 $('#generate-profile').onclick=generateProfile;$('#save-custom').onclick=()=>saveCurrentCustom();$('#prev').onclick=()=>go(prevStep(state.step));$('#next').onclick=()=>state.step===LAST_STEP?finish():go(nextStep(state.step));
 })();

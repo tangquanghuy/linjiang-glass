@@ -323,7 +323,7 @@
   /* 粘进角色卡的「开局」楼层。本页与酒馆同源，能摸到 parent.Mvu / TavernHelper；
      开局页本身托管在 GitHub Pages（跨域），只通过 postMessage 和这里说话。
      这里只做三件事：全屏挂起开局页、代跑人设生成、把 commitPreview 写回酒馆。 */
-  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260823-opening-four-v14';
+  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260824-opening-five-v15';
   // const OPENING_URL = 'http://127.0.0.1:5173/opening.html';
   const CHANNEL = 'linjiang-opening';
   const OVERLAY_ID = 'linjiang-opening-overlay';
@@ -355,10 +355,10 @@
     identity:
       public: 西洲区一家小型录音棚的兼职调音助理，晚间开播的杂谈主播
       hidden: 靠直播收入替家里还一笔没人知道的债，对外一律说是"自己想做"
-    current_state:
-      - 住在西洲永初里的单间，隔音差，开播时会压低音量
-      - 一周固定播五天，节奏稳，很少突然休播
-      - 白天在录音棚打零工，下播后常常直接睡在客厅
+    生活背景:
+      本职与收入: 在西洲区一家小型录音棚做兼职调音助理，直播是另一项稳定收入来源
+      工作节奏: 白天接棚内排班，晚间固定开播；忙碌时会压缩休息，但不会拿观众当情绪护理员
+      私人处境: 正替家里偿还一笔不对外提起的债，因此对停播和收入波动格外敏感
 
     直播设定:
       平台网名: 遥夜
@@ -586,31 +586,45 @@
 
   /* ---------- 人设生成：代跑酒馆的模型 ---------- */
 
-  /* 三级兜底取 YAML：先认标签，再认 ```yaml 围栏，最后退到第一个 --- 。
-     模型经常多写一句前言或者把围栏漏掉，这三级基本都能捞回来。 */
-  const stripYamlFence = (text) => String(text || '').trim()
-    .replace(/^```ya?ml\s*/i, '').trim()
-    .replace(/```$/i, '').trim();
+  /* 严格解析模型返回。提示词要求了标签和 yaml 围栏，任一层缺失都作为
+     可见错误返回给开局页，不猜测、不截取、不用本地模板顶替。 */
+  const responseExcerpt = (text) => String(text || '').replace(/\s+/g, ' ').trim().slice(0, 240);
 
   const extractProfileYaml = (content) => {
     const raw = String(content || '').trim();
-    if (!raw) return '';
-    const tagged = raw.match(new RegExp(`<${PROFILE_TAG}>([\\s\\S]*?)<\\/${PROFILE_TAG}>`, 'i'));
-    if (tagged && tagged[1]) return stripYamlFence(tagged[1]);
-    const fenced = raw.match(/```ya?ml\s*([\s\S]*?)```/i);
-    if (fenced && fenced[1]) return String(fenced[1]).trim();
-    const dashes = raw.indexOf('---');
-    if (dashes >= 0) return raw.slice(dashes).trim();
-    return '';
+    if (!raw) throw new Error('API 返回为空。');
+    const tagged = raw.match(new RegExp(`^\\s*<${PROFILE_TAG}>([\\s\\S]*?)<\\/${PROFILE_TAG}>\\s*$`, 'i'));
+    if (!tagged || !tagged[1]) {
+      throw new Error(`格式解析失败：缺少完整的 <${PROFILE_TAG}>...</${PROFILE_TAG}> 标签。返回开头：${responseExcerpt(raw)}`);
+    }
+    const body = tagged[1].trim();
+    const fenced = body.match(/^```yaml\s*([\s\S]*?)```\s*$/i);
+    if (!fenced || !fenced[1]) {
+      throw new Error(`格式解析失败：标签内部不是完整的 \`\`\`yaml 代码块。标签内容开头：${responseExcerpt(body)}`);
+    }
+    const yaml = String(fenced[1]).trim();
+    if (!yaml.startsWith('---')) throw new Error('格式解析失败：YAML 正文必须以 --- 开头。');
+    if (!/^角色详情\s*:/m.test(yaml)) throw new Error('格式解析失败：YAML 缺少顶层“角色详情:”字段。');
+    if (/^\s*current_state\s*:/m.test(yaml)) throw new Error('内容校验失败：角色档案含 current_state 运行态字段。');
+    if (/(待补充|住处待定|稍后补充|TODO|TBD|以MVU动态数据为准)/i.test(yaml)) {
+      throw new Error('内容校验失败：角色档案仍含占位文本或 MVU 系统说明。');
+    }
+    return yaml;
   };
 
   const normalizeAiResult = (result) => {
     if (typeof result === 'string') return result;
-    if (Array.isArray(result)) return result.map(normalizeAiResult).filter(Boolean).join('\n');
-    if (result && typeof result === 'object') {
-      return String(result.content || result.text || result.message || result.result || '');
+    if (Array.isArray(result)) {
+      if (!result.length) throw new Error('API 返回了空数组。');
+      return result.map(normalizeAiResult).filter(Boolean).join('\n');
     }
-    return String(result == null ? '' : result);
+    if (result && typeof result === 'object') {
+      const value = result.content ?? result.text ?? result.message ?? result.result;
+      if (value != null && value !== '') return String(value);
+      throw new Error('API 返回对象格式未识别；可用字段只有：' + Object.keys(result).join(', '));
+    }
+    if (result == null) throw new Error('API 没有返回结果。');
+    return String(result);
   };
 
   /* 近期剧情参考：开局时通常没有聊天记录，所以这一段经常是空的，空了就不加。
@@ -650,7 +664,7 @@
         姓名: d.name || '',
         主播网名: d.handle || '',
         年龄: d.age || '',
-        住所: d.home || '未设置',
+        初始住所_仅供生活背景参考: d.home || '未设置',
         直播分类: d.categories || ['杂谈'],
         常用直播时间: d.hours || '不固定',
         气质关键词: d.tone || '无',
@@ -669,12 +683,13 @@
 
 要求：
 1. 严格参考后面的格式示例，保持同样的层级组织、字段风格和信息密度。
-2. 「玩家已确定的设定」里的每一项都是既定事实，必须原样落进 YAML 的对应位置，不许改写、不许省略。数字照抄。
-3. 其余部分在不与既定事实冲突的前提下合理补完：她要有自己的工作、住处、人际关系和判断，不是围绕玩家存在的角色。
-4. 打赏、关注、牌子等级只代表观众花过钱和看得久，不能写成能换取私人关系或好感。
-5. 「仅供参考的体量」只用来给笔调定调，绝对不要把粉丝数、热度、大航海人数、牌子名这类数字写进 YAML——它们是会变的运行时数值，另有去处。
-6. 输出中文内容，保留 YAML 结构。不要写解释、前言、后记、分析过程。
-7. 最终只允许输出被指定标签包裹的 YAML。
+2. 姓名、主播网名、年龄、直播分类、常用直播时间、气质关键词和玩家素材都是既定事实，必须落实到对应的人设内容中，不许省略。
+3. 初始住所只用于理解她的生活条件，不要生成 current_state、当前所在位置、直播开关、好感、生理状态等运行态字段，也不要写“以MVU为准”一类系统说明。
+4. 必须把身份、私人动机、人际关系、外貌、服装、爱好、特长、说话方式、行为倾向和内在矛盾补成可直接扮演的具体内容；不得出现“待补充”“待定”“以立绘为准”等占位文本。
+5. 她要有自己的工作、生活、人际关系和判断，不是围绕玩家存在的角色。打赏、关注、牌子等级不能换取私人关系或好感。
+6. 「仅供参考的体量」只用来给笔调定调，不要把粉丝数、热度、大航海人数、牌子名这类运行时数字写进 YAML。
+7. 输出中文内容，保持示例的 YAML 层级。不要写解释、前言、后记、分析过程。
+8. 最终只允许输出被指定标签包裹的 YAML；标签内部必须是完整的 \`\`\`yaml 代码块，YAML 必须以 --- 开头。
 
 最终输出格式必须严格如下：
 <${PROFILE_TAG}>
@@ -698,18 +713,23 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
     const helper = getHelper();
     if (!helper || typeof helper.generateRaw !== 'function') throw new Error('TavernHelper.generateRaw 不可用');
     const prompt = buildStreamerProfilePrompt(input);
-    const result = await helper.generateRaw({
-      ordered_prompts: [{ role: 'user', content: prompt }],
-      max_chat_history: 25,
-      should_stream: false,
-      overrides: {
-        world_info_before: '',
-        world_info_after: '',
-        chat_history: { with_depth_entries: false },
-      },
-    });
-    const yaml = extractProfileYaml(normalizeAiResult(result));
-    if (!yaml) throw new Error('模型没有返回可用的 YAML');
+    let result;
+    try {
+      result = await helper.generateRaw({
+        ordered_prompts: [{ role: 'user', content: prompt }],
+        max_chat_history: 25,
+        should_stream: false,
+        overrides: {
+          world_info_before: '',
+          world_info_after: '',
+          chat_history: { with_depth_entries: false },
+        },
+      });
+    } catch (error) {
+      throw new Error('人设生成 API 调用失败：' + (error && error.message ? error.message : String(error)));
+    }
+    const raw = normalizeAiResult(result);
+    const yaml = extractProfileYaml(raw);
     return { yaml };
   };
 
@@ -983,11 +1003,11 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
       say('保存时遇到一点问题，请稍后再试。', 'warn');
       return;
     }
-    /* 自定义主播的封面存 localStorage，不进 MVU：图片地址（尤其本地上传的 data: URI）
-       太占地方。键沿用 正文美化.html 自定义角色那套前缀，直播间卡片直接读得到。
-       有插画的七位不走这条路——她们的封面是随机取一张 SFW 通用图。 */
+    /* 本地上传图只保存在当前浏览器的 localStorage；网络图片 URL 会由 opening.js
+       写入直播间配置。这样本地 base64 不会进入 MVU。 */
     const coverNote = stashCustomCover(payload);
     if (coverNote) notes.push(coverNote);
+    try { const core = getCoreWindow(); core?.dispatchEvent?.(new core.CustomEvent('linjiang:opening-committed')); } catch (e) {}
 
     const oshi = (payload && Array.isArray(payload.oshi)) ? payload.oshi : [];
     if (oshi.length) {
@@ -1030,10 +1050,11 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
         event.source.postMessage(Object.assign({ ok: true, payload }, reply), event.origin);
         say('她的故事已经准备好了。', 'ok');
       } catch (error) {
+        console.error('[临江开局] 自定义主播人设生成失败', error);
         event.source.postMessage(Object.assign({
           ok: false, error: error && error.message ? error.message : String(error),
         }, reply), event.origin);
-        say('灵感暂时走神了，已为她准备一份基础故事。', 'warn');
+        say('人设生成失败：' + (error && error.message ? error.message : String(error)), 'warn');
       }
       return;
     }

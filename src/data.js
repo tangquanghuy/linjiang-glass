@@ -779,11 +779,15 @@ function createCharacterDetail(c, index) {
 /* The card shows name, romaji, the favour number, a mood chip and 异常状态.
    Deriving it here rather than duplicating it keeps one favour value in the file, so
    the card and the dock cannot disagree. */
-export const girls = roster.map(createGirlView);
+/* Standalone preview keeps the authored sample.  Embedded HUDs start with an empty
+   rail and wait for the first authoritative MVU snapshot, so the user never sees a
+   false fixed-only roster before custom streamers arrive. */
+const useSampleRoster = typeof window === 'undefined' || window.parent === window;
+export const girls = useSampleRoster ? roster.map(createGirlView) : [];
 
-export const characterDetails = Object.fromEntries(
-  roster.map((c, index) => [c.name, createCharacterDetail(c, index)]),
-);
+export const characterDetails = useSampleRoster
+  ? Object.fromEntries(roster.map((c, index) => [c.name, createCharacterDetail(c, index)]))
+  : {};
 
 /** 主角档案用：合同、是否到岗、今日是否已上班。点地图不等于上班。 */
 export function workState() {
@@ -1466,7 +1470,7 @@ function scheduleFromRoom(room, fallback = null) {
 
 function createDynamicCharacter(name, room, ui) {
   const theme = customTheme(name);
-  const coverArt = pickNamed(ui?.characterCovers, name);
+  const coverArt = room?.封面 || pickNamed(ui?.characterCovers, name);
   const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, name);
   const c = {
     name,
@@ -1493,7 +1497,7 @@ function syncDynamicPresentation(c, room, ui) {
   if (!c.custom) return;
   const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, c.name);
   if (handle != null && String(handle).trim()) c.romaji = asStr(handle, c.romaji || 'CUSTOM');
-  const coverArt = pickNamed(ui?.characterCovers, c.name);
+  const coverArt = room?.封面 || pickNamed(ui?.characterCovers, c.name);
   c.art = safeCharacterArt(coverArt, c.art || placeholderCharacterArt(c.name, c.theme));
   c.stream.schedule = scheduleFromRoom(room, c.stream.schedule);
 }

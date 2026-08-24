@@ -1251,3 +1251,9 @@ body.compact-step .custom-opening textarea{min-height:60px}
   body.confirm-step .footer-actions{display:grid;width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   body.confirm-step .footer-actions button{min-height:48px}
 }
+
+/* Streamer profile generation status: keep API/parse failures visible instead of replacing them. */
+.generate-row #generate-status{min-width:0;line-height:1.55;overflow-wrap:anywhere}
+.generate-row #generate-status.working{color:#b9d8ff}
+.generate-row #generate-status.ok{color:#9fe2c5}
+.generate-row #generate-status.error{flex:1 1 100%;padding:9px 11px;border:1px solid rgba(255,118,146,.34);border-radius:10px;color:#ffb4c4;background:rgba(106,18,46,.22);font-size:12px;white-space:pre-wrap}

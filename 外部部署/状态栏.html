@@ -109,22 +109,35 @@
     return finalData;
   };
 
-  /* 自定义主播本身由 MVU 对象信息决定；封面仍留在同源 localStorage，避免把
-     data URI 塞进变量。快照把这层纯 UI 资料一起带给跨域 HUD。 */
+  /* 网络图片 URL 可以随 MVU 保存；本地上传图只留在同源 localStorage，避免
+     base64 膨胀每条消息的 stat_data。无痕窗口只会看到 MVU 中的网络 URL。 */
   const HUD_COVER_PREFIX = 'custom_char_cover_';
+  const validRemoteCover = (value) => {
+    const src = String(value || '').trim();
+    return /^https?:\/\//i.test(src) ? src : '';
+  };
+  const validLocalCover = (value) => {
+    const src = String(value || '').trim();
+    return /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(src) || /^https?:\/\//i.test(src) ? src : '';
+  };
   const readHudUi = (stat) => {
     const characterCovers = {};
     const names = Object.keys((stat && stat.对象信息) || {});
+    const rooms = stat?.系统配置?.直播间 || {};
     try {
       const core = getCoreWindow();
       const storage = core.localStorage || localStorage;
       names.forEach((name) => {
-        const src = String(storage.getItem(HUD_COVER_PREFIX + name) || '').trim();
-        if (/^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(src) || /^https?:\/\//i.test(src)) {
-          characterCovers[name] = src;
-        }
+        const src = validRemoteCover(rooms?.[name]?.封面)
+          || validLocalCover(storage.getItem(HUD_COVER_PREFIX + name));
+        if (src) characterCovers[name] = src;
       });
-    } catch (e) {}
+    } catch (e) {
+      names.forEach((name) => {
+        const src = validRemoteCover(rooms?.[name]?.封面);
+        if (src) characterCovers[name] = src;
+      });
+    }
     return { characterCovers };
   };
 
@@ -1058,6 +1071,7 @@
           core?.eventSource?.on?.('mvu_data_updated', () => this.owner?.pushSnapshot(false));
           core?.eventSource?.on?.('chatUpdated', () => this.owner?.requestFollow());
           core?.eventSource?.on?.('chatLoaded', () => this.switchContext(chatKey()));
+          core?.addEventListener?.('linjiang:opening-committed', () => this.owner?.pushSnapshot(true));
         } catch (e) {}
         try {
           if (typeof core?.eventOn === 'function' && core?.Mvu?.events?.VARIABLE_UPDATE_ENDED) {
@@ -1752,7 +1766,7 @@
       else url.searchParams.set('fit', 'body');
       if (isTauriTavernMobile()) url.searchParams.set('host', 'tauritavern-mobile');
       else url.searchParams.delete('host');
-      url.searchParams.set('v', 'body29-tt-mobile-pages');
+      url.searchParams.set('v', 'body31-local-cover-cache');
       return url.toString();
     } catch (e) {
       return HUD_URL;
