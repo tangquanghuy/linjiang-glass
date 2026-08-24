@@ -147,28 +147,38 @@ console.log(`  ${'-'.repeat(112)}`);
   const preset = { ...base, vw: 1001, vh: 1400, mobile: true, touch: true };
   const page = await openPreset(preset, { tauriMobile: true });
   const initial = await page.evaluate(() => {
-    const hud = window.__linjiangTavernReal.liveHud();
+    const hud = document.getElementById('linjiang-hud-live');
+    const sheld = document.getElementById('sheld').getBoundingClientRect();
+    const chat = document.getElementById('chat').getBoundingClientRect();
+    const message = window.__linjiangTavernReal.statusFrame.closest('.mes').getBoundingClientRect();
     return {
       portrait: getComputedStyle(hud.contentDocument.querySelector('.pstage')).display !== 'none',
       host: new URL(hud.src).searchParams.get('host'),
       performance: hud.contentDocument.documentElement.dataset.hudPerformance,
-      inline: !document.getElementById('linjiang-hud-live'),
+      topLevel: hud.parentElement === document.body,
+      layout: {
+        sheldCenterError: (sheld.left + sheld.right) / 2 - innerWidth / 2,
+        sheldWidth: sheld.width,
+        chatWidth: chat.width,
+        messageWidth: message.width,
+      },
     };
   });
   check('tt-mobile-wide', initial.portrait, 'wide portrait Tauri host selected landscape HUD');
-  check('tt-mobile-wide', initial.inline, 'Tauri mobile HUD was detached from its message iframe');
   check('tt-mobile-wide', initial.host === 'tauritavern-mobile', `host query ${initial.host}`);
-  check('tt-mobile-wide', initial.performance === 'auto', `performance mode ${initial.performance}`);
+  check('tt-mobile-wide', initial.performance === 'low', `performance mode ${initial.performance}`);
+  check('tt-mobile-layer', initial.topLevel, 'HUD was not mounted in the tavern body');
+  const layoutStable = Math.abs(initial.layout.sheldCenterError) <= 1
+    && Math.abs(initial.layout.sheldWidth - initial.layout.chatWidth) <= 2
+    && initial.layout.messageWidth <= initial.layout.chatWidth + 1;
+  check('tt-mobile-layout', layoutStable, JSON.stringify(initial.layout));
 
-  const statusElement = await page.locator('.fixture-status-message .TH-render > iframe').first().elementHandle();
-  const statusFrame = await statusElement.contentFrame();
-  const hudElement = await statusFrame.locator('#hud').elementHandle();
-  const hud = await hudElement.contentFrame();
+  const hud = page.frameLocator('#linjiang-hud-live');
   await hud.locator('.pbtn-ghost[data-page="profile"]').click();
   await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
   await page.waitForTimeout(250);
   const opened = await page.evaluate(() => {
-    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
     return {
       x: frame.x, y: frame.y, width: frame.width, height: frame.height,
       viewportWidth: innerWidth, viewportHeight: innerHeight,
@@ -183,80 +193,78 @@ console.log(`  ${'-'.repeat(112)}`);
   await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
   await page.waitForTimeout(250);
   const closed = await page.evaluate(() => {
-    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
     return { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
   });
   const restored = closed.width < opened.viewportWidth - 20 && closed.y > 1;
   check('tt-mobile-page-close', restored, JSON.stringify(closed));
 
-  /* The global dock setting must have a visible mobile effect now: embedded uses
-     the message slot width, page mode breaks out to the portrait column width. */
   await hud.locator('[data-page="settings"]').last().click();
   await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
   await hud.locator('[data-pref-set="dockDefault"][data-pref-value="embedded"]').click();
   await hud.locator('[data-page-close]').first().click();
   await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
   await page.waitForTimeout(250);
-  const embedded = await page.evaluate(() => {
-    const frame = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
-    const host = window.__linjiangTavernReal.statusFrame.parentElement.getBoundingClientRect();
-    return { width: frame.width, hostWidth: host.width, x: frame.x };
+  const compact = await page.evaluate(() => {
+    const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    return { slotWidth: slot.width, hudWidth: frame.width };
   });
-  const embeddedApplied = Math.abs(embedded.width - embedded.hostWidth) <= 2;
-  check('tt-mobile-dock-embedded', embeddedApplied, JSON.stringify(embedded));
+  const compactApplied = Math.abs(compact.slotWidth - compact.hudWidth) <= 2;
+  check('tt-mobile-dock-embedded', compactApplied, JSON.stringify(compact));
 
-  /* Restore the fixture preference so later desktop checks remain deterministic. */
-  await hud.locator('[data-page="settings"]').last().click();
-  await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
-  await hud.locator('[data-pref-set="dockDefault"][data-pref-value="page"]').click();
-  await hud.locator('[data-page-close]').first().click();
-  await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
-
-  /* Emulate TauriTavern auto/mobile-safe parking without importing or modifying
-     its runtime manager. The entire outer iframe may reload during the DOM move;
-     after restoration the card must rebuild inline, never leave a body overlay. */
   await page.evaluate(() => {
     const frame = window.__linjiangTavernReal.statusFrame;
     window.__linjiangParkingProbe = { parent: frame.parentNode, next: frame.nextSibling };
     const lot = document.createElement('div');
-    lot.id = 'linjiang-parking-probe';
+    lot.id = 'tt-embedded-runtime-iframe-parking-lot';
     lot.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;';
     document.body.append(lot);
     lot.append(frame);
   });
-  await page.waitForTimeout(180);
+  await page.waitForTimeout(250);
+  const parked = await page.evaluate(() => {
+    const hud = document.getElementById('linjiang-hud-live');
+    const style = getComputedStyle(hud);
+    return { visibility: style.visibility, pointerEvents: style.pointerEvents };
+  });
+  const hiddenWhileParked = parked.visibility === 'hidden' && parked.pointerEvents === 'none';
+  check('tt-mobile-parking-hide', hiddenWhileParked, JSON.stringify(parked));
+
   await page.evaluate(() => {
     const frame = window.__linjiangTavernReal.statusFrame;
     const { parent, next } = window.__linjiangParkingProbe;
     if (next?.parentNode === parent) parent.insertBefore(frame, next);
     else parent.append(frame);
-    document.getElementById('linjiang-parking-probe')?.remove();
+    document.getElementById('tt-embedded-runtime-iframe-parking-lot')?.remove();
   });
-  await page.waitForFunction(async () => {
-    try {
-      const result = await window.__linjiangTavernReal.waitUntilReady(100);
-      return result.liveHudCount === 1 && !document.getElementById('linjiang-hud-live')
-        && Math.abs(result.alignment || 0) <= 1;
-    } catch { return false; }
+  await page.waitForFunction(() => {
+    const hud = document.getElementById('linjiang-hud-live');
+    const slot = window.__linjiangTavernReal.statusFrame;
+    if (!hud || !slot?.closest('#chat')) return false;
+    const style = getComputedStyle(hud);
+    return style.visibility === 'visible'
+      && Math.abs(hud.getBoundingClientRect().top - slot.getBoundingClientRect().top) <= 1;
   }, { timeout: 10000 });
-  const parked = await page.evaluate(() => {
-    const result = window.__linjiangTavernReal.measure();
-    return {
-      liveHudCount: result.liveHudCount,
-      alignment: result.alignment,
-      inline: !document.getElementById('linjiang-hud-live')
-        && !!window.__linjiangTavernReal.statusFrame.contentDocument?.getElementById('hud'),
-    };
+  const recovered = await page.evaluate(() => {
+    const hud = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+    return { alignment: hud.top - slot.top, count: document.querySelectorAll('#linjiang-hud-live').length };
   });
-  const parkingRecovered = parked.inline && parked.liveHudCount === 1 && Math.abs(parked.alignment) <= 1;
-  check('tt-mobile-runtime-parking', parkingRecovered, JSON.stringify(parked));
+  const parkingRecovered = Math.abs(recovered.alignment) <= 1 && recovered.count === 1;
+  check('tt-mobile-parking-restore', parkingRecovered, JSON.stringify(recovered));
 
-  console.log(`  ${initial.portrait && initial.performance === 'auto' && fillsViewport && restored && embeddedApplied && parkingRecovered ? 'ok  ' : 'FAIL'}  `
-    + `wide portrait=${initial.portrait} perf=${initial.performance} page `
+  const restoredHud = page.frameLocator('#linjiang-hud-live');
+  await restoredHud.locator('[data-page="settings"]').last().click();
+  await restoredHud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
+  await restoredHud.locator('[data-pref-set="dockDefault"][data-pref-value="page"]').click();
+  await restoredHud.locator('[data-page-close]').first().click();
+  await restoredHud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
+
+  console.log(`  ${initial.portrait && initial.performance === 'low' && initial.topLevel && layoutStable && fillsViewport && restored && compactApplied && hiddenWhileParked && parkingRecovered ? 'ok  ' : 'FAIL'}  `
+    + `layout center=${initial.layout.sheldCenterError.toFixed(1)} page `
     + `${Math.round(opened.width)}x${Math.round(opened.height)} of ${opened.viewportWidth}x${opened.viewportHeight}, `
-    + `restored ${Math.round(closed.width)}x${Math.round(closed.height)} @ ${Math.round(closed.y)}, `
-    + `embedded ${Math.round(embedded.width)}/${Math.round(embedded.hostWidth)}, `
-    + `parking inline=${parked.inline} align=${parked.alignment}`);
+    + `compact ${Math.round(compact.hudWidth)}/${Math.round(compact.slotWidth)}, parking ${parked.visibility}->${recovered.alignment}`);
   await page.close();
 }
 

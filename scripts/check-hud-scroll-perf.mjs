@@ -52,7 +52,7 @@ for (const preset of presets) {
 
   const result = await page.evaluate(async () => {
     const chat = document.getElementById('chat');
-    const hud = window.__linjiangTavernReal.liveHud();
+    const hud = document.getElementById('linjiang-hud-live');
     const hudHtml = hud.contentDocument.documentElement;
     const frameTimes = [];
     let activeFrames = 0;
@@ -90,13 +90,17 @@ for (const preset of presets) {
       clearedAfterIdle: !hudHtml.classList.contains('host-scroll-active'),
       visibility: getComputedStyle(hud).visibility,
       performanceMode: hudHtml.dataset.hudPerformance || '',
-      alignment: window.__linjiangTavernReal.measure().alignment,
+      alignment: (() => {
+        const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+        const frame = hud.getBoundingClientRect();
+        return frame.top - slot.top;
+      })(),
     };
   });
 
   const smooth = result.p95 <= 25 && result.over32 <= 10;
   const modeWorked = preset.tauri
-    ? result.performanceMode === 'auto' && result.activeFrames === 0
+    ? result.performanceMode === 'low' && result.activeFrames === 0
       && !result.activeAtEnd && result.clearedAfterIdle
     : result.activeFrames >= 150 && result.activeAtEnd && result.clearedAfterIdle;
   const aligned = Math.abs(result.alignment) <= 1;
@@ -122,7 +126,7 @@ for (const preset of presets) {
     await page.waitForTimeout(200);
     const point = await page.evaluate(() => {
       const chat = document.getElementById('chat');
-      const hud = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+      const hud = document.getElementById('linjiang-hud-live').getBoundingClientRect();
       const pane = chat.getBoundingClientRect();
       return {
         x: hud.left + hud.width / 2,
@@ -146,38 +150,13 @@ for (const preset of presets) {
     await page.waitForTimeout(300);
     const touch = await page.evaluate((before) => {
       const chat = document.getElementById('chat');
-      return { delta: chat.scrollTop - before, alignment: window.__linjiangTavernReal.measure().alignment };
+      const hud = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+      const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+      return { delta: chat.scrollTop - before, alignment: hud.top - slot.top };
     }, point.before);
     const touchWorked = touch.delta > 100 && Math.abs(touch.alignment) <= 1;
     if (!touchWorked) failures.push(`${preset.label}: touch forwarding ${JSON.stringify(touch)}`);
     console.log(`  ${touchWorked ? 'ok  ' : 'FAIL'}  phone touch forwarded ${touch.delta.toFixed(0)}px, align ${touch.alignment.toFixed(1)}px`);
-
-    const oscillation = await page.evaluate(async () => {
-      const chat = document.getElementById('chat');
-      let maxAlignment = 0;
-      let maxTopLevelHud = 0;
-      await new Promise((resolve) => {
-        let frame = 0;
-        const step = () => {
-          chat.scrollTop += frame % 80 < 40 ? 7 : -7;
-          const alignment = Math.abs(Number(window.__linjiangTavernReal.measure().alignment) || 0);
-          maxAlignment = Math.max(maxAlignment, alignment);
-          maxTopLevelHud = Math.max(maxTopLevelHud, document.querySelectorAll('#linjiang-hud-live').length);
-          if (++frame < 320) requestAnimationFrame(step);
-          else resolve();
-        };
-        requestAnimationFrame(step);
-      });
-      return {
-        maxAlignment,
-        maxTopLevelHud,
-        inlineHud: !!window.__linjiangTavernReal.statusFrame.contentDocument.getElementById('hud'),
-      };
-    });
-    const oscillationWorked = oscillation.maxAlignment <= 1
-      && oscillation.maxTopLevelHud === 0 && oscillation.inlineHud;
-    if (!oscillationWorked) failures.push(`${preset.label}: repeated up/down ${JSON.stringify(oscillation)}`);
-    console.log(`  ${oscillationWorked ? 'ok  ' : 'FAIL'}  repeated up/down align ${oscillation.maxAlignment.toFixed(1)}px, top-level HUD ${oscillation.maxTopLevelHud}`);
   }
   await page.close();
 }

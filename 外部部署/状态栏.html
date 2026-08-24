@@ -901,8 +901,6 @@
      那两颗浮层钮住在酒馆顶层文档、层级压过 HUD 内部的一切，不收起来就挡着覆盖层自己的
      关闭钮。竖屏走的是 portraitPageOpen，那条路早就在做同一件事。 */
   let overlayOpen = false;
-  let inlinePagePlaceholder = null;
-  let inlineMessage = null;
   let slotObserver = null;
   let frameObserver = null;
   let active = false;
@@ -1034,8 +1032,7 @@
         this.owner = next;
         try { previous?.deactivate('superseded'); } catch (e) {}
         if (next) {
-          /* The controller chooses the frame document. Desktop uses the shared
-             top-level frame; Tauri mobile keeps it inside the managed JSR iframe. */
+          this.ensureHudFrame();
           try { next.activate(this.context()); } catch (e) { console.warn('[?????] ????', e); }
         } else if (this.hudFrame) {
           this.hudFrame.style.visibility = 'hidden';
@@ -1129,8 +1126,24 @@
 
   const isDesktop = () => !portraitHud() && tavernSize().w >= DESKTOP_MIN;
 
+  const anchorInReadingPane = (frame) => {
+    if (!frame) return false;
+    try {
+      const tavern = tavernWin();
+      const chat = tavern.document.getElementById('chat');
+      if (!chat) return true;
+      return frame.ownerDocument === tavern.document && chat.contains(frame);
+    } catch (e) {
+      return false;
+    }
+  };
+
   const isSafeOuterFrame = (frame) => {
     if (!frame) return false;
+    /* TT auto/mobile-safe may move a JSR iframe into its 0x0 parking lot. The
+       detached HUD must stop following it immediately; otherwise that parking
+       rect is mistaken for a viewport/page anchor and the HUD covers the app. */
+    if (isTauriTavernMobile() && !anchorInReadingPane(frame)) return false;
     try {
       const inner = frame.contentDocument;
       if (inner && inner.querySelector('.reading-content, #sheld, #chat')) return false;
@@ -1215,74 +1228,6 @@
     apply('top', 'auto');
     apply('z-index', 'auto');
     apply('background', 'transparent');
-  };
-
-  const INLINE_HOST_STYLE_ID = 'linjiang-hud-inline-host-style';
-  const ensureInlineHostStyle = () => {
-    const doc = tavernWin().document;
-    let style = doc.getElementById(INLINE_HOST_STYLE_ID);
-    if (!style) {
-      style = doc.createElement('style');
-      style.id = INLINE_HOST_STYLE_ID;
-      (doc.head || doc.documentElement).appendChild(style);
-    }
-    style.textContent = [
-      '.mes[data-linjiang-hud-inline="1"],',
-      '.mes[data-linjiang-hud-inline="1"] .mes_block,',
-      '.mes[data-linjiang-hud-inline="1"] .mes_text,',
-      '.mes[data-linjiang-hud-inline="1"] .TH-render{overflow:visible!important;contain:none!important;}',
-      '.mes[data-linjiang-hud-inline="1"] .TH-render>iframe{max-width:none!important;}',
-    ].join('');
-  };
-
-  const markInlineHost = (frame, active) => {
-    try {
-      ensureInlineHostStyle();
-      const mes = frame?.closest?.('.mes');
-      if (inlineMessage && inlineMessage !== mes) delete inlineMessage.dataset.linjiangHudInline;
-      inlineMessage = active && mes ? mes : null;
-      if (mes) {
-        if (active) mes.dataset.linjiangHudInline = '1';
-        else delete mes.dataset.linjiangHudInline;
-      }
-      if (frame) {
-        frame.dataset.ttMobileSurface = 'none';
-      }
-    } catch (e) {}
-  };
-
-  const removeInlinePagePlaceholder = () => {
-    try { inlinePagePlaceholder?.remove(); } catch (e) {}
-    inlinePagePlaceholder = null;
-  };
-
-  const ensureInlinePagePlaceholder = (frame, height) => {
-    if (inlinePagePlaceholder?.isConnected) {
-      inlinePagePlaceholder.style.height = `${Math.max(1, Math.round(height))}px`;
-      return;
-    }
-    const placeholder = frame.ownerDocument.createElement('div');
-    placeholder.dataset.linjiangHudPagePlaceholder = '1';
-    placeholder.style.cssText = `display:block;width:100%;height:${Math.max(1, Math.round(height))}px;pointer-events:none;`;
-    frame.parentNode?.insertBefore(placeholder, frame);
-    inlinePagePlaceholder = placeholder;
-  };
-
-  const paintInlineHud = (scrolling = false) => {
-    parkHudInside();
-    hudFrame.style.cssText = [
-      'display:block',
-      'width:100%',
-      'height:100%',
-      'max-width:none',
-      'margin:0',
-      'border:0',
-      'background:#05040a',
-      'visibility:visible',
-      'pointer-events:auto',
-      'overflow:hidden',
-    ].join(';');
-    hudFrame.setAttribute('scrolling', scrolling ? 'yes' : 'no');
   };
 
   const FS_SIZE = 36;
@@ -1700,9 +1645,14 @@
   };
 
   const followHud = () => {
-    if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'inline'
-        || hudFrame._linjiangAlign === 'inline-page') return;
+    if (expanded || portraitPageOpen) return;
     const frame = window.frameElement;
+    if (isTauriTavernMobile() && !anchorInReadingPane(frame)) {
+      hudFrame.style.visibility = 'hidden';
+      hudFrame.style.pointerEvents = 'none';
+      try { hideChromeButtons(); } catch (e) {}
+      return;
+    }
     const box = hudFrame._linjiangBox;
     if (!frame || !box || hudFrame.parentNode !== tavernWin().document.body) return;
     if (hudFrame._linjiangAlign === 'page') return;
@@ -1721,6 +1671,28 @@
        恰恰必须留着缩小钮，否则没有任何入口能再展开回去。所以这里补放一次，
        并且只在 applySlotVisibility 判定 HUD 还看得见时补：滚出阅读区时保持藏起来。 */
     if (compacted && hudFrame.style.visibility !== 'hidden') placeFsButton();
+  };
+
+  const layoutPortraitCompact = () => {
+    const frame = window.frameElement;
+    if (!frame || !isSafeOuterFrame(frame)) return;
+    cleanupLeftovers();
+    const view = viewportPoint(frame);
+    const width = Math.max(120, Math.round(view.width || frame.getBoundingClientRect().width || 0));
+    const reported = Math.round(hudFrame._portraitRestH || 0);
+    const height = reported > 1 ? reported : Math.max(360, Math.round(width * 0.9));
+    const box = { width, height };
+    if (frame.dataset.linjiangH !== String(height)) {
+      setSpacer(frame, height);
+      frame.dataset.linjiangH = String(height);
+    }
+    const after = viewportPoint(frame);
+    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
+    paintHud(box, false);
+    hudFrame._linjiangAlign = 'slot';
+    moveHud(after, box);
+    hudFrame._linjiangBox = box;
+    try { hideChromeButtons(); } catch (e) {}
   };
 
   const layoutPortrait = () => {
@@ -1765,93 +1737,6 @@
 
   /* Same idea as 外置状态栏.js fusion-popup-overlay: pin to the visual
      viewport (100dvh), not to the reading column. */
-  const layoutTauriInline = () => {
-    const frame = window.frameElement;
-    if (!frame || !isSafeOuterFrame(frame)) return;
-    removeInlinePagePlaceholder();
-    markInlineHost(frame, true);
-    const tavern = tavernWin();
-    const parentRect = frame.parentElement?.getBoundingClientRect();
-    const naturalWidth = Math.max(120, Math.round(parentRect?.width || frame.offsetWidth || 0));
-    const view = viewportPoint(frame);
-    const expandedBox = portraitHudBox(view.vw, view.vh, naturalWidth);
-    const width = compacted ? naturalWidth : expandedBox.width;
-    const reported = Math.round(hudFrame._portraitRestH || 0);
-    const height = reported > 1 ? reported : expandedBox.height;
-    const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
-    frame.setAttribute('scrolling', 'no');
-    apply('position', 'relative');
-    apply('transform', 'none');
-    apply('width', `${Math.round(width)}px`);
-    apply('height', `${Math.round(height)}px`);
-    apply('min-height', '0');
-    apply('max-width', 'none');
-    apply('margin', '0');
-    apply('border', '0');
-    apply('display', 'block');
-    apply('visibility', 'visible');
-    apply('opacity', '1');
-    apply('pointer-events', 'auto');
-    apply('overflow', 'hidden');
-    apply('top', 'auto');
-    apply('right', 'auto');
-    apply('bottom', 'auto');
-    apply('left', '0px');
-    apply('z-index', 'auto');
-    apply('background', '#05040a');
-    const placed = frame.getBoundingClientRect();
-    const targetLeft = compacted
-      ? Number(parentRect?.left || placed.left)
-      : Math.max(PORTRAIT_GUTTER, Math.round((tavern.innerWidth - width) / 2));
-    apply('left', `${Math.round(targetLeft - placed.left)}px`);
-    frame.dataset.linjiangH = String(Math.round(height));
-    paintInlineHud(false);
-    hudFrame._linjiangAlign = 'inline';
-    hudFrame._linjiangBox = { width: Math.round(width), height: Math.round(height) };
-    unlockTavernScroll();
-    try { hideChromeButtons(); } catch (e) {}
-  };
-
-  const layoutTauriInlinePage = () => {
-    const frame = window.frameElement;
-    if (!frame || !isSafeOuterFrame(frame)) return;
-    markInlineHost(frame, true);
-    const tavern = tavernWin();
-    const vv = tavern.visualViewport;
-    const left = Math.round((vv && vv.offsetLeft) || 0);
-    const top = Math.round((vv && vv.offsetTop) || 0);
-    const width = Math.round((vv && vv.width) || tavern.innerWidth || innerWidth);
-    const height = Math.round((vv && vv.height) || tavern.innerHeight || innerHeight);
-    const rest = Math.max(1, Math.round(hudFrame._portraitRestH || frame.dataset.linjiangH || 1));
-    ensureInlinePagePlaceholder(frame, rest);
-    const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
-    frame.setAttribute('scrolling', 'no');
-    apply('position', 'fixed');
-    apply('transform', 'none');
-    apply('left', `${left}px`);
-    apply('top', `${top}px`);
-    apply('right', 'auto');
-    apply('bottom', 'auto');
-    apply('width', `${width}px`);
-    apply('height', `${height}px`);
-    apply('min-height', '0');
-    apply('max-width', 'none');
-    apply('margin', '0');
-    apply('border', '0');
-    apply('display', 'block');
-    apply('visibility', 'visible');
-    apply('opacity', '1');
-    apply('pointer-events', 'auto');
-    apply('overflow', 'hidden');
-    apply('z-index', '2147483000');
-    apply('background', '#05040a');
-    paintInlineHud(true);
-    hudFrame._linjiangAlign = 'inline-page';
-    hudFrame._linjiangBox = { width, height };
-    lockTavernScroll();
-    try { hideChromeButtons(); } catch (e) {}
-  };
-
   const layoutPortraitPage = () => {
     const frame = window.frameElement;
     if (!frame || !isSafeOuterFrame(frame)) {
@@ -1876,20 +1761,9 @@
   };
 
   const applyPortraitHeight = (h) => {
-    if (portraitPageOpen || expanded || (!isTauriTavernMobile() && compacted) || !portraitHud()) return;
+    if (portraitPageOpen || expanded || !portraitHud()) return;
     const next = Math.max(1, Math.round(h));
     const box = hudFrame._linjiangBox;
-    if (isTauriTavernMobile() && hudFrame._linjiangAlign === 'inline') {
-      if (box?.height === next) return;
-      if (box) box.height = next;
-      hudFrame._linjiangBox = box || { width: window.frameElement?.offsetWidth || 0, height: next };
-      const frame = window.frameElement;
-      if (frame) {
-        frame.style.setProperty('height', `${next}px`, 'important');
-        frame.dataset.linjiangH = String(next);
-      }
-      return;
-    }
     if (box && hudFrame._linjiangAlign === 'slot' && hudFrame.parentNode === tavernWin().document.body) {
       if (box.height === next) return;
       box.height = next;
@@ -1927,26 +1801,6 @@
     placeFsButton();
   };
 
-  const selectHudRuntimeFrame = (inline) => {
-    if (inline) {
-      if (hudFrame !== localHudFrame) {
-        if (manager.hudFrame === hudFrame) manager.resetHudFrame();
-        else if (hudFrame) {
-          hudFrame.style.visibility = 'hidden';
-          hudFrame.style.pointerEvents = 'none';
-        }
-        hudFrame = localHudFrame;
-        manager.hudMode = '';
-      }
-      return;
-    }
-    if (hudFrame === localHudFrame) {
-      localHudFrame.style.display = 'none';
-      hudFrame = manager.ensureHudFrame();
-      manager.hudMode = '';
-    }
-  };
-
   const hudSrc = () => {
     try {
       const url = new URL(HUD_URL, location.href);
@@ -1956,7 +1810,7 @@
       else url.searchParams.set('fit', 'body');
       if (isTauriTavernMobile()) url.searchParams.set('host', 'tauritavern-mobile');
       else url.searchParams.delete('host');
-      url.searchParams.set('v', 'body32-inline-mobile-runtime');
+      url.searchParams.set('v', 'body33-tt-parking-guard');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -1981,12 +1835,11 @@
   const fitParentFrame = () => {
     if (!isOwner()) return;
     try {
-      const tauriInline = isTauriTavernMobile() && portraitHud() && !!window.frameElement;
-      selectHudRuntimeFrame(tauriInline);
-      if (tauriInline) {
-        if (expanded || portraitPageOpen) layoutTauriInlinePage();
-        else layoutTauriInline();
-        syncHudSrc();
+      const anchor = window.frameElement;
+      if (isTauriTavernMobile() && portraitHud() && !anchorInReadingPane(anchor)) {
+        hudFrame.style.visibility = 'hidden';
+        hudFrame.style.pointerEvents = 'none';
+        try { hideChromeButtons(); } catch (e) {}
         return;
       }
       ensureFsChrome();
@@ -1997,7 +1850,8 @@
         if (portraitPageOpen) layoutPortraitPage();
         else {
           unlockTavernScroll();
-          layoutPortrait();
+          if (compacted) layoutPortraitCompact();
+          else layoutPortrait();
         }
       }
       else layoutMobile();
@@ -2039,6 +1893,10 @@
     const activeNow = !!next;
     if (hostScrollActive === activeNow) return;
     hostScrollActive = activeNow;
+    /* Tauri mobile uses a permanently flat glass surface. Toggling a universal
+       backdrop-filter selector at gesture boundaries makes Android WebView
+       reallocate the iframe layer and appear to flash. */
+    if (isTauriTavernMobile()) return;
     postToHud({
       channel: CHANNEL,
       kind: 'event',
@@ -2055,8 +1913,7 @@
     if (Number.isFinite(top)) hudFrame.style.top = `${top - delta}px`;
   };
   const noteHostScroll = (event) => {
-    if (!isOwner() || hudFrame._linjiangAlign === 'inline'
-        || hudFrame._linjiangAlign === 'inline-page') return;
+    if (!isOwner()) return;
     const stamp = Number(event?.timeStamp);
     if (Number.isFinite(stamp) && stamp === lastScrollEventStamp) return;
     if (Number.isFinite(stamp)) lastScrollEventStamp = stamp;
@@ -2646,8 +2503,6 @@
     }
     clearHostListeners();
     removeOwnedChrome();
-    removeInlinePagePlaceholder();
-    markInlineHost(window.frameElement, false);
     if (hudFrame) {
       hudFrame.style.visibility = 'hidden';
       hudFrame.style.pointerEvents = 'none';
@@ -2718,29 +2573,14 @@
     }
     /* 新接手的 HUD 身上没有覆盖层；上一任留下的标记不能带过来，否则两颗钮再也不出现。 */
     overlayOpen = false;
-    if (isTauriTavernMobile() && portraitHud()) {
-      localHudFrame.dataset.linjiangManaged = '1';
-      localHudFrame.dataset.ttMobileSurface = 'none';
-      if (!localHudFrame.dataset.linjiangLoadBound) {
-        localHudFrame.dataset.linjiangLoadBound = '1';
-        localHudFrame.addEventListener('load', () => {
-          if (hudFrame === localHudFrame && manager.hudMode) postHudMode(manager.hudMode);
-        });
-      }
-      hudFrame = localHudFrame;
-      manager.hudMode = '';
-    } else {
-      hudFrame = manager.ensureHudFrame();
-    }
+    hudFrame = manager.ensureHudFrame();
     hudFrame.dataset.linjiangOwner = INSTANCE_ID;
     /* Repair a managed frame that survived a message-floor handover from an
        earlier controller before the mobile-surface opt-out was introduced. */
     hudFrame.dataset.ttMobileSurface = 'none';
     hudFrame.removeAttribute('data-tt-mobile-surface-admitted');
     hudFrame.style.removeProperty('--tt-original-top');
-    if (!(isTauriTavernMobile() && portraitHud())) {
-      try { localHudFrame.remove(); } catch (e) {}
-    }
+    try { localHudFrame.remove(); } catch (e) {}
     bindActiveRuntime();
     fitParentFrame();
     showHint('?? HUD / MVU?');
@@ -2765,7 +2605,8 @@
     const fe = window.frameElement;
     if (fe && fe.parentNode && typeof MutationObserver === 'function') {
       frameObserver = new MutationObserver(() => {
-        if (!fe.isConnected) uninstall();
+        if (!fe.isConnected) { uninstall(); return; }
+        if (isOwner()) fitParentFrame();
       });
       frameObserver.observe(fe.parentNode, { childList: true });
     }

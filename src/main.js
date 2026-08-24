@@ -170,8 +170,10 @@ function applyMode() {
   }
 }
 
+const hostNeedsFlatGlass = new URLSearchParams(location.search).get('host') === 'tauritavern-mobile';
 const applyPerformanceMode = () => {
-  document.documentElement.dataset.hudPerformance = pref('performanceMode') === 'low' ? 'low' : 'auto';
+  document.documentElement.dataset.hudPerformance = hostNeedsFlatGlass
+    || pref('performanceMode') === 'low' ? 'low' : 'auto';
 };
 applyPerformanceMode();
 
