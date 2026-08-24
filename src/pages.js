@@ -628,16 +628,13 @@ function profilePage() {
    are spent on use and carry a universal 强度 1~5, 用品 are durable and instead
    carry 佩戴 -- so the meta line differs per kind rather than being one field. */
 function itemCard(item, kind, selected = new Map()) {
-  const meta = kind === 'material' ? item.source
+  const meta = kind === 'material' ? '素材'
     : kind === 'consumable' ? `强度 ${item.potency} / 5`
-      : [item.rarity, item.worn ? '佩戴中' : '未佩戴'].filter(Boolean).join(' · ');
-  /* The same cell the drawer and the portrait rows use: category art, with the hue-derived
-     gem behind it as the drop-in fallback -- the <img> removes itself when the file is
-     absent.  This page used to draw only the gem, which meant the one place with room to
-     show an item properly was the one place not showing its art. */
+      : ['用品', item.rarity, item.worn ? '佩戴中' : '未佩戴'].filter(Boolean).join(' · ');
   const icon = itemIcon(kind, item);
   const key = `${kind}:${item.name}`;
   const payload = encodeURIComponent(JSON.stringify({ kind, name: item.name, quantity: item.quantity }));
+  const detailPayload = encodeURIComponent(JSON.stringify({ kind, name: item.name }));
   return `
     <article class="item-card b-${kind}${kind === 'goods' && item.worn ? ' is-worn' : ''}"
       style="--hue:${icon.hue}; --tilt:${icon.tilt}deg; --scale:${icon.scale}${
@@ -646,15 +643,57 @@ function itemCard(item, kind, selected = new Map()) {
         <input type="checkbox" data-inv-select="${payload}" ${selected.has(key) ? 'checked' : ''} aria-label="选择销毁 ${item.name}">
         <span></span>
       </label>
-      <div class="item-cell">
+      <button class="item-cell item-open" type="button" data-inv-detail="${detailPayload}"
+        aria-label="查看 ${item.name} 详情" aria-haspopup="dialog">
         ${itemIconTag(icon, 'item-icon')}
         <span class="item-gem ${kind}"></span>
         ${potencyNotches(kind === 'consumable' ? item.potency : 0)}
-      </div>
-      <div class="item-copy"><h3>${item.name}</h3><p>${item.description}</p><span>${icon.label} · ${meta}</span></div>
-      ${item.name === MAP_MARKER_ITEM ? '<button class="item-use" type="button" data-map-marker-use>使用</button>' : ''}
+      </button>
+      <div class="item-copy"><h3>${item.name}</h3><span>${icon.label} · ${meta}</span></div>
       <b>${kind === 'goods' ? (item.worn ? '装备' : `×${item.quantity}`) : `×${item.quantity}`}</b>
     </article>`;
+}
+
+function inventoryDetail(item, kind) {
+  const icon = itemIcon(kind, item);
+  const kindLabel = kind === 'material' ? '素材' : kind === 'consumable' ? '消耗品' : '用品';
+  const facts = [
+    ['分类', icon.label],
+    ['类型', kindLabel],
+    ['数量', `×${item.quantity}`],
+  ];
+  if (kind === 'material' && item.source) facts.push(['来源', item.source]);
+  if (kind === 'consumable') facts.push(['强度', `${item.potency} / 5`]);
+  if (kind === 'goods') {
+    if (item.rarity) facts.push(['稀有度', item.rarity]);
+    facts.push(['状态', item.worn ? '佩戴中' : '未佩戴']);
+  }
+  return `
+    <div class="inventory-detail-shade" data-inv-detail-close></div>
+    <section class="inventory-detail" role="dialog" aria-modal="true" aria-label="${item.name} 详情"
+      style="--hue:${icon.hue}; --tilt:${icon.tilt}deg; --scale:${icon.scale}${
+        kind === 'consumable' ? `; --potency:${item.potency}` : ''}">
+      <div class="sheet-frost"></div>
+      <div class="sheet-edge"></div>
+      <button class="inventory-detail-close" type="button" data-inv-detail-close aria-label="关闭详情">×</button>
+      <header class="inventory-detail-head">
+        <div class="item-cell inventory-detail-icon">
+          ${itemIconTag(icon, 'item-icon')}
+          <span class="item-gem ${kind}"></span>
+          ${potencyNotches(kind === 'consumable' ? item.potency : 0)}
+        </div>
+        <div><span>${kindLabel} · ${icon.label}</span><h3>${item.name}</h3></div>
+        <b>×${item.quantity}</b>
+      </header>
+      <div class="inventory-detail-body">
+        <dl>${facts.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
+        <section class="inventory-detail-copy">
+          <h4>道具说明</h4>
+          <p>${item.description || '暂无说明'}</p>
+          ${item.name === MAP_MARKER_ITEM ? '<button class="inventory-detail-use" type="button" data-map-marker-use>使用城市规划蓝图</button>' : ''}
+        </section>
+      </div>
+    </section>`;
 }
 
 /* 3×3 fills the sheet without scrolling: two rows left a hole, four overflowed
@@ -675,15 +714,8 @@ function inventoryBoard(leaf = 0, selected = new Map()) {
   const pages = Math.max(1, Math.ceil(all.length / INVENTORY_LEAF));
   const cur = Math.max(0, Math.min(leaf, pages - 1));
   const slice = all.slice(cur * INVENTORY_LEAF, (cur + 1) * INVENTORY_LEAF);
-  const groups = INVENTORY_KINDS
-    .map((def) => ({ ...def, items: slice.filter((row) => row.kind === def.kind).map((row) => row.item) }))
-    .filter((group) => group.items.length);
   const body = all.length
-    ? groups.map((group) => `
-        <section>
-          <header><h3>${group.title}</h3><span>${group.note}</span></header>
-          <div class="item-grid">${group.items.map((item) => itemCard(item, group.kind, selected)).join('')}</div>
-        </section>`).join('')
+    ? `<div class="item-grid">${slice.map(({ item, kind }) => itemCard(item, kind, selected)).join('')}</div>`
     : '<div class="inventory-empty">背包是空的</div>';
   const turns = pages > 1 ? `
     <button class="inventory-turn is-prev" type="button" data-inv-step="-1"
@@ -712,7 +744,7 @@ function inventoryPage(leaf = 0, selected = new Map(), notice = '') {
           <button type="button" class="inventory-destroy" data-inv-destroy ${selected.size ? '' : 'disabled'}>销毁选中</button>
           <em data-inv-status>${notice}</em>
         </div>
-        ${inventoryBoard(leaf, selected)}
+        <div class="inventory-pages">${inventoryBoard(leaf, selected)}</div>
       </div>
     </div>
   `, 'inventory-page');
@@ -769,7 +801,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   const sync = () => {
     const dock = has('.dock-root');
     const modal = has('.page-modal');
-    const sheet = has('.dev-sheet');
+    const sheet = has('.dev-sheet, .inventory-detail');
     layer.className = 'page-layer'
       + (dock || modal || overlayOpen() ? ' is-open' : '')
       + (modal ? ' has-modal' : '')
@@ -809,7 +841,9 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   const closeOverlays = () => { closeMap(); closeArcade(); closeCg(); closeShop(); };
 
   const closeNote = () => { drop('.dev-sheet, .dev-sheet-shade'); sync(); };
+  const closeInventoryDetail = () => { drop('.inventory-detail, .inventory-detail-shade'); sync(); };
   const closePage = () => {
+    closeInventoryDetail();
     closeNote();
     closeOverlays();
     drop('.page-shade, .page-modal');
@@ -830,6 +864,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
 
   const openOverlay = (mount, options = {}) => {
     onOverlay?.();
+    closeInventoryDetail();
     closeNote();
     drop('.page-shade, .page-modal');
     closeOverlays();
@@ -876,13 +911,17 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
   };
 
   const paintInventoryLeaf = (delta) => {
-    const board = layer.querySelector('.inventory-board');
-    if (!board) return;
+    const pagesHost = layer.querySelector('.inventory-pages');
+    if (!pagesHost) return;
     const pages = Math.max(1, Math.ceil(inventoryEntries().length / INVENTORY_LEAF));
     const next = Math.max(0, Math.min(pages - 1, inventoryLeaf + delta));
     if (next === inventoryLeaf) return;
     inventoryLeaf = next;
-    setSafeHTML(board.querySelector('.inventory-content') || board, inventoryBoard(inventoryLeaf, inventorySelection));
+    /* Replace the page host, not .inventory-content itself. Replacing the latter with
+       inventoryBoard() nested another scroller on every turn and left the old arrows
+       behind, which eventually made wheel scrolling and page navigation fight. */
+    setSafeHTML(pagesHost, inventoryBoard(inventoryLeaf, inventorySelection));
+    pagesHost.querySelector('.inventory-content')?.scrollTo({ top: 0 });
     updateInventorySelectionUI();
   };
 
@@ -978,6 +1017,21 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     insertSafeHTML(layer, 'beforeend', developmentNote(name, part));
   };
 
+  const openInventoryDetail = (trigger) => {
+    if (!has('.inventory-page')) return;
+    try {
+      const payload = JSON.parse(decodeURIComponent(trigger.dataset.invDetail || ''));
+      const row = inventoryEntries().find(({ item, kind }) => kind === payload.kind && item.name === payload.name);
+      if (!row) return;
+      drop('.inventory-detail, .inventory-detail-shade');
+      insertSafeHTML(layer, 'beforeend', inventoryDetail(row.item, row.kind));
+      sync();
+      requestAnimationFrame(() => layer.querySelector('.inventory-detail-close')?.focus());
+    } catch (err) {
+      console.warn('[inventory] detail parse failed', err);
+    }
+  };
+
   layer.addEventListener('click', (event) => {
     const gift = event.target.closest('[data-gift-open]');
     if (gift) { onGift?.(gift.dataset.giftOpen); return; }
@@ -985,6 +1039,10 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     if (applyPrefClick(event.target)) return;
     const page = event.target.closest('[data-page]');
     if (page) { open(page.dataset.page); return; }
+    const detailClose = event.target.closest('[data-inv-detail-close]');
+    if (detailClose) { closeInventoryDetail(); return; }
+    const detailOpen = event.target.closest('[data-inv-detail]');
+    if (detailOpen) { openInventoryDetail(detailOpen); return; }
     const invTurn = event.target.closest('[data-inv-step]');
     if (invTurn && !invTurn.disabled) {
       paintInventoryLeaf(Number(invTurn.dataset.invStep) || 0);
@@ -1063,13 +1121,14 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     stage.dataset.pageEscapeBound = '1';
     addEventListener('keydown', (event) => {
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        if (!has('.inventory-page')) return;
+        if (!has('.inventory-page') || has('.inventory-detail')) return;
         event.preventDefault();
         paintInventoryLeaf(event.key === 'ArrowLeft' ? -1 : 1);
         return;
       }
       if (event.key !== 'Escape') return;
-      if (has('.dev-sheet')) closeNote();
+      if (has('.inventory-detail')) closeInventoryDetail();
+      else if (has('.dev-sheet')) closeNote();
       else if (has('.page-modal') || overlayOpen()) closePage();
       else closeAll();
     });
