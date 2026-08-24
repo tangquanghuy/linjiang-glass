@@ -13,7 +13,7 @@ const errors = [];
 
 const presets = [
   { id: 'desktop-work', label: 'desktop', width: 1440, height: 900 },
-  { id: 'phone-iphone', label: 'phone', width: 390, height: 844, mobile: true },
+  { id: 'phone-iphone', label: 'phone', width: 390, height: 844, mobile: true, tauri: true },
 ];
 
 for (const preset of presets) {
@@ -23,6 +23,9 @@ for (const preset of presets) {
     isMobile: !!preset.mobile,
     hasTouch: !!preset.mobile,
   });
+  if (preset.tauri) {
+    await page.addInitScript(() => { window.__TAURITAVERN__ = { abiVersion: 1 }; });
+  }
   page.on('pageerror', (error) => errors.push(`${preset.label}: ${error.message}`));
   page.on('console', (message) => {
     if (message.type() === 'error' && !message.text().includes('favicon')) {
@@ -86,20 +89,75 @@ for (const preset of presets) {
       activeAtEnd,
       clearedAfterIdle: !hudHtml.classList.contains('host-scroll-active'),
       visibility: getComputedStyle(hud).visibility,
+      performanceMode: hudHtml.dataset.hudPerformance || '',
+      alignment: (() => {
+        const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+        const frame = hud.getBoundingClientRect();
+        return frame.top - slot.top;
+      })(),
     };
   });
 
   const smooth = result.p95 <= 25 && result.over32 <= 10;
-  const modeWorked = result.activeFrames >= 150 && result.activeAtEnd && result.clearedAfterIdle;
+  const modeWorked = preset.tauri
+    ? result.performanceMode === 'low' && result.activeFrames === 0
+      && !result.activeAtEnd && result.clearedAfterIdle
+    : result.activeFrames >= 150 && result.activeAtEnd && result.clearedAfterIdle;
+  const aligned = Math.abs(result.alignment) <= 1;
   if (!smooth) failures.push(`${preset.label}: p95=${result.p95.toFixed(1)}ms, >32ms=${result.over32}`);
   if (!modeWorked) failures.push(`${preset.label}: scroll mode ${JSON.stringify(result)}`);
   if (result.visibility !== 'visible') failures.push(`${preset.label}: HUD became ${result.visibility}`);
+  if (!aligned) failures.push(`${preset.label}: HUD/slot alignment ${result.alignment}px`);
 
   console.log(
-    `${smooth && modeWorked && result.visibility === 'visible' ? 'ok  ' : 'FAIL'}  `
+    `${smooth && modeWorked && aligned && result.visibility === 'visible' ? 'ok  ' : 'FAIL'}  `
     + `${preset.label.padEnd(8)} p50 ${result.p50.toFixed(1)}ms  p95 ${result.p95.toFixed(1)}ms  `
-    + `p99 ${result.p99.toFixed(1)}ms  >32ms ${result.over32}  active ${result.activeFrames}/179`,
+    + `p99 ${result.p99.toFixed(1)}ms  >32ms ${result.over32}  active ${result.activeFrames}/179 `
+    + `perf ${result.performanceMode} align ${result.alignment.toFixed(1)}`,
   );
+
+  if (preset.tauri) {
+    await page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+      const pane = chat.getBoundingClientRect();
+      chat.scrollTop = Math.max(0, chat.scrollTop + slot.top - pane.top - 30);
+    });
+    await page.waitForTimeout(200);
+    const point = await page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      const hud = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+      const pane = chat.getBoundingClientRect();
+      return {
+        x: hud.left + hud.width / 2,
+        y: Math.max(pane.top + 120, hud.top + 120),
+        before: chat.scrollTop,
+      };
+    });
+    const session = await page.context().newCDPSession(page);
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: point.x, y: point.y, id: 1, radiusX: 2, radiusY: 2, force: 1 }],
+    });
+    for (let index = 1; index <= 24; index += 1) {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: point.x, y: point.y - index * 7, id: 1, radiusX: 2, radiusY: 2, force: 1 }],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 16));
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(300);
+    const touch = await page.evaluate((before) => {
+      const chat = document.getElementById('chat');
+      const hud = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+      const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
+      return { delta: chat.scrollTop - before, alignment: hud.top - slot.top };
+    }, point.before);
+    const touchWorked = touch.delta > 100 && Math.abs(touch.alignment) <= 1;
+    if (!touchWorked) failures.push(`${preset.label}: touch forwarding ${JSON.stringify(touch)}`);
+    console.log(`  ${touchWorked ? 'ok  ' : 'FAIL'}  phone touch forwarded ${touch.delta.toFixed(0)}px, align ${touch.alignment.toFixed(1)}px`);
+  }
   await page.close();
 }
 

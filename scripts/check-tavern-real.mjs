@@ -42,6 +42,9 @@ async function openPreset(preset, extra = {}) {
     hasTouch: !!preset.touch,
     isMobile: !!preset.mobile,
   });
+  if (extra.tauriMobile) {
+    await page.addInitScript(() => { window.__TAURITAVERN__ = { abiVersion: 1 }; });
+  }
   await page.route('https://fonts.googleapis.com/**', (route) => route.fulfill({
     status: 200,
     contentType: 'text/css',
@@ -134,6 +137,56 @@ for (const preset of geometryPresets) {
   if (screenshotIds.has(preset.id)) {
     writeFileSync(`artifacts/tavern-real-${preset.id}.png`, await page.screenshot({ fullPage: false }));
   }
+  await page.close();
+}
+
+console.log('\n  TauriTavern mobile portrait contract');
+console.log(`  ${'-'.repeat(112)}`);
+{
+  const base = REAL_PRESETS.find((item) => item.id === 'tablet-portrait');
+  const preset = { ...base, vw: 1001, vh: 1400, mobile: true, touch: true };
+  const page = await openPreset(preset, { tauriMobile: true });
+  const initial = await page.evaluate(() => {
+    const hud = document.getElementById('linjiang-hud-live');
+    return {
+      portrait: getComputedStyle(hud.contentDocument.querySelector('.pstage')).display !== 'none',
+      host: new URL(hud.src).searchParams.get('host'),
+      performance: hud.contentDocument.documentElement.dataset.hudPerformance,
+    };
+  });
+  check('tt-mobile-wide', initial.portrait, 'wide portrait Tauri host selected landscape HUD');
+  check('tt-mobile-wide', initial.host === 'tauritavern-mobile', `host query ${initial.host}`);
+  check('tt-mobile-wide', initial.performance === 'low', `performance mode ${initial.performance}`);
+
+  const hud = page.frameLocator('#linjiang-hud-live');
+  await hud.locator('.pbtn-ghost[data-page="profile"]').click();
+  await hud.locator('.ppanel.is-page').waitFor({ timeout: 5000 });
+  await page.waitForTimeout(250);
+  const opened = await page.evaluate(() => {
+    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    return {
+      x: frame.x, y: frame.y, width: frame.width, height: frame.height,
+      viewportWidth: innerWidth, viewportHeight: innerHeight,
+    };
+  });
+  const fillsViewport = Math.abs(opened.x) <= 1 && Math.abs(opened.y) <= 1
+    && Math.abs(opened.width - opened.viewportWidth) <= 2
+    && Math.abs(opened.height - opened.viewportHeight) <= 2;
+  check('tt-mobile-page', fillsViewport, JSON.stringify(opened));
+  writeFileSync('artifacts/tavern-real-tt-mobile-page.png', await page.screenshot({ fullPage: false }));
+  await hud.locator('[data-page-close]').first().click();
+  await hud.locator('.ppanel.is-page').waitFor({ state: 'detached', timeout: 5000 });
+  await page.waitForTimeout(250);
+  const closed = await page.evaluate(() => {
+    const frame = document.getElementById('linjiang-hud-live').getBoundingClientRect();
+    return { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
+  });
+  const restored = closed.width < opened.viewportWidth - 20 && closed.y > 1;
+  check('tt-mobile-page-close', restored, JSON.stringify(closed));
+  console.log(`  ${initial.portrait && initial.performance === 'low' && fillsViewport && restored ? 'ok  ' : 'FAIL'}  `
+    + `wide portrait=${initial.portrait} perf=${initial.performance} page `
+    + `${Math.round(opened.width)}x${Math.round(opened.height)} of ${opened.viewportWidth}x${opened.viewportHeight}, `
+    + `restored ${Math.round(closed.width)}x${Math.round(closed.height)} @ ${Math.round(closed.y)}`);
   await page.close();
 }
 

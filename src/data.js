@@ -729,43 +729,61 @@ const roster = [
 export const NO_STATUS = '状态正常';
 
 export const statusOf = (statuses) => ({
-  abnormal: statuses.length > 0,
+  abnormal: Array.isArray(statuses) && statuses.length > 0,
   /* The card slot holds one entry.  蓝色花粉催情中 already uses seven of its eight
      characters, so a second concurrent status is counted rather than joined. */
-  text: statuses.length ? statuses[0] : NO_STATUS,
-  extra: Math.max(0, statuses.length - 1),
-  all: statuses,
+  text: Array.isArray(statuses) && statuses.length ? statuses[0] : NO_STATUS,
+  extra: Math.max(0, (Array.isArray(statuses) ? statuses.length : 0) - 1),
+  all: Array.isArray(statuses) ? statuses : [],
 });
+
+/* The seven authored characters still own their crop/theme defaults, but the active
+   roster comes from MVU 对象信息.  Custom streamers therefore enter the exact same
+   girls / characterDetails collections as the authored cast instead of being bolted
+   onto the main rail only. */
+const rosterByName = new Map(roster.map((c) => [c.name, c]));
+const authoredNames = new Set(rosterByName.keys());
+const CUSTOM_THEMES = ['rose', 'ice', 'violet', 'gold', 'crimson', 'scarlet', 'candy'];
+
+function createGirlView(c) {
+  return {
+    name: c.name,
+    romaji: c.romaji,
+    theme: c.theme,
+    ornament: c.ornament,
+    art: c.art || cover(c.coverName || c.name),
+    artFx: c.artFx, artFy: c.artFy, artZ: c.artZ, artOx: c.artOx, artTx: c.artTx, artTy: c.artTy,
+    metric: { icon: 'heart', label: '好感度', value: c.bond.favor, max: 1000 },
+    chip: { icon: 'smile', label: '心情', value: c.bond.mood },
+    status: statusOf(c.physiology.statuses),
+    live: !!c.stream?.live,
+    custom: !!c.custom,
+  };
+}
+
+function createCharacterDetail(c, index) {
+  return {
+    bond: c.bond,
+    physiology: c.physiology,
+    experience: c.experience,
+    development: c.development,
+    developmentNotes: c.developmentNotes || {},
+    location: c.location,
+    fan: c.fan,
+    stream: c.stream,
+    index,
+    custom: !!c.custom,
+  };
+}
 
 /* The card shows name, romaji, the favour number, a mood chip and 异常状态.
    Deriving it here rather than duplicating it keeps one favour value in the file, so
    the card and the dock cannot disagree. */
-export const girls = roster.map((c) => ({
-  name: c.name,
-  romaji: c.romaji,
-  theme: c.theme,
-  ornament: c.ornament,
-  art: cover(c.coverName || c.name),
-  artFx: c.artFx, artFy: c.artFy, artZ: c.artZ, artOx: c.artOx, artTx: c.artTx, artTy: c.artTy,
-  metric: { icon: 'heart', label: '好感度', value: c.bond.favor, max: 1000 },
-  chip: { icon: 'smile', label: '心情', value: c.bond.mood },
-  status: statusOf(c.physiology.statuses),
-  /* On the card because otherwise finding who is live means opening seven 速览.  It is
-     also the only card field that can change while nobody is looking at her. */
-  live: !!c.stream?.live,
-}));
+export const girls = roster.map(createGirlView);
 
-export const characterDetails = Object.fromEntries(roster.map((c, index) => [c.name, {
-  bond: c.bond,
-  physiology: c.physiology,
-  experience: c.experience,
-  development: c.development,
-  developmentNotes: {},
-  location: c.location,
-  fan: c.fan,
-  stream: c.stream,
-  index,
-}]));
+export const characterDetails = Object.fromEntries(
+  roster.map((c, index) => [c.name, createCharacterDetail(c, index)]),
+);
 
 /** 主角档案用：合同、是否到岗、今日是否已上班。点地图不等于上班。 */
 export function workState() {
@@ -1285,7 +1303,7 @@ const GIRL_NAME_ALIAS = {
 };
 
 const liveListeners = new Set();
-let lastStatJson = '';
+let lastSnapshotJson = '';
 
 export function onLive(fn) {
   liveListeners.add(fn);
@@ -1377,6 +1395,129 @@ function shortDate(full) {
   return match ? `${match[1]}月${match[2]}日` : asStr(full);
 }
 
+function stableHash(value) {
+  let hash = 2166136261;
+  for (const char of String(value || '')) {
+    hash ^= char.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function customTheme(name) {
+  return CUSTOM_THEMES[stableHash(name) % CUSTOM_THEMES.length];
+}
+
+function placeholderCharacterArt(name, theme = customTheme(name)) {
+  const palette = {
+    rose: ['#48152d', '#f45b9f'], ice: ['#123849', '#57d8ff'], violet: ['#291842', '#a879ff'],
+    gold: ['#453314', '#ffd56a'], crimson: ['#471522', '#ff5a73'], scarlet: ['#492115', '#ff8b52'],
+    candy: ['#173d36', '#61e0b4'],
+  }[theme] || ['#242438', '#9b82ff'];
+  const label = String(name || '主播');
+  const glyph = Array.from(label)[0] || '播';
+  const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient></defs>
+    <rect width="720" height="1080" fill="url(#g)"/><circle cx="360" cy="400" r="210" fill="rgba(255,255,255,.12)"/>
+    <text x="360" y="470" text-anchor="middle" font-size="250" font-family="sans-serif" fill="rgba(255,255,255,.88)">${glyph}</text>
+    <text x="360" y="840" text-anchor="middle" font-size="66" font-family="sans-serif" fill="white">${label}</text>
+    <text x="360" y="910" text-anchor="middle" font-size="30" letter-spacing="9" font-family="sans-serif" fill="rgba(255,255,255,.66)">STREAMER</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
+}
+
+function safeCharacterArt(value, fallback) {
+  const text = String(value || '').trim();
+  if (/^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(text)) return escapeMarkupText(text);
+  try {
+    const url = new URL(text);
+    if (url.protocol === 'https:' || url.protocol === 'http:') return escapeMarkupText(url.href);
+  } catch { /* fall through */ }
+  return fallback;
+}
+
+function emptyExperienceRecord() {
+  return Object.fromEntries(EXPERIENCE_FIELDS.map(([key]) => [key, 0]));
+}
+
+function emptyDevelopmentRecord() {
+  return Object.fromEntries(DEV_PARTS.map(([key]) => [key, 0]));
+}
+
+function scheduleFromRoom(room, fallback = null) {
+  const current = fallback || { start: '', end: '', days: [], note: '' };
+  const text = String(room?.档期 || room?.常用直播时间 || '').trim();
+  const match = text.match(/(\d{1,2}:\d{2})\s*(?:–|—|-|~|至|到)\s*(?:次日\s*)?(\d{1,2}:\d{2}|24:00)/);
+  const start = match ? match[1].padStart(5, '0') : current.start || '';
+  const end = match ? (match[2] === '24:00' ? '00:00' : match[2].padStart(5, '0')) : current.end || '';
+  const namedDays = WEEKDAYS.filter((day) => text.includes(day));
+  const days = namedDays.length
+    ? namedDays
+    : Array.isArray(current.days) && current.days.length
+      ? current.days
+      : (start && end ? [...WEEKDAYS] : []);
+  return {
+    start,
+    end,
+    days,
+    note: asStr(text, current.note || (start && end ? '常用直播档' : '不固定')),
+  };
+}
+
+function createDynamicCharacter(name, room, ui) {
+  const theme = customTheme(name);
+  const coverArt = pickNamed(ui?.characterCovers, name);
+  const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, name);
+  const c = {
+    name,
+    romaji: asStr(handle, 'CUSTOM'),
+    theme,
+    ornament: stableHash(name) % 4 === 0 ? 'star' : 'sparkle',
+    art: safeCharacterArt(coverArt, placeholderCharacterArt(name, theme)),
+    artFx: 0.5, artFy: 0.22, artZ: 1.08, artOx: 0, artTx: 0.30, artTy: 0.36,
+    bond: { favor: 0, obedience: 0, mood: '平静' },
+    physiology: { desire: 0, stamina: 100, bladder: 0, statuses: [] },
+    experience: emptyExperienceRecord(),
+    development: emptyDevelopmentRecord(),
+    developmentNotes: {},
+    location: { area: '', place: '', privacy: 0 },
+    fan: fan(),
+    stream: { live: false, title: '', heat: 0, followers: 0, schedule: scheduleFromRoom(room) },
+    custom: true,
+  };
+  rosterByName.set(name, c);
+  return c;
+}
+
+function syncDynamicPresentation(c, room, ui) {
+  if (!c.custom) return;
+  const handle = room?.主播网名 ?? room?.网名 ?? pickNamed(ui?.characterHandles, c.name);
+  if (handle != null && String(handle).trim()) c.romaji = asStr(handle, c.romaji || 'CUSTOM');
+  const coverArt = pickNamed(ui?.characterCovers, c.name);
+  c.art = safeCharacterArt(coverArt, c.art || placeholderCharacterArt(c.name, c.theme));
+  c.stream.schedule = scheduleFromRoom(room, c.stream.schedule);
+}
+
+function reconcileRoster(objects, rooms, ui) {
+  if (!objects || typeof objects !== 'object' || Array.isArray(objects)) return;
+  const next = [];
+  const seen = new Set();
+  Object.keys(objects).forEach((rawName) => {
+    const name = canonGirlName(rawName);
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    const room = pickNamed(rooms, name) || {};
+    const c = rosterByName.get(name) || createDynamicCharacter(name, room, ui);
+    c.stream.schedule = scheduleFromRoom(room, c.stream.schedule);
+    syncDynamicPresentation(c, room, ui);
+    next.push(c);
+  });
+  /* A just-created chat can briefly expose 世界信息 before 对象信息 is populated.
+     Keep the authored preview for that transient frame, then switch to MVU order as
+     soon as at least one object exists. */
+  if (next.length) roster.splice(0, roster.length, ...next);
+}
+
 function mapCustomNodes(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
   return Object.entries(obj).map(([id, raw]) => {
@@ -1463,26 +1604,22 @@ function mapEvents(pool) {
   });
 }
 function syncViews() {
-  roster.forEach((c) => {
-    const g = girls.find((row) => row.name === c.name);
-    if (g) {
-      g.metric = { icon: 'heart', label: '好感度', value: c.bond.favor, max: 1000 };
-      g.chip = { icon: 'smile', label: '心情', value: c.bond.mood };
-      g.status = statusOf(c.physiology.statuses);
-      g.live = !!c.stream?.live;
-    }
-    const d = characterDetails[c.name];
-    if (d) {
-      d.bond = c.bond;
-      d.physiology = c.physiology;
-      d.experience = c.experience;
-      d.development = c.development;
-      d.developmentNotes = c.developmentNotes || {};
-      d.location = c.location;
-      d.fan = c.fan;
-      d.stream = c.stream;
-    }
+  const active = new Set(roster.map((c) => c.name));
+  const nextGirls = roster.map((c, index) => {
+    c.custom = !authoredNames.has(c.name);
+    const current = girls.find((row) => row.name === c.name);
+    const view = createGirlView(c);
+    const g = current ? Object.assign(current, view) : view;
+    const detail = characterDetails[c.name];
+    if (detail) Object.assign(detail, createCharacterDetail(c, index));
+    else characterDetails[c.name] = createCharacterDetail(c, index);
+    return g;
   });
+  girls.splice(0, girls.length, ...nextGirls);
+  Object.keys(characterDetails).forEach((name) => {
+    if (!active.has(name)) delete characterDetails[name];
+  });
+
   const money = asNum(player.money);
   const daily = asNum(player.work?.daily);
   protagonist.stats[0].value = money.toLocaleString('en-US');
@@ -1490,13 +1627,13 @@ function syncViews() {
   protagonist.stamina.value = asNum(player.stamina);
 }
 
-export function applyStatData(stat) {
+export function applyStatData(stat, ui = {}) {
   if (!stat || typeof stat !== 'object' || !stat.世界信息) return false;
   let json = '';
-  try { json = JSON.stringify(stat); }
+  try { json = JSON.stringify([stat, ui]); }
   catch { json = ''; }
-  if (json && json === lastStatJson) return false;
-  lastStatJson = json;
+  if (json && json === lastSnapshotJson) return false;
+  lastSnapshotJson = json;
 
   const info = stat.世界信息 || {};
   const cal = info.日期显示 || {};
@@ -1540,6 +1677,8 @@ export function applyStatData(stat) {
 
   const objects = stat.对象信息 || {};
   const fans = me.粉丝身份 || {};
+  const rooms = stat.系统配置?.直播间 || {};
+  reconcileRoster(objects, rooms, ui);
   roster.forEach((c) => {
     const block = pickNamed(objects, c.name);
     if (block) {
@@ -1555,7 +1694,10 @@ export function applyStatData(stat) {
       c.physiology.desire = asNum(phy.性欲度, c.physiology.desire);
       c.physiology.stamina = asNum(phy.体力, c.physiology.stamina);
       c.physiology.bladder = asNum(phy.尿意, c.physiology.bladder);
-      c.physiology.statuses = Array.isArray(phy.异常状态) ? [...phy.异常状态] : (phy.异常状态 && typeof phy.异常状态 === 'object' ? Object.keys(phy.异常状态) : []);
+      const statuses = Array.isArray(phy.异常状态)
+        ? phy.异常状态
+        : (phy.异常状态 && typeof phy.异常状态 === 'object' ? Object.keys(phy.异常状态) : []);
+      c.physiology.statuses = statuses.map((status) => asStr(status)).filter(Boolean);
       const exp = block.性经历 || {};
       EXPERIENCE_FIELDS.forEach(([key, label]) => {
         c.experience[key] = asNum(exp[label]?.次数 ?? exp[label], c.experience[key]);
@@ -1566,12 +1708,13 @@ export function applyStatData(stat) {
         const tier = part && typeof part === 'object' ? part.档位 : part;
         if (tier != null) c.development[key] = asNum(tier, c.development[key]);
         if (!c.developmentNotes) c.developmentNotes = {};
-        if (part && typeof part === 'object' && typeof part.评语 === 'string') c.developmentNotes[key] = part.评语;
+        if (part && typeof part === 'object' && typeof part.评语 === 'string') c.developmentNotes[key] = asStr(part.评语);
       });
       const stream = block.直播 || {};
       c.stream.live = !!stream.开播;
       c.stream.title = asStr(stream.标题);
       c.stream.heat = asNum(stream.热度, 0);
+      c.stream.followers = asNum(stream.粉丝数, c.stream.followers || 0);
     }
     const fanRow = pickNamed(fans, c.name);
     if (fanRow) {

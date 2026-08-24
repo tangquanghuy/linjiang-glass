@@ -782,7 +782,7 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     /* 覆盖层铺满视口的时候，壳层得把它那两颗浮层钮收起来，否则它们盖住地图/街机自己的
        关闭钮。报在 sync 里而不是每个 open/close 各报一次：这里是所有开合的唯一汇合点，
        bridge 侧也只在状态真变了才发消息。 */
-    reportOverlay(overlayOpen());
+    reportOverlay(overlayOpen(), { page: modal });
   };
 
   const closeMap = () => {

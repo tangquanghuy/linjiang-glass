@@ -875,8 +875,10 @@ addEventListener('message', (e) => {
   const b = pickBalance(d);
   if (Number.isFinite(b) && hostReady) writeBalance(b);
   if (d.type === 'airp-shrine:claimed') {
-    const reward = Number((d.detail && d.detail.reward) ?? d.reward);
-    if (Number.isFinite(reward) && reward > 0) toast('签到福礼 +' + fmt(reward));
+    const detail = gameEventDetail(d);
+    const reward = Number(detail.reward);
+    const tokenReward = Math.max(0, Math.floor(Number(detail.tokenReward) || 0));
+    if (Number.isFinite(reward) && reward > 0) toast(`签到福礼 +${fmt(reward)} · +${tokenReward}代币`);
   }
   renderBalance();
 });

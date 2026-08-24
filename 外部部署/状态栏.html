@@ -109,6 +109,27 @@
     return finalData;
   };
 
+  /* 自定义主播本身由 MVU 对象信息决定；封面仍留在同源 localStorage，避免把
+     data URI 塞进变量。快照把这层纯 UI 资料一起带给跨域 HUD。 */
+  const HUD_COVER_PREFIX = 'custom_char_cover_';
+  const readHudUi = (stat) => {
+    const characterCovers = {};
+    const names = Object.keys((stat && stat.对象信息) || {});
+    try {
+      const core = getCoreWindow();
+      const storage = core.localStorage || localStorage;
+      names.forEach((name) => {
+        const src = String(storage.getItem(HUD_COVER_PREFIX + name) || '').trim();
+        if (/^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(src) || /^https?:\/\//i.test(src)) {
+          characterCovers[name] = src;
+        }
+      });
+    } catch (e) {}
+    return { characterCovers };
+  };
+
+  const hudSnapshot = (stat) => ({ stat_data: stat, ui: readHudUi(stat) });
+
   const applyMvuPatches = (patches) => {
     try {
       if (!mvuState.ready && !mvuState.check()) return false;
@@ -300,10 +321,11 @@
     const hasWorld = !!(stat && stat.世界信息);
     showHint(hasWorld ? '' : '等待 MVU 数据…');
     if (!hasWorld) return;
-    const json = JSON.stringify(stat);
+    const snapshot = hudSnapshot(stat);
+    const json = JSON.stringify(snapshot);
     if (!force && json === lastSnap) return;
     lastSnap = json;
-    postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', context: manager.context(), payload: { stat_data: stat } });
+    postToHud({ channel: CHANNEL, kind: 'event', type: 'snapshot', context: manager.context(), payload: snapshot });
   };
 
   /* 唤起外部部署的小手机。
@@ -763,7 +785,7 @@
           context: manager.context(),
         };
       case 'getSnapshot':
-        return { stat_data: fetchLatestMvuData() };
+        return hudSnapshot(fetchLatestMvuData());
       case 'patch':
         if (!applyMvuPatches(payload?.patches || [])) throw new Error('MVU 写入失败');
         return true;
@@ -1066,14 +1088,29 @@
     }
   };
 
-  const isDesktop = () => tavernSize().w >= DESKTOP_MIN;
+  const isTauriTavernMobile = () => {
+    try {
+      const tavern = tavernWin();
+      if (!tavern?.__TAURITAVERN__) return false;
+      const nav = tavern.navigator;
+      const ua = String(nav?.userAgent || '');
+      if (/android|iphone|ipad|ipod/i.test(ua)) return true;
+      return Number(nav?.maxTouchPoints || 0) > 0
+        && !!tavern.matchMedia?.('(pointer: coarse)')?.matches;
+    } catch (e) {
+      return false;
+    }
+  };
 
-  /* Phone / tablet held upright: narrow and taller than wide.  A phone on its
-     side stays on the landscape HUD. */
+  /* Phone / tablet held upright. Tauri WebViews can expose a CSS viewport wider
+     than the screenshot/device pixels, so portrait orientation remains authoritative
+     for a mobile runtime instead of relying only on the desktop width breakpoint. */
   const portraitHud = () => {
     const { w, h } = tavernSize();
-    return w < DESKTOP_MIN && w < h;
+    return w < h && (w < DESKTOP_MIN || isTauriTavernMobile());
   };
+
+  const isDesktop = () => !portraitHud() && tavernSize().w >= DESKTOP_MIN;
 
   const isSafeOuterFrame = (frame) => {
     if (!frame) return false;
@@ -1713,7 +1750,9 @@
       url.searchParams.set('mode', portrait ? 'portrait' : 'landscape');
       if (portrait) url.searchParams.delete('fit');
       else url.searchParams.set('fit', 'body');
-      url.searchParams.set('v', 'body27-custom-map-save');
+      if (isTauriTavernMobile()) url.searchParams.set('host', 'tauritavern-mobile');
+      else url.searchParams.delete('host');
+      url.searchParams.set('v', 'body29-tt-mobile-pages');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -1780,6 +1819,7 @@
   let hostScrollIdleTimer = 0;
   let hostScrollActive = false;
   let lastScrollEventStamp = -1;
+  let lastReadingScrollTop = null;
   /* A forwarded touch keeps scrolling the same host pane even though the lifted
      HUD moves under the finger during the gesture. */
   let touchScrollPoint = null;
@@ -1787,6 +1827,10 @@
     const activeNow = !!next;
     if (hostScrollActive === activeNow) return;
     hostScrollActive = activeNow;
+    /* Tauri mobile uses a permanently flat glass surface. Toggling a universal
+       backdrop-filter selector at gesture boundaries makes Android WebView
+       reallocate the iframe layer and appear to flash. */
+    if (isTauriTavernMobile()) return;
     postToHud({
       channel: CHANNEL,
       kind: 'event',
@@ -1795,12 +1839,25 @@
       payload: { active: activeNow },
     });
   };
+  const nudgePortraitHud = (before, after) => {
+    const delta = (Number(after) || 0) - (Number(before) || 0);
+    lastReadingScrollTop = Number(after) || 0;
+    if (!delta || !portraitHud() || hudFrame._linjiangAlign !== 'slot') return;
+    const top = Number.parseFloat(hudFrame.style.top);
+    if (Number.isFinite(top)) hudFrame.style.top = `${top - delta}px`;
+  };
   const noteHostScroll = (event) => {
     if (!isOwner()) return;
     const stamp = Number(event?.timeStamp);
     if (Number.isFinite(stamp) && stamp === lastScrollEventStamp) return;
     if (Number.isFinite(stamp)) lastScrollEventStamp = stamp;
     setHostScrollActive(true);
+    const pane = readingPane();
+    if (portraitHud() && pane) {
+      const current = Number(pane.scrollTop) || 0;
+      if (lastReadingScrollTop != null) nudgePortraitHud(lastReadingScrollTop, current);
+      else lastReadingScrollTop = current;
+    }
     clearTimeout(hostScrollIdleTimer);
     hostScrollIdleTimer = setTimeout(() => {
       hostScrollIdleTimer = 0;
@@ -2235,11 +2292,8 @@
        the finger while avoiding synchronous getBoundingClientRect work. */
     if (Math.abs(remaining - dy) > 0.01) {
       if (portraitHud()) {
-        const paneDelta = (Number(pane?.scrollTop) || 0) - paneBefore;
-        const top = Number.parseFloat(hudFrame.style.top);
-        if (paneDelta && Number.isFinite(top) && hudFrame._linjiangAlign === 'slot') {
-          hudFrame.style.top = `${top - paneDelta}px`;
-        }
+        const paneAfter = Number(pane?.scrollTop) || 0;
+        nudgePortraitHud(paneBefore, paneAfter);
         requestFollow();
       } else followNow();
     }
@@ -2258,8 +2312,20 @@
     }
     if (data.type === 'overlay') {
       const next = !!data.payload?.open;
-      if (next === overlayOpen) return;
+      const page = !!data.payload?.page;
+      if (next === overlayOpen && !page) return;
       overlayOpen = next;
+      /* On a portrait mobile host, a modal/overlay must be promoted to the
+         viewport page path even if the HUD initially booted in landscape mode. */
+      if (isTauriTavernMobile() && tavernSize().w < tavernSize().h
+          && (page || next || portraitPageOpen)) {
+        portraitPageOpen = next || page;
+        try { fitParentFrame(); } catch (e) {}
+        return;
+      }
+      /* A secondary page is an application page, not a shell overlay. Keep the
+         desktop chrome visible and only use the signal for mobile promotion. */
+      if (page) return;
       /* 开的时候只需要收钮，不用重排（覆盖层是 HUD 内部的事）；关的时候按当前布局
          把钮放回去 —— 走 placeFsButton 而不是 fitParentFrame，省掉一次无谓的重排。 */
       if (overlayOpen) { try { hideChromeButtons(); } catch (e) {} }
@@ -2404,7 +2470,10 @@
       listen(tavern, 'scroll', noteHostScroll, opts);
       listen(tavern.document, 'scroll', noteHostScroll, opts);
       const chat = tavern.document.getElementById('chat');
-      if (chat) listen(chat, 'scroll', noteHostScroll, opts);
+      if (chat) {
+        lastReadingScrollTop = Number(chat.scrollTop) || 0;
+        listen(chat, 'scroll', noteHostScroll, opts);
+      }
       if (window.parent && window.parent !== window && window.parent !== tavern) {
         listen(window.parent, 'scroll', noteHostScroll, opts);
         listen(window.parent.document, 'scroll', noteHostScroll, opts);

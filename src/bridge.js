@@ -11,15 +11,16 @@ let bridgeContext = { chatKey: null, epoch: 0 };
 let pendingSnapshot = null;
 let snapshotRaf = 0;
 
-function scheduleSnapshot(statData) {
+function scheduleSnapshot(payload) {
+  const statData = payload?.stat_data || payload;
   if (!statData || typeof statData !== 'object') return;
-  pendingSnapshot = statData;
+  pendingSnapshot = { statData, ui: payload?.ui || {} };
   if (snapshotRaf) return;
   snapshotRaf = requestAnimationFrame(() => {
     snapshotRaf = 0;
     const next = pendingSnapshot;
     pendingSnapshot = null;
-    if (next) applyStatData(next);
+    if (next) applyStatData(next.statData, next.ui);
   });
 }
 
@@ -173,7 +174,7 @@ function onMessage(event) {
   if (data.kind === 'event' && data.type === 'snapshot') {
     if (data.context) resetContext(data.context);
     if (data.context && !sameContext(data.context, bridgeContext)) return;
-    scheduleSnapshot(data.payload?.stat_data);
+    scheduleSnapshot(data.payload);
     return;
   }
   if (data.kind === 'event' && data.type === 'cgUnlock') {
@@ -185,6 +186,12 @@ function onMessage(event) {
     return;
   }
   if (data.kind === 'event' && data.type === 'hostScrollState') {
+    /* Low mode already removes the expensive sampling permanently. Re-toggling a
+       universal selector here only causes a full style invalidation and a flash. */
+    if (document.documentElement.dataset.hudPerformance === 'low') {
+      document.documentElement.classList.remove('host-scroll-active');
+      return;
+    }
     document.documentElement.classList.toggle('host-scroll-active', !!data.payload?.active);
   }
 }
@@ -331,12 +338,15 @@ export function reportPortraitPage(open) {
 
    只报开合，不带尺寸：横向的排版跟覆盖层无关，壳层要做的只是把两颗钮收起来。 */
 let lastOverlay = null;
-export function reportOverlay(open) {
+let lastOverlayPage = null;
+export function reportOverlay(open, { page = false } = {}) {
   if (!isEmbedded()) return;
   const next = !!open;
-  if (next === lastOverlay) return;
+  const isPage = !!page;
+  if (next === lastOverlay && isPage === lastOverlayPage) return;
   lastOverlay = next;
-  postEvent('overlay', { open: next });
+  lastOverlayPage = isPage;
+  postEvent('overlay', { open: next, page: isPage });
 }
 
 /* 默认停靠方式住在 HUD 这边的 localStorage 里，而决定停靠的代码在壳层
@@ -547,7 +557,7 @@ export function startBridge() {
        而不是先画好再跳一次。 */
     reportDockDefault(pref('dockDefault'));
     return rpc('getSnapshot');
-  }).then((payload) => scheduleSnapshot(payload?.stat_data)).catch((err) => {
+  }).then((payload) => scheduleSnapshot(payload)).catch((err) => {
     console.warn('[hud] bridge', err);
   });
 }
