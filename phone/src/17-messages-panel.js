@@ -50,11 +50,19 @@ function generateMessagesPanel(data) {
     // 提取群聊信息
     const groups = extractGroupsFromChat();
 
-    // 提取好友信息（优先从MVU变量，如果没有则从聊天记录提取）
-    const friends = getRelationshipKeys(relationshipSource);
-
-    // 如果MVU中没有好友，尝试从聊天记录中提取
+    /* 联系人与羁绊共用 对象信息 名单；聊天标记只补充私聊号码。
+       这样同一个主播在两个 App 中是同一个对象，同时点击联系人仍能匹配
+       [对方消息|名字|号码|...] 里的号码。 */
     const chatFriends = extractFriendsFromChat();
+    const chatFriendByName = new Map([...chatFriends.values()].map(friend => [restoreEraText(friend.name || ''), friend]));
+    const friends = getRelationshipKeys(relationshipSource).sort((a, b) => {
+        const contactA = relationshipSource[a];
+        const contactB = relationshipSource[b];
+        const liveA = getContactStream(contactA).live;
+        const liveB = getContactStream(contactB).live;
+        if (liveA !== liveB) return liveA ? -1 : 1;
+        return getContactAffection(contactB) - getContactAffection(contactA);
+    });
 
     // 用于跟踪已添加的联系人（防止重复）
     const addedContactIds = new Set();
@@ -65,17 +73,20 @@ function generateMessagesPanel(data) {
         const friend = relationshipSource[studentKey];
         const affection = getContactAffection(friend);
         const displayName = restoreEraText(studentKey);
+        const chatFriend = chatFriendByName.get(displayName);
+        const contactId = chatFriend?.id || studentKey;
         const mood = getContactMood(friend);
         const thought = mood ? escapeHtml(`心情：${mood}`) : '';
 
         // 添加到已渲染集合
         addedContactIds.add(studentKey);
+        addedContactIds.add(String(contactId));
         if (displayName) {
             addedContactNames.add(displayName);
         }
 
         html += `
-            <div class="list-item contact-item ph-row" data-type="friend" data-id="${escapeHtml(studentKey)}" data-name="${escapeHtml(displayName)}">
+            <div class="list-item contact-item ph-row" data-type="friend" data-id="${escapeHtml(contactId)}" data-name="${escapeHtml(displayName)}">
                 ${renderPhoneAvatar(displayName)}
                 <div class="ph-row-main">
                     <div class="ph-row-title">${escapeHtml(displayName)}</div>
