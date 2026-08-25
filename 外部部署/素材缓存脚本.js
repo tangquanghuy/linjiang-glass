@@ -20,10 +20,17 @@
    要把图收进 IndexedDB 必须 fetch 出 Blob，跨源 fetch 读响应体需要对方给
    Access-Control-Allow-Origin。实测：
 
-     Pages   给了 ACAO: *      → 礼物图标、突发事件底图，能接管
-     图床    没给 ACAO         → 头像、SFW 封面，接管不了
+     Pages     给了 ACAO: *    → 礼物图标、突发事件底图，能接管
+     jsDelivr  给了 ACAO: *    → 状态栏背景、毛玻璃颗粒等大素材，能接管
+     图床      没给 ACAO       → 头像、SFW 封面，接管不了
 
-   所以 ALLOW 只放 Pages。不在名单里的地址 url() 原样返回，`<img>` 直连
+   jsDelivr 是后来加的：public/assets 里 bg-plate.png 2MB、frost.png 1MB，走
+   Pages 在国内实测要 180 秒以上还会整个取不回来，走 testingcf 是 2~11 秒，所以
+   构建时把素材外链指到了 jsDelivr（见仓库 scripts/asset-cdn.mjs）。它同样给
+   ACAO: *，而且 max-age 是 604800（Pages 只有 600），所以这层缓存对它更划算 ——
+   第一次几秒，之后 0 请求。
+
+   不在名单里的地址 url() 原样返回，`<img>` 直连
    （`<img>` 不需要 CORS，图照样显示，只是没有这层持久缓存）。
    图床那批要想也管上，得在 Cloudflare 那边给它加 ACAO 和 Cache-Control，
    加了之后把域名塞进 ALLOW 就行，这个文件不用改别的。
@@ -48,8 +55,12 @@
     const DB_VERSION = 1;
     const STORE = 'blobs';
 
-    /* 只有这些源的东西能进缓存（要求对方给 ACAO）。 */
-    const ALLOW = ['https://tangquanghuy.github.io/'];
+    /* 只有这些源的东西能进缓存（要求对方给 ACAO）。
+       testingcf 而不是 cdn.jsdelivr.net：后者在国内被墙。 */
+    const ALLOW = [
+        'https://tangquanghuy.github.io/',
+        'https://testingcf.jsdelivr.net/',
+    ];
 
     /* 重新校验的间隔。Pages 上的文件会随发布变，但不会一天变好几次，
        所以隔一天带 ETag 问一次就够，平时完全不出网。 */

@@ -337,11 +337,93 @@
 .dev-crop img + em { display: none; }
 .dev-meta { display: flex; align-items: baseline; gap: 9px; padding: 0 14px; }
 .dev-meta b { font: 500 15px/1 'Noto Sans SC'; color: rgba(255,255,255,.92); letter-spacing: .08em; }
+
+/* 今日已满: the day's allowance for this part is spent, so the bar below will not move
+   however much happens next.  Gold rather than pink because pink is the 档位 colour on
+   this page and this is not progress -- it is the same "throttled, not broken" role the
+   尿意 meter's gold plays on the dock.
+
+   Always laid out, revealed by visibility: the archive fits its panel exactly, so a tag
+   that appeared out of nowhere would push the row it sits in.  `align-self: center`
+   because the row is baseline-aligned and a bordered chip has no useful baseline. */
+.dev-day {
+  flex: none;
+  margin-left: auto;
+  align-self: center;
+  padding: 2px 7px;
+  border: 1px solid rgba(255,206,138,.42);
+  border-radius: 7px;
+  background: rgba(255,190,110,.14);
+  color: rgba(255,224,182,.92);
+  font: 400 9px/1 'Noto Sans SC';
+  letter-spacing: .08em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dev-day[hidden] { display: block; visibility: hidden; }
 .dev-tier { font: 400 11px/1 'Noto Sans SC'; color: rgba(255,214,236,.72); letter-spacing: .06em; }
 .dev-tile.is-zero .dev-tier { color: rgba(226,226,242,.40); }
 .dev-pips { display: flex; gap: 4px; padding: 0 14px; }
 .dev-pips i { flex: 1; height: 5px; border-radius: 3px; background: rgba(10,13,34,.42); box-shadow: inset 0 1px 2px rgba(0,0,0,.34); }
 .dev-pips i.on { background: linear-gradient(90deg,#ff92c4,#d38ce8); box-shadow: 0 0 7px rgba(255,130,200,.5); }
+
+/* 进度 under the pips: a continuous bar against the discrete ladder above it, which is
+   the honest pairing -- the pips are an ordered enum and cannot show a part sitting
+   two thirds of the way through a tier.  Thinner and cooler than the pips on purpose:
+   the 档位 is the fact, the 进度 is the trend, and swapping that emphasis would make a
+   tile that is mostly counter.
+
+   `u` is the whole fill, `s` the slice added today, positioned at `--from` so it sits at
+   the leading edge.  When the day's allowance is spent the slice goes gold and the
+   `mark` tag appears -- gold because it is the same "throttled, not broken" colour the
+   尿意 meter uses, and because it must read against a pink-violet fill. */
+.dev-prog { display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+.dev-prog i {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(10,13,34,.42);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.30);
+  overflow: hidden;
+}
+.dev-prog i u,
+.dev-prog i s {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+}
+.dev-prog i u {
+  left: 0;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, rgba(150,205,255,.72), rgba(196,168,255,.86));
+}
+.dev-prog i s {
+  left: var(--from, 0%);
+  width: var(--today, 0%);
+  background: rgba(226,238,255,.92);
+  box-shadow: 0 0 6px rgba(190,220,255,.55);
+}
+/* Fixed column, right-aligned: the readouts run 3 to 7 characters (`6 / 40` against
+   `231 / 260`), and letting them size themselves gave the four tiles in a row four
+   different bar lengths, which read as four different scales. */
+.dev-prog em {
+  flex: none;
+  width: 54px;
+  text-align: right;
+  white-space: nowrap;
+  font: 400 10px/1 'Outfit', 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(214,226,255,.62);
+  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+}
+.dev-prog.is-dayfull i s { background: linear-gradient(90deg, rgba(255,206,138,.90), rgba(255,178,96,.95)); box-shadow: 0 0 7px rgba(255,186,104,.55); }
+.dev-prog.is-dayfull em { color: rgba(255,224,182,.80); }
+.dev-prog.is-capped i u { background: linear-gradient(90deg,#ff92c4,#d38ce8); }
+.dev-prog.is-capped em { color: rgba(255,214,236,.74); }
+.dev-tile.is-zero .dev-prog em { color: rgba(214,226,255,.40); }
 
 /* 评语 sheet.  A sibling of the page rather than a child of it, so it gets its own
    refraction instead of having to imitate glass with an opaque fill. */
@@ -380,6 +462,17 @@
 .dev-sheet .dev-tier { font-size: 15px; }
 .dev-sheet .dev-pips { width: 160px; flex: none; margin-left: auto; padding: 0; }
 .dev-sheet .dev-pips i { height: 7px; }
+/* In the header the bar sits beside the pips rather than under them: the row is
+   already one line and the close button anchors the right edge. */
+.dev-sheet .dev-prog { width: 190px; flex: none; padding: 0; }
+.dev-sheet .dev-prog i { height: 4px; }
+.dev-sheet .dev-prog em { font-size: 12px; }
+/* Room here, unlike the tile: the tag is a sibling of the bar and only rendered when it
+   applies, so nothing has to be reserved. */
+.dev-sheet .dev-prog { width: auto; }
+.dev-sheet .dev-prog i { width: 150px; flex: none; }
+.dev-sheet .dev-prog em { width: 70px; font-size: 12px; }
+.dev-sheet .dev-day { margin-left: 0; font-size: 11px; padding: 4px 9px; border-radius: 9px; }
 .dev-sheet-close { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 1px solid rgba(255,235,248,.30); border-radius: 50%; background: rgba(30,26,58,.5); color: rgba(255,255,255,.86); font: 300 24px/1 'Outfit', sans-serif; cursor: pointer; }
 @media (hover: hover) {
   .dev-sheet-close:hover { background: rgba(140,120,180,.55); border-color: rgba(255,255,255,.66); }

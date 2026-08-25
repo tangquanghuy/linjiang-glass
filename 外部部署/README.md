@@ -28,7 +28,8 @@
 | `格式修复脚本.js` | 27.3 KB | 粘进酒馆助手「脚本」栏 | 要 |
 | `素材缓存脚本.js` | 12.6 KB | 粘进酒馆助手「脚本」栏 | 要 |
 | `封面.html` | 18.5 KB | 展示用页面，不参与运行 | — |
-| `心里话面板样式小样.html`、`测试.html` | 27.7 KB | 小样 / 试验，不部署 | — |
+| `状态栏-测试版-流内嵌入.html` | 19.5 KB | **实验品**，不是生产用的。见下 | — |
+| `测试.html` | 4.2 KB | 试验片段，不部署 | — |
 
 对应的逻辑本体：
 
@@ -119,6 +120,67 @@ jsDelivr 对 `@main` 这种可变引用给 12 小时边缘缓存。`.github/work
 内容对不上时发 `::warning::` 而不是 error，并且作业 `exit 0`：这时候唯一能做的事就是等。
 它的职责是**让 CDN 状态可见**，不是给发布加一道会随机变红的闸门。
 
+### 静态素材也走 jsDelivr（`ASSET_CDN`）
+
+脚本走 CDN 之后，剩下的瓶颈是图。`public/assets/` 一共 10.12 MB，其中四个文件占 5 MB：
+
+| 文件 | 体积 | 尺寸 | 用途 |
+| --- | --- | --- | --- |
+| `bg-plate.png` | 2025 KB | 1672×941 | 状态栏背景 |
+| `opening-background.png` | 1966 KB | 1672×941 | 开局页背景 |
+| `frost.png` | 1035 KB | 1024×1024 | 毛玻璃颗粒，**首屏依赖** |
+| `polish.png` | 365 KB | 512×384 | 高光贴片 |
+
+拿 `bg-plate.png` 交错、`no-store` 实测：
+
+| | 四次耗时 | 结论 |
+| --- | --- | --- |
+| GitHub Pages | 178.8s / 217.0s / **240s 超时失败** / 185.7s | 三分钟量级，而且会整个取不回来 |
+| jsDelivr testingcf | 4.2s / 2.0s / 11.0s | 约 50 倍 |
+
+这就是「几分钟背景图都出不完全」的全部原因 —— 不是渲染慢，是**根本没下载完**。
+顺带一提 jsDelivr 给 `max-age=604800`，Pages 只给 `600`，缓存也划算得多。
+
+开关是环境变量 `ASSET_CDN`：
+
+- **不设（默认）**：素材走本地。本地跑 playwright 回归时离线可跑、结果确定，
+  也不会因为改了素材还没推就测到 CDN 上的旧版。
+- **`ASSET_CDN=1`**：素材指向 jsDelivr。只有 `.github/workflows/pages.yml` 的 build 作业会设。
+
+分两条路生效，因为引用形态不一样：
+
+- **JS**：`asset()` 是运行时拼 URL 的，所以靠 vite `define` 注入 `__ASSETS_ROOT__`，
+  由 `src/asset.js` 的 `ASSETS_ROOT` 统一出口，`src/data.js` 的 `ITEM_ART`/`GIFT_ART` 也从这里读。
+- **HTML/CSS**：静态字面量，构建后由 `scripts/asset-cdn.mjs` 的 `rewriteStaticRefs` 改写。
+
+**改写必须由白名单驱动，这一条不能省。** vite 把打包产物也 emit 到 `dist/assets/` 下，
+跟摊平过来的 `public/assets/` 混在同一个目录里：
+
+```
+./assets/bg-plate.png          <- 真素材，要改
+./assets/index-Du4Zn0KG.js     <- 应用自己的 bundle，绝对不能改
+```
+
+按 `./assets/` 前缀无脑替换，应用主体就会被指到 jsDelivr —— 那边没有 `dist/`（gitignore），
+直接 404；就算有，JS 变跨源也会断掉 HUD 赖以跟宿主页通信的 `postMessage` 和同源 DOM 访问。
+所以判据是「这个文件真的存在于 `public/assets/` 里」，bundle 名字带 hash，天然不在清单里。
+
+图片本身不怕跨源：`<img>` 和 CSS `background` 无所谓，而且 `src/` 里没有任何
+`getImageData`/`toDataURL`，不存在画布污染。**能挪的只有图，不是整个 dist。**
+
+素材本体仍然随 `dist` 发到 Pages，作后备，也给本地 `preview` 用。
+
+配套改了两处粘贴份：
+
+- `素材缓存脚本.js` 的 `ALLOW` 加了 `https://testingcf.jsdelivr.net/`（它也给 `ACAO: *`），
+  这样大素材第一次几秒、之后 0 请求。
+- `开局.html` 那三个硬编码地址从 Pages 换成 jsDelivr，其中后备图就是 2 MB 的 `opening-background.png`。
+
+检查命令 `npm run assets:cdn`（加 `:net` 会额外抽查 CDN 上的字节是否与仓库一致）。
+它先按**形态**考 `rewriteStaticRefs`，再看整份产物 —— 顺序是刻意的：产物检查只能说明
+「当前恰好没出问题」，形态检查才能说明「换个写法也不会出问题」。裸 `/assets/` 少吃一个斜杠
+那个 bug 就是这么抓到的，当时 `dist` 里没有这种形态，整套产物检查全绿。
+
 ## 加新东西该放哪
 
 | 你要做的事 | 放哪 | 要重新粘吗 |
@@ -185,6 +247,8 @@ npm run tavern:raster   # 状态栏滚动光栅回归（两层断言）
 npm run tavern:real     # 高保真集成扫描
 npm run embed           # 布局孪生体
 
+npm run assets:cdn      # 素材 CDN 改写回归（形态 + 两种构建；:net 额外联网抽查字节）
+
 npm run deploy:docs     # 校验这份文档还没跟代码脱节
 ```
 
@@ -196,6 +260,29 @@ npm run deploy:docs     # 校验这份文档还没跟代码脱节
 `shell:compat` 是保护线上已有用户的那条 —— 它拿 git 历史里六个版本的 `状态栏.html`
 配当前 HUD 跑，只断言六个版本都具备的「地板」（HUD 被抬起、对齐、MVU 快照落地、构图建完、无报错），
 新功能按版本能力放行。它带 `--selftest`：打断 HUD 侧的 handshake，确认这套断言真的对协议破损敏感。
+
+## 那份「流内嵌入」测试版是干什么的
+
+`状态栏-测试版-流内嵌入.html` 是第三种做法的实验品：**HUD 直接建在楼层文档里，壳层完全不管
+几何**。滚动、裁剪、层叠、跟随对话流全是酒馆和浏览器的默认行为，连高度都由酒馆助手的
+`JS-Slash-Runner/src/iframe/adjust_iframe_height.js` 按内容量。
+没有裁剪台、没有 `followHud`、没有选举、没有停靠模式。
+
+它用来在真机上回答「为什么不能干脆交还给酒馆」。已知的答案是两条硬约束：
+
+- **iframe 换父节点必重载**（实测：同文档换父 1→2 次加载，跨文档挪 2→3，挪回来 3→4；
+  对照组只改 CSS 不重载）。而 owner 随最新楼层走，所以流内嵌入 = 每来一条 AI 消息重载一次
+  HUD，**开着的面板会被关掉**（地图/商店/街机/CG/随身手机都是 HUD 内的页面）。
+- **流内没有挣脱阅读栏的出口**。生产壳层的全屏钮正是为此存在；竖屏下生产会突破到 480px 宽，
+  流内只能是阅读栏那点宽度（夹具里实测 278px）。
+
+这两条是「HUD 必须跟着某条消息走」这个产品选择的后果。如果收回态改成**钉在阅读区顶部**、
+不随对话滚动，就不需要 per-floor 锚点，那一整套跟随/裁剪/选举都能删掉。这是产品决定，不是技术限制。
+
+它只实现了 `handshake` / `getSnapshot` / `patch` 三个 action（够 HUD 开机并显示真数据），
+其余一律返回「测试版未实现」。所以点街机、商店、打卡、建地图节点会报错 —— 那是预期的。
+
+夹具里可以跑：`?shell=flow`（`tools/tavern-live-fixture.html` 的开关，另两个值是 `inline` / `boot`）。
 
 ## 还没拆的，以及每个的评估
 
@@ -232,6 +319,18 @@ npm run deploy:docs     # 校验这份文档还没跟代码脱节
 - `辅助计算脚本.js` 拆分前是**混合换行**（1770 个分隔符里 1723 CRLF + 47 裸 LF，
   裸的全挤在原第 1289–1335 行）。归一到 LF 之前验过那段里没有跨行模板字符串 ——
   有的话改换行会改变字符串内容。
+- **`cdn.jsdelivr.net` 被墙，写错域名会整页白屏。** `cg/index.html` 曾经从
+  `cdn.jsdelivr.net` 取 jQuery，那是**同步阻塞**的 `<script>`：取不到就一路挂到超时，
+  后面的 `cg/cg-shell.js`、`cg/cg-app.js`、`CGShell.boot()` 全都不执行，页面永远空白 ——
+  而且控制台只有一条网络错误，看不出是它导致了白屏。凡是外链一律 `testingcf.jsdelivr.net`。
+- **构建期改写素材地址不能按前缀无脑替换。** vite 把 bundle 也 emit 到 `dist/assets/`，
+  跟摊平过来的 `public/assets/` 同一个目录，按 `./assets/` 替换会把应用主体指到 CDN 上
+  （404，且 JS 跨源会断 `postMessage`）。必须用 `public/assets/` 的真实文件清单当白名单。
+- **只验产物、不验规则的检查会漏掉「换个写法就坏」。** 素材改写的正则第一版没吃掉裸
+  `/assets/` 前面的斜杠，会拼出 `/https://testingcf...`。当时 `dist` 里恰好没有这种形态，
+  整套产物断言全绿；是逐形态单测 `rewriteStaticRefs` 才抓到的。反过来也不能无条件允许
+  前缀 `/`，否则会命中绝对地址的中段，把 Pages 地址拼成 `...linjiang-glassHTTPS://...`。
+  现在的判据是「前一个字符必须是定界符」，幂等也是这条规则的副产品。
 
 ## 相关文档
 

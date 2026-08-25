@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>临江 · CG 鉴赏</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%96%BC%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+<!-- 必须是 testingcf 而不是 cdn.jsdelivr.net：后者在国内被墙。这一条是样式，
+     挂了只是图标变空白；下面那条 jQuery 是同步阻塞的，挂了整页白屏。 -->
+<link rel="stylesheet" href="https://testingcf.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 <link rel="stylesheet" href="./cg-shell.css">
 </head>
 <body>
@@ -47,7 +49,9 @@
 
 <div id="cg-toast-host" class="cg-toast-host" role="status" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<!-- 同步阻塞：这一条取不到，后面 cg-shell.js / cg-app.js / CGShell.boot() 全都不执行，
+     整页白屏。cdn.jsdelivr.net 被墙，务必保持 testingcf。 -->
+<script src="https://testingcf.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="./cg-shell.js"></script>
 <script src="./cg-app.js"></script>
 <script>CGShell.boot();</script>

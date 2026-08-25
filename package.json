@@ -48,6 +48,8 @@
     "aux:build": "node scripts/build-aux-shell.mjs",
     "aux:check": "node scripts/build-aux-shell.mjs --check",
     "deploy:docs": "node scripts/check-deploy-docs.mjs",
+    "assets:cdn": "node scripts/check-asset-cdn.mjs",
+    "assets:cdn:net": "node scripts/check-asset-cdn.mjs --net",
     "aux:room": "node scripts/check-live-room.cjs",
     "aux:heat": "node scripts/check-room-heat.cjs",
     "aux:scale": "node scripts/check-stream-scale.cjs",

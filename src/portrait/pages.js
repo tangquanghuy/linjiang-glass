@@ -25,7 +25,7 @@
 import devMatrix from '../dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, GUARD_DAYS, NO_STATUS, NOTICE, PRIVACY, THRESHOLDS,
-  characterDetails, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
+  characterDetails, devProgress, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
   CITY_BUILD_COST, homeState, inventoryRail, MAP_MARKER_ITEM, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
 import { head, ic, meter, pct, section } from './parts.js';
@@ -160,6 +160,22 @@ export function inventoryPage({ selected = new Map(), notice = '' } = {}) {
 /* ------------------------------------------------------------------ archive */
 
 /* 开发度 as part tiles, two across, with the 评语 opening inside the tile.
+
+   Each tile carries both halves of the axis: the pips are the 档位, the bar under them
+   the 进度 toward the next one.  The pips on their own were the whole readout and they
+   move once every few game days, so the tiles looked frozen through everything that
+   happened in between.  The bar is labelled 进度/门槛, not a percentage, because the
+   门槛 grows with the 档位 -- see DEV_TIER_STEPS in data.js.
+
+   The brighter slice at the leading edge of the fill is what today added, and when the
+   day's allowance is spent it turns gold and picks up a 今日已满 tag -- otherwise a part
+   that is simply throttled looks like a part the panel failed to update.
+
+   The tag wraps onto its own line under the bar rather than sitting inline.  A portrait
+   tile is 387 units wide against the landscape 228, but the type is scaled up to match,
+   so the name row needs 502 units to hold the tag and the bar row 479 -- neither fits.
+   Wrapping is free here where it is not in landscape: the canvas is elastic.
+
    Not a sheet, which is what the landscape layout has to use: there .page-modal
    carries a backdrop-filter and is therefore a backdrop root, so a panel nested inside
    it could not refract anything and would have to imitate glass with an opaque fill.
@@ -174,15 +190,18 @@ export function inventoryPage({ selected = new Map(), notice = '' } = {}) {
    The crop is a drop-in slot, the same pattern as the landscape tiles and the item
    cells: the <img> removes itself when the file is absent, revealing the placeholder,
    so adding real part art needs no code change. */
-function devTiles(girl, development) {
+function devTiles(girl, development, progress, today) {
   return DEV_PARTS.map(([key, label]) => {
     const tier = development[key];
+    const p = devProgress(tier, progress?.[key], today?.[key]);
     const note = characterDetails[girl.name].developmentNotes?.[key] || devMatrix[girl.name]?.[key]?.[tier];
     const id = `pdev-${key}`;
+    const day = p.dayFull ? `今日已满 ${p.daily}` : `今日 +${p.today}`;
     return `
-    <div class="pdev-tile${tier ? '' : ' is-zero'}">
+    <div class="pdev-tile${tier ? '' : ' is-zero'}${p.dayFull && !p.capped ? ' is-dayfull' : ''}">
       <button class="pdev-open" type="button" data-dev-part="${key}"
-        aria-expanded="false" aria-controls="${id}">
+        aria-expanded="false" aria-controls="${id}"
+        aria-label="${label} 开发度 ${tier} ${DEV_TIERS[tier]}，${p.capped ? '已封顶' : `距下一档 ${p.value} / ${p.need}，${day}`}">
         <span class="pdev-crop">
           <img src="${partArt(girl.name, key)}" alt="" draggable="false" data-remove-on-error>
           <em>暂无截图</em>
@@ -193,6 +212,12 @@ function devTiles(girl, development) {
         </span>
         <span class="pdev-pips">${DEV_TIERS.map((_, n) =>
           `<i class="${n && n <= tier ? 'on' : ''}"></i>`).slice(1).join('')}</span>
+        <span class="pdev-prog${p.capped ? ' is-capped' : (p.dayFull ? ' is-dayfull' : '')}"
+          style="--pct:${p.pct}%;--from:${p.fromPct}%;--today:${p.todayPct}%">
+          <i aria-hidden="true"><u></u>${p.todayPct ? '<s></s>' : ''}</i>
+          <em>${p.capped ? '已封顶' : `${p.value} / ${p.need}`}</em>
+          ${p.capped || !p.dayFull ? '' : `<mark class="pdev-day">今日已满 ${p.daily}</mark>`}
+        </span>
       </button>
       <div class="pdev-note" id="${id}" data-dev-note-name="${girl.name}" data-dev-note-part="${key}" hidden>
         ${note
@@ -238,7 +263,7 @@ function experienceBlock(experience) {
    hole in it.  The height this costs is free here: the canvas is elastic. */
 export function characterPage(name) {
   const girl = girls.find((item) => item.name === name) || girls[0];
-  const { bond, physiology, experience, development, location, fan } = characterDetails[girl.name];
+  const { bond, physiology, experience, development, developmentProgress, developmentToday, location, fan } = characterDetails[girl.name];
   const statuses = physiology.statuses.length
     ? physiology.statuses.map((s) => `<span>${s}</span>`).join('')
     : `<span class="is-muted">${NO_STATUS}</span>`;
@@ -273,9 +298,9 @@ export function characterPage(name) {
   ${meter('体力', physiology.stamina, 100, 'blue', THRESHOLDS.stamina)}
   ${meter('尿意', physiology.bladder, 100, 'gold', THRESHOLDS.bladder)}
 
-  ${section('身体开发度', '四部位')}
+  ${section('身体开发度', '四部位 · 门槛递增')}
   <div class="pdev-note-actions"><button type="button" data-dev-notes-action="generate" data-dev-notes-name="${girl.name}">刷新评语</button><button type="button" data-dev-notes-action="restore" data-dev-notes-name="${girl.name}">恢复默认</button></div>
-  <div class="pdev-grid">${devTiles(girl, development)}</div>
+  <div class="pdev-grid">${devTiles(girl, development, developmentProgress, developmentToday)}</div>
 
   ${section('性经历', '计数')}
   ${experienceBlock(experience)}

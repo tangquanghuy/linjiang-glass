@@ -317,10 +317,17 @@ ${content}
 
    两条都要能跑回归，因为线上会同时存在这两种安装。boot 那条尤其要测：它把「脚本执行」推到了
    网络之后，所以抬升时机、跨楼层交接、以及脚本里那两道守卫都是 inline 路径下不可能触发的。 */
-const SHELL_VARIANT = params.get('shell') === 'boot' ? 'boot' : 'inline';
+/* flow = 状态栏-测试版-流内嵌入.html：把 HUD 建在楼层文档里、几何全交给酒馆的那份实验品。
+   它跟 inline/boot 是完全不同的机制（不抬升、没有裁剪台），所以夹具里那些「HUD 被抬成
+   #linjiang-hud-live」之类的断言对它一概不适用 —— 只用来验它能不能起来、能不能拿到数据。 */
+const SHELL_VARIANT = (() => {
+  const raw = params.get('shell');
+  return raw === 'boot' || raw === 'flow' ? raw : 'inline';
+})();
 const SHELL_FILES = {
   inline: '/外部部署/状态栏.html',
   boot: '/外部部署/状态栏-引导壳.html',
+  flow: '/外部部署/状态栏-测试版-流内嵌入.html',
 };
 /* ?shellFail=1 ——— 故障注入，只对 boot 有意义：把脚本地址指向一个不存在的文件，
    用来验引导壳「脚本没取到」的兜底提示真的会出现。 */
@@ -334,6 +341,17 @@ function loadProductionStatusSource() {
         .replace(/^\uFEFF?```(?:text|html)?\s*\r?\n/i, '')
         .replace(/\r?\n```\s*$/i, ''))
       .then((source) => {
+        if (SHELL_VARIANT === 'flow') {
+          /* 测试版是自包含的，只需要把 HUD_URL 指到夹具本地那份 HUD。 */
+          const localHud = new URL('/', location.href).href;
+          const replaced = source.replace(
+            /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
+            `const HUD_URL = ${JSON.stringify(localHud)};`,
+          );
+          if (replaced === source) throw new Error('流内嵌入测试版里找不到 HUD_URL');
+          note('流内嵌入测试版：HUD 建在楼层文档里，壳层不做任何几何处理');
+          return replaced;
+        }
         if (SHELL_VARIANT === 'boot') {
           /* 引导壳里那句 <script src> 指向 Pages。改成夹具自己的 /shell/status-shell.js，
              由 fixture-server 的 localShellPlugin 伺服 —— 那边会把脚本里的 HUD_URL 也换成
@@ -368,6 +386,9 @@ function loadProductionStatusSource() {
 
 let mountGeneration = 0;
 let statusFrame = null;
+/* 所有状态栏楼层的 iframe。真实环境里状态栏在每条 AI 消息里都有一份，所以这是个数组；
+   statusFrame 指向最新那个（manager 会选它当 owner）。 */
+const statusFrames = [];
 const renderFrames = [];
 
 const AVATAR = (label, color) =>
@@ -550,6 +571,8 @@ async function mountChat() {
   if (generation !== mountGeneration) return;
   const statusBlock = buildRenderBlock(`${mesid}--0`, statusSource);
   statusFrame = statusBlock.iframe;
+  statusFrames.length = 0;
+  statusFrames.push(statusBlock.iframe);
   chatEl.appendChild(buildMessage({
     mesid: mesid++, name: 'System Update', body: statusBlock.render,
   }));
@@ -574,8 +597,31 @@ async function mountChat() {
     chatEl.appendChild(buildMessage({ mesid: mesid++, name: user ? '你' : '临江', user, body }));
   }
 
+  /* ?statusFloors=<n> ——— 状态栏出现在多少条楼层里。
+     ------------------------------------------------------------------
+     默认 1，跟以前一样。但**真实环境不是 1**：状态栏那段 HTML 注入到每条 AI 消息，
+     渲染深度内的每一条都会渲染出一个状态栏 iframe，于是同时有 3–5 个壳层实例在跑，
+     由 manager 选最新那条当 owner，其余待命。
+
+     漏掉这一点让夹具错过了一整类 bug：多实例互相抢 HUD、owner 交接、以及交接时的重载。
+     「收回态改原生嵌入」那次就是在这里翻车的 —— 夹具全绿，真机疯狂闪烁。
+     多出来的这几条放在最后，所以最新的那条（mesid 最大）才是 owner。 */
+  const statusFloors = Math.max(1, Number(params.get('statusFloors') ?? 1));
+  for (let i = 1; i < statusFloors; i += 1) {
+    const block = buildRenderBlock(`${mesid}--0`, statusSource);
+    statusFrames.push(block.iframe);
+    chatEl.appendChild(buildMessage({
+      mesid: mesid++, name: 'System Update', body: block.render,
+    }));
+  }
+  if (statusFloors > 1) {
+    note(`状态栏出现在 ${statusFloors} 条楼层里（真实环境就是这样，manager 要在它们之间选 owner）`);
+    /* owner 是 mesid 最大的那一条，读数和断言都该盯着它。 */
+    statusFrame = statusFrames[statusFrames.length - 1];
+  }
+
   /* srcdoc 要在节点进 DOM 之后再赋值，否则 loading=lazy 的判定没有布局可依据。 */
-  statusFrame.srcdoc = createSrcContent(statusSource);
+  for (const frame of statusFrames) frame.srcdoc = createSrcContent(statusSource);
   for (const frame of renderFrames) frame.srcdoc = createSrcContent(readingSource);
 }
 

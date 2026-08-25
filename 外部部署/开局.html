@@ -296,12 +296,16 @@
 </head>
 <body>
 <div id="launch">
+  <!-- 素材走 jsDelivr 而不是 Pages。这里的后备图 opening-background.png 是 2MB，
+       走 Pages 在国内实测 180 秒以上、还会整个取不回来；走 testingcf 是几秒。
+       必须是 testingcf，cdn.jsdelivr.net 在国内被墙。
+       路径里带 public/：jsDelivr 按仓库原样路径服务，是 vite 才把 public/ 摊平。 -->
   <img id="scene" alt="" aria-hidden="true" decoding="async"
-       src="https://tangquanghuy.github.io/linjiang-glass/assets/opening-strip.webp"
-       onerror="this.onerror=null;this.classList.add('full');this.src='https://tangquanghuy.github.io/linjiang-glass/assets/opening-background.png';">
+       src="https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/assets/opening-strip.webp"
+       onerror="this.onerror=null;this.classList.add('full');this.src='https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/assets/opening-background.png';">
   <div class="veil" aria-hidden="true"></div>
   <div class="brand">
-    <div class="mark"><img src="https://tangquanghuy.github.io/linjiang-glass/assets/mark-sakura.png" alt=""></div>
+    <div class="mark"><img src="https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/assets/mark-sakura.png" alt=""></div>
     <div class="copy">
       <div class="titleline"><em>Opening</em><span>/ 临江生活序章 · 2026</span></div>
       <h1>从这一刻，住进临江</h1>

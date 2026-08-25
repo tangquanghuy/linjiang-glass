@@ -26,6 +26,8 @@
 /* How many art sets each category actually has, written by tools/export_item_icons.py.
    See the note in itemIcon for why the hash reads this rather than a constant. */
 import artManifest from './item-art.json';
+/* 素材根：本地相对路径或 jsDelivr 绝对地址，由构建期决定。见 src/asset.js。 */
+import { ASSETS_ROOT } from './asset.js';
 
 export const MOODS = ['开朗', '害羞', '委屈', '发情', '依恋', '困倦', '崩溃'];
 export const PERIODS = ['朝', '昼', '暮', '夜', '深夜'];
@@ -45,6 +47,42 @@ export const DEV_PARTS = [
   ['vagina', '小穴'],
   ['anus', '肛门'],
 ];
+
+/* 升档门槛，不是固定 100 一档.
+   DEV_TIER_STEPS[n] 是从档位 n 升到 n+1 所需的进度；档位 5 封顶后不再累计，所以只有
+   五个数.  每档比上一档多要 40/50/60/70 —— 一条“前松后紧”的线，跟这条轴想表达的东西
+   一致：第一次被碰到就有反应，最后一档要的是身体被改写。
+
+   DEV_DAILY_CAP 是同一个部位一天最多能吃下的进度，DEV_TURN_CAP 是单轮最多。两个数跟
+   门槛是一套的：一天 60 = 三场满额，换算成游戏日就是 1/2/3/4/5 天，全程 15 天。
+   （原来一天只给 30，等于两场里第二场只算一半，一档最多能拖到九天。）
+
+   这三个常量在 public/shell/aux-shell.js 与 酒馆变量/mvuzod.js 里各有一份同样的副本：
+   那两处跑在酒馆里，拿不到本模块。三处必须同时改。 */
+export const DEV_TIER_STEPS = [40, 80, 130, 190, 260];
+export const DEV_DAILY_CAP = 60;
+export const DEV_TURN_CAP = 20;
+
+/* 一个部位的进度条读数。
+   `today` 是这个部位今天已经吃掉的进度（脚本记在 系统配置.进展控制 里）。面板要画它，
+   不只是画个「今日已满」标签：一条只显示总量的条无法解释「为什么刚发生了事，条却没动」
+   —— 那正是每日上限撞满的样子。所以条上带一段今日增量，撞满时整段换成暖色并挂标签。
+
+   档位 5 没有下一档，进度恒为 0，条满并标 已封顶 —— 显示 0/0 会让人以为数据没读到。 */
+export function devProgress(tier, value, today = 0) {
+  const t = Math.max(0, Math.min(DEV_TIERS.length - 1, Math.floor(Number(tier) || 0)));
+  const need = DEV_TIER_STEPS[t] || 0;
+  const day = Math.max(0, Math.min(DEV_DAILY_CAP, Math.floor(Number(today) || 0)));
+  const dayFull = day >= DEV_DAILY_CAP;
+  const base = { tier: t, today: day, daily: DEV_DAILY_CAP, dayFull };
+  if (!need) return { ...base, value: 0, need: 0, pct: 100, todayPct: 0, fromPct: 100, capped: true };
+  const v = Math.max(0, Math.min(need, Math.floor(Number(value) || 0)));
+  const pct = Math.round((v / need) * 100);
+  /* 今日增量不能超过条上已有的长度：升档会把进度清回低位，而今日累计是不清的，
+     两者不同步时宁可少画一点，也不要画出一段悬在条外面的高亮。 */
+  const todayPct = Math.min(pct, Math.round((Math.min(day, v) / need) * 100));
+  return { ...base, value: v, need, pct, todayPct, fromPct: pct - todayPct, capped: false };
+}
 
 /* 性经历: the 13 counters the draft now defines, in its own order.  近期性经验次数
    is a decaying window, not a lifetime total, so it is labelled separately.
@@ -314,8 +352,9 @@ export function resolveCategory(bucket, category) {
    model to decide. */
 /* Where the category art is served from.  One constant because it will not stay local:
    moving to a CDN is then this line, the same way the character covers already read from
-   a remote host through COVER below. */
-export const ITEM_ART = `${import.meta.env.BASE_URL}assets/items`;
+   a remote host through COVER below.
+   —— 这件事已经发生了：ASSETS_ROOT 在 ASSET_CDN=1 的构建里就是 jsDelivr 的绝对地址。 */
+export const ITEM_ART = `${ASSETS_ROOT}items`;
 
 /* How many art sets a category can have: <slug>.png, <slug>-2.png, <slug>-3.png.
    This is only the ceiling -- how many a category *actually* has comes from
@@ -571,7 +610,9 @@ export const partArt = (name, key) => `${PART}/${name}/${partFile(key)}.webp`;
    correction.  Per-character values let a full-body cover and a close-up cover
    go through the same crop without one of them breaking.
 
-   `development` carries the 档位 only.  The 评语 live in the authored matrices under
+   `development` carries the 档位, `developmentProgress` the 进度 toward the next one --
+   the second is what the panel used to drop on the floor, so a part could sit at 档位 2
+   for a week and look identical to the moment it got there.  The 评语 live in the authored matrices under
    变量相关/ (v2 preferred) and are pulled in by tools/extract_dev_matrix.py -> src/dev-matrix.json:
    the draft rewrites a 评语 only when that part's 档位 goes up, so the prose is a
    function of (character, part, tier) and a second copy here could only drift. */
@@ -587,6 +628,8 @@ const roster = [
       roleplay: 0, voyeur: 0, stream: 0,
     },
     development: { oral: 1, chest: 1, vagina: 0, anus: 0 },
+    developmentProgress: { oral: 34, chest: 12, vagina: 21, anus: 0 },
+    developmentToday: { oral: 20, chest: 0, vagina: 60, anus: 0 },
     location: { area: '鼓岭区 · 云庭公寓', place: '客厅', privacy: 5 },
     fan: fan({ follow: true }),
     /* `schedule` is her 档期 -- authored, stable, her habit.  `live` is the fact, written back
@@ -609,6 +652,8 @@ const roster = [
       roleplay: 1, voyeur: 0, stream: 1,
     },
     development: { oral: 3, chest: 2, vagina: 2, anus: 0 },
+    developmentProgress: { oral: 96, chest: 58, vagina: 40, anus: 6 },
+    developmentToday: { oral: 60, chest: 18, vagina: 0, anus: 6 },
     location: { area: '西洲区 · 星芒电竞舱', place: '电竞舱主播位', privacy: 3 },
     fan: fan({ follow: true, tipped: 4200, tier: '舰长', days: 18 }),
     /* The one who keeps a real schedule, and she is on it right now -- 周五 夜 is a slot and
@@ -629,6 +674,8 @@ const roster = [
       roleplay: 0, voyeur: 1, stream: 0,
     },
     development: { oral: 2, chest: 3, vagina: 2, anus: 1 },
+    developmentProgress: { oral: 71, chest: 143, vagina: 24, anus: 62 },
+    developmentToday: { oral: 0, chest: 40, vagina: 24, anus: 0 },
     location: { area: '明湖区 · 湖滨商街', place: '居酒屋卡座', privacy: 1 },
     fan: fan({ follow: true, tipped: 690, tier: '舰长', days: 12, muted: true }),
     stream: {
@@ -647,6 +694,8 @@ const roster = [
       roleplay: 0, voyeur: 0, stream: 0,
     },
     development: { oral: 0, chest: 0, vagina: 0, anus: 0 },
+    developmentProgress: { oral: 0, chest: 0, vagina: 0, anus: 0 },
+    developmentToday: { oral: 0, chest: 0, vagina: 0, anus: 0 },
     location: { area: '鼓岭区 · 梧桐里', place: '画室', privacy: 4 },
     fan: fan(),
     /* 不开播的人.  Her schedule is intentionally sparse: the row shows only two weekly
@@ -668,6 +717,8 @@ const roster = [
       roleplay: 3, voyeur: 2, stream: 0,
     },
     development: { oral: 4, chest: 3, vagina: 4, anus: 2 },
+    developmentProgress: { oral: 118, chest: 162, vagina: 205, anus: 88 },
+    developmentToday: { oral: 0, chest: 12, vagina: 60, anus: 0 },
     location: { area: '乌溪区 · 夜巷', place: '情侣酒店', privacy: 5 },
     /* 路人 on the player's side and a streamer on her own: `fan` is the player's account on
        her channel, `schedule` is her schedule.  Keeping one of the two unfollowed streamers in
@@ -689,6 +740,8 @@ const roster = [
       roleplay: 2, voyeur: 1, stream: 0,
     },
     development: { oral: 3, chest: 4, vagina: 3, anus: 1 },
+    developmentProgress: { oral: 133, chest: 47, vagina: 176, anus: 29 },
+    developmentToday: { oral: 30, chest: 0, vagina: 0, anus: 29 },
     location: { area: '西洲区 · 极光声学棚', place: '录音棚休息区', privacy: 4 },
     fan: fan({ follow: true, tipped: 80, tier: '办卡', days: 22 }),
     stream: {
@@ -707,6 +760,8 @@ const roster = [
       roleplay: 4, voyeur: 3, stream: 7,
     },
     development: { oral: 5, chest: 4, vagina: 5, anus: 3 },
+    developmentProgress: { oral: 0, chest: 231, vagina: 0, anus: 154 },
+    developmentToday: { oral: 0, chest: 60, vagina: 0, anus: 20 },
     location: { area: '鼓岭区 · 云庭公寓', place: '自宅卧室', privacy: 5 },
     fan: fan({ follow: true }),
     /* 深夜 is her slot every time, and she is live at 夜 -- one 时段 early.  So her row carries
@@ -769,11 +824,18 @@ function createGirlView(c) {
 }
 
 function createCharacterDetail(c, index) {
+  /* Materialised on the roster row, not defaulted into the detail: the detail holds
+     references into `c`, so a fresh object here would be a second copy that the MVU
+     ingest below never writes to -- the bars would render once and then freeze. */
+  c.developmentProgress ||= emptyDevelopmentRecord();
+  c.developmentToday ||= emptyDevelopmentRecord();
   return {
     bond: c.bond,
     physiology: c.physiology,
     experience: c.experience,
     development: c.development,
+    developmentProgress: c.developmentProgress,
+    developmentToday: c.developmentToday,
     developmentNotes: c.developmentNotes || {},
     location: c.location,
     fan: c.fan,
@@ -1070,7 +1132,7 @@ export const destinations = [
    falls back to the hue-derived gem, the same drop-in slot the item cells use, so
    dropping the PNGs in later is the whole integration.  See
    变量相关/直播礼物图标素材.md for the eleven files and their requirements. */
-export const GIFT_ART = `${import.meta.env.BASE_URL}assets/gifts`;
+export const GIFT_ART = `${ASSETS_ROOT}gifts`;
 
 /* 念ID 的概率档.  Deliberately words rather than a number: the world book gives no
    rate and inventing one would state a precision the fiction does not have. */
@@ -1495,6 +1557,8 @@ function createDynamicCharacter(name, room, ui) {
     physiology: { desire: 0, stamina: 100, bladder: 0, statuses: [] },
     experience: emptyExperienceRecord(),
     development: emptyDevelopmentRecord(),
+    developmentProgress: emptyDevelopmentRecord(),
+    developmentToday: emptyDevelopmentRecord(),
     developmentNotes: {},
     location: { area: '', place: '', privacy: 0 },
     fan: fan(),
@@ -1698,6 +1762,13 @@ export function applyStatData(stat, ui = {}) {
   const objects = stat.对象信息 || {};
   const fans = me.粉丝身份 || {};
   const rooms = stat.系统配置?.直播间 || {};
+  /* 当日累计进度 lives under 系统配置, not under the girl -- it is bookkeeping the
+     tavern script owns, and the AI never sees it.  The panel needs it anyway: without
+     it a part that has hit its daily ceiling looks identical to one that simply had
+     nothing happen, which is the single most confusing state on this axis.
+     The script zeroes the counter on the first update of a new game day, so whatever
+     is in the snapshot is already scoped to today. */
+  const devControls = stat.系统配置?.进展控制?.对象 || {};
   reconcileRoster(objects, rooms, ui);
   roster.forEach((c) => {
     const block = pickNamed(objects, c.name);
@@ -1723,12 +1794,27 @@ export function applyStatData(stat, ui = {}) {
         c.experience[key] = asNum(exp[label]?.次数 ?? exp[label], c.experience[key]);
       });
       const dev = block.开发度 || {};
+      /* 进度 is read as well as 档位: it is the only part of this axis that moves
+         between promotions, and without it four tiles sit frozen for days. A part
+         written as a bare number (an old save, or the AI writing 开发度.口腔: 2) has a
+         档位 and no 进度, so the progress falls back to what is already there rather
+         than being reset to 0. */
+      c.developmentProgress ||= emptyDevelopmentRecord();
+      c.developmentToday ||= emptyDevelopmentRecord();
+      const devDay = pickNamed(devControls, c.name)?.开发度 || {};
       DEV_PARTS.forEach(([key, label, fileLabel]) => {
         const part = dev[label] || (fileLabel ? dev[fileLabel] : null) || dev[key];
-        const tier = part && typeof part === 'object' ? part.档位 : part;
+        const object = part && typeof part === 'object';
+        const tier = object ? part.档位 : part;
         if (tier != null) c.development[key] = asNum(tier, c.development[key]);
+        if (object && part.进度 != null) c.developmentProgress[key] = asNum(part.进度, c.developmentProgress[key]);
+        /* Absent means zero here, unlike 进度: a girl with no 进展控制 block yet has
+           spent nothing today, so falling back to the previous value would leave a
+           stale 今日已满 tag on a part that is free again. */
+        const day = (devDay[label] || (fileLabel ? devDay[fileLabel] : null) || devDay[key] || {}).当日累计进度;
+        c.developmentToday[key] = asNum(day, 0);
         if (!c.developmentNotes) c.developmentNotes = {};
-        if (part && typeof part === 'object' && typeof part.评语 === 'string') c.developmentNotes[key] = asStr(part.评语);
+        if (object && typeof part.评语 === 'string') c.developmentNotes[key] = asStr(part.评语);
       });
       const stream = block.直播 || {};
       c.stream.live = !!stream.开播;

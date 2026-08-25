@@ -72,6 +72,26 @@
   const CHANNEL = 'linjiang-hud';
   const POLL_MS = 10000;
 
+  /* 收回态改用酒馆的原生嵌入（实验开关，默认关）。
+     ==================================================================
+     生产行为：收回态（compacted）跟展开态一样，HUD 被抬到酒馆 body 上的裁剪台里，靠 followHud
+     逐帧跟着栏位走。也就是说「收回嵌入框」只是**排版变体**，机制跟展开态完全相同。
+
+     打开这个开关后，只有收回态改成真正的原生嵌入：HUD 直接挂在楼层自己的文档里，
+     position:static、宽 100%，滚动/裁剪/层叠/高度全部交给酒馆和浏览器。展开态、全屏、竖屏整页
+     一律走原来的生产路径，一个字没改。
+
+     它是给 外部部署/状态栏-测试版-流内嵌入.html 用的（由 scripts/build-status-shell.mjs 生成，
+     那份产物会在加载本脚本之前把这个全局设成 true）。生产的两份包装都不设它，所以走的还是老路。
+
+     开着它必然要付的代价，也正是要观察的东西：
+       · owner 交接（每来一条 AI 消息）要把 HUD 挪进新楼层的文档，而 iframe 换父节点必重载
+         —— 已实测：同文档换父 1→2 次加载、跨文档挪 2→3、挪回来 3→4；只改 CSS 不重载。
+       · 在收回↔展开之间切换同样是跨文档挪动，同样重载。 */
+  const INLINE_DOCK = (() => {
+    try { return !!window.__linjiangInlineDock; } catch (e) { return false; }
+  })();
+
   const localHudFrame = document.getElementById('hud');
   let hudFrame = localHudFrame;
   const hint = document.getElementById('hint');
@@ -1282,8 +1302,58 @@
     }
   };
 
+  /* 原生嵌入下「楼层高度归谁」的交接。
+     ==================================================================
+     要交出去的其实是两样东西，缺一样都不行：
+
+     一、楼层 iframe 上 setSpacer 写的那些 !important（尤其 height）。
+         adjust_iframe_height.js 写的是不带 !important 的 frameElement.style.height，抢不过它。
+
+     二、骨架里 html,body 的 `height:100%; overflow:hidden`。
+         那让本文档的高度等于楼层 iframe 的高度 —— 于是 adjust_iframe_height 量到的
+         body.scrollHeight 就是它自己刚写的值，自我循环，永远锁在旧数字上。
+         实测竖屏锁在 841px（页面态留下的），而 HUD 只有 780px。原生嵌入要的是内容决定高度。
+
+     交接必须是**一次性**的。第一版在每次重排里都撤一遍占位，等于每帧删掉酒馆助手刚写的高度，
+     它再写、我再删 —— 真机上就是「疯狂闪烁」。 */
+  let inlineDockHandedOver = false;
+  let savedDocStyle = null;
+
+  const handOverHeight = (frame) => {
+    if (inlineDockHandedOver) return;
+    inlineDockHandedOver = true;
+    if (savedDocStyle == null) {
+      savedDocStyle = {
+        html: document.documentElement.getAttribute('style'),
+        body: document.body.getAttribute('style'),
+      };
+    }
+    clearSpacer(frame);
+    const free = (el) => {
+      ['height', 'min-height', 'max-height'].forEach((p) => el.style.setProperty(p, 'auto', 'important'));
+      el.style.setProperty('overflow', 'visible', 'important');
+    };
+    free(document.documentElement);
+    free(document.body);
+  };
+
+  const takeBackHeight = () => {
+    if (!inlineDockHandedOver) return;
+    inlineDockHandedOver = false;
+    if (!savedDocStyle) return;
+    const restore = (el, value) => {
+      if (value == null) el.removeAttribute('style');
+      else el.setAttribute('style', value);
+    };
+    restore(document.documentElement, savedDocStyle.html);
+    restore(document.body, savedDocStyle.body);
+    savedDocStyle = null;
+  };
+
   const setSpacer = (frame, height) => {
     if (!isSafeOuterFrame(frame)) return;
+    /* 走到 setSpacer 就说明当前排版是壳层拥有高度的那一类，把交出去的东西收回来。 */
+    takeBackHeight();
     frame.setAttribute('scrolling', 'no');
     const apply = (prop, value) => frame.style.setProperty(prop, value, 'important');
     apply('position', 'relative');
@@ -1302,6 +1372,19 @@
     apply('top', 'auto');
     apply('z-index', 'auto');
     apply('background', 'transparent');
+  };
+
+  /* setSpacer 的反操作。原生嵌入时楼层 iframe 不再是透明占位，而是**真正装着 HUD 的容器**，
+     所以那些 !important 覆盖必须全部撤掉，让酒馆助手的 adjust_iframe_height 重新按内容量它。
+     dataset.linjiangH 也要清掉，否则切回生产路径时会以为占位高度没变而跳过 setSpacer。 */
+  const SPACER_PROPS = ['position', 'transform', 'width', 'height', 'max-width', 'margin',
+    'border', 'display', 'visibility', 'opacity', 'pointer-events', 'overflow',
+    'left', 'top', 'z-index', 'background'];
+  const clearSpacer = (frame) => {
+    if (!frame) return;
+    SPACER_PROPS.forEach((prop) => { try { frame.style.removeProperty(prop); } catch (e) {} });
+    try { frame.removeAttribute('scrolling'); } catch (e) {}
+    try { delete frame.dataset.linjiangH; } catch (e) {}
   };
 
   const FS_SIZE = 36;
@@ -1837,6 +1920,9 @@
       return;
     }
     const box = hudFrame._linjiangBox;
+    /* 原生嵌入没有裁剪台，hudMounted() 本来就会是 false，但把判断写在前面更直白：
+       这条路径下 HUD 是普通流内元素，滚动跟随是浏览器的事，这里一步都不该做。 */
+    if (hudFrame._linjiangAlign === 'inline') return;
     if (!frame || !box || !hudMounted()) return;
     if (hudFrame._linjiangAlign === 'page') return;
     /* compacted 以前在这里单独走一条分支，只挪角上那两颗钮就 return 了 —— 于是收回
@@ -1876,6 +1962,153 @@
     moveHud(after, box);
     hudFrame._linjiangBox = box;
     try { hideChromeButtons(); } catch (e) {}
+  };
+
+  /* 收回态的原生嵌入（只在 INLINE_DOCK 打开时走到）。
+     ==================================================================
+     它替代的是 layoutCompact 和 layoutPortraitCompact。那两支做的是：把楼层 iframe 变成透明占位、
+     把 HUD 抬进酒馆 body 上的裁剪台、paintHud 提升合成层、再 moveHud 逐帧跟随。
+     这一支反过来 —— 什么都不做，把活儿还给酒馆：
+
+       · removeHudStage()      拆掉裁剪台
+       · 把 HUD 挂进**本楼层的文档**，position:static、宽 100%
+       · clearSpacer()         撤掉楼层 iframe 上的占位覆盖，让 adjust_iframe_height 按内容量它
+       · 不 moveHud、不 applySlotVisibility、不写 clip-path、不提升合成层
+
+     高度是唯一还要算的东西，而且用的是跟生产同一个来源：竖屏取 HUD 自报的 _portraitRestH
+     （HUD 的 reportPortraitSize），横屏按 BODY_H/BODY_W 的宽高比。 */
+  const layoutInlineDock = () => {
+    const frame = window.frameElement;
+    if (!frame) return;
+    removeHudStage();
+    if (hudFrame.parentNode !== document.body) document.body.appendChild(hudFrame);
+    /* 从整页状态退回来时先还原楼层 iframe，否则它还钉在满视口上。 */
+    leaveInlineDockPage(frame);
+
+    /* 楼层 iframe 的高度在原生嵌入下**归酒馆助手**，壳层必须彻底放手。
+       ------------------------------------------------------------------
+       JS-Slash-Runner/src/iframe/adjust_iframe_height.js 跑在本文档里，由 body 上的
+       ResizeObserver 驱动，直接写 frameElement.style.height = body.scrollHeight。
+
+       所以占位覆盖只能在**进入**这个状态时撤一次。第一版在每次重排里都调 clearSpacer，
+       而它含 removeProperty('height') —— 于是每帧把酒馆助手刚写的高度删掉，它再写、我再删，
+       在真机上就是「疯狂闪烁」。夹具当时也露出了症状（楼层停在 150px 而 HUD 是 780px），
+       那是这场抢夺停在了「删掉之后 body 尺寸没再变、ResizeObserver 不再触发」的那一帧，
+       我没认出来。
+
+       交接的两样东西和它的一次性要求，都写在 handOverHeight 上面那段。 */
+    handOverHeight(frame);
+
+    const width = Math.max(120, Math.round(
+      document.documentElement.clientWidth || frame.getBoundingClientRect().width || 0,
+    ));
+    const reported = Math.round(hudFrame._portraitRestH || 0);
+    const height = portraitHud()
+      ? (reported > 1 ? reported : Math.max(360, Math.round(width * 0.9)))
+      : Math.round(width * BODY_H / BODY_W);
+
+    hudFrame.id = HUD_LIVE_ID;
+    /* 刻意不带 position / transform / will-change / clip-path —— 那些正是这一支要证明可以不要的。 */
+    const cssText = [
+      'position:static',
+      'width:100%',
+      `height:${height}px`,
+      'max-width:none',
+      'margin:0',
+      'border:0',
+      'display:block',
+      'background:#05040a',
+      'pointer-events:auto',
+      'visibility:visible',
+      'overflow:hidden',
+    ].join(';');
+    if (hudFrame._linjiangCss !== cssText) {
+      hudFrame._linjiangCss = cssText;
+      hudFrame.style.cssText = cssText;
+    }
+    hudFrame.setAttribute('scrolling', 'no');
+    hudFrame._linjiangAlign = 'inline';
+    hudFrame._linjiangBox = { width, height };
+    hudFrame._linjiangOffX = 0;
+    hudFrame._linjiangOffY = 0;
+    /* 那两颗角钮是注入酒馆顶层文档、按抬起后的 HUD 位置摆的，原生嵌入下没有对应位置。 */
+    try { hideChromeButtons(); } catch (e) {}
+  };
+
+  /* 原生嵌入下的「整页」状态（次级页面 / 全屏）。
+     ==================================================================
+     为什么不能直接复用 layoutPortraitPage / layoutExpanded：它们靠 mountHud() 把 HUD 挪到酒馆
+     文档上再铺满视口，而**挪动必重载**。重载会把 HUD 内部刚打开的那一页丢掉，于是点「日程」
+     「档案」这类按钮的结果是整个面板被全屏化、而不是那一页被打开 —— 真机上就是这个症状。
+
+     所以这里达成的是同一个状态（HUD 铺满视口），但换用这个模式下唯一可行的手段：HUD 一步不动，
+     改让**楼层 iframe** 铺满视口。楼层 iframe 在酒馆文档里，本文件与酒馆同源，改它的样式是允许的。
+     这不是新增交互，也没有新按钮 —— 触发它的仍然是 HUD 自己那两条通报（portraitPage / 全屏）。 */
+  let inlinePageOn = false;
+  let savedFloorStyle = null;
+
+  const layoutInlineDockPage = () => {
+    const frame = window.frameElement;
+    if (!frame) return;
+    removeHudStage();
+    if (hudFrame.parentNode !== document.body) document.body.appendChild(hudFrame);
+
+    if (!inlinePageOn) {
+      inlinePageOn = true;
+      if (savedFloorStyle === null) savedFloorStyle = frame.getAttribute('style');
+    }
+    const tavern = tavernWin();
+    const vv = tavern.visualViewport;
+    const vw = Math.round((vv && vv.width) || tavern.innerWidth || innerWidth);
+    const vh = Math.round((vv && vv.height) || tavern.innerHeight || innerHeight);
+    /* 楼层 iframe 铺满视口。跟 layoutPortraitPage 用的是同一套数字，只是作用在楼层而不是 HUD。 */
+    const floorCss = [
+      'position:fixed', 'left:0', 'top:0',
+      `width:${vw}px`, `height:${vh}px`,
+      'max-width:none', 'max-height:none',
+      'margin:0', 'border:0', 'display:block',
+      'visibility:visible', 'opacity:1', 'pointer-events:auto',
+      'overflow:hidden', 'z-index:2147483000', 'background:#05040a',
+    ].join(';');
+    if (frame.style.cssText !== floorCss) frame.style.cssText = floorCss;
+    /* TT 移动端会把 body 下未标记的 fixed 元素当宿主浮层接管几何，显式退出。 */
+    try { frame.dataset.ttMobileSurface = 'none'; } catch (e) {}
+    frame.setAttribute('scrolling', 'no');
+
+    /* 本文档现在就是视口，让它满铺；整页要能内部滚动，所以 HUD 给 scrolling=yes。 */
+    const fill = (el) => {
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+    };
+    fill(document.documentElement);
+    fill(document.body);
+
+    const cssText = [
+      'position:static', 'width:100%', 'height:100%',
+      'max-width:none', 'margin:0', 'border:0', 'display:block',
+      'background:#05040a', 'pointer-events:auto', 'visibility:visible', 'overflow:auto',
+    ].join(';');
+    if (hudFrame._linjiangCss !== cssText) {
+      hudFrame._linjiangCss = cssText;
+      hudFrame.style.cssText = cssText;
+    }
+    hudFrame.setAttribute('scrolling', 'yes');
+    hudFrame.id = HUD_LIVE_ID;
+    hudFrame._linjiangAlign = 'inline';
+    hudFrame._linjiangBox = { width: vw, height: vh };
+    try { hideChromeButtons(); } catch (e) {}
+  };
+
+  /* 从整页退回普通的原生嵌入：把楼层 iframe 还原成酒馆自己设的样子，然后重新走一次交接
+     （handOverHeight 会把 html/body 放回内容决定高度）。 */
+  const leaveInlineDockPage = (frame) => {
+    if (!inlinePageOn) return;
+    inlinePageOn = false;
+    if (savedFloorStyle === null) frame.removeAttribute('style');
+    else frame.setAttribute('style', savedFloorStyle);
+    savedFloorStyle = null;
+    inlineDockHandedOver = false;   // 让 handOverHeight 重新撤一次占位与 height:100%
+    hudFrame._linjiangCss = null;
   };
 
   const layoutPortrait = () => {
@@ -1945,6 +2178,24 @@
 
   const applyPortraitHeight = (h) => {
     if (portraitPageOpen || expanded || !portraitHud()) return;
+    /* 原生嵌入（INLINE_DOCK 的收回态）必须在这里就地返回，绝对不能落到下面那句 layoutPortrait()。
+       ------------------------------------------------------------------
+       这是一个真实撞出来的死循环，值得记清楚：那句兜底会调 mountHud() 把 HUD 挪回酒馆文档，
+       而 iframe 换父节点必重载；重载后的 HUD 又会报一次 portraitSize，又走到这里，又被挪回去 ——
+       同时 fitParentFrame 那边还在把它挪进楼层文档。两边对着挪，HUD 每秒重载十几次，最后停在
+       about:blank。竖屏才报 portraitSize，所以桌面完全正常，只有竖屏炸 —— 很容易误判成别的原因。
+
+       原生嵌入下高度就是普通的流内高度，直接写在 iframe 上，酒馆助手的 adjust_iframe_height
+       会跟着把楼层量对。 */
+    if (hudFrame._linjiangAlign === 'inline') {
+      const inlineNext = Math.max(1, Math.round(h));
+      if (hudFrame._linjiangBox) hudFrame._linjiangBox.height = inlineNext;
+      if (hudFrame.style.height !== `${inlineNext}px`) {
+        hudFrame.style.height = `${inlineNext}px`;
+        hudFrame._linjiangCss = null;   // cssText 缓存已失效，下次重排要重写
+      }
+      return;
+    }
     const next = Math.max(1, Math.round(h));
     const box = hudFrame._linjiangBox;
     if (box && hudFrame._linjiangAlign === 'slot' && hudMounted()) {
@@ -2026,7 +2277,15 @@
         return;
       }
       ensureFsChrome();
-      if (expanded) layoutExpanded();
+      /* INLINE_DOCK 截的是「收回态」这一整支，包括它的整页/全屏子状态。
+         整页也必须由它接住：走生产的 layoutPortraitPage 会 mountHud 把 HUD 挪回酒馆文档，
+         而挪动必重载，重载会丢掉 HUD 刚打开的那一页 —— 症状是「点日程/档案变成整个面板全屏」。
+         详见 layoutInlineDockPage 上面那段。 */
+      if (INLINE_DOCK && compacted && window.frameElement) {
+        if (expanded || portraitPageOpen) layoutInlineDockPage();
+        else layoutInlineDock();
+      }
+      else if (expanded) layoutExpanded();
       else if (compacted && isDesktop() && window.frameElement) layoutCompact();
       else if (isDesktop() && window.frameElement) layoutDesktop();
       else if (portraitHud() && window.frameElement) {

@@ -24,7 +24,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # ASSET_CDN=1 让 public/assets 里的静态素材走 jsDelivr 而不是 Pages。
+      #
+      # 为什么：bg-plate.png(2MB) 走 Pages 在国内实测 178.8s / 217.0s / 240s 超时失败 /
+      # 185.7s，走 testingcf 是 4.2s / 2.0s / 11.0s —— 约 50 倍，而且 Pages 会整个取不
+      # 回来。frost.png(1MB) 还是首屏依赖。完整实测和取舍见 scripts/asset-cdn.mjs 顶部。
+      #
+      # 只在部署时开、本地默认关：本地跑 playwright 回归时素材走本地，离线可跑、结果确定，
+      # 也不会因为改了素材还没推就取到 CDN 上的旧版。
       - run: npm run build
+        env:
+          ASSET_CDN: '1'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

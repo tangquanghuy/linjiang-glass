@@ -5,17 +5,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>临江 · 玻璃状态栏</title>
-<!-- 状态栏（自包含版）。粘进角色卡「状态栏」。
+<!-- 状态栏（实验版：收回态改用酒馆原生嵌入）。粘进角色卡「状态栏」。
      ==================================================================
-     本文件由 scripts/build-status-shell.mjs 从 public/shell/status-shell.js 生成，
-     请勿直接编辑 —— 要改逻辑请改那个脚本，然后跑 npm run shell:build。
+     本文件由 scripts/build-status-shell.mjs 从 public/shell/status-shell.js 生成，请勿直接编辑。
 
-     这一版把壳层脚本整份内联进来，所以它跟当初那个手写的单文件壳层在行为上完全一样。
-     它存在的唯一理由是向后兼容：已经装了旧版的用户可以继续粘这一份。
+     它和 外部部署/状态栏.html 是同一份逻辑，只多一行：加载壳层之前把 __linjiangInlineDock
+     设成 true。于是壳层里那个开关生效，**只有收回态**改成真正的原生嵌入 ——
+     HUD 直接挂在楼层文档里，position:static、宽 100%，滚动 / 裁剪 / 层叠 / 高度全交给酒馆。
 
-     但它有一个改不掉的毛病 —— 粘下去就冻结了。HUD 产物在 GitHub Pages 上持续更新，这份
-     不会。两者是同一个 RPC 契约的两端，脱节的后果是静默错账（已经出过一次：建设费不扣钱）。
-     新装请用 外部部署/状态栏-引导壳.html，那一份粘一次就永远跟着线上走。 -->
+     其余一切不变：全局设置里的「HUD 停靠方式」照旧切换，展开到页面、全屏、竖屏整页、小手机、
+     全部 13 个 RPC action 都走原来的生产路径。
+
+     用来在真机上回答「为什么不能干脆交给酒馆的默认嵌入」。已知必然要付的代价，也正是要观察的：
+       · 每来一条 AI 消息，owner 交接要把 HUD 挪进新楼层的文档，而 iframe 换父节点必重载
+         （实测：同文档换父 1→2 次加载、跨文档挪 2→3、挪回来 3→4；只改 CSS 不重载）。
+         表现是闪一下、重新握手，**开着的面板会被关掉**。
+       · 在「收回」和「展开到页面」之间切换同样是跨文档挪动，同样重载一次。
+       · 收回态下这条栏只有阅读栏那么宽；生产的收回态会突破到 480px（竖屏）。
+
+     想回去就把 状态栏-引导壳.html 或 状态栏.html 再粘回来。 -->
 <style>
   html, body {
     margin: 0;
@@ -50,6 +58,10 @@
 <body>
 <iframe id="hud" title="玻璃状态栏" src="" loading="eager" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write"></iframe>
 <div id="hint"></div>
+<script>
+  /* 开关必须在壳层脚本之前落地：壳层是在自己顶部一次性读它的。 */
+  window.__linjiangInlineDock = true;
+</script>
 <script>
 /* 状态栏壳层的全部逻辑。
    ==================================================================

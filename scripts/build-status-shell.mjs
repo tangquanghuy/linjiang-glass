@@ -27,6 +27,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SHELL_JS = join(ROOT, 'public', 'shell', 'status-shell.js');
 const OUT_BOOT = join(ROOT, '外部部署', '状态栏-引导壳.html');
 const OUT_INLINE = join(ROOT, '外部部署', '状态栏.html');
+const OUT_FLOW = join(ROOT, '外部部署', '状态栏-测试版-流内嵌入.html');
 
 /* 脚本的线上地址。
    ------------------------------------------------------------------
@@ -178,9 +179,47 @@ const INLINE_SCRIPT = `<script>\n${inlineBody}\n</script>`;
    的地方，而不是整文件换行符翻一遍。 */
 const toCrlf = (text) => text.replace(/\r?\n/g, '\r\n');
 
+/* 第三份：收回态换成酒馆原生嵌入的实验版。
+   ------------------------------------------------------------------
+   它跟自包含版是**同一份逻辑**，唯一差别是在加载壳层脚本之前把 __linjiangInlineDock 设成 true。
+   壳层里那个开关只截收回态一条分支（见 status-shell.js 的 INLINE_DOCK 与 layoutInlineDock），
+   展开、全屏、竖屏整页仍走原来的生产路径。
+
+   所以它不是「另写一份小实现」—— 停靠方式切换、小手机、全部 13 个 action、竖屏整页都照旧工作，
+   被替换的只有受测的那一件事。这也是它必须由本脚本生成而不是手写的原因：手写的那一版漏掉了
+   停靠切换和整页处理，把实验做成了另一个东西。 */
+const FLOW_HEADER = `<!-- 状态栏（实验版：收回态改用酒馆原生嵌入）。粘进角色卡「状态栏」。
+     ==================================================================
+     本文件由 scripts/build-status-shell.mjs 从 public/shell/status-shell.js 生成，请勿直接编辑。
+
+     它和 外部部署/状态栏.html 是同一份逻辑，只多一行：加载壳层之前把 __linjiangInlineDock
+     设成 true。于是壳层里那个开关生效，**只有收回态**改成真正的原生嵌入 ——
+     HUD 直接挂在楼层文档里，position:static、宽 100%，滚动 / 裁剪 / 层叠 / 高度全交给酒馆。
+
+     其余一切不变：全局设置里的「HUD 停靠方式」照旧切换，展开到页面、全屏、竖屏整页、小手机、
+     全部 13 个 RPC action 都走原来的生产路径。
+
+     用来在真机上回答「为什么不能干脆交给酒馆的默认嵌入」。已知必然要付的代价，也正是要观察的：
+       · 每来一条 AI 消息，owner 交接要把 HUD 挪进新楼层的文档，而 iframe 换父节点必重载
+         （实测：同文档换父 1→2 次加载、跨文档挪 2→3、挪回来 3→4；只改 CSS 不重载）。
+         表现是闪一下、重新握手，**开着的面板会被关掉**。
+       · 在「收回」和「展开到页面」之间切换同样是跨文档挪动，同样重载一次。
+       · 收回态下这条栏只有阅读栏那么宽；生产的收回态会突破到 480px（竖屏）。
+
+     想回去就把 状态栏-引导壳.html 或 状态栏.html 再粘回来。 -->`;
+
+const FLOW_SCRIPT = `<script>
+  /* 开关必须在壳层脚本之前落地：壳层是在自己顶部一次性读它的。 */
+  window.__linjiangInlineDock = true;
+</script>
+<script>
+${inlineBody}
+</script>`;
+
 const targets = [
   { path: OUT_BOOT, label: '引导壳', body: toCrlf(skeleton(BOOT_HEADER, BOOT_SCRIPT)) },
   { path: OUT_INLINE, label: '自包含版', body: toCrlf(skeleton(INLINE_HEADER, INLINE_SCRIPT)) },
+  { path: OUT_FLOW, label: '流内嵌入实验版', body: toCrlf(skeleton(FLOW_HEADER, FLOW_SCRIPT)) },
 ];
 
 const checkOnly = process.argv.includes('--check');

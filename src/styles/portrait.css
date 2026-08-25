@@ -1703,12 +1703,39 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-3) 0;
 }
+/* nowrap on both: a flex item can shrink below its content width, and 口腔 / 0 · 未开发
+   breaking into a vertical stack of single characters is what that looks like here. */
 .pdev-meta b {
+  flex: none;
+  white-space: nowrap;
   font: 500 var(--fs-body)/1 'Noto Sans SC', sans-serif;
   color: rgba(255, 255, 255, .92);
   letter-spacing: .08em;
 }
+/* 今日已满: this part's daily allowance is spent, so the bar will not move however much
+   happens next.  Gold rather than pink because pink is the 档位 colour on this page and
+   this is a ceiling, not progress -- the same role gold plays on the 尿意 meter.
+
+   It wraps onto its own line under the bar; see the note on devTiles.  `margin-left:auto`
+   keeps it right-aligned once it has wrapped. */
+.pdev-day {
+  flex: none;
+  margin-left: auto;
+  padding: 3px 9px;
+  border: 2px solid rgba(255, 206, 138, .42);
+  border-radius: 11px;
+  background: rgba(255, 190, 110, .14);
+  color: rgba(255, 224, 182, .92);
+  /* --fs-micro exactly, not a fraction of it: micro already sits on the 13 real px floor
+     at 320 wide, which tools/shot_portrait_pages.mjs measures. */
+  font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .pdev-meta > span {
+  flex: none;
+  white-space: nowrap;
   font: 400 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
   color: rgba(255, 214, 236, .72);
 }
@@ -1721,6 +1748,64 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
   transition: transform .18s ease;
 }
 .pdev-tile.is-open .pdev-meta .ic { transform: rotate(90deg); }
+/* 进度 under the pips.  Same reasoning as the landscape tiles: the pips are the 档位,
+   an ordered enum that moves once every few game days, and this is the part that
+   actually moves in between.  Cooler and thinner so the 档位 stays the headline.
+   `s` is the slice added today, gold once the day's allowance is spent, next to a
+   今日已满 tag -- otherwise a throttled part looks like a broken readout. */
+.pdev-prog { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); row-gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) 0; }
+/* min-width is what makes the wrap happen: a flex item with `flex: 1` and no minimum
+   shrinks to nothing rather than pushing the tag to the next line, which is exactly the
+   10px-wide bar this replaced. 160 + 16 + 140 fits the 335 units of content box; adding
+   the tag does not, so the tag goes down a line. */
+.pdev-prog i {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(10, 13, 34, .42);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .30);
+  overflow: hidden;
+}
+.pdev-prog i u,
+.pdev-prog i s {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+}
+.pdev-prog i u {
+  left: 0;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, rgba(150, 205, 255, .72), rgba(196, 168, 255, .86));
+}
+.pdev-prog i s {
+  left: var(--from, 0%);
+  width: var(--today, 0%);
+  background: rgba(226, 238, 255, .92);
+  box-shadow: 0 0 8px rgba(190, 220, 255, .55);
+}
+/* Fixed column, right-aligned, so the two tiles in a row draw bars of the same length
+   even though `21 / 40` and `133 / 190` are different widths.  140 units, measured: at
+   36px type `231 / 260` is 126 and a narrower column breaks it across two lines. */
+.pdev-prog em {
+  flex: none;
+  width: 140px;
+  text-align: right;
+  white-space: nowrap;
+  font: 400 var(--fs-micro)/1 'Outfit', 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  color: rgba(214, 226, 255, .62);
+  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+}
+.pdev-prog.is-dayfull i s { background: linear-gradient(90deg, rgba(255, 206, 138, .90), rgba(255, 178, 96, .95)); box-shadow: 0 0 9px rgba(255, 186, 104, .55); }
+.pdev-prog.is-dayfull em { color: rgba(255, 224, 182, .80); }
+.pdev-prog.is-capped i u { background: linear-gradient(90deg, #ff92c4, #d38ce8); }
+.pdev-prog.is-capped em { color: rgba(255, 214, 236, .74); }
+.pdev-tile.is-zero .pdev-prog em { color: rgba(214, 226, 255, .40); }
+
 .pdev-pips { display: flex; gap: 5px; padding: var(--sp-2) var(--sp-3) 0; }
 .pdev-pips i {
   flex: 1;

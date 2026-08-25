@@ -303,6 +303,17 @@ const experienceSchema = z.preprocess(
     })
 );
 
+/* 升档门槛：从档位 n 升到 n+1 所需的进度，档位 5 封顶所以只有五个数。
+   不是固定 100 一档 —— 每档比上一档多要 40/50/60/70，前面几档便宜、后面越来越贵。
+   同一份表在 外部部署/辅助计算脚本.js（真正执行升档）和 src/data.js（面板画进度条）
+   各有一份，三处必须同时改。这里只负责截断：够门槛的进度由辅助脚本换成档位，所以
+   Schema 允许的上限是门槛前一格。 */
+const DEV_TIER_STEPS = [40, 80, 130, 190, 260];
+const devCeiling = tier => {
+    const need = DEV_TIER_STEPS[_.clamp(Math.floor(Number(tier) || 0), 0, 5)];
+    return need ? need - 1 : 0;
+};
+
 const devPartSchema = z.preprocess(v => {
     if (!isPlainObject(v)) return {};
     return {
@@ -316,7 +327,12 @@ const devPartSchema = z.preprocess(v => {
     进度: clampNum(0, 0, 999),
     可更新: boolPreprocess(true),
     评语: str(''),
-}));
+}).transform(r => ({
+    /* 进度按档位截断，而不是一刀 0~999：AI 一次写个 500 进来，或者门槛调过之后老档里
+       存着「档位 0 · 进度 99」，都不该留在门槛线上方 —— 那会让部位看起来永远差一点点。 */
+    ...r,
+    进度: _.clamp(r.进度, 0, devCeiling(r.档位)),
+})));
 
 const developmentSchema = z.preprocess(v => {
     if (!isPlainObject(v)) return {};

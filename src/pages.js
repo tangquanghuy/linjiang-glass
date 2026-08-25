@@ -4,7 +4,7 @@ import { rebaseRecord } from './asset.js';
 import devMatrix from './dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, NO_STATUS, PRIVACY, THRESHOLDS,
-  CITY_BUILD_COST, characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon, MAP_MARKER_ITEM,
+  CITY_BUILD_COST, characterDetails, dailyEvents, devProgress, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon, MAP_MARKER_ITEM,
   itemIconTag, onLive, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
@@ -255,26 +255,79 @@ function experienceBlock(experience) {
 /* 开发度 as part tiles.
    The authored 评语 run 80-145 characters each, so they cannot live in the tile --
    four of them side by side is the wall of text this page is trying not to be.
-   The tile carries the crop, the part name and the 档位; the prose opens on click.
+   The tile carries the crop, the part name, the 档位 and the 进度 toward the next one;
+   the prose opens on click.
+
+   The pips alone were the whole readout for a while, and they are the wrong instrument
+   on their own: 档位 moves once every few game days, so four parts would sit visually
+   identical through everything that happened in between.  The bar underneath is the
+   part that actually moves, and it is labelled 进度/门槛 rather than a percentage
+   because the 门槛 is not constant -- see DEV_TIER_STEPS.
 
    The crop is an <img> that hides itself if the file is absent, revealing the
    placeholder underneath -- so a missing file on the CDN needs no code change. */
-function developmentTiles(girl, development) {
+function developmentTiles(girl, development, progress, today) {
   return DEV_PARTS.map(([key, label]) => {
     const tier = development[key];
+    const p = devProgress(tier, progress?.[key], today?.[key]);
     return `
-      <button class="dev-tile${tier ? '' : ' is-zero'}" type="button"
+      <button class="dev-tile${tier ? '' : ' is-zero'}${p.dayFull && !p.capped ? ' is-dayfull' : ''}" type="button"
         data-dev-part="${key}" data-dev-name="${girl.name}"
-        aria-label="${label} 开发度 ${tier} ${DEV_TIERS[tier]}，点击查看评语">
+        aria-label="${label} 开发度 ${tier} ${DEV_TIERS[tier]}，${devProgressLabel(p)}，点击查看评语">
         ${partCrop(girl, key, 'dev-crop')}
         <span class="dev-meta">
           <b>${label}</b>
           <span class="dev-tier">${tier} · ${DEV_TIERS[tier]}</span>
+          ${devDayTag(p)}
         </span>
         <span class="dev-pips">${DEV_TIERS.map((_, n) =>
           `<i class="${n && n <= tier ? 'on' : ''}"></i>`).slice(1).join('')}</span>
+        ${devProgressBar(p)}
       </button>`;
   }).join('');
+}
+
+/* The spoken form of the readout, for aria-label.  Same three states as the bar. */
+function devProgressLabel(p) {
+  if (p.capped) return '已封顶';
+  const day = p.dayFull ? `今日已满 ${p.daily}` : `今日 +${p.today}`;
+  return `距下一档 ${p.value} / ${p.need}，${day}`;
+}
+
+/* 今日已满 rides the name row, not the bar row.
+   The bar row is bar + number and there is no width to spare there -- with the tag
+   inline the bar collapsed to about 80px and, worse, came out a different length in
+   every tile because the number beside it is 3 to 7 characters.  The name row has empty
+   space to the right of `3 · 敏感` and nothing that competes for it.
+
+   Rendered even when the day is not full, hidden but still laid out: the archive fits
+   its panel exactly, and a tag that appears out of nowhere would reflow the row it sits
+   in.  Reserving it also keeps all four tiles the same height. */
+function devDayTag(p) {
+  if (p.capped) return '';
+  return `<mark class="dev-day"${p.dayFull ? '' : ' hidden'}>今日已满 ${p.daily}</mark>`;
+}
+
+/* The 进度 readout, shared by the tile and the 评语 sheet.
+
+   Three states, and the middle one is the reason this is a bar and not a number:
+     档位 5      -- full bar, 已封顶.  0/0 would look like the value failed to load.
+     今日已满    -- the day's allowance is spent, so nothing that happens next will move
+                   this bar.  Without saying so the panel looks broken rather than
+                   throttled, so the today slice turns gold and the name row tags it.
+     otherwise   -- 进度 / 门槛, with the slice gained today lit brighter at the leading
+                   edge of the fill.
+
+   The today slice is a second span rather than a gradient stop because it has to start
+   part way along the bar (`--from`), and it is drawn inside the fill so it cannot
+   overhang the track when 升档 resets 进度 mid-day. */
+function devProgressBar(p) {
+  const cls = p.capped ? ' is-capped' : (p.dayFull ? ' is-dayfull' : '');
+  return `
+        <span class="dev-prog${cls}" style="--pct:${p.pct}%;--from:${p.fromPct}%;--today:${p.todayPct}%">
+          <i aria-hidden="true"><u></u>${p.todayPct ? '<s></s>' : ''}</i>
+          <em>${p.capped ? '已封顶' : `${p.value} / ${p.need}`}</em>
+        </span>`;
 }
 
 /* Same drop-in slot as the archive tiles: the <img> removes itself when the file
@@ -296,6 +349,8 @@ function partCrop(girl, key, cls) {
 function developmentNote(name, partKey) {
   const girl = girls.find((item) => item.name === name) || girls[0];
   const tier = characterDetails[girl.name].development[partKey];
+  const p = devProgress(tier, characterDetails[girl.name].developmentProgress?.[partKey],
+    characterDetails[girl.name].developmentToday?.[partKey]);
   const label = (DEV_PARTS.find(([k]) => k === partKey) || [, partKey])[1];
   const note = characterDetails[girl.name].developmentNotes?.[partKey] || devMatrix[girl.name]?.[partKey]?.[tier];
 
@@ -308,6 +363,8 @@ function developmentNote(name, partKey) {
         <span class="dev-tier">${DEV_TIERS[tier]}</span>
         <span class="dev-pips">${DEV_TIERS.map((_, n) =>
           `<i class="${n && n <= tier ? 'on' : ''}"></i>`).slice(1).join('')}</span>
+        ${devProgressBar(p)}
+        ${p.dayFull && !p.capped ? `<mark class="dev-day">今日已满 ${p.daily}</mark>` : ''}
         <button class="dev-sheet-close" type="button" data-dev-close aria-label="关闭">×</button>
       </header>
       <div class="dev-sheet-body">
@@ -323,7 +380,7 @@ function developmentNote(name, partKey) {
 
 function characterFull(name) {
   const girl = girls.find((item) => item.name === name) || girls[0];
-  const { bond, experience, development } = characterDetails[girl.name];
+  const { bond, experience, development, developmentProgress, developmentToday } = characterDetails[girl.name];
 
   /* Deliberately no 羁绊 / 生理 here: both are on the dock, which stays mounted
      behind this page, so repeating them is what made the archive read as a
@@ -340,8 +397,8 @@ function characterFull(name) {
         <span class="archive-id-sub">${bond.mood} · 好感 ${bond.favor} · 顺从 ${bond.obedience}</span>
       </header>
       <section class="archive-sec archive-sec-dev">
-        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降</span><i></i><div class="dev-note-actions"><button type="button" data-dev-notes-action="generate" data-dev-notes-name="${girl.name}">刷新评语</button><button type="button" data-dev-notes-action="restore" data-dev-notes-name="${girl.name}">恢复默认</button></div></div>
-        <div class="dev-grid">${developmentTiles(girl, development)}</div>
+        <div class="archive-head">${mark()}<b>身体开发度</b><span>四部位 · 档位只升不降 · 门槛逐档递增</span><i></i><div class="dev-note-actions"><button type="button" data-dev-notes-action="generate" data-dev-notes-name="${girl.name}">刷新评语</button><button type="button" data-dev-notes-action="restore" data-dev-notes-name="${girl.name}">恢复默认</button></div></div>
+        <div class="dev-grid">${developmentTiles(girl, development, developmentProgress, developmentToday)}</div>
       </section>
       <section class="archive-sec">
         <div class="archive-head">${mark()}<b>性经历</b><span>计数</span><i></i></div>

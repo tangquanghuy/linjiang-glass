@@ -1,6 +1,9 @@
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineConfig } from 'vite';
+import {
+  ASSETS_ROOT, cdnEnabled, listPublicAssets, listRewritable, rewriteStaticRefs,
+} from './scripts/asset-cdn.mjs';
 
 function copyCityMap(destRoot) {
   if (!existsSync('city')) return;
@@ -39,11 +42,36 @@ function copyOpening(destRoot) {
   }
 }
 
+/* 静态素材是否走 jsDelivr。默认关（本地跑回归时素材走本地，离线可跑、结果确定），
+   部署时由 pages.yml 设 ASSET_CDN=1。理由和实测数据见 scripts/asset-cdn.mjs 顶部。 */
+const USE_ASSET_CDN = cdnEnabled();
+
+/* 把 dist 里 HTML/CSS 的静态素材引用改写成 CDN 绝对地址。
+   JS 不走这里 —— asset() 是运行时拼的，靠下面的 define 注入根地址。 */
+function rewriteAssetRefs(destRoot) {
+  if (!USE_ASSET_CDN) return;
+  const known = new Set(listPublicAssets());
+  let touched = 0;
+  for (const file of listRewritable(destRoot)) {
+    const before = readFileSync(file, 'utf8');
+    const after = rewriteStaticRefs(before, known);
+    if (after !== before) {
+      writeFileSync(file, after);
+      touched += 1;
+    }
+  }
+  console.log(`[asset-cdn] 素材外链已指向 ${ASSETS_ROOT}（改写 ${touched} 个 HTML/CSS）`);
+}
+
 export default defineConfig({
-  /* Relative so GitHub project pages (/linjiang-glass/) and local preview both work. */
+  /* Relative so GitHub project pages (/linjiang-glass/) and local preview both work.
+     刻意只让*素材*走 CDN，base 保持相对：HUD 靠 postMessage 和同源 DOM 跟宿主页
+     通信，把 JS/CSS 挪成跨源会直接断掉，而且 dist/ 在 gitignore 里，CDN 看不到。 */
   base: './',
   server: { port: 5173, host: '127.0.0.1' },
   build: { target: 'chrome110', assetsInlineLimit: 0 },
+  /* null 表示走本地 ${BASE_URL}assets/。src/asset.js 和 src/data.js 都读这个。 */
+  define: { __ASSETS_ROOT__: JSON.stringify(USE_ASSET_CDN ? ASSETS_ROOT : null) },
   plugins: [{
     name: 'copy-static-pages',
     closeBundle() {
@@ -52,6 +80,8 @@ export default defineConfig({
       copyCg('dist');
       copyShop('dist');
       copyOpening('dist');
+      /* 必须在所有拷贝之后：city/cg/arcade/shop/opening 里也有素材引用。 */
+      rewriteAssetRefs('dist');
     },
   }],
 });
