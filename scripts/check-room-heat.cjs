@@ -32,7 +32,9 @@ fakeWin.parent = fakeWin;
 fakeWin.SillyTavern = { getContext: () => ({ chat: [{ is_user: true, mes: '（玩家）' }, { mes: chatText }] }) };
 global.window = fakeWin;
 
-const src = fs.readFileSync(path.join(ROOT, '外部部署/辅助计算脚本.js'), 'utf8');
+/* 读逻辑那份。外部部署/辅助计算脚本.js 拆分后只剩礼物表和占位 api，
+   没有 settleRoomsFromText。见 scripts/build-aux-shell.mjs。 */
+const src = fs.readFileSync(path.join(ROOT, 'public/shell/aux-shell.js'), 'utf8');
 new Function(src)();
 const aux = globalThis.LinjiangAux;
 if (!aux || !aux.settleRoomsFromText) throw new Error('LinjiangAux.settleRoomsFromText 没挂上');

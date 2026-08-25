@@ -1,0 +1,83 @@
+```text
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>临江 · 玻璃状态栏</title>
+<!-- 引导壳。粘进角色卡「状态栏」，粘一次就不用再动。
+     ==================================================================
+     本文件由 scripts/build-status-shell.mjs 生成，请勿直接编辑；要改逻辑请改
+     public/shell/status-shell.js。
+
+     这里没有任何逻辑，只有一句「把壳层脚本取下来执行」。全部 2700 行逻辑住在
+     public/shell/status-shell.js，推一次 main 就对所有人生效（CI 会顺手 purge jsDelivr 缓存）。
+
+     为什么要这样：壳层是粘贴部署的，HUD 产物是 Pages 自动部署的，两者是同一个 RPC 契约的
+     两端，却有完全不同的更新节奏。以前把逻辑写在这里，等于把它冻结在每个玩家安装的那一天，
+     而依赖它的另一半在他们脚下持续更新 —— 已经因此出过静默错账（建设费不扣钱）。完整的理由
+     和取舍写在 public/shell/status-shell.js 的头部。
+
+     下面这些留在这里是有原因的，不要往脚本里搬：
+       · <style>   首帧就要生效。搬进脚本会先白闪一下再变黑。
+       · #hud      壳层还没接管时的本地兜底 iframe（接管后 manager 会把它换成挂在酒馆文档上
+                   的那一个，这里这份会被隐藏并移除）。
+       · #hint     提示位。脚本取不到时，下面那段兜底要往它里面写话。 -->
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: #05040a;
+    overflow: hidden;
+  }
+  #hud {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #05040a;
+  }
+  #hint {
+    display: none;
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 2;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(8, 10, 18, 0.82);
+    color: #e2e8f0;
+    font: 12px/1.4 system-ui, sans-serif;
+    pointer-events: none;
+  }
+  #hint.show { display: block; }
+</style>
+</head>
+<body>
+<iframe id="hud" title="玻璃状态栏" src="" loading="eager" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write"></iframe>
+<div id="hint"></div>
+<!-- 壳层脚本。放在两个元素之后，所以脚本执行时它们一定已经在文档里了。
+
+     刻意用同步的 <script src>（不加 async/defer）：这样它无论成功还是失败，都会在下面那段
+     兜底之前有结果，不用自己写 onload/onerror 的状态机。 -->
+<script src="https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/shell/status-shell.js"></script>
+<script>
+  /* 兜底提示。上面那条是同步的，走到这里时它已经有结果了。
+     壳层一执行就会在 <html> 上留 data-linjiang-shell，没有记号就只有一种可能：脚本没取到。
+     （脚本取到了但自己判断不该干活的那几种情况，记号也是落下的 —— 见脚本里那两道守卫。）
+
+     这里只提示，不留本地兜底副本：壳层唯一的用途是伺候 HUD，而 HUD 那 250KB 本来就从同一个
+     Pages 加载。取不到脚本的时候 HUD 也起不来，在本地留个旧壳层救不了任何东西。 */
+  if (!document.documentElement.dataset.linjiangShell) {
+    var hint = document.getElementById('hint');
+    if (hint) {
+      hint.textContent = '状态栏脚本没取到，检查网络后重开对话';
+      hint.className = 'show';
+    }
+    console.error('[临江状态栏] 引导壳取不到 shell/status-shell.js');
+  }
+</script>
+</body>
+</html>
+```

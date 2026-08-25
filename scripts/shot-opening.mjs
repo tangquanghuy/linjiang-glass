@@ -107,7 +107,9 @@ for (const r of fromPage) {
 /* 曲线在两处各有一份实现：开局页托管在 GitHub Pages、跨域拿不到酒馆的辅助脚本，
    所以只能镜像。这里把 辅助计算脚本.js 里的 streamScale 抠出来跑一遍，逐档比对，
    漂了就直接失败——不然两边悄悄分叉，谁也不会发现。 */
-const auxSrc = readFileSync('外部部署/辅助计算脚本.js', 'utf8');
+/* 读逻辑那份：streamScale 在 public/shell/aux-shell.js 里。粘贴的 外部部署/辅助计算脚本.js
+   拆分后只剩礼物表和占位 api，抠不出这个函数。见 scripts/build-aux-shell.mjs。 */
+const auxSrc = readFileSync('public/shell/aux-shell.js', 'utf8');
 const cutFn = (name) => {
   const at = auxSrc.indexOf('function ' + name + '(');
   if (at < 0) throw new Error('辅助计算脚本.js 里找不到 ' + name);

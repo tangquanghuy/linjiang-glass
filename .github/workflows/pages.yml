@@ -38,3 +38,68 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # 状态栏壳层脚本走 jsDelivr（延迟比 Pages 低 20 倍，实测见 scripts/build-status-shell.mjs
+  # 的 SHELL_URL 那段）。代价是 @main 这种可变引用有 12 小时边缘缓存，推了不等于生效。
+  #
+  # 这一步必须自动做，不能写成「发布时记得 purge」：忘了的后果是玩家拿到 12 小时前的壳层，
+  # 而且没有任何迹象 —— 既不报错也不提示，只是行为对不上代码。那种坑迟早会踩。
+  #
+  # 独立于 deploy 作业：purge 的是 jsDelivr 的缓存，跟 Pages 部署成不成功无关，所以只依赖
+  # build（确认这次提交是能构建的），不依赖 deploy。
+  purge-cdn:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Purge jsDelivr cache and verify the CDN really serves this commit
+        run: |
+          set -uo pipefail
+          # 只处理真的被粘贴目标引用的文件。别整目录 purge —— jsDelivr 按路径限流。
+          files=(
+            "public/shell/status-shell.js"
+            "public/shell/aux-shell.js"
+          )
+          ref="gh/tangquanghuy/linjiang-glass@main"
+          warned=0
+          for file in "${files[@]}"; do
+            echo "::group::$file"
+
+            # ---- 一、尽力 purge ----
+            # 不因为 purge 本身失败而判红，理由见下面第二步：真正要断言的是「CDN 现在吐的是
+            # 这次提交的内容」，而不是「purge 这个动作成功了」。
+            body=$(curl -sS --max-time 60 "https://purge.jsdelivr.net/$ref/$file" || echo '{}')
+            echo "$body" | sed 's/^/  /'
+            # 注意这里必须用正则：jsDelivr 回的是格式化过的 JSON（"status": "finished"，
+            # 冒号后有空格）。第一版用字面量 '"status":"finished"' 匹配，purge 明明成功了却
+            # 判成失败 —— 是在本地跑这段逻辑时才发现的。
+            if echo "$body" | grep -Eq '"throttled"[[:space:]]*:[[:space:]]*true'; then
+              echo "  purge 被限流（同一路径短时间内 purge 过，约 48 分钟复位）"
+            elif echo "$body" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"finished"'; then
+              echo "  purge 完成"
+            else
+              echo "  purge 返回不是 finished，继续往下验实际内容"
+            fi
+
+            # ---- 二、验实际吐出来的内容 ----
+            # 这一步才是断言。purge 成不成功是过程，用户拿到什么才是结果 —— 限流的时候
+            # purge 会被拒，但如果 CDN 边缘本来就还没缓存过旧版，它照样吐的是新的。
+            # 只看过程会在这种情况下误报。
+            sleep 5
+            want=$(sha256sum "$file" | cut -d' ' -f1)
+            got=$(curl -sS --max-time 60 "https://testingcf.jsdelivr.net/$ref/$file" | sha256sum | cut -d' ' -f1)
+            if [ "$want" = "$got" ]; then
+              echo "  CDN 已是本次提交（sha256 ${want:0:12}）"
+            else
+              # 判 warning 不判 error：这时候唯一能做的事就是等（@main 的边缘缓存最长 12 小时），
+              # 而不可行动的红灯只会训练人忽略红灯。但它必须看得见 —— 因为「以为发出去了其实没有」
+              # 正是这个作业存在的理由。
+              echo "::warning file=$file::jsDelivr 仍在吐旧版（期望 ${want:0:12}，实际 ${got:0:12}）。@main 边缘缓存最长 12 小时；purge 若被限流需等约 48 分钟后重跑本作业。在此之前不要认为改动已对所有玩家生效。"
+              warned=1
+            fi
+            echo "::endgroup::"
+          done
+          # 故意 exit 0：这个作业的职责是「让 CDN 状态可见」，不是给发布加一道会随机变红的闸门。
+          # 真正的内容正确性由 npm run shell:check 之类的检查守着。
+          echo "warned=$warned"
+          exit 0

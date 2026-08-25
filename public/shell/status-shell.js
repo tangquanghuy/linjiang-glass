@@ -1,56 +1,3 @@
-```text
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>临江 · 玻璃状态栏</title>
-<!-- 状态栏（自包含版）。粘进角色卡「状态栏」。
-     ==================================================================
-     本文件由 scripts/build-status-shell.mjs 从 public/shell/status-shell.js 生成，
-     请勿直接编辑 —— 要改逻辑请改那个脚本，然后跑 npm run shell:build。
-
-     这一版把壳层脚本整份内联进来，所以它跟当初那个手写的单文件壳层在行为上完全一样。
-     它存在的唯一理由是向后兼容：已经装了旧版的用户可以继续粘这一份。
-
-     但它有一个改不掉的毛病 —— 粘下去就冻结了。HUD 产物在 GitHub Pages 上持续更新，这份
-     不会。两者是同一个 RPC 契约的两端，脱节的后果是静默错账（已经出过一次：建设费不扣钱）。
-     新装请用 外部部署/状态栏-引导壳.html，那一份粘一次就永远跟着线上走。 -->
-<style>
-  html, body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    background: #05040a;
-    overflow: hidden;
-  }
-  #hud {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    background: #05040a;
-  }
-  #hint {
-    display: none;
-    position: absolute;
-    left: 12px;
-    bottom: 12px;
-    z-index: 2;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: rgba(8, 10, 18, 0.82);
-    color: #e2e8f0;
-    font: 12px/1.4 system-ui, sans-serif;
-    pointer-events: none;
-  }
-  #hint.show { display: block; }
-</style>
-</head>
-<body>
-<iframe id="hud" title="玻璃状态栏" src="" loading="eager" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write"></iframe>
-<div id="hint"></div>
-<script>
 /* 状态栏壳层的全部逻辑。
    ==================================================================
    这份文件是**源**，两份 HTML 包装都由 scripts/build-status-shell.mjs 从它生成：
@@ -2867,7 +2814,3 @@
   });
 
 })();
-</script>
-</body>
-</html>
-```

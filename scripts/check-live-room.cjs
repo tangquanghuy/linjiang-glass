@@ -23,7 +23,11 @@ global.toastr = undefined;
 global.eventOn = undefined;
 global.waitGlobalInitialized = undefined;
 // 脚本末尾判断 isBrowser，node 里没有 window/document 所以不会自己 init
-const src = fs.readFileSync(path.join(ROOT, '外部部署/辅助计算脚本.js'), 'utf8');
+/* 读的是逻辑那份，不是 外部部署/辅助计算脚本.js。
+   后者从「拆成引导版 + 线上逻辑」之后只剩礼物表加一个占位 roomAction（约 6.5KB），
+   拿它跑这个干跑测试会立刻死在 aux.roomAction 上 —— 而且死得莫名其妙。
+   逻辑的唯一源头是 public/shell/aux-shell.js，粘贴那份由 scripts/build-aux-shell.mjs 从它生成。 */
+const src = fs.readFileSync(path.join(ROOT, 'public/shell/aux-shell.js'), 'utf8');
 new Function(src)();
 const aux = globalThis.LinjiangAux;
 if (!aux || !aux.roomAction) throw new Error('LinjiangAux.roomAction 没挂上');

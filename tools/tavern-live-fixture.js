@@ -307,14 +307,51 @@ ${content}
 
 /* ---------------------------------------------------------------- 状态栏源码 */
 
+/* ?shell=inline|boot ——— 壳层用哪条投递路径。
+   ------------------------------------------------------------------
+   状态栏现在有两个粘贴目标，它们的差别不在逻辑（同一份 public/shell/status-shell.js 生成）
+   而在**装载时序**：
+
+     inline（默认）  外部部署/状态栏.html      脚本内联，同步执行。旧用户粘的就是这一份。
+     boot            外部部署/状态栏-引导壳.html  一句 <script src>，脚本从 http URL 取回再执行。
+
+   两条都要能跑回归，因为线上会同时存在这两种安装。boot 那条尤其要测：它把「脚本执行」推到了
+   网络之后，所以抬升时机、跨楼层交接、以及脚本里那两道守卫都是 inline 路径下不可能触发的。 */
+const SHELL_VARIANT = params.get('shell') === 'boot' ? 'boot' : 'inline';
+const SHELL_FILES = {
+  inline: '/外部部署/状态栏.html',
+  boot: '/外部部署/状态栏-引导壳.html',
+};
+/* ?shellFail=1 ——— 故障注入，只对 boot 有意义：把脚本地址指向一个不存在的文件，
+   用来验引导壳「脚本没取到」的兜底提示真的会出现。 */
+const SHELL_FAIL = params.get('shellFail') === '1';
+
 let statusSourcePromise = null;
 function loadProductionStatusSource() {
   if (!statusSourcePromise) {
-    statusSourcePromise = text('/外部部署/状态栏.html')
+    statusSourcePromise = text(SHELL_FILES[SHELL_VARIANT])
       .then((source) => source
         .replace(/^\uFEFF?```(?:text|html)?\s*\r?\n/i, '')
         .replace(/\r?\n```\s*$/i, ''))
       .then((source) => {
+        if (SHELL_VARIANT === 'boot') {
+          /* 引导壳里那句 <script src> 指向 Pages。改成夹具自己的 /shell/status-shell.js，
+             由 fixture-server 的 localShellPlugin 伺服 —— 那边会把脚本里的 HUD_URL 也换成
+             本地。这里刻意只改 URL、不改成内联，否则就测不到异步那条路径了。
+
+             ?shellFail=1 时改成一个不存在的地址，用来验引导壳的兜底提示真的会出现。这是引导壳
+             唯一的新增用户可见行为，不注入一次故障就没有任何证据说明它有效。 */
+          const target = SHELL_FAIL ? '/shell/deliberately-missing.js' : '/shell/status-shell.js';
+          const replaced = source.replace(
+            /(<script\s+src=")https?:\/\/[^"]*\/shell\/status-shell\.js(")/,
+            `$1${target}$2`,
+          );
+          if (replaced === source) throw new Error('引导壳里找不到 shell/status-shell.js 的 <script src>');
+          note(SHELL_FAIL
+            ? `故意把引导壳的脚本地址指向不存在的 ${target}（验兜底提示）`
+            : '引导壳的脚本地址指向夹具本地 /shell/status-shell.js（HUD_URL 由服务端改写）');
+          return replaced;
+        }
         const localHud = new URL('/', location.href).href;
         const replaced = source.replace(
           /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
@@ -628,6 +665,14 @@ function measure() {
     ttFirewallInstalled: !!document.getElementById('tt-mobile-geometry-firewall'),
     liveHudCount: document.querySelectorAll('#linjiang-hud-live').length
       + (statusFrame?.contentDocument?.getElementById('hud') ? 1 : 0),
+    /* 壳层走的哪条投递路径，以及它有没有真的执行过。
+       shellVersion 读的是壳层脚本一开头落在 <html> 上的记号（见 status-shell.js 里
+       SHELL_VERSION 那段），所以它为空只有一种含义：脚本没执行。boot 路径下这就是「<script src>
+       没取到」，而引导壳的兜底会往 #hint 里写话 —— shellHint 把那句话透出来，断言才能分辨
+       「壳层没装上」和「壳层装上了但别的地方不对」。 */
+    shellVariant: SHELL_VARIANT,
+    shellVersion: statusFrame?.contentDocument?.documentElement?.dataset?.linjiangShell || '',
+    shellHint: statusFrame?.contentDocument?.getElementById('hint')?.textContent || '',
     substitutions: [...substitutions],
   };
 }

@@ -30,6 +30,7 @@
      node scripts/check-hud-raster-perf.mjs
      node scripts/check-hud-raster-perf.mjs --cpu 6
      node scripts/check-hud-raster-perf.mjs --only 390 --json artifacts/raster.json
+     node scripts/check-hud-raster-perf.mjs --shell boot     # 整个矩阵压到引导壳路径
 */
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -50,11 +51,31 @@ const only = argValue('--only', '');
 const jsonOut = argValue('--json', '');
 /* --baseline [rev]：不用工作区的壳层，改用某个 git 版本的（默认 HEAD）。这是用来验证
    「这套断言真的能拦住回退」的：拿修复前的壳层跑一遍，第一层机制断言应该全红。
-   平时不要用它。 */
+   平时不要用它。
+
+   注意 rev 要给对。修复前的最后一个版本是 5c04982（`fix: 修复TT移动端状态栏与捕鱼反馈`），
+   裁剪台是在 821800e 进去的。所以：
+
+     node scripts/check-hud-raster-perf.mjs --baseline 5c04982     ← 应当全红
+     node scripts/check-hud-raster-perf.mjs --baseline HEAD        ← 全绿，因为 HEAD 已含修复
+
+   曾经 HEAD 就是修复前，那时候文档里写的是 --baseline HEAD；修复推上去之后那句话就成了错的，
+   照着跑会看到「基线也全绿」而误以为断言失效。判断某个 rev 属于哪一侧，看它的 状态栏.html
+   里有没有 linjiang-hud-stage 就行。 */
 const baselineIndex = argv.indexOf('--baseline');
 const baselineRev = baselineIndex >= 0
   ? (argv[baselineIndex + 1] && !argv[baselineIndex + 1].startsWith('--') ? argv[baselineIndex + 1] : 'HEAD')
   : null;
+/* --shell inline|boot：把整个用例矩阵压到某一条投递路径上跑。
+   默认矩阵里两条都有（见 CASES 的 shell 字段），这个开关是给「怀疑某条路径整体退化」时用的。
+
+   基线模式强制 inline：--baseline 是拿 git 某个版本的 外部部署/状态栏.html 去顶替工作区那份，
+   而那份文件本身就是自包含版。引导壳路径下夹具根本不 fetch 它，顶替就落不到实处，断言会
+   莫名其妙地绿 —— 那比没有基线更糟。 */
+const shellOverride = argValue('--shell', '');
+if (shellOverride && !['inline', 'boot'].includes(shellOverride)) {
+  throw new Error(`--shell 只接受 inline 或 boot，收到 ${shellOverride}`);
+}
 
 /* 预算。
    ------------------------------------------------------------------
@@ -62,8 +83,8 @@ const baselineRev = baselineIndex >= 0
    出 170 到 200 个 rAF 回调，绝对次数会随机器快慢漂移，比率不会。
 
    下面这张表是这台机器上 CPU 4x、外部请求已替身（见 lib/stub-external.mjs）时的双侧实测。
-   「修复前」一列是 --baseline HEAD 跑修复前的壳层量出来的，两列都是同一次校准跑的，所以可
-   以直接比。
+   「修复前」一列是 --baseline 5c04982 量出来的（那是裁剪台进去之前的最后一版），两列都是同一
+   次校准跑的，所以可以直接比。
 
                         光栅任务/帧          光栅累计 ms         绘制/帧
      用例              修复后   修复前     修复后  修复前     修复后   修复前
@@ -94,15 +115,26 @@ const baselineRev = baselineIndex >= 0
    真正把回退拦下来的是第一层的机制断言（transform 改写 0 次 vs 38 次、clip-path 38 种 vs 1 种），
    二值、没有灰区、与机器无关。第二层是数量级的兜底。 */
 const RATIO_BUDGET = { rasterTasksPerFrame: 1.0 };
+/* shell 字段 = 壳层的投递路径（见 tools/tavern-live-fixture.js 的 SHELL_VARIANT）。
+   inline 是自包含版（脚本内联同步执行），boot 是引导壳（脚本从 http URL 取回再执行）。
+
+   两条路径跑的是同一份 public/shell/status-shell.js，所以裁剪台那套机制本该完全一样 ——
+   但「本该」不等于「是」：boot 把脚本执行推到了网络之后，抬升发生在更晚的时刻，裁剪台是在
+   一个已经布局完的 #chat 上建起来的，几何取值的时机跟 inline 不同。所以 boot 至少要有一个
+   浏览器竖屏和一个 TT 竖屏用例，不能假定它等价。
+
+   只挑两个而不是把 8 个用例翻倍：默认套件的时长要留得住。想跑全矩阵用 --shell boot。 */
 const CASES = [
-  { id: 'phone-small', preset: 'phone-small', w: 320, h: 568, dsf: 2, host: '', rasterMs: 160 },
-  { id: 'phone-android', preset: 'phone-android', w: 360, h: 800, dsf: 3, host: '', rasterMs: 160 },
-  { id: 'phone-iphone', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', rasterMs: 180 },
-  { id: 'phone-wide', preset: 'phone-wide', w: 430, h: 932, dsf: 3, host: '', rasterMs: 180 },
-  { id: 'phone-iphone-tt', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', rasterMs: 180 },
-  { id: 'tablet-portrait', preset: 'tablet-portrait', w: 768, h: 1024, dsf: 2, host: '', rasterMs: 220 },
-  { id: 'phone-landscape', preset: 'phone-landscape', w: 844, h: 390, dsf: 3, host: '', rasterMs: 130 },
-  { id: 'desktop-work', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', rasterMs: 180 },
+  { id: 'phone-small', preset: 'phone-small', w: 320, h: 568, dsf: 2, host: '', rasterMs: 160, shell: 'inline' },
+  { id: 'phone-android', preset: 'phone-android', w: 360, h: 800, dsf: 3, host: '', rasterMs: 160, shell: 'inline' },
+  { id: 'phone-iphone', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', rasterMs: 180, shell: 'inline' },
+  { id: 'phone-wide', preset: 'phone-wide', w: 430, h: 932, dsf: 3, host: '', rasterMs: 180, shell: 'inline' },
+  { id: 'phone-iphone-tt', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', rasterMs: 180, shell: 'inline' },
+  { id: 'tablet-portrait', preset: 'tablet-portrait', w: 768, h: 1024, dsf: 2, host: '', rasterMs: 220, shell: 'inline' },
+  { id: 'phone-landscape', preset: 'phone-landscape', w: 844, h: 390, dsf: 3, host: '', rasterMs: 130, shell: 'inline' },
+  { id: 'desktop-work', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', rasterMs: 180, shell: 'inline' },
+  { id: 'phone-iphone-boot', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', rasterMs: 180, shell: 'boot' },
+  { id: 'phone-iphone-tt-boot', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', rasterMs: 180, shell: 'boot' },
 ];
 
 const TRACE_CATEGORIES = ['-*', 'toplevel', 'viz', 'cc', 'blink', 'devtools.timeline',
@@ -128,7 +160,13 @@ const check = (ok, label, detail = '') => {
 
 for (const kase of CASES) {
   if (only && !kase.id.includes(only) && !String(kase.w).includes(only)) continue;
-  console.log(`\n=== ${kase.id}  ${kase.w}x${kase.h}  ${kase.host || 'browser'}  CPU ${CPU}x ===`);
+  /* 基线模式只能跑 inline —— 理由在上面 shellOverride 那段。 */
+  const shell = baselineShell ? 'inline' : (shellOverride || kase.shell);
+  if (baselineShell && kase.shell === 'boot') {
+    console.log(`\n--- 跳过 ${kase.id}：基线模式下引导壳路径不 fetch 状态栏.html，顶替落不到实处 ---`);
+    continue;
+  }
+  console.log(`\n=== ${kase.id}  ${kase.w}x${kase.h}  ${kase.host || 'browser'}  壳层 ${shell}  CPU ${CPU}x ===`);
   const page = await browser.newPage({
     viewport: { width: kase.w, height: kase.h },
     deviceScaleFactor: kase.dsf,
@@ -163,6 +201,7 @@ for (const kase of CASES) {
       chrome: '0', preset: kase.preset, theme: 'Dark V 1.0', floors: '12', rendered: '2',
     });
     if (kase.host) query.set('host', kase.host);
+    query.set('shell', shell);
     await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });
     await page.evaluate(() => window.__linjiangTavernLive.waitUntilReady());
@@ -325,6 +364,19 @@ for (const kase of CASES) {
     console.log(`    比率  绘制/帧 ${paintsPerFrame} · 光栅任务/帧 ${rasterTasksPerFrame}`);
     console.log(`    静止  安顿 1.5s 后再静置 1.5s：光栅 ${idle.count} 次 / ${idle.ms}ms`
       + `　（外部请求已替身：${[...externalHosts].sort().join(' ') || '无'}）`);
+
+    /* ---- 第零层：壳层真的按预期那条路径装上了 ----
+       没有这一条的话，boot 用例万一脚本没取到，会表现为下面一整片机制断言失败，根因看不出来。 */
+    check(measured.shellVariant === shell, '壳层走的是预期路径', String(measured.shellVariant));
+    /* 记号断言在基线模式下要跳过：SHELL_VERSION 是拆分时才引入的，任何早于那次拆分的壳层
+       都不会有这个记号。留着它只会在基线跑里多一条「合理的红」，而混在真正的回退证据里的
+       无效红灯，最终结果是没人再看红灯。 */
+    if (baselineShell) {
+      console.log('    skip  壳层脚本已执行（有 data-linjiang-shell 记号）  基线壳层早于该记号的引入');
+    } else {
+      check(!!measured.shellVersion, '壳层脚本已执行（有 data-linjiang-shell 记号）',
+        measured.shellVersion || '(空 —— 脚本没取到)');
+    }
 
     /* ---- 第一层：机制 ---- */
     check(after.parentIsStage, '机制：HUD 挂在裁剪台里');

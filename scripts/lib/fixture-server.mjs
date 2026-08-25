@@ -93,6 +93,51 @@ function harnessScriptPlugin() {
   };
 }
 
+/* 引导壳路径的本地化。
+   ------------------------------------------------------------------
+   外部部署/状态栏-引导壳.html 里那句 <script src> 指向 GitHub Pages 上的
+   shell/status-shell.js。夹具要验的正是「脚本从一个真的 http URL 异步取下来再执行」这条路径
+   —— 换成内联或者 blob: 就把异步时序和那两道守卫全绕过去了，等于没测。
+
+   所以这里把 public/shell/ 挂到 /shell/，并且对 status-shell.js 做一次改写：把 HUD_URL 换成
+   夹具自己的 origin（本地那份 HUD）。这跟 loadProductionStatusSource 对自包含版做的改写是同一
+   件事，只是自包含版能在 HTML 文本里改，引导壳的脚本是浏览器自己去取的，只能在服务端改。
+
+   刻意 no-store：夹具里只有一个状态栏楼层，缓存没有可量的东西，不如让每次都是干净的。 */
+function localShellPlugin() {
+  const SHELL_DIR = join(PROJECT_ROOT, 'public', 'shell');
+  return {
+    name: 'linjiang-local-status-shell',
+    configureServer(server) {
+      server.middlewares.use('/shell', (req, res, next) => {
+        const rawPath = decodeURIComponent((req.url || '').split('?')[0]);
+        const target = resolve(join(SHELL_DIR, normalize(rawPath)));
+        if (!target.startsWith(SHELL_DIR) || !existsSync(target) || !statSync(target).isFile()) {
+          next();
+          return;
+        }
+        res.setHeader('Content-Type', MIME[extname(target).toLowerCase()] || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'no-store');
+        let body = readFileSync(target, 'utf8');
+        if (target.endsWith('status-shell.js')) {
+          const local = `http://127.0.0.1:${server.config.server.port}/`;
+          const patched = body.replace(
+            /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
+            `const HUD_URL = ${JSON.stringify(local)};`,
+          );
+          if (patched === body) {
+            res.statusCode = 500;
+            res.end('// 壳层脚本里找不到 HUD_URL，夹具无法把 HUD 指向本地');
+            return;
+          }
+          body = patched;
+        }
+        res.end(body);
+      });
+    },
+  };
+}
+
 function rawStagePlugin() {
   return {
     name: 'linjiang-raw-real-sources',
@@ -126,7 +171,7 @@ export async function startFixtureServer({ port }) {
        API 凭空消失。测滚动性能时一次意外重载更是直接毁掉整段 trace。 */
     server: { port, host: '127.0.0.1', hmr: false, watch: null },
     logLevel: 'error',
-    plugins: [harnessScriptPlugin(), rawStagePlugin(), localReadingAssetsPlugin()],
+    plugins: [harnessScriptPlugin(), rawStagePlugin(), localReadingAssetsPlugin(), localShellPlugin()],
   });
   await server.listen();
   return {

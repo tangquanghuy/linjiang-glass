@@ -27,15 +27,22 @@ const check = (ok, label, detail = '') => {
   if (!ok) failures.push(`${label}${detail ? `  ${detail}` : ''}`);
 };
 
+/* shell 字段 = 壳层的投递路径，见 tools/tavern-live-fixture.js 的 SHELL_VARIANT。
+   inline 是自包含版（脚本内联、同步执行，旧用户粘的那份），boot 是引导壳（一句 <script src>，
+   脚本从 http URL 取回再执行）。两条都要跑：线上会同时存在这两种安装，而它们的装载时序不同 ——
+   boot 把脚本执行推到了网络之后，抬升时机和跨楼层交接都得重新验一遍。 */
 const CASES = [
-  { id: 'browser-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark V 1.0' },
-  { id: 'tauri-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', theme: 'Dark V 1.0' },
-  { id: 'browser-desktop', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', theme: 'Dark V 1.0' },
-  { id: 'fast-ui', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark Lite' },
+  { id: 'browser-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark V 1.0', shell: 'inline' },
+  { id: 'tauri-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', theme: 'Dark V 1.0', shell: 'inline' },
+  { id: 'browser-desktop', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', theme: 'Dark V 1.0', shell: 'inline' },
+  { id: 'fast-ui', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark Lite', shell: 'inline' },
+  { id: 'boot-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark V 1.0', shell: 'boot' },
+  { id: 'boot-tauri', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', theme: 'Dark V 1.0', shell: 'boot' },
+  { id: 'boot-desktop', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', theme: 'Dark V 1.0', shell: 'boot' },
 ];
 
 for (const kase of CASES) {
-  console.log(`\n=== ${kase.id}  ${kase.w}x${kase.h}  主题 ${kase.theme}  宿主 ${kase.host || 'browser'} ===`);
+  console.log(`\n=== ${kase.id}  ${kase.w}x${kase.h}  主题 ${kase.theme}  宿主 ${kase.host || 'browser'}  壳层 ${kase.shell} ===`);
   const page = await browser.newPage({
     viewport: { width: kase.w, height: kase.h },
     deviceScaleFactor: kase.dsf,
@@ -55,6 +62,7 @@ for (const kase of CASES) {
   try {
     const query = new URLSearchParams({ chrome: '0', preset: kase.preset, theme: kase.theme, floors: '12', rendered: '2' });
     if (kase.host) query.set('host', kase.host);
+    query.set('shell', kase.shell);
     await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
 
     /* 分三步等，而且每一步的失败要能区分开：夹具模块有没有跑起来 / 壳层有没有抬起
@@ -89,6 +97,14 @@ for (const kase of CASES) {
     check(heights.length > 0 && heights.every((h) => h > 20 && h < 140),
       '真实 adjust_iframe_height.js 调过正文 iframe 高度（≠150 默认值）', JSON.stringify(heights));
 
+    /* 壳层这三条是一组，作用是把「壳层没装上」和「壳层装上了但别处不对」分开。
+       没有这一组的话，boot 路径下 <script src> 取不到会表现为下面一大串失败（HUD 没抬起、
+       快照没落地、节点数不够），一眼看不出根因其实只是脚本没到。 */
+    check(m.shellVariant === kase.shell, '壳层走的是预期路径', `${m.shellVariant}`);
+    check(!!m.shellVersion, '壳层脚本已执行（<html> 上有 data-linjiang-shell 记号）',
+      m.shellVersion || '(空 —— boot 路径下即「脚本没取到」)');
+    check(!m.shellHint.includes('没取到'), '引导壳没有报「脚本没取到」', m.shellHint || '(无提示)');
+
     check(m.lifted, '状态栏被抬成 #linjiang-hud-live');
     check(Math.abs(m.alignment) <= 1, 'HUD 与栏位对齐', `${m.alignment}px`);
     check(m.hudMoney.includes('512,300'), 'MVU 快照落到 HUD 上', m.hudMoney || '(空)');
@@ -114,6 +130,50 @@ for (const kase of CASES) {
     check(errors.length === 0, '无脚本错误', errors.slice(0, 2).join(' | '));
   } catch (error) {
     check(false, '夹具启动', error.message);
+  }
+  await page.close();
+}
+
+/* 故障注入：引导壳取不到脚本时会怎样。
+   ------------------------------------------------------------------
+   这是引导壳唯一的新增用户可见行为 —— 以前壳层逻辑内联在 HTML 里，不存在「取不到」这回事。
+   不注入一次故障，就没有任何证据说明那段兜底提示有效，它可能写错了选择器、可能被样式藏住、
+   也可能因为记号语义搞反了而在正常情况下误报。
+
+   这个用例是反向的：期望壳层**没有**装上、HUD**没有**被抬起，而提示**出现**了。所以它不能走
+   waitUntilReady（那会一直等到超时）。 */
+console.log('\n=== boot-offline  390x844  引导壳取不到脚本（故障注入） ===');
+{
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+  });
+  /* 这个用例里 404 是预期的，所以不把 console error 当失败。 */
+  try {
+    const query = new URLSearchParams({
+      chrome: '0', preset: 'phone-iphone', theme: 'Dark V 1.0', floors: '12', rendered: '2',
+      shell: 'boot', shellFail: '1',
+    });
+    await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });
+    /* 楼层挂完、srcdoc 落地、那句同步 <script src> 失败并跑完兜底，都在这段里发生。 */
+    await page.waitForTimeout(2500);
+    const m = await page.evaluate(() => window.__linjiangTavernLive.measure());
+
+    check(m.shellVersion === '', '脚本没到时没有 data-linjiang-shell 记号', m.shellVersion || '(空)');
+    check(m.shellHint.includes('没取到'), '引导壳弹出了看得懂的兜底提示', m.shellHint || '(无提示)');
+    check(!m.lifted, '脚本没到时 HUD 不会被抬起（不留半装状态）', String(m.lifted));
+    /* 这一条是重点：兜底提示必须真的可见。以前踩过样式没生效、元素还在 display:none 的坑。 */
+    const hintVisible = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame?.contentDocument;
+      const hint = doc?.getElementById('hint');
+      if (!hint) return null;
+      const box = hint.getBoundingClientRect();
+      return { display: doc.defaultView.getComputedStyle(hint).display, w: Math.round(box.width), h: Math.round(box.height) };
+    });
+    check(!!hintVisible && hintVisible.display !== 'none' && hintVisible.w > 0 && hintVisible.h > 0,
+      '兜底提示真的可见（不是挂着 display:none）', JSON.stringify(hintVisible));
+  } catch (error) {
+    check(false, '故障注入用例', error.message);
   }
   await page.close();
 }
