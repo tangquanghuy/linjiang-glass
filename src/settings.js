@@ -12,30 +12,28 @@
 import { PREF_CHOICES, onPref, pref, setPref } from './prefs.js';
 import { reportDockDefault } from './bridge.js';
 
-/* 说明文字比标签长得多，是故意的。这两个选项的差别都不在字面上——"适配宽度"和
-   "收进嵌入框"单看名字看不出哪个是哪个，得说清楚它们在屏幕上分别长什么样。
-   `hint` 留给限制条件：能生效的前提，而不是它做什么。 */
+/* 面向用户只说明选项带来的直接差别。开发约束留在实现注释中，不放进设置卡片。 */
 export const SETTINGS_ROWS = [
   {
     name: 'dockDefault',
     en: 'HUD docking',
     label: 'HUD 停靠方式',
-    note: '这里和面板右上角的“收回嵌入框”按钮是同一个持久化状态。适配宽度会脱开消息栏、按视口宽度铺开；收进嵌入框会限制在消息楼层的栏位宽度内。',
-    hint: '桌面宽度可见 · 刷新或重新渲染后保留',
+    note: '适配宽度可最大展示状态栏；收进嵌入框对性能更友好。',
+    hint: '',
   },
   {
     name: 'inventoryOpen',
     en: 'Bag button',
     label: '背包按钮',
-    note: '点背包是先拉出底部抽屉（不挡住画面，适合只是确认带了什么），还是直接进整页背包。',
-    hint: '仅横向构图生效 · 竖屏没有底部抽屉',
+    note: '底部抽屉方便快速查看；直接全屏适合完整浏览背包。',
+    hint: '',
   },
   {
     name: 'performanceMode',
     en: 'Visual performance',
     label: '视觉性能模式',
-    note: '自动模式保留完整玻璃效果；低负载模式关闭大面积背景模糊，保留颜色、边缘和布局，适合低性能设备。',
-    hint: '只影响视觉合成，不改变功能和数据',
+    note: '完整效果保留玻璃质感；低负载模式运行更流畅。',
+    hint: '',
   },
 ];
 
@@ -60,7 +58,7 @@ export function settingsBody() {
         </div>
         <div class="set-side">
           <div class="set-seg" role="radiogroup" aria-label="${row.label}">${options}</div>
-          <em class="set-hint">${row.hint}</em>
+          ${row.hint ? `<em class="set-hint">${row.hint}</em>` : ''}
         </div>
       </div>`;
   }).join('');
