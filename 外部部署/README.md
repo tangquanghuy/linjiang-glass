@@ -319,6 +319,31 @@ npm run deploy:docs     # 校验这份文档还没跟代码脱节
 - `辅助计算脚本.js` 拆分前是**混合换行**（1770 个分隔符里 1723 CRLF + 47 裸 LF，
   裸的全挤在原第 1289–1335 行）。归一到 LF 之前验过那段里没有跨行模板字符串 ——
   有的话改换行会改变字符串内容。
+- **`position: fixed` 在 `#chat` 里逃不出去 —— 而且只在带模糊的主题上坏。**
+  SillyTavern 的 `#chat` 带 `backdrop-filter: blur(13px)`，而 `backdrop-filter`（同
+  `filter`/`transform`/`perspective`/`will-change`/`contain`）会让元素成为 **fixed 后代的
+  包含块**。流内嵌入版把楼层 iframe 设成 `fixed;top:0` 想让次级页面铺满视口，结果它的
+  `rect.top` 等于 `-chat.scrollTop`，跟着聊天滚走并被 `#chat` 裁掉：
+
+  | `chat.scrollTop` | 楼层 `top` | 视口内可见 |
+  | --- | --- | --- |
+  | 178 | −96 | 259074 px² |
+  | 628 | −546 | 84024 px² |
+  | 1117 | −1035 | **0 px²（面板消失）** |
+
+  同一时刻只把 `#chat` 的 `backdrop-filter` 去掉，楼层立刻回到 `top:0`、可见整个视口。
+  `Dark Lite` 那种 no-blur 主题的 `#chat` 没有这个属性，所以它一直是好的 —— 这就是为什么
+  这个 bug 看起来时好时坏。回归用例必须钉住 `Dark V 1.0`。
+- **抬不出去的宿主 chrome：z-index 在这个位置根本没用。**
+  `#top-bar`（z 3005）和 `#form_sheld`（z 31）会压在整页上面，而返回钮就在顶上那条里 ——
+  页面关不掉。楼层 iframe 在 `position:static` 的 `#chat` 里，实测把它的 z-index 提到
+  2147483647 仍然输给 z-index 31 的 `#form_sheld`；只有把 `#form_sheld` 自己压下去或藏起来
+  才行。所以整页期间把这几件 chrome 临时藏掉（生产壳层的全屏本来就盖住它们，见
+  `paintHudFill` 的 2147483000 裁剪台挂在 body 下）。
+  **对宿主做的每一处改动都要成对还原**，漏掉的后果是 `#chat` 永久失去模糊 —— 不报错的画面
+  退化最难发现，所以 `tavern:live` 里连 `style` 属性都逐字比。
+- **夹具支持一个变体不等于有人在测它。** `shell=flow` 在夹具里早就能跑，但一条断言都没有，
+  于是上面两个根因是用户在真机上撞出来的。加变体的时候顺手问一句：谁在驱动它。
 - **`cdn.jsdelivr.net` 被墙，写错域名会整页白屏。** `cg/index.html` 曾经从
   `cdn.jsdelivr.net` 取 jQuery，那是**同步阻塞**的 `<script>`：取不到就一路挂到超时，
   后面的 `cg/cg-shell.js`、`cg/cg-app.js`、`CGShell.boot()` 全都不执行，页面永远空白 ——

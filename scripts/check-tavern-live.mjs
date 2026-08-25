@@ -178,6 +178,147 @@ console.log('\n=== boot-offline  390x844  引导壳取不到脚本（故障注�
   await page.close();
 }
 
+/* 流内嵌入实验版的次级页面。
+   ------------------------------------------------------------------
+   这一支以前一条断言都没有 —— 夹具支持 shell=flow，但没有用例驱动它，所以下面这两个
+   根因是在真机上被用户撞出来的，而且症状是「整个面板直接消失」：
+
+   一、position:fixed 逃不出 #chat。
+      SillyTavern 的 #chat 带 backdrop-filter: blur(13px)，而 backdrop-filter 会让元素
+      成为 fixed 后代的**包含块**。于是楼层 iframe 设成 fixed;top:0 之后，rect.top 等于
+      -chat.scrollTop，跟着聊天滚动走并被 #chat 裁掉：scrollTop 1117 时视口内可见面积为 0。
+      注意这条只在**带模糊的主题**上出现，Dark Lite 那种 no-blur 主题一直是好的 ——
+      所以用例必须钉住 Dark V 1.0，换成 Lite 就测不出来了。
+
+   二、抬不出去的宿主 chrome。
+      #top-bar（z 3005）和 #form_sheld（z 31）会压在整页上面。楼层 iframe 在
+      position:static 的 #chat 里，实测把它的 z-index 提到 2147483647 仍然输给
+      #form_sheld，所以只能整页期间把这几件 chrome 藏起来（生产壳层的全屏本来就盖住它们）。
+
+   还要断言**退出后精确还原** —— 漏掉的话 #chat 会永久失去 backdrop-filter，那是个
+   不报错的画面退化，最难发现。 */
+console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 次级页面 ===');
+{
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+  });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  try {
+    const query = new URLSearchParams({
+      chrome: '0', preset: 'phone-iphone', theme: 'Dark V 1.0', floors: '12', rendered: '2',
+      shell: 'flow', host: 'tauritavern',
+    });
+    await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });
+    await page.evaluate(() => window.__linjiangTavernLive.waitUntilReady());
+    await page.waitForTimeout(1500);
+
+    const reveal = () => page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      const frame = window.__linjiangTavernLive.statusFrame;
+      chat.scrollTop = Math.max(0, chat.scrollTop
+        + frame.getBoundingClientRect().top - chat.getBoundingClientRect().top - 12);
+    });
+
+    /* 状态：楼层几何 + #chat 的模糊 + chrome 可见性 + 视口四角归谁。 */
+    const state = () => page.evaluate(() => {
+      const floor = window.__linjiangTavernLive.statusFrame;
+      const chat = document.getElementById('chat');
+      const box = floor.getBoundingClientRect();
+      const chrome = {};
+      for (const id of ['top-bar', 'top-settings-holder', 'form_sheld']) {
+        const el = document.getElementById(id);
+        chrome[id] = el ? { vis: getComputedStyle(el).visibility, style: el.getAttribute('style') || '' } : null;
+      }
+      const owns = [[195, 60], [195, 420], [195, 830]].map(([x, y]) => {
+        const el = document.elementFromPoint(x, y);
+        return el === floor;
+      });
+      return {
+        pos: getComputedStyle(floor).position,
+        top: Math.round(box.top),
+        left: Math.round(box.left),
+        w: Math.round(box.width),
+        h: Math.round(box.height),
+        chatBackdrop: getComputedStyle(chat).backdropFilter || getComputedStyle(chat).webkitBackdropFilter,
+        chatStyleAttr: chat.getAttribute('style') || '',
+        chrome,
+        ownsAll: owns.every(Boolean),
+        pageOpen: (() => {
+          try {
+            return /is-page-open/.test(floor.contentDocument
+              .getElementById('linjiang-hud-live').contentDocument.documentElement.className);
+          } catch (e) { return null; }
+        })(),
+      };
+    });
+
+    await reveal();
+    await page.waitForTimeout(300);
+    const base = await state();
+    check(base.chatBackdrop === 'blur(13px)',
+      '前提：真实 #chat 带 backdrop-filter（换 no-blur 主题这个用例就失效）', base.chatBackdrop);
+
+    /* 切成「收回嵌入框」。默认停靠方式是「页面」，不切就走不到 INLINE_DOCK 那一支。 */
+    const toggled = await page.evaluate(() => {
+      const btn = document.getElementById('linjiang-hud-shrink');
+      if (!btn) return false;
+      btn.click();
+      return true;
+    });
+    check(toggled, '找到并点了停靠切换钮 #linjiang-hud-shrink');
+    await page.waitForTimeout(1200);
+    await reveal();
+    await page.waitForTimeout(300);
+
+    const inFloor = await page.evaluate(() => {
+      try { return !!window.__linjiangTavernLive.statusFrame.contentDocument.getElementById('linjiang-hud-live'); }
+      catch (e) { return false; }
+    });
+    check(inFloor, '收回后 HUD 建在楼层文档里（原生嵌入，不是被抬起）');
+
+    const floorSel = await page.evaluate(() => '#' + CSS.escape(window.__linjiangTavernLive.statusFrame.id));
+    const hud = page.frameLocator(floorSel).frameLocator('#linjiang-hud-live');
+    await hud.locator('.pdest-btn[data-page="schedule"]').first().click({ timeout: 15000 });
+    await page.waitForTimeout(900);
+
+    const open = await state();
+    check(open.pageOpen === true, '次级页面真的开了（HUD <html> 带 is-page-open）', String(open.pageOpen));
+    check(open.pos === 'fixed' && open.top === 0 && open.left === 0,
+      '整页锚在视口原点（backdrop-filter 的包含块已中和）', `${open.pos} ${open.left},${open.top}`);
+    check(open.w >= 390 && open.h >= 844, '整页铺满视口', `${open.w}x${open.h}`);
+    check(open.ownsAll, '视口上/中/下三点都归整页（顶栏和输入栏没压在上面）');
+
+    /* 关键回归：滚动聊天时整页不能跟着走。这正是「面板消失」的动作。 */
+    await page.evaluate(() => { document.getElementById('chat').scrollTop += 600; });
+    await page.waitForTimeout(400);
+    const scrolled = await state();
+    check(scrolled.top === 0 && scrolled.ownsAll,
+      '滚动聊天 600px 后整页仍钉在视口（修复前这里会滚走并被裁成 0）',
+      `top=${scrolled.top} 三点归属=${scrolled.ownsAll}`);
+
+    /* 退出必须精确还原，否则 #chat 永久失去模糊。 */
+    await hud.locator('[data-page-close]').first().click({ timeout: 15000 });
+    await page.waitForTimeout(1200);
+    const back = await state();
+    check(back.chatBackdrop === base.chatBackdrop,
+      '关页后 #chat 的 backdrop-filter 还原', `${base.chatBackdrop} -> ${back.chatBackdrop}`);
+    check(back.chatStyleAttr === base.chatStyleAttr,
+      '关页后 #chat 的 style 属性与基线逐字一致（没留残渣）', JSON.stringify(back.chatStyleAttr));
+    for (const id of ['top-bar', 'top-settings-holder', 'form_sheld']) {
+      check(open.chrome[id] && open.chrome[id].vis === 'hidden', `整页期间 #${id} 已隐藏`);
+      check(JSON.stringify(back.chrome[id]) === JSON.stringify(base.chrome[id]),
+        `关页后 #${id} 与基线一致`, JSON.stringify(back.chrome[id]));
+    }
+    check(back.pos !== 'fixed', '关页后楼层交还给酒馆（不再是 fixed）', back.pos);
+    check(errors.length === 0, '无脚本错误', errors.slice(0, 3).join(' | '));
+  } catch (error) {
+    check(false, '流内嵌入次级页面用例', error.message.split('\n')[0]);
+  }
+  await page.close();
+}
+
 await browser.close();
 await server.close();
 

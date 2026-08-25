@@ -2100,6 +2100,122 @@
   let inlinePageOn = false;
   let savedFloorStyle = null;
 
+  /* 让楼层 iframe 的 position:fixed 真的锚到视口。
+     ==================================================================
+     这是「点日程/档案，整个面板消失」的根因，而且只在带模糊的主题上出现。
+
+     position:fixed 默认锚视口，但只要有祖先带 transform / filter / backdrop-filter /
+     perspective / will-change / contain 之类，那个祖先就成了 fixed 后代的**包含块**，
+     fixed 于是退化成「相对该祖先的绝对定位」，跟着它的滚动走、并被它的 overflow 裁掉。
+
+     实测（scripts/_probe-fixed-cb.mjs 的受控实验，真实 ST 样式 + 真实 TT 模块）：
+     SillyTavern 自己的 #chat 带 backdrop-filter: blur(13px)，而楼层 iframe 就在 #chat 里。
+     于是把楼层设成 fixed;top:0;left:0 之后，它的 rect.top 等于 -chat.scrollTop：
+
+         chat.scrollTop  178 →  楼层 top  -96   视口内可见 259074 px²
+         chat.scrollTop  328 →  楼层 top -246   视口内可见 200724 px²
+         chat.scrollTop  628 →  楼层 top -546   视口内可见  84024 px²
+         chat.scrollTop 1117 →  楼层 top -1035  视口内可见      0 px²   ← 面板消失
+
+     同一时刻只把 #chat 的 backdrop-filter 去掉，楼层立刻回到 top:0、可见 329160 px²
+     （整个视口）。单变量、效果即时且彻底，所以因果是定的。
+     Dark Lite 这种 no-blur 主题的 #chat 没有 backdrop-filter，所以它一直是好的 ——
+     这也是为什么这个 bug 看起来时好时坏。
+
+     引导壳不受影响：它从不把楼层设成 fixed，而是把 HUD 抬到酒馆 body 下（#chat 之外）。
+
+     能逃出 #chat 的只有两条路：成为 body 的子节点，或者真正锚住视口。前者要挪 iframe，
+     而**挪动必重载**（已实测：同文档换父 1→2 次加载、跨文档 2→3），重载会丢掉 HUD 刚打开
+     的那一页 —— 那正是这一支存在的原因。所以只剩后者：把这条链上建立包含块的属性临时中和掉。
+
+     只在整页期间中和，退出时按原样精确还原（连 !important 优先级一起存）。整页把视口盖满了，
+     所以这期间 #chat 少一层模糊在视觉上看不见。 */
+  /* 第二件事：光锚住视口还不够，酒馆自己的 chrome 还压在整页上面。
+     ------------------------------------------------------------------
+     命中测试（整页开着，视口坐标）：
+         (195,70)  → div#top-bar      顶栏，z-index 3005
+         (195,830) → div#form_sheld   底部输入栏，z-index 31
+     上下各有一条被盖住且不可点，而次级页面的返回钮就在顶上那条里 —— 页面关不掉。
+
+     为什么不能靠 z-index 解决：楼层 iframe 在 #chat 里，而 #chat 是
+     position:static（z-index 对 static 无效），所以整个 #chat 子树在 #sheld 内部是按
+     常规流绘制的，排在 positioned 的 #form_sheld 之前。实测把楼层 z-index 提到
+     2147483647 仍然输给 z-index:31 的 #form_sheld；只有把 #form_sheld 自己压下去或
+     藏起来才行。也就是说这个位置根本抬不出去。
+
+     生产壳层不受影响：它把裁剪台挂在酒馆 body 下、z-index 2147483000（见 paintHudFill），
+     在根层叠上下文里比，所以它的全屏本来就盖住了顶栏和输入栏。
+     这一支不能挪（挪动必重载，会丢掉刚打开的那一页），所以改为整页期间把这几件 chrome
+     临时藏起来 —— 效果与生产的全屏一致，不是新增行为。
+
+     退出时按原样精确还原（连 !important 优先级一起存）。 */
+  const CB_PROPS = ['backdrop-filter', '-webkit-backdrop-filter', 'filter',
+    'transform', 'perspective', 'will-change', 'contain', 'container-type'];
+  /* 中和值不能一律用 none：will-change 的初始值是 auto，contain 是 none，container-type 是 normal。 */
+  const CB_NEUTRAL = { 'will-change': 'auto', 'contain': 'none', 'container-type': 'normal' };
+  /* SillyTavern 的 chrome。整页盖不住它们，只能藏。 */
+  const HOST_CHROME_IDS = ['top-bar', 'top-settings-holder', 'form_sheld'];
+  let cbPatched = null;
+
+  const createsFixedCb = (s) => {
+    if (!s) return false;
+    const has = (v) => v && v !== 'none';
+    return has(s.transform) || has(s.perspective) || has(s.filter)
+      || has(s.backdropFilter) || has(s.webkitBackdropFilter)
+      || /transform|perspective|filter/.test(s.willChange || '')
+      || /paint|layout|strict|content/.test(s.contain || '')
+      || ((s.containerType || 'normal') !== 'normal');
+  };
+
+  const escapeFixedContainingBlock = (frame) => {
+    /* 只在进入整页时补一次。补过之后 computed 已经是中和值，再跑一遍就什么都记不下来了。 */
+    if (cbPatched) return;
+    cbPatched = [];
+    try {
+      const tavern = tavernWin();
+      const body = tavern.document.body;
+      const patch = (el, props, value) => {
+        const saved = {};
+        props.forEach((p) => {
+          saved[p] = [el.style.getPropertyValue(p), el.style.getPropertyPriority(p)];
+        });
+        cbPatched.push({ el, saved });
+        props.forEach((p) => el.style.setProperty(p, value(p), 'important'));
+      };
+
+      /* 一、把这条链上建立 fixed 包含块的祖先中和掉，让 position:fixed 真的锚视口。 */
+      let el = frame.parentElement;
+      while (el) {
+        if (createsFixedCb(tavern.getComputedStyle(el))) {
+          patch(el, CB_PROPS, (p) => CB_NEUTRAL[p] || 'none');
+        }
+        if (el === body) break;
+        el = el.parentElement;
+      }
+
+      /* 二、藏掉盖在整页上面、又抬不出去的宿主 chrome。 */
+      HOST_CHROME_IDS.forEach((id) => {
+        const chrome = tavern.document.getElementById(id);
+        if (chrome) patch(chrome, ['visibility'], () => 'hidden');
+      });
+    } catch (e) {}
+  };
+
+  const restoreFixedContainingBlock = () => {
+    if (!cbPatched) return;
+    const patched = cbPatched;
+    cbPatched = null;
+    for (const entry of patched) {
+      try {
+        Object.keys(entry.saved).forEach((p) => {
+          const [value, priority] = entry.saved[p];
+          if (value) entry.el.style.setProperty(p, value, priority);
+          else entry.el.style.removeProperty(p);
+        });
+      } catch (e) {}
+    }
+  };
+
   const layoutInlineDockPage = () => {
     const frame = window.frameElement;
     if (!frame) return;
@@ -2110,6 +2226,8 @@
       inlinePageOn = true;
       if (savedFloorStyle === null) savedFloorStyle = frame.getAttribute('style');
     }
+    /* 必须在下面写 position:fixed 之前做：否则这一帧的 fixed 仍然锚在 #chat 上。 */
+    escapeFixedContainingBlock(frame);
     const tavern = tavernWin();
     const vv = tavern.visualViewport;
     const vw = Math.round((vv && vv.width) || tavern.innerWidth || innerWidth);
@@ -2157,6 +2275,9 @@
   const leaveInlineDockPage = (frame) => {
     if (!inlinePageOn) return;
     inlinePageOn = false;
+    /* 先把祖先的模糊/变换还回去，再还原楼层样式：顺序不重要，但两件事必须成对，
+       漏掉这一句的后果是 #chat 永久失去 backdrop-filter。 */
+    restoreFixedContainingBlock();
     if (savedFloorStyle === null) frame.removeAttribute('style');
     else frame.setAttribute('style', savedFloorStyle);
     savedFloorStyle = null;
@@ -2993,6 +3114,9 @@
     active = false;
     portraitPageOpen = false;
     try { unlockTavernScroll(); } catch (e) {}
+    /* 跟 unlockTavernScroll 同一类：对宿主做过的改动，交还控制权时必须撤干净。
+       漏掉它的后果是壳层卸载/换主时 #chat 永久失去 backdrop-filter。 */
+    try { restoreFixedContainingBlock(); } catch (e) {}
     try { stopAutoscroll(); } catch (e) {}
     try { slotObserver?.disconnect(); } catch (e) {}
     slotObserver = null;
