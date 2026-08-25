@@ -19,7 +19,9 @@ function initializeMobilePhone() {
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #4a5568; font-weight: 500;"> 论坛风格</label>
                     <select id="forum-style" style="width: 100%; padding: 8px; background: white; border: 1px solid #cbd5e0; border-radius: 4px; color: #2d3748;">
-                        <option value="${DEFAULT_FORUM_STYLE}" ${settings.forumStyle === DEFAULT_FORUM_STYLE ? 'selected' : ''}>${DEFAULT_FORUM_STYLE}</option>
+                        ${BUILTIN_FORUM_STYLES.map(style =>
+                            `<option value="${style}" ${settings.forumStyle === style ? 'selected' : ''}>${style}</option>`
+                        ).join('')}
                         ${settings.customStyles && settings.customStyles.length > 0 ? settings.customStyles.map(style =>
             `<option value="custom:${style.name}" ${settings.forumStyle === `custom:${style.name}` ? 'selected' : ''}>${style.name}</option>`
         ).join('') : ''}
@@ -477,7 +479,8 @@ function initializeMobilePhone() {
 
     window.phoneImportExamplePrompt = function () {
 
-        const examplePrompt = DEFAULT_FORUM_STYLE_PROMPT;
+        const selectedStyle = manager.settings.forumStyle;
+        const examplePrompt = BUILTIN_FORUM_STYLE_PROMPTS[selectedStyle] || DEFAULT_FORUM_STYLE_PROMPT;
 
         // 将示例提示词填充到编辑框
         $('#custom-style-prompt').val(examplePrompt);
