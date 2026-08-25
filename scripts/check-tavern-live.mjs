@@ -298,6 +298,30 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
       '滚动聊天 600px 后整页仍钉在视口（修复前这里会滚走并被裁成 0）',
       `top=${scrolled.top} 三点归属=${scrolled.ownsAll}`);
 
+    /* 整页开着时去改停靠方式 —— 全局设置里那一行走的就是这条路（applyDockDefault）。
+       分支链会直接切去生产路径，layoutInlineDockPage 的收尾没人执行，于是 #chat 的模糊
+       停在 none、顶栏和输入栏停在 hidden。用户看到的就是「切换设置把面板主体全屏化」。 */
+    await page.evaluate(() => document.getElementById('linjiang-hud-shrink')?.click());
+    await page.waitForTimeout(1400);
+    const switched = await state();
+    check(switched.pos !== 'fixed', '整页开着时切停靠：楼层不再是 fixed', switched.pos);
+    check(switched.chatBackdrop === base.chatBackdrop,
+      '整页开着时切停靠：#chat 的模糊已还原', `${base.chatBackdrop} -> ${switched.chatBackdrop}`);
+    check(switched.chatStyleAttr === base.chatStyleAttr,
+      '整页开着时切停靠：#chat 没留下内联残渣', JSON.stringify(switched.chatStyleAttr));
+    for (const id of ['top-bar', 'top-settings-holder', 'form_sheld']) {
+      check(switched.chrome[id] && switched.chrome[id].vis === 'visible',
+        `整页开着时切停靠：#${id} 恢复可见`, JSON.stringify(switched.chrome[id]));
+    }
+
+    /* 切回嵌入，重新开一页，再验正常的关页路径。 */
+    await page.evaluate(() => document.getElementById('linjiang-hud-shrink')?.click());
+    await page.waitForTimeout(1400);
+    await reveal();
+    await page.waitForTimeout(300);
+    await hud.locator('.pdest-btn[data-page="schedule"]').first().click({ timeout: 15000 });
+    await page.waitForTimeout(900);
+
     /* 退出必须精确还原，否则 #chat 永久失去模糊。 */
     await hud.locator('[data-page-close]').first().click({ timeout: 15000 });
     await page.waitForTimeout(1200);

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync
 import { join } from 'node:path';
 import { defineConfig } from 'vite';
 import {
-  ASSETS_ROOT, cdnEnabled, listPublicAssets, listRewritable, rewriteStaticRefs,
+  ASSETS_ROOT, CDN_HOST, buildRewriteContexts, cdnEnabled, listRewritable, rewriteStaticRefs,
 } from './scripts/asset-cdn.mjs';
 
 function copyCityMap(destRoot) {
@@ -50,17 +50,22 @@ const USE_ASSET_CDN = cdnEnabled();
    JS 不走这里 —— asset() 是运行时拼的，靠下面的 define 注入根地址。 */
 function rewriteAssetRefs(destRoot) {
   if (!USE_ASSET_CDN) return;
-  const known = new Set(listPublicAssets());
-  let touched = 0;
+  /* public/assets 和 arcade/assets 是两棵素材树，相对引用都长成 assets/xxx，
+     靠产物文件的位置决定该查哪棵。 */
+  const contexts = buildRewriteContexts();
+  const touched = {};
   for (const file of listRewritable(destRoot)) {
+    const ctx = contexts.find((c) => c.match(file));
+    if (!ctx) continue;
     const before = readFileSync(file, 'utf8');
-    const after = rewriteStaticRefs(before, known);
+    const after = rewriteStaticRefs(before, ctx.known, ctx.root);
     if (after !== before) {
       writeFileSync(file, after);
-      touched += 1;
+      touched[ctx.id] = (touched[ctx.id] || 0) + 1;
     }
   }
-  console.log(`[asset-cdn] 素材外链已指向 ${ASSETS_ROOT}（改写 ${touched} 个 HTML/CSS）`);
+  const summary = Object.entries(touched).map(([k, v]) => `${k} ${v} 个`).join('，') || '无改动';
+  console.log(`[asset-cdn] 素材外链已指向 ${CDN_HOST}（改写 ${summary}）`);
 }
 
 export default defineConfig({

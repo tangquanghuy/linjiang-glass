@@ -170,6 +170,37 @@ jsDelivr 对 `@main` 这种可变引用给 12 小时边缘缓存。`.github/work
 
 素材本体仍然随 `dist` 发到 Pages，作后备，也给本地 `preview` 用。
 
+街机自己带一棵素材树（`arcade/assets/`），也一起改写，用的是各自的白名单和前缀
+（`arcade/assets/` vs `public/assets/`，两边的相对引用都长成 `assets/xxx`，靠产物文件的
+位置区分）。那边的量同样不小：`shrine/wishing-tree-bg.png` 2427KB、
+`shrine/ema-plaque.png` 1405KB，加上从游戏页里抽出来的 `games/` 约 2.6MB。
+
+**游戏页 HTML 本身不能挪到 CDN**：它要读 `parent.document.body.dataset.theme`（同源），
+而且每个游戏用 `localStorage` 存自己的进度 —— 换 origin 等于把玩家存档丢在旧域名上。
+所以只挪素材，页面留在 Pages。
+
+### 街机为什么会「一直正在载入」
+
+`arcade/fishing.html` 曾经是 **2753KB**，其中 2678KB(97%) 是 21 个 base64 data URI；
+`arcade/slots.html` 929KB 里有 867KB(93%)。大厅是按需换 `iframe.src` 的，期间显示「正在载入…」，
+所以在国内就是四分钟量级、甚至根本下不完 —— 页面上只有那个 loading 一直转。
+
+现在抽成了 `arcade/assets/games/` 下的独立文件：
+
+| | 之前 | 之后 |
+| --- | --- | --- |
+| `arcade/fishing.html` | 2753 KB | **78 KB**（−97.2%） |
+| `arcade/slots.html` | 929 KB | **65 KB**（−93.3%） |
+
+抽出来是安全的，因为两个页面本来就是按异步加载写的:`fishing` 是
+`new Image(); image.src=src`，每个绘制点判 `complete && naturalWidth`；`slots` 是
+`<img onerror>` 切占位块。
+
+但这也带来一个**静默失败**:素材 404 时兜底会让画面看起来「正常运行」，只是变成占位图，
+既不报错也没有红字，`npm run arcade`（量布局溢出）照样全绿。所以加了
+`npm run arcade:assets`，直接断言精灵图能解码、画布上不是兜底纯色（真素材约 1046 种颜色，
+兜底渐变只有几种）、并且源文件里不能再出现内联 base64。
+
 配套改了两处粘贴份：
 
 - `素材缓存脚本.js` 的 `ALLOW` 加了 `https://testingcf.jsdelivr.net/`（它也给 `ACAO: *`），
@@ -248,6 +279,7 @@ npm run tavern:real     # 高保真集成扫描
 npm run embed           # 布局孪生体
 
 npm run assets:cdn      # 素材 CDN 改写回归（形态 + 两种构建；:net 额外联网抽查字节）
+npm run arcade:assets   # 街机素材完整性（防「素材全丢但兜底让它看起来正常」）
 
 npm run deploy:docs     # 校验这份文档还没跟代码脱节
 ```
@@ -342,6 +374,16 @@ npm run deploy:docs     # 校验这份文档还没跟代码脱节
   `paintHudFill` 的 2147483000 裁剪台挂在 body 下）。
   **对宿主做的每一处改动都要成对还原**，漏掉的后果是 `#chat` 永久失去模糊 —— 不报错的画面
   退化最难发现，所以 `tavern:live` 里连 `style` 属性都逐字比。
+- **对宿主的改动必须在「状态不再成立」时也撤掉，不能只在正常退出路径上撤。**
+  流内嵌入的整页会中和 `#chat` 的模糊、藏掉顶栏和输入栏。第一版只在 `layoutInlineDockPage`
+  的收尾里还原,于是整页开着时用户去改全局设置里的「HUD 停靠方式」或「适配宽度」,
+  分支链直接切去生产路径,收尾永远不执行 —— `#chat` 停在 `backdrop-filter: none`、
+  `#top-bar` 和 `#form_sheld` 停在 `visibility: hidden`,看起来就是「切换设置把面板主体
+  全屏化」。现在改成每帧先判「这一帧该不该处于整页态」,不该就先拆干净,并且放在那道 TT
+  停车守卫的 `return` 之前。
+- **兜底会把「素材全丢」伪装成「运行正常」。** 街机两个游戏页都有素材兜底(渐变 /
+  占位块),所以素材 404 时没有报错、没有红字,量布局的 `npm run arcade` 也全绿。
+  加兜底的时候顺手想一想:兜底生效了,谁会告诉我。
 - **夹具支持一个变体不等于有人在测它。** `shell=flow` 在夹具里早就能跑，但一条断言都没有，
   于是上面两个根因是用户在真机上撞出来的。加变体的时候顺手问一句：谁在驱动它。
 - **`cdn.jsdelivr.net` 被墙，写错域名会整页白屏。** `cg/index.html` 曾经从

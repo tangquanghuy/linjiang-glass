@@ -25,6 +25,7 @@
     "smoke": "node tools/smoke_pages.mjs",
     "responsive": "node scripts/check-responsive.mjs",
     "arcade": "node scripts/check-arcade-mobile.mjs",
+    "arcade:assets": "node scripts/check-arcade-assets.mjs",
     "arcade:shots": "node scripts/check-arcade-mobile.mjs --shots",
     "arcade:states": "node scripts/shot-arcade-states.mjs",
     "arcade:rotated": "node scripts/check-arcade-rotated.mjs",

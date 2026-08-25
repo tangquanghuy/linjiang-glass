@@ -52,6 +52,19 @@ export const CDN_REF = 'gh/tangquanghuy/linjiang-glass@main';
    public/assets/ 下面（是 vite 把 public/ 摊平成 dist/ 根，CDN 不做这件事）。 */
 export const ASSETS_ROOT = `${CDN_HOST}/${CDN_REF}/public/assets/`;
 
+/* 街机自己带一套素材（arcade/assets/），跟 public/assets 是两棵树，所以要各自的白名单
+   和各自的 URL 前缀 —— 两边的相对引用都长成 assets/xxx，靠文件位置区分。
+
+   这里的量也不小：
+     arcade/assets/shrine/wishing-tree-bg.png   2427KB
+     arcade/assets/shrine/ema-plaque.png        1405KB
+     arcade/assets/games/*（从 fishing/slots 的 base64 里抽出来的）约 2.6MB
+
+   游戏页 HTML 本身不能挪到 CDN：它要 parent.document.body.dataset.theme（同源），
+   而且每个游戏用 localStorage 存自己的进度 —— 换源等于把玩家存档丢在旧 origin 上。
+   所以只挪素材，页面留在 Pages。 */
+export const ARCADE_ASSETS_ROOT = `${CDN_HOST}/${CDN_REF}/arcade/assets/`;
+
 /* trim 不是多余的：Windows 的 cmd 里 `set ASSET_CDN=1 && ...` 会把值设成 "1 "
    —— 带着 && 前面那个空格。第一次验证就栽在这上面，构建静悄悄地没改写任何东西。 */
 export function cdnEnabled(env = process.env) {
@@ -130,6 +143,25 @@ export function hasWalledCdn(text) {
         .replace(/<!--[\s\S]*?-->/g, '')
         .replace(/\/\*[\s\S]*?\*\//g, '');
     return /https?:\/\/cdn\.jsdelivr\.net/.test(code);
+}
+
+/* 改写上下文：按产物文件的位置决定用哪棵素材树的白名单和 URL 前缀。
+   顺序有意义 —— 取第一个匹配的，所以更specific的 arcade 必须排在兜底之前。 */
+export function buildRewriteContexts() {
+    return [
+        {
+            id: 'arcade',
+            match: (file) => /(?:^|[\\/])arcade[\\/]/.test(file),
+            known: new Set(listPublicAssets('arcade/assets')),
+            root: ARCADE_ASSETS_ROOT,
+        },
+        {
+            id: 'public',
+            match: () => true,
+            known: new Set(listPublicAssets('public/assets')),
+            root: ASSETS_ROOT,
+        },
+    ];
 }
 
 /* 递归收集 dist 下要改写的文件。 */

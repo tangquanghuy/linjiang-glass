@@ -2456,6 +2456,24 @@
     if (!isOwner()) return;
     try {
       const anchor = window.frameElement;
+
+      /* 只要这一帧不该处于「原生嵌入的整页」状态，就先把它拆干净。
+         ------------------------------------------------------------------
+         必须在这里做，不能只靠 layoutInlineDock() 里那一次：整页开着的时候用户去改
+         全局设置里的「HUD 停靠方式」或「适配宽度」，compacted / portraitHud() 一变，
+         下面的分支链就直接走去生产路径了，layoutInlineDockPage 的收尾永远不会执行。
+
+         症状是「切换设置把面板主体全屏化」：楼层 iframe 会被生产路径复位，但
+         #chat 的 backdrop-filter 停在 none、#top-bar 和 #form_sheld 停在
+         visibility:hidden —— 顶栏和输入栏消失了，看起来就像整个面板铺满了屏幕。
+         而且这些是对**宿主**的改动，不还原就一直留着。
+
+         也刻意放在下面那道 TT 停车守卫之前：守卫会 return，锚点离开阅读区时同样得先拆，
+         否则会留下一个盖住整个视口的楼层。 */
+      const wantInlinePage = INLINE_DOCK && compacted && !!anchor
+        && (expanded || portraitPageOpen);
+      if (!wantInlinePage && anchor) leaveInlineDockPage(anchor);
+
       if (isTauriTavernMobile() && portraitHud() && !anchorInReadingPane(anchor)) {
         hudFrame.style.visibility = 'hidden';
         hudFrame.style.pointerEvents = 'none';
@@ -3127,8 +3145,13 @@
     portraitPageOpen = false;
     try { unlockTavernScroll(); } catch (e) {}
     /* 跟 unlockTavernScroll 同一类：对宿主做过的改动，交还控制权时必须撤干净。
-       漏掉它的后果是壳层卸载/换主时 #chat 永久失去 backdrop-filter。 */
-    try { restoreFixedContainingBlock(); } catch (e) {}
+       漏掉它的后果是壳层卸载/换主时 #chat 永久失去 backdrop-filter、顶栏和输入栏一直隐藏。
+       走完整的 leaveInlineDockPage 而不是只还原祖先样式，楼层自己的样式也要交回去。 */
+    try {
+      const anchor = window.frameElement;
+      if (anchor) leaveInlineDockPage(anchor);
+      else restoreFixedContainingBlock();
+    } catch (e) {}
     try { stopAutoscroll(); } catch (e) {}
     try { slotObserver?.disconnect(); } catch (e) {}
     slotObserver = null;

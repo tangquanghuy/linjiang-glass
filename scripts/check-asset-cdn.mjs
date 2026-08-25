@@ -23,7 +23,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ASSETS_ROOT, listPublicAssets, rewriteStaticRefs, hasWalledCdn } from './asset-cdn.mjs';
+import {
+  ASSETS_ROOT, ARCADE_ASSETS_ROOT, listPublicAssets, rewriteStaticRefs, hasWalledCdn,
+} from './asset-cdn.mjs';
 
 const WANT_NET = process.argv.includes('--net');
 let bad = 0;
@@ -144,6 +146,41 @@ if (!jsBundles.length) fail('找不到主 JS bundle');
 else if (jsBundles.some((f) => readFileSync(f, 'utf8').includes(ASSETS_ROOT))) ok('asset()/ITEM_ART/GIFT_ART 的根已注入 JS');
 else fail('主 JS bundle 里没有 CDN 根，asset() 还在走本地');
 
+/* 街机自己那棵素材树。它以前整棵都走 Pages，其中 fishing.html 里内联了 2.6MB base64，
+   在国内就是「大厅一直停在正在载入」。 */
+{
+  const arcadeKnown = new Set(listPublicAssets('arcade/assets'));
+  if (arcadeKnown.size < 20) fail(`arcade/assets 只列出 ${arcadeKnown.size} 个文件，抽取疑似没落地`);
+  else ok(`arcade/assets 清单 ${arcadeKnown.size} 个文件`);
+
+  for (const name of ['games/fishing-background.webp', 'shrine/wishing-tree-bg.png']) {
+    if (!arcadeKnown.has(name)) { fail(`arcade/assets 里缺 ${name}`); continue; }
+    const hosts = distFiles(/\.(html|css)$/).filter((f) => /[\\/]arcade[\\/]/.test(f) && readFileSync(f, 'utf8').includes(name));
+    if (!hosts.length) { fail(`${name} 在 dist/arcade 的 HTML/CSS 里没有引用`); continue; }
+    for (const f of hosts) {
+      if (readFileSync(f, 'utf8').includes(ARCADE_ASSETS_ROOT + name)) ok(`${name} -> CDN  (${f})`);
+      else fail(`${name} 在 ${f} 里没指向 ${ARCADE_ASSETS_ROOT}`);
+    }
+  }
+
+  /* 反向断言：街机素材绝不能被改写到 public/assets 那棵树的前缀下（两棵树的相对引用
+     长得一模一样，选错上下文就会拼出 404，而且是静默的）。 */
+  const crossed = distFiles(/\.(html|css)$/)
+    .filter((f) => /[\\/]arcade[\\/]/.test(f) && readFileSync(f, 'utf8').includes(ASSETS_ROOT));
+  if (crossed.length) fail(`dist/arcade 里出现了 public/assets 的 CDN 前缀（选错素材树）: ${crossed.join(', ')}`);
+  else ok('街机产物没有串到 public/assets 的前缀上');
+
+  /* 体积回归：把 base64 内联回 HTML 会让这个修复静默失效。 */
+  for (const [file, limitKb] of [['arcade/fishing.html', 200], ['arcade/slots.html', 200]]) {
+    const bytes = readFileSync(file).length;
+    const b64 = [...readFileSync(file, 'utf8').matchAll(/data:[a-z/+.-]+;base64,/g)].length;
+    const kb = Math.round(bytes / 1024);
+    if (kb > limitKb) fail(`${file} ${kb}KB 超过 ${limitKb}KB —— 素材是不是又被内联回去了`);
+    else if (b64 > 0) fail(`${file} 里还有 ${b64} 个 base64 data URI`);
+    else ok(`${file} ${kb}KB（无内联 base64，上限 ${limitKb}KB）`);
+  }
+}
+
 /* 素材本体仍要留在 dist：Pages 作后备，本地 preview 也要用。 */
 const missing = BIG.filter((n) => !existsSync('dist/assets/' + n));
 if (missing.length) fail('dist 里少了素材本体: ' + missing.join(', '));
@@ -175,6 +212,24 @@ if (WANT_NET) {
         const first = all.find((p) => p.startsWith(dir));
         if (first) pick.push(first);
     }
+    /* 街机那棵树也抽查：games/ 是从 base64 里抽出来的，shrine/ 是原本就最大的两张。 */
+    const arcadePicks = ['games/fishing-background.webp', 'games/slots-cherry.webp', 'shrine/wishing-tree-bg.png'];
+    for (const rel of arcadePicks) {
+        if (!existsSync('arcade/assets/' + rel)) { fail(`arcade/assets/${rel} 本地不存在`); continue; }
+        const want = createHash('sha256').update(readFileSync('arcade/assets/' + rel)).digest('hex');
+        const t0 = Date.now();
+        try {
+            const res = await fetch(ARCADE_ASSETS_ROOT + rel, { cache: 'no-store' });
+            const buf = Buffer.from(await res.arrayBuffer());
+            const got = createHash('sha256').update(buf).digest('hex');
+            if (!res.ok) fail(`HTTP ${res.status}  arcade/${rel}（新文件要等推送后 CDN 才有）`);
+            else if (got !== want) fail(`字节不一致 arcade/${rel}`);
+            else ok(`${String(Date.now() - t0).padStart(6)}ms ${String(Math.round(buf.length / 1024)).padStart(5)}KB  arcade/${rel}`);
+        } catch (e) {
+            fail(`${e.name}  arcade/${rel}`);
+        }
+    }
+
     for (const rel of pick) {
         const want = createHash('sha256').update(readFileSync('public/assets/' + rel)).digest('hex');
         const t0 = Date.now();
