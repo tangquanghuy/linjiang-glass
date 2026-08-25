@@ -26,7 +26,7 @@ import devMatrix from '../dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, GUARD_DAYS, NO_STATUS, NOTICE, PRIVACY, THRESHOLDS,
   characterDetails, experienceLevel, fanAccounts, fanLine, giftIcon, giftRail, giftScenes, girls,
-  homeState, inventoryRail, MAP_MARKER_ITEM, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
+  CITY_BUILD_COST, homeState, inventoryRail, MAP_MARKER_ITEM, itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workState, world,
 } from '../data.js';
 import { head, ic, meter, pct, section } from './parts.js';
 import { settingsBody } from '../settings.js';
@@ -69,6 +69,18 @@ function cell(item) {
     </span>`;
 }
 
+/* 蓝图的「使用」要付建设费，价钱写在按钮上，付不起就禁用。
+   跟横屏那颗（src/pages.js 的 blueprintUseButton）是同一套说法，只换了类名。
+   金额沿用本文件下方那个 yen()——函数声明会提升，这里先用后定义没问题。 */
+function blueprintUseButton() {
+  const broke = player.money < CITY_BUILD_COST;
+  const short = CITY_BUILD_COST - player.money;
+  return `<button class="pinv-use${broke ? ' is-broke' : ''}" type="button" data-map-marker-use
+    ${broke ? 'disabled' : ''}
+    aria-label="使用城市规划蓝图，建设费 ${yen(CITY_BUILD_COST)}${broke ? '，金钱不足' : ''}"
+    >${broke ? `建设费 ${yen(CITY_BUILD_COST)} · 还差 ${yen(short)}` : `使用城市规划蓝图<em>建设费 ${yen(CITY_BUILD_COST)}</em>`}</button>`;
+}
+
 /* A row rather than a grid tile.  The elastic canvas has height to spend and 795 units
    of usable width, which is enough to show the 描述 -- and the 描述 is the reason to
    open this page at all, since the drawer and the rail can only ever show an icon. */
@@ -91,7 +103,7 @@ function row(item, selected = new Map()) {
       <b>${item.name}</b>
       <span class="pinv-tags">${tags(item)}</span>
       <p>${item.description}</p>
-      ${item.name === MAP_MARKER_ITEM ? '<button class="pinv-use" type="button" data-map-marker-use>使用城市规划蓝图</button>' : ''}
+      ${item.name === MAP_MARKER_ITEM ? blueprintUseButton() : ''}
     </span>
   </div>`;
 }

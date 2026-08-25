@@ -4,8 +4,8 @@ import { rebaseRecord } from './asset.js';
 import devMatrix from './dev-matrix.json';
 import {
   DEV_PARTS, DEV_TIERS, EXPERIENCE_FIELDS, NO_STATUS, PRIVACY, THRESHOLDS,
-  characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon, MAP_MARKER_ITEM,
-  itemIconTag, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
+  CITY_BUILD_COST, characterDetails, dailyEvents, experienceLevel, fanAccounts, fanLine, giftLabel, giftScenes, girls, homeState, itemIcon, MAP_MARKER_ITEM,
+  itemIconTag, onLive, partArt, player, potencyNotches, SLOT_STATES, streamSchedule, sortedEvents, workBadge, workState, world,
 } from './data.js';
 import { buildDockLens, buildDockRim, buildDockUnderglow } from './dock.js';
 import { icons } from './icons.js';
@@ -19,7 +19,7 @@ import { isMapOpen, mountMapOverlay } from './map.js';
 import { isArcadeOpen, mountArcadeOverlay } from './arcade.js';
 import { isCgOpen, mountCgOverlay } from './cg.js';
 import { isShopOpen, mountShopOverlay } from './shop.js';
-import { insertSafeHTML, setSafeHTML } from './dom.js';
+import { insertSafeHTML, safeFirstElement, setSafeHTML } from './dom.js';
 
 const dockArt = rebaseRecord(dockArtRaw);
 
@@ -624,6 +624,20 @@ function profilePage() {
   `, 'profile-page');
 }
 
+/* 城市规划蓝图的「使用」按钮。用品本身不消耗，但每次确定建设要付一笔建设费，
+   所以这颗按钮同时承担三件事：说清价钱、在付不起时禁用、把差额算给玩家看。
+   真正的扣款与拒绝在宿主那一侧，这里只是别让人白填一张表。
+   金额沿用上面那个 yen()。 */
+function blueprintUseButton(cls = 'item-use') {
+  const broke = player.money < CITY_BUILD_COST;
+  const short = CITY_BUILD_COST - player.money;
+  return `<button class="${cls}${broke ? ' is-broke' : ''}" type="button" data-map-marker-use
+    ${broke ? 'disabled' : ''}
+    title="${broke ? `建设费 ${yen(CITY_BUILD_COST)}，还差 ${yen(short)}` : `每次确定建设扣除 ${yen(CITY_BUILD_COST)}`}"
+    aria-label="使用城市规划蓝图，建设费 ${yen(CITY_BUILD_COST)}${broke ? '，金钱不足' : ''}"
+    >${broke ? `金钱不足<em>差 ${yen(short)}</em>` : `使用<em>${yen(CITY_BUILD_COST)}</em>`}</button>`;
+}
+
 /* Three kinds now, and they behave differently: 素材 are spent on crafting, 消耗品
    are spent on use and carry a universal 强度 1~5, 用品 are durable and instead
    carry 佩戴 -- so the meta line differs per kind rather than being one field. */
@@ -638,6 +652,8 @@ function itemCard(item, kind, selected = new Map()) {
   const icon = itemIcon(kind, item);
   const key = `${kind}:${item.name}`;
   const payload = encodeURIComponent(JSON.stringify({ kind, name: item.name, quantity: item.quantity }));
+  /* 蓝图的「使用」是要花钱的，价钱得写在按钮上——不能让人点进地图、填完一整张表
+     才在保存那一步撞上「金钱不足」。付不起就直接禁用，并把差额说出来。 */
   return `
     <article class="item-card b-${kind}${kind === 'goods' && item.worn ? ' is-worn' : ''}"
       style="--hue:${icon.hue}; --tilt:${icon.tilt}deg; --scale:${icon.scale}${
@@ -652,7 +668,7 @@ function itemCard(item, kind, selected = new Map()) {
         ${potencyNotches(kind === 'consumable' ? item.potency : 0)}
       </div>
       <div class="item-copy"><h3>${item.name}</h3><p>${item.description}</p><span>${icon.label} · ${meta}</span></div>
-      ${item.name === MAP_MARKER_ITEM ? '<button class="item-use" type="button" data-map-marker-use>使用</button>' : ''}
+      ${item.name === MAP_MARKER_ITEM ? blueprintUseButton() : ''}
       <b>${kind === 'goods' ? (item.worn ? '装备' : `×${item.quantity}`) : `×${item.quantity}`}</b>
     </article>`;
 }
@@ -874,6 +890,34 @@ export function mountPages(stage, { onGift, onDock, onOverlay } = {}) {
     sync();
     onDock?.(girl.name);
   };
+
+  /* 速览面板原本只在 openCharacter 里渲染一次，于是快照更新后它还挂着旧数字 ——
+     用户看到的现象是"必须关掉再点开才刷新"。卡片轨和竖屏预览早就订阅了 onLive，
+     这里补上同一件事：拿当前 dockName 重建 .dock-root 并原地换掉。
+
+     用整块替换而不是逐个字段改写，是因为这块面板的每个数字都由 characterDock 的模板
+     算出来（阈值刻度、异常状态标签、私密度 pips、送礼按钮的可用性都会跟着变），
+     逐字段同步等于把那套规则再写一遍，两份实现迟早对不上。 */
+  const repaintDock = () => {
+    if (!dockName) return;
+    /* 竖屏走 portrait/content.js 那条路，这块面板不参与排版。 */
+    if (document.querySelector('.viewport')?.classList.contains('is-portrait')) return;
+    const current = layer.querySelector('.dock-root');
+    if (!current) return;
+    const girl = girls.find((item) => item.name === dockName);
+    /* 快照可能把这位从名册里删掉（自建主播被移除）。这时留着最后一帧，不要在
+       用户眼前把面板抽走 —— 关闭仍然由点击和 Escape 负责。 */
+    if (!girl || !characterDetails[girl.name]) return;
+    const next = safeFirstElement(characterDock(girl));
+    if (!next) return;
+    /* dock-rise 是入场动画。每次好感度变动都重播一遍，看起来就像面板自己重开了。 */
+    next.classList.add('is-repaint');
+    current.replaceWith(next);
+    /* 底光、透镜、描边都是 dock.js imperative 画出来的 SVG，跟着新节点重画。 */
+    paintDock(layer);
+    /* 不碰 sync()/onDock()：开合状态和礼物盘的归属都没变。 */
+  };
+  onLive(repaintDock);
 
   const paintInventoryLeaf = (delta) => {
     const board = layer.querySelector('.inventory-board');

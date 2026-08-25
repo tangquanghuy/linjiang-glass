@@ -306,6 +306,9 @@
 
     if (!stat.系统配置 || typeof stat.系统配置 !== 'object') stat.系统配置 = {};
     stat.系统配置.街机 = profile;
+    /* 蓝图是街机代币换的，玩街机的人正是持有它的人，这条又是最频繁的写入路径——
+       挂在这儿，老存档的旧描述基本上下一次结算就被改正了。 */
+    syncBlueprintDescription(stat);
     mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
     return { profile, unlocked };
   };
@@ -520,6 +523,29 @@
     const response = await helper.generate({ user_input: userInput, max_chat_history: 10 });
     return writeDevelopmentNotes(name, parseDevelopmentNotes(response));
   };
+  /* ============ 城市规划蓝图：建设费 ============
+     蓝图是「用品」，按变量规则使用不扣数量，所以它是一张可反复用的许可证，不是一次性道具。
+     代价改成按次收钱：每次在地图上确定建设，从 玩家信息.金钱 扣一笔建设费，钱不够就不许开工。
+
+     这个数字是真源。跟着它走的还有三处，改价时一起改：
+       shop/products.json  item-15 的 description / effect / goods.描述
+       src/data.js         CITY_BUILD_COST（HUD 侧显示与按钮禁用）
+       酒馆变量/变量更新规则 + 世界书/道具制作和使用（正文与 AI 侧的规则说明） */
+  const CITY_BUILD_ITEM = '城市规划蓝图';
+  const CITY_BUILD_COST = 1000000;
+  const yuan = (value) => `￥${Math.round(Number(value) || 0).toLocaleString('en-US')}`;
+  const CITY_BUILD_DESC = `使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。每次确定建设另需支付 ${yuan(CITY_BUILD_COST)} 建设费，金钱不足时无法开工；蓝图本身不消耗，可反复使用。`;
+
+  /* 老存档的背包里存着旧版描述（没有建设费那一句）。描述是购买时抄进 MVU 的快照，
+     不会自己更新，所以在每一条已经要写 MVU 的路径上顺手改正一次——不为它单独发起写入。 */
+  const syncBlueprintDescription = (stat) => {
+    const row = stat?.玩家信息?.背包?.用品?.[CITY_BUILD_ITEM];
+    if (!row || typeof row !== 'object') return false;
+    if (String(row.描述 || '') === CITY_BUILD_DESC) return false;
+    row.描述 = CITY_BUILD_DESC;
+    return true;
+  };
+
   const purchaseShopProduct = (product) => {
     const bucket = String(product?.storageBucket || '用品').trim();
     const name = String(product?.goods?.['名称'] || product?.name || '').trim();
@@ -548,6 +574,7 @@
     bag.用品 = bag.用品 && typeof bag.用品 === 'object' ? bag.用品 : {};
     const current = bag.用品[name] && typeof bag.用品[name] === 'object' ? bag.用品[name] : null;
     bag.用品[name] = { 名称: name, 类别: category, 数量: Math.max(0, Math.floor(Number(current?.数量) || 0)) + 1, 品级: String(product?.goods?.['品级'] || product?.rarity || current?.品级 || '').trim(), 佩戴: category === '器材' ? false : !!current?.佩戴, 描述: description || String(current?.描述 || '') };
+    syncBlueprintDescription(stat);
     mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
     return { bucket, item: bag.用品[name] };
   };
@@ -694,6 +721,15 @@
     const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
     if (!mvuData?.stat_data) throw new Error('MVU 数据为空');
     const stat = mvuData.stat_data;
+    /* 建设费的门槛先过。地图那边也会拦一道，但它拿的是快照里的金钱，可能已经过时——
+       这里是唯一权威：重新读一次当前 MVU。
+
+       放在最前面是有意的：下面几行会给 系统配置.地图 补默认容器，getMvuData 给的又可能是
+       活引用。钱不够就一个字段都不碰，拒绝之后这份数据跟进函数之前完全一样。 */
+    const funds = Number(stat.玩家信息?.金钱) || 0;
+    if (funds < CITY_BUILD_COST) {
+      throw new Error(`金钱不足：建设需要 ${yuan(CITY_BUILD_COST)}，当前只有 ${yuan(funds)}，还差 ${yuan(CITY_BUILD_COST - funds)}`);
+    }
     stat.系统配置 = stat.系统配置 && typeof stat.系统配置 === 'object' ? stat.系统配置 : {};
     stat.系统配置.地图 = stat.系统配置.地图 && typeof stat.系统配置.地图 === 'object' ? stat.系统配置.地图 : {};
     stat.系统配置.地图.版本 = 1;
@@ -749,8 +785,13 @@
       简介: node.intro, 看点: node.draw, 特殊: node.special, 创建时间: node.createdAt,
       世界书同步: { 状态: worldbook.synced ? '已同步' : '由地图加载动态注入', 条目UID: worldbook.uid },
     };
+    /* 扣费和建节点是同一次 replaceMvuData：要么都落，要么都不落。
+       不用 bridge 的 setMoney —— 那条是防抖 + 整字段覆盖的，街机并发推一次就能把这笔扣款冲掉。 */
+    stat.玩家信息 = stat.玩家信息 && typeof stat.玩家信息 === 'object' ? stat.玩家信息 : {};
+    stat.玩家信息.金钱 = funds - CITY_BUILD_COST;
+    syncBlueprintDescription(stat);
     mvuState.mvu.replaceMvuData(mvuData, { type: 'message', message_id: 'latest' });
-    return { node, worldbook };
+    return { node, worldbook, cost: CITY_BUILD_COST, money: stat.玩家信息.金钱 };
   };
 
   const deleteCustomMapNode = async (id) => {
@@ -871,6 +912,7 @@
   const PORTRAIT_GUTTER = 12;
   const MAX_VH = 0.78;
   const HUD_LIVE_ID = 'linjiang-hud-live';
+  const HUD_STAGE_ID = 'linjiang-hud-stage';
   const HUD_FS_ID = 'linjiang-hud-fs';
   const HUD_SHRINK_ID = 'linjiang-hud-shrink';
   const HUD_FS_STYLE_ID = 'linjiang-hud-fs-style';
@@ -964,6 +1006,9 @@
       },
       resetHudFrame() {
         try { this.hudFrame?.remove(); } catch (e) {}
+        /* 裁剪台是挂在酒馆文档上的，不是 HUD 的子节点，所以拆 HUD 不会把它带走。
+           留下来的话下一任 owner 会再建一个，酒馆 body 上就攒出一串空的 fixed 层。 */
+        try { this.host.document.getElementById(HUD_STAGE_ID)?.remove(); } catch (e) {}
         this.hudFrame = null;
         this.hudMode = '';
       },
@@ -1193,7 +1238,12 @@
     if (hudFrame.parentNode !== document.body) {
       document.body.insertBefore(hudFrame, hint);
     }
+    /* 回到本页里就没有裁剪台了，顺手拆掉，免得酒馆文档上留一个空的 fixed 层。 */
+    removeHudStage();
     hudFrame.id = 'hud';
+    hudFrame._linjiangCss = null;
+    hudFrame._linjiangOffX = 0;
+    hudFrame._linjiangOffY = 0;
     hudFrame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#05040a;';
   };
 
@@ -1437,10 +1487,17 @@
     syncShrinkButton(mountChromeButton(HUD_SHRINK_ID, onShrinkClick));
   };
 
+  /* 铺满视口的两种情形（全屏、竖屏整页）。裁剪台跟着铺满，HUD 归位到 (0,0)：整页时
+     HUD 自己要能滚，所以这里不提升合成层。 */
   const paintHudFill = (vw, vh) => {
     hudFrame.id = HUD_LIVE_ID;
+    const stage = hudFrame._linjiangStage;
+    if (stage) setStageBox(stage, 0, vh, vw, 2147483000);
+    hudFrame._linjiangOffX = 0;
+    hudFrame._linjiangOffY = 0;
+    hudFrame._linjiangCss = null;
     hudFrame.style.cssText = [
-      'position:fixed',
+      'position:absolute',
       'left:0',
       'top:0',
       'transform:none',
@@ -1450,7 +1507,6 @@
       'margin:0',
       'border:0',
       'display:block',
-      'z-index:2147483000',
       'background:#05040a',
       'pointer-events:auto',
       'overflow:auto',
@@ -1474,7 +1530,7 @@
         frame.dataset.linjiangH = String(box.height);
       }
     }
-    if (hudFrame.parentNode !== doc.body) doc.body.appendChild(hudFrame);
+    mountHud(doc);
     paintHudFill(vw, vh);
     placeFsButton();
   };
@@ -1492,8 +1548,8 @@
       frame.dataset.linjiangH = String(height);
     }
     const after = viewportPoint(frame);
-    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-    paintHud(box, false);
+    mountHud(after.doc);
+    paintHud(box);
     hudFrame._linjiangAlign = 'slot';
     hudFrame._linjiangBox = box;
     moveHud(after, box);
@@ -1536,15 +1592,106 @@
     }
   };
 
-  /* The lifted HUD is position:fixed while its transparent spacer stays in
-     the message flow. Mirror an ordinary in-flow iframe: keep every part whose
-     spacer still intersects #chat, and clip only the portions above/below the
-     reading pane. Hiding as soon as the slot's top 32px left the pane made the
-     whole HUD vanish after one small wheel/touch scroll while its blank spacer
-     remained, which was especially destructive on portrait phones. */
+  /* 裁剪台。
+     ==================================================================
+     被抬起的 HUD 是 position:fixed，透明占位留在消息流里，所以每次宿主滚动都要把它搬到
+     新位置，并且把露出阅读区上下沿的那部分裁掉。这两件事以前都直接做在 iframe 上：写
+     left/top 挪，写 clip-path 裁。代价是每帧都要把整块玻璃重新光栅一遍 —— 390×844 的
+     手机上一段一秒的手势要 450ms 光栅、300 多个光栅任务；把 HUD 内容换成一块纯色则只剩
+     15ms，也就是说钱全花在「重画玻璃」上，而不是「移动」上。
+
+     现在把两件事分开：
+
+       裁剪台  position:fixed，钉在阅读区上，overflow:hidden，pointer-events:none。
+               它的几何只在阅读区自己变化时才写（旋转、软键盘、栏宽变化），滚动时不动。
+       HUD     裁剪台里的 position:absolute 元素，只用 transform: translate3d 平移，
+               并且 will-change:transform 提升为合成层。
+
+     于是逐帧变化的只剩一个 transform，合成器可以整块搬运已经光栅好的纹理。实测同一段手势
+     447ms → 87ms 光栅，主线程 Paint 从每帧一次（~80ms / 80 次）降到 8 次。
+
+     两点都是必要条件，缺一个就没有收益：只改 transform 不提升，层照样要重画（489ms）；
+     提升了但 clip-path 仍逐帧改，反而更慢（527ms）—— 改 clip-path 会让合成器丢掉层缓存。
+
+     原注释担心「transform 会晚一帧合成，出现可见的一格跳动」。transform 是在 scroll 事件
+     和 rAF 里同步写的，和 left/top 落在同一个样式轮次；实测 180 多帧里 HUD 顶边与栏位顶边
+     的错位始终是 0px。注意这是主线程读数，读不到合成器实际呈现的位置，真机仍值得肉眼确认。 */
+  const ensureHudStage = (doc) => {
+    let stage = hudFrame._linjiangStage;
+    if (stage && stage.isConnected && stage.ownerDocument === doc) return stage;
+    stage = doc.getElementById(HUD_STAGE_ID);
+    if (!stage) {
+      stage = doc.createElement('div');
+      stage.id = HUD_STAGE_ID;
+      /* TauriTavern 会把 body 下未标记的 fixed 子元素当成宿主浮层接管几何。裁剪台是
+         pointer-events:none，本来就不会被它的 classifySurface 选中，但显式声明一次，
+         免得将来判定规则变化。见 mobile-overlay-surface-admission.js。 */
+      stage.dataset.ttMobileSurface = 'none';
+    }
+    if (stage.parentNode !== doc.body) doc.body.appendChild(stage);
+    hudFrame._linjiangStage = stage;
+    return stage;
+  };
+
+  /** 把 HUD 挂进 doc 的裁剪台，返回裁剪台。 */
+  const mountHud = (doc) => {
+    const stage = ensureHudStage(doc);
+    if (hudFrame.parentNode !== stage) stage.appendChild(hudFrame);
+    return stage;
+  };
+
+  /** HUD 是否已经挂在酒馆文档的裁剪台里。 */
+  const hudMounted = () => {
+    const stage = hudFrame._linjiangStage;
+    return !!stage && stage.isConnected && hudFrame.parentNode === stage;
+  };
+
+  /* 只在真的变了才写：写同样的值也会触发样式失效，而这里是滚动路径上的热点。 */
+  const setStageBox = (stage, top, height, width, zIndex) => {
+    const next = `${Math.round(top)}|${Math.round(height)}|${Math.round(width)}|${zIndex}`;
+    if (stage._linjiangGeom === next) return;
+    stage._linjiangGeom = next;
+    stage.style.cssText = [
+      'position:fixed',
+      'left:0',
+      `top:${Math.round(top)}px`,
+      `width:${Math.round(width)}px`,
+      `height:${Math.round(height)}px`,
+      'margin:0',
+      'padding:0',
+      'border:0',
+      'overflow:hidden',
+      'pointer-events:none',
+      'background:transparent',
+      `z-index:${zIndex}`,
+    ].join(';');
+  };
+
+  /** HUD 在裁剪台内的位移。逐帧只走这一条。 */
+  const setHudOffset = (x, y) => {
+    const nx = Math.round(x);
+    const ny = Math.round(y);
+    if (hudFrame._linjiangOffX === nx && hudFrame._linjiangOffY === ny) return;
+    hudFrame._linjiangOffX = nx;
+    hudFrame._linjiangOffY = ny;
+    hudFrame.style.transform = `translate3d(${nx}px,${ny}px,0)`;
+  };
+
+  const removeHudStage = () => {
+    const stage = hudFrame?._linjiangStage;
+    try { stage?.remove(); } catch (e) {}
+    if (hudFrame) hudFrame._linjiangStage = null;
+  };
+
+  /* Mirror an ordinary in-flow iframe: keep every part whose spacer still intersects
+     #chat, and hide it only once it has left the reading pane entirely. Hiding as soon
+     as the slot's top 32px left the pane made the whole HUD vanish after one small
+     wheel/touch scroll while its blank spacer remained, which was especially
+     destructive on portrait phones.
+
+     裁剪本身已经交给裁剪台，这里只管「整块看不见时收起来」，不再写 clip-path。 */
   const applySlotVisibility = (view, box, paneRect = null) => {
     if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'page') {
-      hudFrame.style.removeProperty('clip-path');
       hudFrame.style.visibility = 'visible';
       hudFrame.style.pointerEvents = 'auto';
       return;
@@ -1562,19 +1709,24 @@
     if (!intersects) {
       hudFrame.style.visibility = 'hidden';
       hudFrame.style.pointerEvents = 'none';
-      hudFrame.style.removeProperty('clip-path');
       try { hideChromeButtons(); } catch (e) {}
       return;
     }
-    const insetTop = Math.max(0, rr.top - view.top);
-    const insetBottom = Math.max(0, hudBottom - rr.bottom);
     hudFrame.style.visibility = 'visible';
     hudFrame.style.pointerEvents = 'auto';
-    if (insetTop > 0.5 || insetBottom > 0.5) {
-      hudFrame.style.clipPath = `inset(${insetTop}px 0 ${insetBottom}px 0)`;
-    } else {
-      hudFrame.style.removeProperty('clip-path');
+  };
+
+  /** 当前该用的裁剪窗口，酒馆视口坐标。 */
+  const clipWindow = (view, paneRect = null) => {
+    if (expanded || portraitPageOpen || hudFrame._linjiangAlign === 'page') {
+      return { top: 0, bottom: view.vh };
     }
+    const rr = paneRect || (() => {
+      const pane = readingPane();
+      return pane ? pane.getBoundingClientRect() : null;
+    })();
+    if (!rr) return { top: 0, bottom: view.vh };
+    return { top: rr.top, bottom: rr.bottom };
   };
 
   const moveHud = (view, box, paneRect = null) => {
@@ -1587,12 +1739,12 @@
       const maxX = view.vw - box.width - PORTRAIT_GUTTER;
       if (maxX >= minX) x = Math.max(minX, Math.min(x, maxX));
     }
-    /* left/top are intentional here: a transformed iframe is composited one frame
-       after #chat scrolls, producing a visible 1-delta jump.  Fixed-position layout
-       coordinates update in the same style/layout pass as the anchor rect. */
-    hudFrame.style.transform = 'none';
-    hudFrame.style.left = `${x}px`;
-    hudFrame.style.top = `${view.top}px`;
+    const stage = hudFrame._linjiangStage;
+    if (stage) {
+      const clip = clipWindow(view, paneRect);
+      setStageBox(stage, clip.top, Math.max(0, clip.bottom - clip.top), view.vw, 40);
+      setHudOffset(x, view.top - clip.top);
+    }
     applySlotVisibility(view, box, paneRect);
     if (align === 'slot') {
       try { hideChromeButtons(); } catch (e) {}
@@ -1601,10 +1753,14 @@
     }
   };
 
-  const paintHud = (box, promote) => {
+  /* HUD 在裁剪台里是 absolute，位置全部由 transform 给。两套构图都提升为合成层：竖屏
+     原来刻意不提升，怕把一块 480×78vh 的 backdrop-filter 纹理留一整场；但不提升的代价是
+     每帧重新光栅整块玻璃（447ms vs 87ms），而那块纹理本来每帧都在重新生成，常驻一份反而
+     更省。TauriTavern 移动端另外走 data-hud-performance=low，那边根本没有 backdrop 纹理。 */
+  const paintHud = (box) => {
     hudFrame.id = HUD_LIVE_ID;
-    hudFrame.style.cssText = [
-      'position:fixed',
+    const cssText = [
+      'position:absolute',
       'left:0',
       'top:0',
       `width:${box.width}px`,
@@ -1613,15 +1769,18 @@
       'margin:0',
       'border:0',
       'display:block',
-      'z-index:40',
       'background:#05040a',
       'pointer-events:auto',
       'overflow:hidden',
-      /* Desktop follows scroll every frame; promoting that layer is cheaper than
-         recasting.  Portrait is a tall glass stack — will-change:transform would
-         keep a 480×78vh backdrop-filter texture around for the whole visit. */
-      promote ? 'will-change:transform' : 'will-change:auto',
+      'will-change:transform',
+      `transform:translate3d(${hudFrame._linjiangOffX || 0}px,${hudFrame._linjiangOffY || 0}px,0)`,
     ].join(';');
+    /* 每次重排都会调到这里；尺寸没变就别重写 cssText，否则等于把 transform 抹掉再设回去，
+       白白多一次样式失效。 */
+    if (hudFrame._linjiangCss !== cssText) {
+      hudFrame._linjiangCss = cssText;
+      hudFrame.style.cssText = cssText;
+    }
     hudFrame.setAttribute('scrolling', 'no');
   };
 
@@ -1636,8 +1795,8 @@
       frame.dataset.linjiangH = String(box.height);
     }
     const after = viewportPoint(frame);
-    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-    paintHud(box, true);
+    mountHud(after.doc);
+    paintHud(box);
     hudFrame._linjiangAlign = 'window';
     moveHud(after, box);
     hudFrame._linjiangBox = box;
@@ -1654,7 +1813,7 @@
       return;
     }
     const box = hudFrame._linjiangBox;
-    if (!frame || !box || hudFrame.parentNode !== tavernWin().document.body) return;
+    if (!frame || !box || !hudMounted()) return;
     if (hudFrame._linjiangAlign === 'page') return;
     /* compacted 以前在这里单独走一条分支，只挪角上那两颗钮就 return 了 —— 于是收回
        嵌入框之后 HUD 再也不跟着栏位走：它是 position:fixed 的，不 moveHud 就等于钉死
@@ -1687,8 +1846,8 @@
       frame.dataset.linjiangH = String(height);
     }
     const after = viewportPoint(frame);
-    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-    paintHud(box, false);
+    mountHud(after.doc);
+    paintHud(box);
     hudFrame._linjiangAlign = 'slot';
     moveHud(after, box);
     hudFrame._linjiangBox = box;
@@ -1709,8 +1868,8 @@
       frame.dataset.linjiangH = String(box.height);
     }
     const after = viewportPoint(frame);
-    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-    paintHud(box, false);
+    mountHud(after.doc);
+    paintHud(box);
     hudFrame._linjiangAlign = 'slot';
     moveHud(after, box);
     hudFrame._linjiangBox = box;
@@ -1753,7 +1912,7 @@
       setSpacer(frame, rest);
       frame.dataset.linjiangH = String(rest);
     }
-    if (hudFrame.parentNode !== tavern.document.body) tavern.document.body.appendChild(hudFrame);
+    mountHud(tavern.document);
     paintHudFill(vw, vh);
     hudFrame._linjiangAlign = 'page';
     lockTavernScroll();
@@ -1764,7 +1923,7 @@
     if (portraitPageOpen || expanded || !portraitHud()) return;
     const next = Math.max(1, Math.round(h));
     const box = hudFrame._linjiangBox;
-    if (box && hudFrame._linjiangAlign === 'slot' && hudFrame.parentNode === tavernWin().document.body) {
+    if (box && hudFrame._linjiangAlign === 'slot' && hudMounted()) {
       if (box.height === next) return;
       box.height = next;
       hudFrame.style.height = `${next}px`;
@@ -1793,8 +1952,8 @@
       frame.dataset.linjiangH = String(height);
     }
     const after = viewportPoint(frame);
-    if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-    paintHud(box, false);
+    mountHud(after.doc);
+    paintHud(box);
     hudFrame._linjiangAlign = 'slot';
     hudFrame._linjiangBox = box;
     moveHud(after, box);
@@ -1909,8 +2068,11 @@
     const delta = (Number(after) || 0) - (Number(before) || 0);
     lastReadingScrollTop = Number(after) || 0;
     if (!delta || !portraitHud() || hudFrame._linjiangAlign !== 'slot') return;
-    const top = Number.parseFloat(hudFrame.style.top);
-    if (Number.isFinite(top)) hudFrame.style.top = `${top - delta}px`;
+    /* 这一步是「不读布局就把 HUD 挪到手指位置上」，所以只能动 transform，绝不能读 rect。
+       以前它改的是 style.top —— 那是布局属性，逐帧写等于逐帧重排 + 重画整块玻璃，
+       而且会把 followHud 里刚提升好的合成层废掉。 */
+    const y = hudFrame._linjiangOffY;
+    if (Number.isFinite(y)) setHudOffset(hudFrame._linjiangOffX || 0, y - delta);
   };
   const noteHostScroll = (event) => {
     if (!isOwner()) return;
@@ -2321,7 +2483,10 @@
       const stack = tavern.document.elementsFromPoint(point.x, point.y) || [];
       for (let i = 0; i < stack.length && Math.abs(remaining) > 0.01; i++) {
         let el = stack[i];
-        if (!el || el === hudFrame || el.id === HUD_LIVE_ID || el.id === HUD_FS_ID) continue;
+        /* 裁剪台也要跳过：它是 HUD 的父节点，会跟着出现在命中栈里；落到 scrollChain
+           上就会去滚文档根而不是 #chat，转发出来的滚动量就错了。 */
+        if (!el || el === hudFrame || el.id === HUD_LIVE_ID || el.id === HUD_STAGE_ID
+            || el.id === HUD_FS_ID) continue;
         if (el.tagName === 'IFRAME') {
           try {
             const p = pointInFrame(el, point.x, point.y);

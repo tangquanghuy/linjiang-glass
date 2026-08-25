@@ -17,6 +17,10 @@
   animation: dock-rise .3s cubic-bezier(.2, .82, .25, 1) both;
 }
 
+/* 快照更新时 pages.js 会原地重建这块面板，而 dock-rise 是入场动画：
+   每次数字变动都重播一遍，读起来就是面板自己关掉又开了一次。 */
+.dock-root.is-repaint { animation: none; }
+
 .dock-blur {
   position: absolute;
   inset: 0;

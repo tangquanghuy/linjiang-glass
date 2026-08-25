@@ -2333,6 +2333,23 @@ html.is-embedded.portrait-mode.is-page-open .viewport {
   font: 700 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
   box-shadow: 0 9px 24px rgba(40, 104, 178, .2);
 }
+/* 建设费印在按钮上（第二行），付不起时整颗转红并禁用。 */
+.pinv-use em {
+  display: block;
+  margin-top: 4px;
+  font: 700 var(--fs-micro, 10px)/1 'Noto Sans SC', sans-serif;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: rgba(19, 36, 60, .68);
+}
+.pinv-use.is-broke {
+  border-color: rgba(255, 138, 150, .36);
+  background: linear-gradient(180deg, rgba(255, 216, 221, .55), rgba(233, 163, 173, .46));
+  color: rgba(70, 25, 33, .84);
+  box-shadow: none;
+}
 /* The portrait canvas is scaled to about .36-.47. Keep the visual button compact,
    but enlarge its hit box to a real 44px target on the narrowest supported phone. */
 .pinv-use::after { content: ''; position: absolute; inset: -30px -12px; }
+/* 禁用时把那圈放大的热区收掉，免得点不动的按钮还在吃周围的点击。 */
+.pinv-use.is-broke::after { content: none; }

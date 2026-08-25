@@ -13,7 +13,7 @@
    uses: 世界信息.位置 and 对象信息.{名}.位置, already adapted onto world.location
    and characterDetails[name].location by applyStatData. */
 
-import { characterDetails, customMapNodes, girls, onLive, world } from './data.js';
+import { CITY_BUILD_COST, characterDetails, customMapNodes, girls, onLive, player, world } from './data.js';
 import { deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
 
 const MAP_REV = '20260823-custom-nodes-v1';
@@ -134,9 +134,15 @@ function applyToFrame(iframe, { resetView, onTravel, onCustomCreate, onCustomDel
   api.setPhase(PHASE_ALIAS[period] || period);
   api.setState(mapRuntime(nodes.concat(customMapNodes)));
   if (resetView) api.fitAll(0);
+  /* 建设费和当前金钱每次刷新都推一遍，不只是进入标记模式那一下：
+     applyToFrame 跟着 onLive 跑，钱在别处变了（打工、街机、送礼）费用行要跟着变，
+     否则玩家会对着一个过时的「持有」数字做决定。 */
+  if (typeof api.setBuildBudget === 'function') {
+    api.setBuildBudget({ cost: CITY_BUILD_COST, funds: player.money });
+  }
   if (createMode && !iframe.dataset.customCreateStarted && typeof api.enterCustomMode === 'function') {
     iframe.dataset.customCreateStarted = '1';
-    api.enterCustomMode(createMode);
+    api.enterCustomMode({ ...createMode, cost: CITY_BUILD_COST, funds: player.money });
   }
   return true;
 }

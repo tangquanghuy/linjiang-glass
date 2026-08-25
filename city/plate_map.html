@@ -1156,7 +1156,15 @@
 #custom-modebar[hidden]{display:none}.custom-mode-copy b{display:block;font-size:13px}.custom-mode-copy span{display:block;margin-top:2px;color:rgba(222,232,255,.65);font-size:10px}.custom-mode-x{width:28px;height:28px;border:0;border-radius:10px;background:rgba(255,255,255,.09);color:#fff;font-size:19px;cursor:pointer}
 html.custom-placing #plates{cursor:crosshair}.np.custom .ni{box-shadow:0 0 0 2px rgba(255,213,122,.88),0 0 25px rgba(255,177,83,.72),inset 0 0 0 1px rgba(255,255,255,.35)}.np.custom .nl{background:linear-gradient(180deg,rgba(255,250,228,.96),rgba(243,224,178,.92));color:#3a2a16}.np.custom .nl:after{content:'玩家标记';display:block;color:#9c6b26;font-size:9px;font-weight:700;letter-spacing:.08em}
 #custom-editor{position:absolute;inset:0;z-index:60;display:grid;place-items:center;padding:18px;background:rgba(2,5,14,.56);backdrop-filter:blur(7px)}#custom-editor[hidden]{display:none}.custom-sheet{width:min(520px,calc(100vw - 24px));max-height:min(760px,calc(100vh - 24px));overflow:auto;padding:22px;border:1px solid rgba(225,233,255,.28);border-radius:24px;background:linear-gradient(150deg,rgba(24,31,57,.97),rgba(8,13,31,.98));box-shadow:0 28px 80px rgba(0,0,0,.55),inset 0 1px rgba(255,255,255,.12);color:#eef3ff}.custom-sheet h2{font-size:20px}.custom-sheet>p{margin:5px 0 16px;color:rgba(221,229,249,.65);font-size:11px}.custom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.custom-field{display:flex;flex-direction:column;gap:6px}.custom-field.wide{grid-column:1/-1}.custom-field span{font-size:11px;color:rgba(220,230,251,.72)}.custom-field input,.custom-field select,.custom-field textarea{width:100%;border:1px solid rgba(219,228,255,.18);border-radius:11px;background:rgba(255,255,255,.065);color:#f5f7ff;padding:10px 11px;font:500 13px/1.5 inherit;outline:none}.custom-field textarea{min-height:72px;resize:vertical}.custom-field input:focus,.custom-field select:focus,.custom-field textarea:focus{border-color:rgba(143,194,255,.62);box-shadow:0 0 0 3px rgba(87,151,255,.11)}.custom-field option{background:#10162b}.custom-flags{display:flex;flex-wrap:wrap;gap:7px}.custom-flags label{display:flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid rgba(220,229,255,.15);border-radius:10px;color:rgba(235,240,255,.78);font-size:11px}.custom-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.custom-actions button,.spot-delete{border:0;border-radius:11px;padding:10px 16px;font-weight:700;cursor:pointer}.custom-cancel{background:rgba(255,255,255,.09);color:#e7edff}.custom-save{background:linear-gradient(180deg,#dcecff,#a9cdf9);color:#14233b}.custom-save[disabled]{opacity:.45}.spot-custom-actions{display:flex;gap:8px;margin-top:10px}.spot-delete{background:rgba(224,75,91,.15);border:1px solid rgba(255,124,139,.28);color:#ffb8c0}.spot-edit{background:rgba(255,213,122,.14);border:1px solid rgba(255,213,122,.28);color:#ffe0a0}
-@media(max-width:600px){.custom-grid{grid-template-columns:1fr}.custom-field.wide{grid-column:auto}#custom-modebar{top:10px;width:calc(100vw - 92px)}.custom-sheet{padding:18px}}
+/* 建设费：模式条上的小签 + 编辑面板里的费用行。钱不够时两处一起转红。 */
+.custom-mode-cost{padding:5px 9px;border:1px solid rgba(255,213,122,.34);border-radius:9px;background:rgba(255,199,98,.12);color:#ffe0a0;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.custom-mode-cost[hidden]{display:none}.custom-mode-cost.is-broke{border-color:rgba(255,138,150,.42);background:rgba(255,96,112,.14);color:#ffb8c0}
+.custom-cost{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 9px;margin-top:16px;padding:11px 13px;border:1px solid rgba(255,213,122,.28);border-radius:13px;background:rgba(255,199,98,.09)}
+.custom-cost[hidden]{display:none}.custom-cost span{color:rgba(232,238,255,.7);font-size:11px}
+.custom-cost b{color:#ffe0a0;font:700 17px/1.2 inherit;font-variant-numeric:tabular-nums}
+.custom-cost small{flex:1 0 100%;margin-top:3px;color:rgba(221,229,249,.62);font-size:10px;line-height:1.5}
+.custom-cost.is-broke{border-color:rgba(255,138,150,.38);background:rgba(255,96,112,.1)}.custom-cost.is-broke b{color:#ffb8c0}
+@media(max-width:600px){.custom-grid{grid-template-columns:1fr}.custom-field.wide{grid-column:auto}#custom-modebar{top:10px;width:calc(100vw - 92px)}.custom-sheet{padding:18px}.custom-mode-cost{font-size:10px;padding:4px 7px}}
 </style>
 
 </head>
@@ -1206,6 +1214,7 @@ html.custom-placing #plates{cursor:crosshair}.np.custom .ni{box-shadow:0 0 0 2px
 
     <div id="custom-modebar" hidden>
       <div class="custom-mode-copy"><b>登记新地点</b><span>点击区底板放置节点；拖动与缩放仍可使用</span></div>
+      <span class="custom-mode-cost" hidden></span>
       <button class="custom-mode-x" type="button" id="custom-mode-close" aria-label="退出标记模式">×</button>
     </div>
 
@@ -1223,6 +1232,8 @@ html.custom-placing #plates{cursor:crosshair}.np.custom .ni{box-shadow:0 0 0 2px
           <label class="custom-field wide"><span>特殊说明（每行一条）</span><textarea id="custom-special" maxlength="600" placeholder="门能从内部反锁&#10;二层可以临时休息"></textarea></label>
           <div class="custom-field wide"><span>功能</span><div class="custom-flags"><label><input id="custom-date" type="checkbox">可约会</label><label><input id="custom-gather" type="checkbox">可采集</label><label><input id="custom-work" type="checkbox">可工作</label><label><input id="custom-shop" type="checkbox">有商店</label></div></div>
         </div>
+        <!-- 建设费。内容由 plate_map.js 的 renderBuildCost 按宿主推来的金钱生成 -->
+        <div class="custom-cost" id="custom-cost" hidden></div>
         <div class="custom-actions"><button class="custom-cancel" id="custom-cancel" type="button">取消</button><button class="custom-save" id="custom-save" type="button">保存节点</button></div>
       </section>
     </div>

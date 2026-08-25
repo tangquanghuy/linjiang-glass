@@ -1857,6 +1857,54 @@
   const customEditor = document.getElementById('custom-editor');
   const customSave = document.getElementById('custom-save');
 
+  /* 建设费。每次确定建设都要从 玩家信息.金钱 付一笔，蓝图本身不消耗。
+     宿主（状态栏的 saveCustomMapNode）是唯一权威，它写入前会重新读一次金钱并可能拒绝。
+     这里这两个数只是宿主推过来的镜像，作用有两个：把价钱显示出来，以及在钱明显不够时
+     就地拦住——省一趟白跑的桥，也让按钮不至于点下去才知道不行。 */
+  let buildCost = 0;
+  let buildFunds = 0;
+  /* 保存在飞行中。renderBuildCost 会被宿主的实时刷新反复调用，
+     不挡一下就会把「正在写入…」覆盖成「支付…并建设」，看起来像是没点上。 */
+  let customSaving = false;
+  const yuan = (value) => `￥${Math.round(Number(value) || 0).toLocaleString('en-US')}`;
+  const canAffordBuild = () => !buildCost || buildFunds >= buildCost;
+
+  function syncCustomSave() {
+    if (customSaving || customEditor.hidden) return;
+    const broke = !canAffordBuild();
+    customSave.disabled = broke;
+    customSave.textContent = broke ? '金钱不足，无法建设'
+      : buildCost ? `支付 ${yuan(buildCost)} 并建设` : '保存节点';
+  }
+
+  function renderBuildCost() {
+    const chip = customModebar.querySelector('.custom-mode-cost');
+    if (chip) {
+      chip.hidden = !buildCost;
+      chip.textContent = buildCost ? `建设费 ${yuan(buildCost)} · 持有 ${yuan(buildFunds)}` : '';
+      chip.classList.toggle('is-broke', !canAffordBuild());
+    }
+    const row = document.getElementById('custom-cost');
+    if (row) {
+      row.hidden = !buildCost;
+      row.classList.toggle('is-broke', !canAffordBuild());
+      if (buildCost) {
+        row.innerHTML = canAffordBuild()
+          ? `<span>建设费</span><b>${yuan(buildCost)}</b><small>确定建设时从金钱扣除，建成后余 ${yuan(buildFunds - buildCost)}。蓝图不消耗，可继续使用。</small>`
+          : `<span>建设费</span><b>${yuan(buildCost)}</b><small>金钱不足，还差 ${yuan(buildCost - buildFunds)}（当前持有 ${yuan(buildFunds)}）。攒够钱再回来，草稿不会保存。</small>`;
+      }
+    }
+    syncCustomSave();
+  }
+
+  /** 宿主推建设费和当前金钱。每次实时刷新都会调一遍，所以显示跟着钱变。 */
+  function setBuildBudget(budget = {}) {
+    if (Number.isFinite(Number(budget.cost))) buildCost = Math.max(0, Math.round(Number(budget.cost)));
+    if (Number.isFinite(Number(budget.funds))) buildFunds = Math.max(0, Math.round(Number(budget.funds)));
+    renderBuildCost();
+    return { cost: buildCost, funds: buildFunds };
+  }
+
   function plateAtWorld(w) {
     return Object.entries(M.PLATES)
       .filter(([key, pl]) => key !== 'overview' && pl.frame
@@ -1865,12 +1913,14 @@
       .sort((a, b) => a[1].frame.w - b[1].frame.w)[0] || null;
   }
 
-  function enterCustomMode() {
+  function enterCustomMode(options = {}) {
     if (OPENING_MODE) return false;
     customMode = true;
+    if (options && typeof options === 'object') setBuildBudget(options);
     closeSpot();
     clearTrip();
     customModebar.hidden = false;
+    renderBuildCost();
     document.documentElement.classList.add('custom-placing');
     return true;
   }
@@ -1878,6 +1928,7 @@
   function exitCustomMode() {
     customMode = false;
     customDraft = null;
+    customSaving = false;
     customModebar.hidden = true;
     customEditor.hidden = true;
     document.documentElement.classList.remove('custom-placing');
@@ -1886,6 +1937,7 @@
   function closeCustomEditor() {
     customEditor.hidden = true;
     customDraft = null;
+    customSaving = false;
   }
 
   function openCustomEditorAt(sx, sy) {
@@ -1914,9 +1966,11 @@
     document.getElementById('custom-anchor-note').textContent = anchor
       ? `${customDraft.district} · 接驳到「${customDraft.anchorName}」，约 ${customDraft.accessKm} km`
       : `${customDraft.district} · 附近没有可用接驳节点`;
-    customSave.disabled = false;
-    customSave.textContent = '保存节点';
+    /* 先取消隐藏再排版：syncCustomSave 在面板隐藏时会直接返回，
+       顺序颠倒的话按钮文案就停在上一次的状态。 */
+    customSaving = false;
     customEditor.hidden = false;
+    renderBuildCost();
     setTimeout(() => document.getElementById('custom-name').focus(), 0);
     return true;
   }
@@ -1941,6 +1995,14 @@
       document.getElementById('custom-anchor-note').textContent = `名称已被「${conflict.name}」使用，请换一个名称。`;
       return;
     }
+    /* 钱不够就别过桥。宿主还会自己再查一遍（那边才是权威），
+       这一道只是让拒绝就地发生，不用等一次往返。 */
+    if (!canAffordBuild()) {
+      document.getElementById('custom-anchor-note').textContent =
+        `金钱不足：建设需要 ${yuan(buildCost)}，当前只有 ${yuan(buildFunds)}，还差 ${yuan(buildCost - buildFunds)}。`;
+      renderBuildCost();
+      return;
+    }
     const draft = {
       ...customDraft, name,
       aliases: document.getElementById('custom-aliases').value.split(/[,，]/).map(v => v.trim()).filter(Boolean),
@@ -1958,12 +2020,17 @@
       },
       custom: true,
     };
+    customSaving = true;
     customSave.disabled = true;
-    customSave.textContent = '正在写入…';
+    customSave.textContent = buildCost ? `正在支付 ${yuan(buildCost)}…` : '正在写入…';
     try {
       const saved = onCustomCreate ? await onCustomCreate(draft) : { ...draft, id: `usr_${Date.now().toString(36)}` };
       const node = normalizeCustomNode(saved);
       if (!node) throw new Error('宿主返回的节点资料不完整');
+      /* 宿主已经扣过了。本地镜像跟着减，免得在下一次快照到达之前
+         面板还显示着扣款前的金额、把第二次建设错判成付得起。 */
+      if (buildCost) buildFunds = Math.max(0, buildFunds - buildCost);
+      customSaving = false;
       setCustomNodes(customRowsWith(node));
       customEditor.hidden = true;
       customDraft = null;
@@ -1971,6 +2038,12 @@
       API.goto(node.id);
       setTimeout(() => openSpot(byId[node.id]), 420);
     } catch (error) {
+      /* 宿主拒绝（含金钱不足）也走这里。它的原话已经把差额说清楚了，直接透出来。
+
+         顺序：先趁 customSaving 还是 true 刷费用行——那会儿 syncCustomSave 是空转的，
+         不会动按钮；之后再自己写「重新保存」，就不会被覆盖回「支付…并建设」。 */
+      renderBuildCost();
+      customSaving = false;
       document.getElementById('custom-anchor-note').textContent = `保存失败：${error?.message || error}`;
       customSave.disabled = false;
       customSave.textContent = '重新保存';
@@ -2739,6 +2812,8 @@
     setCustomNodes,
     enterCustomMode,
     exitCustomMode,
+    /** 建设费与当前金钱。宿主每次实时刷新都推一遍，费用行和按钮跟着钱走。 */
+    setBuildBudget,
 
     /** 干道 + 轨道那一层在不在。默认在（淡的那一档） */
     showNetwork(on) { showNet = !!on; invalidate(); return showNet; },

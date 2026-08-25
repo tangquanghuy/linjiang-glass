@@ -155,7 +155,10 @@ console.log(`  ${'-'.repeat(112)}`);
       portrait: getComputedStyle(hud.contentDocument.querySelector('.pstage')).display !== 'none',
       host: new URL(hud.src).searchParams.get('host'),
       performance: hud.contentDocument.documentElement.dataset.hudPerformance,
-      topLevel: hud.parentElement === document.body,
+      /* 关心的是"HUD 被抬到了酒馆顶层文档，没有留在楼层 iframe 里"，而不是它的父节点
+         正好是 body。壳层现在把它挂在一个钉住阅读区的裁剪台里（见 状态栏.html 的
+         裁剪台一节），父节点是那个 div，抬升这件事本身没变。 */
+      topLevel: document.body.contains(hud) && !hud.closest('#chat, .mes, .TH-render'),
       layout: {
         sheldCenterError: (sheld.left + sheld.right) / 2 - innerWidth / 2,
         sheldWidth: sheld.width,
@@ -418,11 +421,35 @@ for (const presetId of ['desktop-work', 'phone-iphone']) {
     const slot = window.__linjiangTavernReal.statusFrame.getBoundingClientRect();
     const hud = document.getElementById('linjiang-hud-live');
     const style = getComputedStyle(hud);
+    const hudRect = hud.getBoundingClientRect();
+    /* 实际可见到哪里，而不是"用了什么手段裁的"。以前这里断言 clip-path 非 none，
+       那是在断言实现方式；壳层改成用一个 overflow:hidden 的裁剪台之后，clip-path 自然
+       是 none，但裁剪照样发生。所以改成沿祖先链求交，直接量可见区。 */
+    let top = hudRect.top;
+    let bottom = hudRect.bottom;
+    for (let el = hud.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+      const overflow = getComputedStyle(el).overflowY;
+      if (overflow !== 'hidden' && overflow !== 'clip' && overflow !== 'auto' && overflow !== 'scroll') continue;
+      const rect = el.getBoundingClientRect();
+      top = Math.max(top, rect.top);
+      bottom = Math.min(bottom, rect.bottom);
+    }
+    const clip = style.clipPath;
+    if (clip && clip !== 'none') {
+      const inset = clip.match(/inset\(([-\d.]+)px[^)]*?([-\d.]+)px\)?/);
+      if (inset) {
+        top = Math.max(top, hudRect.top + Number(inset[1]));
+        bottom = Math.min(bottom, hudRect.bottom - Number(inset[2]));
+      }
+    }
     return {
       chatTop: chat.top,
       chatBottom: chat.bottom,
       slotTop: slot.top,
       slotBottom: slot.bottom,
+      hudTop: hudRect.top,
+      visibleTop: top,
+      visibleBottom: bottom,
       visibility: style.visibility,
       pointerEvents: style.pointerEvents,
       clipPath: style.clipPath,
@@ -431,12 +458,18 @@ for (const presetId of ['desktop-work', 'phone-iphone']) {
   const slotTopLeft = state.slotTop < state.chatTop - 32;
   const slotStillIntersects = state.slotBottom > state.chatTop + 1 && state.slotTop < state.chatBottom - 1;
   const visible = state.visibility === 'visible' && state.pointerEvents === 'auto';
-  const clipped = state.clipPath && state.clipPath !== 'none';
-  check(`partial-scroll-${presetId}`, slotTopLeft && slotStillIntersects && visible && clipped,
-    JSON.stringify(state));
-  console.log(`  ${slotTopLeft && slotStillIntersects && visible && clipped ? 'ok  ' : 'FAIL'}  `
+  /* 三件事一起才算"像一个普通的流内 iframe"：还有东西看得见、上沿被切在阅读区上沿、
+     而且真的切掉了一截（不是恰好对齐）。 */
+  const clipped = state.visibleBottom - state.visibleTop > 1
+    && state.visibleTop >= state.chatTop - 1
+    && state.visibleTop > state.hudTop + 8;
+  const ok = slotTopLeft && slotStillIntersects && visible && clipped;
+  check(`partial-scroll-${presetId}`, ok, JSON.stringify(state));
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  `
     + `${presetId.padEnd(19)} slot ${Math.round(state.slotTop)}..${Math.round(state.slotBottom)} `
-    + `chat ${Math.round(state.chatTop)}..${Math.round(state.chatBottom)} ${state.visibility} ${state.clipPath}`);
+    + `chat ${Math.round(state.chatTop)}..${Math.round(state.chatBottom)} `
+    + `可见 ${Math.round(state.visibleTop)}..${Math.round(state.visibleBottom)}（HUD 顶 ${Math.round(state.hudTop)}） `
+    + `${state.visibility}`);
   if (presetId === 'phone-iphone') {
     writeFileSync('artifacts/tavern-real-phone-partial-scroll.png', await page.screenshot({ fullPage: false }));
   }

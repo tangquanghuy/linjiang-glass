@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>真实源码夹具 · 状态栏</title>
+
+<!-- 真实的 SillyTavern 样式表，按 public/index.html 里的顺序。这些文件由
+     scripts/lib/real-tavern-sources.mjs 每次运行时从真实安装目录拷到 artifacts/。 -->
+<link rel="stylesheet" href="/artifacts/real-tavern/st/style.css">
+<link rel="stylesheet" href="/artifacts/real-tavern/st/css/toggle-dependent.css">
+<link rel="stylesheet" href="/artifacts/real-tavern/st/css/mobile-styles.css">
+<link rel="stylesheet" href="/artifacts/real-tavern/st/css/popup.css">
+<link rel="stylesheet" href="/artifacts/real-tavern/st/css/animations.css">
+<link rel="stylesheet" href="/artifacts/real-tavern/st/css/st-tailwind.css">
+
+<!-- 酒馆助手自己的样式表。必须加载：它定义了 `hidden!`，也就是渲染完成后把原始
+     <pre><code> 折叠掉的那个类。少了它，每条楼层会把整份源码当可见文本铺出来
+     （实测一条 .mes 高达 416000px），任何按体积做的性能对比都会被它污染。 -->
+<link rel="stylesheet" href="/artifacts/real-tavern/jsr/index.css">
+
+<style>
+/* 夹具自己的东西，只有两类：把缺失的字体/图片替换掉，以及一条顶部读数。
+   任何影响几何的规则都不写在这里 —— 几何必须全部来自真实样式表。 */
+body { font-family: system-ui, 'Segoe UI', sans-serif; }
+#fixture_readout {
+  position: fixed;
+  z-index: 2147483647;
+  left: 0; top: 0;
+  max-width: 100vw;
+  padding: 2px 6px;
+  font: 11px/1.35 ui-monospace, Consolas, monospace;
+  color: #d8ffe0;
+  background: rgba(0, 0, 0, .72);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+body.fixture-headless #fixture_readout { display: none; }
+/* 真实 #chat 里每条消息的头像是背景图/img，指向不存在的路径。让它不要报一堆 404 的
+   同时保留占位尺寸。 */
+.mesAvatarWrapper .avatar img { background: #3b4360; }
+</style>
+</head>
+<body class="no-blur">
+<div id="fixture_readout">夹具启动中…</div>
+
+<!-- 真实酒馆的顶层窗口带 lodash 和 jQuery，酒馆助手注入的 predefine.js 靠
+     `window._ = window.parent._` 把 lodash 传进每个渲染 iframe，而真实的
+     adjust_iframe_height.js 一进来就用 `_.throttle`。所以父窗口这一份不能省。
+     jQuery 用 ST 自带的那一份，lodash 是同版本（见 scripts/lib/real-tavern-sources.mjs）。 -->
+<script src="/artifacts/real-tavern/st/lib/lodash.min.js"></script>
+<script src="/artifacts/real-tavern/st/lib/jquery.min.js"></script>
+
+<script type="module" src="/tools/tavern-live-fixture.js"></script>
+</body>
+</html>

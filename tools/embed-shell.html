@@ -12,8 +12,8 @@
 <body>
 <iframe id="hud" title="玻璃状态栏" src="" loading="eager"></iframe>
 <script type="module">
-/* Layout-only twin of 变量相关/状态栏.html: same lift / spacer / portrait
-   height / detail fill.  No MVU.  Numbers come from embed-contract.js. */
+/* Layout-only twin of 外部部署/状态栏.html: same lift / spacer / portrait
+   height / detail fill / clip stage.  No MVU.  Numbers come from embed-contract.js. */
 import {
   CHANNEL, MAX_VH, PORTRAIT_GUTTER, desktopHudBox, portraitHud as portraitOf,
   isDesktop as desktopOf, portraitHudWidth,
@@ -87,7 +87,12 @@ const viewportPoint = (el) => {
 
 const parkHudInside = () => {
   if (hudFrame.parentNode !== document.body) document.body.appendChild(hudFrame);
+  try { hudFrame._linjiangStage?.remove(); } catch (e) {}
+  hudFrame._linjiangStage = null;
   hudFrame.id = 'hud';
+  hudFrame._linjiangCss = null;
+  hudFrame._linjiangOffX = 0;
+  hudFrame._linjiangOffY = 0;
   hudFrame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#05040a;';
 };
 
@@ -113,29 +118,84 @@ const setSpacer = (frame, height) => {
   apply('background', 'transparent');
 };
 
+/* 裁剪台，和 外部部署/状态栏.html 一样：裁剪交给一个钉在阅读区上的 overflow:hidden
+   容器，HUD 在台内只用 transform 平移并提升为合成层。这个孪生体是"同一套抬升/占位/
+   竖屏高度"的布局复刻，所以这一层也必须跟着改 —— 否则 npm run embed 验的是生产已经
+   不再使用的那套几何策略。裁剪成本与理由见状态栏那边的长注释。 */
+const HUD_STAGE_ID = 'linjiang-hud-stage';
+
+const ensureHudStage = (doc) => {
+  let stage = hudFrame._linjiangStage;
+  if (stage && stage.isConnected && stage.ownerDocument === doc) return stage;
+  stage = doc.getElementById(HUD_STAGE_ID) || doc.createElement('div');
+  stage.id = HUD_STAGE_ID;
+  stage.dataset.ttMobileSurface = 'none';
+  if (stage.parentNode !== doc.body) doc.body.appendChild(stage);
+  hudFrame._linjiangStage = stage;
+  return stage;
+};
+
+const mountHud = (doc) => {
+  const stage = ensureHudStage(doc);
+  if (hudFrame.parentNode !== stage) stage.appendChild(hudFrame);
+  return stage;
+};
+
+const setStageBox = (stage, top, height, width, zIndex) => {
+  const next = `${Math.round(top)}|${Math.round(height)}|${Math.round(width)}|${zIndex}`;
+  if (stage._linjiangGeom === next) return;
+  stage._linjiangGeom = next;
+  stage.style.cssText = [
+    'position:fixed', 'left:0',
+    `top:${Math.round(top)}px`,
+    `width:${Math.round(width)}px`, `height:${Math.round(height)}px`,
+    'margin:0', 'padding:0', 'border:0',
+    'overflow:hidden', 'pointer-events:none', 'background:transparent',
+    `z-index:${zIndex}`,
+  ].join(';');
+};
+
+const setHudOffset = (x, y) => {
+  const nx = Math.round(x);
+  const ny = Math.round(y);
+  if (hudFrame._linjiangOffX === nx && hudFrame._linjiangOffY === ny) return;
+  hudFrame._linjiangOffX = nx;
+  hudFrame._linjiangOffY = ny;
+  hudFrame.style.transform = `translate3d(${nx}px,${ny}px,0)`;
+};
+
 const paintHudFill = (vw, vh) => {
   hudFrame.id = HUD_LIVE_ID;
+  const stage = hudFrame._linjiangStage;
+  if (stage) setStageBox(stage, 0, vh, vw, 2147483645);
+  hudFrame._linjiangOffX = 0;
+  hudFrame._linjiangOffY = 0;
+  hudFrame._linjiangCss = null;
   hudFrame.style.cssText = [
-    'position:fixed', 'left:0', 'top:0',
+    'position:absolute', 'left:0', 'top:0', 'transform:none',
     `width:${vw}px`, `height:${vh}px`,
     'max-width:none', 'margin:0', 'border:0', 'display:block',
-    'z-index:2147483645', 'background:#05040a', 'pointer-events:auto',
+    'background:#05040a', 'pointer-events:auto',
     'overflow:hidden', 'will-change:auto',
   ].join(';');
   hudFrame.setAttribute('scrolling', 'yes');
   hudFrame._linjiangBox = { width: vw, height: vh };
 };
 
-const paintHud = (box, promote) => {
+const paintHud = (box) => {
   hudFrame.id = HUD_LIVE_ID;
-  hudFrame.style.cssText = [
-    'position:fixed', 'left:0', 'top:0',
+  const cssText = [
+    'position:absolute', 'left:0', 'top:0',
     `width:${box.width}px`, `height:${box.height}px`,
     'max-width:none', 'margin:0', 'border:0', 'display:block',
-    'z-index:40', 'background:#05040a', 'pointer-events:auto',
-    'overflow:hidden',
-    promote ? 'will-change:transform' : 'will-change:auto',
+    'background:#05040a', 'pointer-events:auto',
+    'overflow:hidden', 'will-change:transform',
+    `transform:translate3d(${hudFrame._linjiangOffX || 0}px,${hudFrame._linjiangOffY || 0}px,0)`,
   ].join(';');
+  if (hudFrame._linjiangCss !== cssText) {
+    hudFrame._linjiangCss = cssText;
+    hudFrame.style.cssText = cssText;
+  }
   hudFrame.setAttribute('scrolling', 'no');
 };
 
@@ -148,33 +208,28 @@ const readingPane = () => {
   }
 };
 
+const paneRectOf = (view) => {
+  const pane = readingPane();
+  return pane ? pane.getBoundingClientRect() : {
+    left: 0, top: 0, right: view.vw, bottom: view.vh,
+  };
+};
+
 const applySlotVisibility = (view, box) => {
   if (portraitPageOpen || hudFrame._linjiangAlign === 'page') {
-    hudFrame.style.removeProperty('clip-path');
     hudFrame.style.visibility = 'visible';
     hudFrame.style.pointerEvents = 'auto';
     return;
   }
-  const pane = readingPane();
-  const rr = pane ? pane.getBoundingClientRect() : {
-    left: 0, top: 0, right: view.vw, bottom: view.vh,
-  };
+  const rr = paneRectOf(view);
   const topInView = view.top < rr.bottom - 4 && (view.top + 32) > rr.top;
   if (!topInView) {
     hudFrame.style.visibility = 'hidden';
     hudFrame.style.pointerEvents = 'none';
-    hudFrame.style.removeProperty('clip-path');
     return;
   }
-  const insetTop = Math.max(0, rr.top - view.top);
-  const insetBottom = Math.max(0, (view.top + box.height) - rr.bottom);
   hudFrame.style.visibility = 'visible';
   hudFrame.style.pointerEvents = 'auto';
-  if (insetTop > 0.5 || insetBottom > 0.5) {
-    hudFrame.style.clipPath = `inset(${insetTop}px 0 ${insetBottom}px 0)`;
-  } else {
-    hudFrame.style.removeProperty('clip-path');
-  }
 };
 
 const moveHud = (view, box) => {
@@ -187,7 +242,13 @@ const moveHud = (view, box) => {
     const maxX = view.vw - box.width - PORTRAIT_GUTTER;
     if (maxX >= minX) x = Math.max(minX, Math.min(x, maxX));
   }
-  hudFrame.style.transform = `translate3d(${x}px, ${view.top}px, 0)`;
+  const stage = hudFrame._linjiangStage;
+  if (stage) {
+    const page = portraitPageOpen || hudFrame._linjiangAlign === 'page';
+    const rr = page ? { top: 0, bottom: view.vh } : paneRectOf(view);
+    setStageBox(stage, rr.top, Math.max(0, rr.bottom - rr.top), view.vw, 40);
+    setHudOffset(x, view.top - rr.top);
+  }
   applySlotVisibility(view, box);
 };
 
@@ -204,7 +265,8 @@ const followHud = () => {
   if (portraitPageOpen) return;
   const frame = window.frameElement;
   const box = hudFrame._linjiangBox;
-  if (!frame || !box || hudFrame.parentNode !== tavernWin().document.body) return;
+  const stage = hudFrame._linjiangStage;
+  if (!frame || !box || !stage || !stage.isConnected || hudFrame.parentNode !== stage) return;
   if (hudFrame._linjiangAlign === 'page') return;
   moveHud(viewportPoint(frame), box);
 };
@@ -219,8 +281,8 @@ const layoutDesktop = () => {
     frame.dataset.linjiangH = String(box.height);
   }
   const after = viewportPoint(frame);
-  if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-  paintHud(box, true);
+  mountHud(after.doc);
+  paintHud(box);
   hudFrame._linjiangAlign = 'window';
   moveHud(after, box);
   hudFrame._linjiangBox = box;
@@ -239,8 +301,8 @@ const layoutPortrait = () => {
     frame.dataset.linjiangH = String(box.height);
   }
   const after = viewportPoint(frame);
-  if (hudFrame.parentNode !== after.doc.body) after.doc.body.appendChild(hudFrame);
-  paintHud(box, false);
+  mountHud(after.doc);
+  paintHud(box);
   hudFrame._linjiangAlign = 'slot';
   moveHud(after, box);
   hudFrame._linjiangBox = box;
@@ -279,7 +341,7 @@ const layoutPortraitPage = () => {
     setSpacer(frame, rest);
     frame.dataset.linjiangH = String(rest);
   }
-  if (hudFrame.parentNode !== tavern.document.body) tavern.document.body.appendChild(hudFrame);
+  mountHud(tavern.document);
   paintHudFill(vw, vh);
   hudFrame._linjiangAlign = 'page';
   lockTavernScroll();
@@ -289,7 +351,8 @@ const applyPortraitHeight = (h) => {
   if (portraitPageOpen || !portraitHud()) return;
   const next = Math.max(1, Math.round(h));
   const box = hudFrame._linjiangBox;
-  if (box && hudFrame._linjiangAlign === 'slot' && hudFrame.parentNode === tavernWin().document.body) {
+  const stage = hudFrame._linjiangStage;
+  if (box && hudFrame._linjiangAlign === 'slot' && stage && hudFrame.parentNode === stage) {
     if (box.height === next) return;
     box.height = next;
     hudFrame.style.height = `${next}px`;

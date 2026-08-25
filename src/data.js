@@ -151,6 +151,13 @@ function fan({ follow = false, tipped = 0, tier = '无', days = 0, mod = false, 
 }
 
 export const MAP_MARKER_ITEM = '城市规划蓝图';
+/* 每次确定建设要付的建设费。蓝图是用品，使用不扣数量，所以它是可反复用的许可证，
+   代价按次收：真正的扣款和拒绝都在宿主（外部部署/状态栏.html 的 saveCustomMapNode）里做，
+   这个常量只管 HUD 这一侧的显示与按钮禁用。改价时那边要一起改。 */
+export const CITY_BUILD_COST = 1000000;
+/* 描述是购买时抄进 MVU 的快照，老存档里存的还是没有建设费那一句的旧文案。
+   宿主会在下一次写 MVU 时改正，但在那之前显示不该是错的——读的时候就地兜底。 */
+export const CITY_BUILD_DESC = `使用后，在地图和世界书中添加你自己的地图节点，并自动将其拥有为自己的资产。每次确定建设另需支付 ￥${CITY_BUILD_COST.toLocaleString('en-US')} 建设费，金钱不足时无法开工；蓝图本身不消耗，可反复使用。`;
 export const customMapNodes = [];
 
 export const world = {
@@ -1571,6 +1578,9 @@ function mapBag(obj, kind) {
       if (kind === 'materials') row.source = asStr(item.来源);
       if (kind === 'consumables') row.potency = asNum(item.强度, 1);
       if (kind === 'goods') row.worn = !!item.佩戴;
+      /* 蓝图的说明书里必须写着建设费，否则玩家点「使用」之前不知道要花钱。
+         老存档存的是旧文案，这里覆盖掉——真源是 CITY_BUILD_DESC。 */
+      if (row.name === MAP_MARKER_ITEM) row.description = CITY_BUILD_DESC;
       return row;
     })
     .filter((row) => row.name);

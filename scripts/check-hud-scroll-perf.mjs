@@ -1,6 +1,14 @@
 ﻿/* Scroll-performance regression for the lifted SillyTavern HUD.
    The shell temporarily removes backdrop-filter sampling while #chat moves;
-   without that mode the desktop fixture drops to roughly 30 fps. */
+   without that mode the desktop fixture drops to roughly 30 fps.
+
+   注意这支脚本量的是**顶层文档的 rAF 帧时**，它对滚动的真实成本并不敏感 —— 那部分在光栅
+   和合成线程上，8 倍 CPU 降频下这里的帧时依然稳定在 16.7ms。它守住的是别的东西：
+   host-scroll-active 的开关时序、触摸转发、以及 HUD 与栏位的对齐。
+
+   逐帧重光栅那一类回退由 scripts/check-hud-raster-perf.mjs 负责（跑在源码驱动的
+   tools/tavern-live-fixture 上，抓 trace 里的光栅/绘制，并直接断言壳层的移动机制）。
+   两支都要跑。 */
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
