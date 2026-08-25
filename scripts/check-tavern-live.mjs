@@ -235,6 +235,13 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
         const el = document.elementFromPoint(x, y);
         return el === floor;
       });
+      let hud = document.getElementById('linjiang-hud-live');
+      let hudHost = hud ? 'tavern' : 'missing';
+      try {
+        const nested = floor.contentDocument?.getElementById('linjiang-hud-live');
+        if (nested) { hud = nested; hudHost = 'floor'; }
+      } catch (e) {}
+      const hudBox = hud?.getBoundingClientRect();
       return {
         pos: getComputedStyle(floor).position,
         top: Math.round(box.top),
@@ -245,11 +252,14 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
         chatStyleAttr: chat.getAttribute('style') || '',
         chrome,
         ownsAll: owns.every(Boolean),
+        hudHost,
+        hudBox: hudBox ? {
+          top: Math.round(hudBox.top), left: Math.round(hudBox.left),
+          w: Math.round(hudBox.width), h: Math.round(hudBox.height),
+        } : null,
         pageOpen: (() => {
-          try {
-            return /is-page-open/.test(floor.contentDocument
-              .getElementById('linjiang-hud-live').contentDocument.documentElement.className);
-          } catch (e) { return null; }
+          try { return /is-page-open/.test(hud.contentDocument.documentElement.className); }
+          catch (e) { return null; }
         })(),
       };
     });
@@ -298,34 +308,81 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
       '滚动聊天 600px 后整页仍钉在视口（修复前这里会滚走并被裁成 0）',
       `top=${scrolled.top} 三点归属=${scrolled.ownsAll}`);
 
-    /* 整页开着时去改停靠方式 —— 全局设置里那一行走的就是这条路（applyDockDefault）。
-       分支链会直接切去生产路径，layoutInlineDockPage 的收尾没人执行，于是 #chat 的模糊
-       停在 none、顶栏和输入栏停在 hidden。用户看到的就是「切换设置把面板主体全屏化」。 */
-    await page.evaluate(() => document.getElementById('linjiang-hud-shrink')?.click());
+    /* Exercise the real settings-page path. The old regression clicked the host
+       shrink button and missed the failure: while the settings page is still open,
+       moving the HUD iframe across documents reloads it to the base panel while the
+       shell keeps portraitPageOpen=true, so the base panel is laid out fullscreen. */
+    await hud.locator('[data-page-close]').first().click({ timeout: 15000 });
+    await page.waitForTimeout(900);
+    await page.evaluate(() => {
+      const floor = window.__linjiangTavernLive.statusFrame;
+      const doc = floor.contentDocument.getElementById('linjiang-hud-live').contentDocument;
+      doc.querySelector('[data-page="settings"]')?.click();
+    });
+    await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      const floor = window.__linjiangTavernLive.statusFrame;
+      const doc = floor.contentDocument.getElementById('linjiang-hud-live').contentDocument;
+      doc.querySelector('[data-pref-set="dockDefault"][data-pref-value="page"]')?.click();
+    });
+    await page.waitForTimeout(900);
+    const selectedPage = await state();
+    check(selectedPage.pageOpen === true && selectedPage.hudHost === 'floor',
+      'settings -> fit width keeps the settings page until close',
+      `${selectedPage.hudHost} pageOpen=${selectedPage.pageOpen}`);
+
+    await page.evaluate(() => {
+      const floor = window.__linjiangTavernLive.statusFrame;
+      const live = floor.contentDocument.getElementById('linjiang-hud-live');
+      live?.contentDocument.querySelector('[data-page-close]')?.click();
+    });
     await page.waitForTimeout(1400);
     const switched = await state();
-    check(switched.pos !== 'fixed', '整页开着时切停靠：楼层不再是 fixed', switched.pos);
+    const switchedFullscreen = switched.hudBox && switched.hudBox.top === 0 && switched.hudBox.left === 0
+      && switched.hudBox.w >= 390 && switched.hudBox.h >= 844;
+    check(switched.pageOpen === false && switched.hudHost === 'tavern' && !switchedFullscreen,
+      'closing settings applies fit width without fullscreening the base panel',
+      `${switched.hudHost} ${JSON.stringify(switched.hudBox)} pageOpen=${switched.pageOpen}`);
+    check(switched.pos !== 'fixed', 'fit width releases the floor iframe', switched.pos);
     check(switched.chatBackdrop === base.chatBackdrop,
-      '整页开着时切停靠：#chat 的模糊已还原', `${base.chatBackdrop} -> ${switched.chatBackdrop}`);
+      'fit width restores #chat backdrop', `${base.chatBackdrop} -> ${switched.chatBackdrop}`);
     check(switched.chatStyleAttr === base.chatStyleAttr,
-      '整页开着时切停靠：#chat 没留下内联残渣', JSON.stringify(switched.chatStyleAttr));
+      'fit width leaves no #chat inline style', JSON.stringify(switched.chatStyleAttr));
     for (const id of ['top-bar', 'top-settings-holder', 'form_sheld']) {
       check(switched.chrome[id] && switched.chrome[id].vis === 'visible',
-        `整页开着时切停靠：#${id} 恢复可见`, JSON.stringify(switched.chrome[id]));
+        `fit width restores #${id}`, JSON.stringify(switched.chrome[id]));
     }
 
-    /* 切回嵌入，重新开一页，再验正常的关页路径。 */
-    await page.evaluate(() => document.getElementById('linjiang-hud-shrink')?.click());
-    await page.waitForTimeout(1400);
-    await reveal();
-    await page.waitForTimeout(300);
-    await hud.locator('.pdest-btn[data-page="schedule"]').first().click({ timeout: 15000 });
+    /* Verify the reverse transition too: keep the settings document alive, then apply
+       embedded docking only after its close signal has cleared the page-open state. */
+    await page.evaluate(() => {
+      const live = document.getElementById('linjiang-hud-live');
+      live?.contentDocument.querySelector('[data-page="settings"]')?.click();
+    });
+    await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      const live = document.getElementById('linjiang-hud-live');
+      live?.contentDocument.querySelector('[data-pref-set="dockDefault"][data-pref-value="embedded"]')?.click();
+    });
     await page.waitForTimeout(900);
+    const selectedEmbedded = await state();
+    check(selectedEmbedded.pageOpen === true && selectedEmbedded.hudHost === 'tavern',
+      'settings -> embedded keeps the settings page until close',
+      `${selectedEmbedded.hudHost} pageOpen=${selectedEmbedded.pageOpen}`);
 
-    /* 退出必须精确还原，否则 #chat 永久失去模糊。 */
-    await hud.locator('[data-page-close]').first().click({ timeout: 15000 });
-    await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      const live = document.getElementById('linjiang-hud-live');
+      live?.contentDocument.querySelector('[data-page-close]')?.click();
+    });
+    await page.waitForTimeout(1400);
     const back = await state();
+    const backFullscreen = back.hudBox && back.hudBox.top === 0 && back.hudBox.left === 0
+      && back.hudBox.w >= 390 && back.hudBox.h >= 844;
+    check(back.pageOpen === false && back.hudHost === 'floor' && !backFullscreen,
+      'closing settings applies embedded docking without fullscreening the base panel',
+      `${back.hudHost} ${JSON.stringify(back.hudBox)} pageOpen=${back.pageOpen}`);
+
+    /* Host styles must still be restored exactly after both transitions. */
     check(back.chatBackdrop === base.chatBackdrop,
       '关页后 #chat 的 backdrop-filter 还原', `${base.chatBackdrop} -> ${back.chatBackdrop}`);
     check(back.chatStyleAttr === base.chatStyleAttr,

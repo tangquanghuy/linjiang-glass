@@ -92,7 +92,7 @@
 (function () {
   /* 本页与酒馆同源，所以能摸到 parent.Mvu。
      玻璃 HUD 本身在跨域 iframe 里，只通过 postMessage 和这里说话。 */
-  const SHELL_VERSION = '2026-08-25-split-v1';
+  const SHELL_VERSION = '2026-08-25-split-v2';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳
@@ -1076,6 +1076,10 @@
       /* Shared by every status-frame controller. The managed HUD survives floor
          re-renders, so its docking state must survive the owner handover too. */
       dockMode: null,
+      /* A settings page can request a cross-document dock transition while that page
+         is still open. Keep the target shared across controller handovers, but do not
+         move/reload the HUD iframe until the page reports that it has closed. */
+      pendingDockMode: null,
       electTick: 0,
       eventHooksBound: false,
       contextTimer: 0,
@@ -1231,6 +1235,11 @@
     try { manager?.resetHudFrame?.(); } catch (e) {}
     manager = createManager(managerHost);
     managerHost[MANAGER_KEY] = manager;
+  }
+  /* Managers created by split-v1 can still be alive when a newly rendered message
+     loads split-v2. Add the field in place instead of resetting the managed HUD. */
+  if (!Object.prototype.hasOwnProperty.call(manager, 'pendingDockMode')) {
+    manager.pendingDockMode = null;
   }
 
   const tavernSize = () => {
@@ -1585,10 +1594,41 @@
     fitParentFrame();
   };
 
+  const applyDockMode = (mode, { layout = true } = {}) => {
+    const embedded = mode === 'embedded';
+    manager.dockMode = embedded ? 'embedded' : 'page';
+    if (compacted === embedded) {
+      if (layout) fitParentFrame();
+      return false;
+    }
+    compacted = embedded;
+    if (compacted) expanded = false;
+    const tavern = tavernWin();
+    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
+    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
+    if (layout) fitParentFrame();
+    return true;
+  };
+
+  const flushPendingDockMode = () => {
+    const mode = manager.pendingDockMode;
+    if (mode !== 'embedded' && mode !== 'page') return false;
+    manager.pendingDockMode = null;
+    return applyDockMode(mode, { layout: false });
+  };
+
   /* Apply the persisted docking state reported by the HUD settings store. `apply`
      means the user just changed the settings row and therefore overrides the current
      layout immediately; the startup report is accepted once unless the top-right button
-     was already used in this controller. */
+     was already used in this controller.
+
+     The flow-inline build has one unavoidable exception to "immediately": changing the
+     mode while a portrait page is open would move the HUD iframe between documents.
+     Browsers reload an iframe when that happens. The settings page would disappear, the
+     reloaded HUD would show its base panel, and the still-true portraitPageOpen flag would
+     then lay that base panel out fullscreen. Queue only that cross-document transition;
+     the preference is already saved in the HUD, and the shell applies it as soon as the
+     page's close event clears portraitPageOpen. */
   const applyDockDefault = (payload) => {
     if (uninstalled) return;
     const embedded = payload?.mode === 'embedded';
@@ -1598,16 +1638,13 @@
       if (dockDefaultApplied || shrinkTouched) return;
       dockDefaultApplied = true;
     }
-    /* Save before the equality return: a newly elected controller may already have
-       the right local boolean but the shared manager still needs the source of truth. */
-    manager.dockMode = mode;
-    if (compacted === embedded) return;
-    compacted = embedded;
-    if (compacted) expanded = false;
-    const tavern = tavernWin();
-    try { syncFsButton(tavern.document.getElementById(HUD_FS_ID)); } catch (e) {}
-    try { syncShrinkButton(tavern.document.getElementById(HUD_SHRINK_ID)); } catch (e) {}
-    fitParentFrame();
+    if (forced && INLINE_DOCK && portraitPageOpen && compacted !== embedded) {
+      manager.pendingDockMode = mode;
+      return;
+    }
+    /* Selecting the currently applied value cancels an earlier pending choice. */
+    manager.pendingDockMode = null;
+    applyDockMode(mode);
   };
 
   const mountChromeButton = (id, onClick) => {
@@ -3049,6 +3086,9 @@
       return;
     }
     portraitPageOpen = !!data.payload?.open;
+    if (!portraitPageOpen) {
+      try { flushPendingDockMode(); } catch (e) {}
+    }
     try { fitParentFrame(); } catch (e) {}
   };
 
@@ -3214,7 +3254,12 @@
     uninstalled = false;
     /* A message/status re-render elects a new controller without reloading the
        managed HUD iframe. Restore the shared docking state before the first layout,
-       otherwise the new owner falls back to the viewport-wide desktop box. */
+       otherwise the new owner falls back to the viewport-wide desktop box. If a page
+       disappeared as part of the handover, its deferred choice can now be committed. */
+    if (manager.pendingDockMode === 'embedded' || manager.pendingDockMode === 'page') {
+      manager.dockMode = manager.pendingDockMode;
+      manager.pendingDockMode = null;
+    }
     if (manager.dockMode === 'embedded' || manager.dockMode === 'page') {
       compacted = manager.dockMode === 'embedded';
       dockDefaultApplied = true;
