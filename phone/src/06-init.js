@@ -19,7 +19,7 @@ function initializeMobilePhone() {
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #4a5568; font-weight: 500;"> 论坛风格</label>
                     <select id="forum-style" style="width: 100%; padding: 8px; background: white; border: 1px solid #cbd5e0; border-radius: 4px; color: #2d3748;">
-                        <option value="特图的众神剧场" ${settings.forumStyle === '特图的众神剧场' ? 'selected' : ''}>特图的众神剧场</option>
+                        <option value="${DEFAULT_FORUM_STYLE}" ${settings.forumStyle === DEFAULT_FORUM_STYLE ? 'selected' : ''}>${DEFAULT_FORUM_STYLE}</option>
                         ${settings.customStyles && settings.customStyles.length > 0 ? settings.customStyles.map(style =>
             `<option value="custom:${style.name}" ${settings.forumStyle === `custom:${style.name}` ? 'selected' : ''}>${style.name}</option>`
         ).join('') : ''}
@@ -477,43 +477,13 @@ function initializeMobilePhone() {
 
     window.phoneImportExamplePrompt = function () {
 
-        const examplePrompt = `## 论坛风格：特图的众神剧场
-
-**核心设定——四方世界的诸神：**
-很久很久以前，《秩序》诸神与《混沌》诸神争斗不休，双方筋疲力竭。《宿命》与《偶然》的骰子胜负由此展开——诸神以骰子创造了四方世界与棋子，以冒险决定胜负。当第一位人类战士集结同伴、踏上旅途、讨伐巨龙时，诸神为之狂热。他们立下黄金誓约：不对棋盘进行必要以上的干涉，只在冒险时掷下骰子，尊重棋子的自由意志。
-
-现在这些四方的神明被特图邀请来观看属于迪斯博德和阿拉德世界融合后发生的故事。
-
-**发帖者身份与命名：**
-- 特图就叫"特图"，其余神明称号格式要多样化混用：
-  - "XX神"：战争神、酒神 / "XX之神"：欺诈之神、风暴之神 / "XX女神"：丰收女神、月之女神
-  - 尊称：大地母神、太阳主 / 抽象概念：宿命、偶然、真实 / 其他：织梦者、裁决者、猎手
-- 同一位神明可以反复出现，特图不需要每帖都在
-
-**神明说话的质感（极其重要）：**
-- 参考原文语感："冒险！冒险！还是冒险！没有什么语言能形容这种美好的感觉！"——有激情有史诗感，但不装腔作势
-- 禁止古风中二腔："吾见证了……""力量即是正义""吾等领域的权柄"——比口语化更糟糕
-- 也不要网络口语："哇好帅啊！""馋死我了"
-- 正确方向：自然、有力、带着真实情感。回复之间要有对话感，有反驳有补充有跑题
-
-**内容格调（极其重要）：**
-- 关注冒险、战斗、命运转折、英雄崛起陨落、势力博弈——宏大叙事，不要日常琐事
-- "宏大"不等于"严肃"，讨论应该热烈、有趣、充满激情，不是老学究写论文
-
-**帖子内容来源：**
-- 最多一半与玩家当前剧情有关
-- 至少一半是棋盘上其他地方的故事（羁绊角色、DNF原作人物、游戏人生原作人物等）
-
-**论坛氛围：**
-- 要有娱乐性和可读性，不要写成设定集
-- 帖子之间可以有关联，有的热闹有的冷清
-- 不要每个帖子都在强调骰子、棋盘等设定元素`;
+        const examplePrompt = DEFAULT_FORUM_STYLE_PROMPT;
 
         // 将示例提示词填充到编辑框
         $('#custom-style-prompt').val(examplePrompt);
 
         if (typeof toastr !== 'undefined') {
-            toastr.success('已导入特图的众神剧场示例', '论坛');
+            toastr.success('已导入论坛主题示例', '论坛');
         }
     };
 
@@ -524,7 +494,7 @@ function initializeMobilePhone() {
 
         // 如果当前选择的就是要删除的风格，则切换到默认风格
         if (manager.settings.forumStyle === `custom:${deletedStyle.name}`) {
-            manager.settings.forumStyle = '特图的众神剧场';
+            manager.settings.forumStyle = DEFAULT_FORUM_STYLE;
         }
 
         // 删除风格

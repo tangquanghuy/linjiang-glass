@@ -367,7 +367,7 @@ function unlockAllCGForCharacter(characterName, isVirtual = false) {
 /**
  * 获取角色的好感度（从好友列表数据中）
  * @param {string} characterName - 角色名称
- * @param {Object|null} relationshipSource - 可选，已解析的羁绊列表数据
+ * @param {Object|null} relationshipSource - 可选，已解析的对象信息数据
  * @returns {number} - 好感度值，如果找不到返回0
  */
 function getCharacterAffection(characterName, relationshipSource = null) {
@@ -376,13 +376,13 @@ function getCharacterAffection(characterName, relationshipSource = null) {
 
     // 尝试直接匹配角色名
     if (contactSource[characterName]) {
-        return contactSource[characterName]?.好感度 ?? 0;
+        return getContactAffection(contactSource[characterName]);
     }
 
     // 尝试模糊匹配（角色名可能是部分匹配）
     for (const [key, contact] of Object.entries(contactSource)) {
         if (key.includes(characterName) || characterName.includes(key)) {
-            return contact?.好感度 ?? 0;
+            return getContactAffection(contact);
         }
     }
 

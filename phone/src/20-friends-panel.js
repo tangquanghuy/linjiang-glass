@@ -1,281 +1,168 @@
-/* 羁绊行：跟消息列表共用 ph-row / ph-avatar / ph-badge 那套组件，
-   样式在 css/rows.css，这里只拼结构。 */
+/* 羁绊页沿用 参考/魔审小手机.js 的白色信息卡结构，只映射当前项目：
+   对象信息.<名字>.羁绊 / 位置 / 直播。 */
+function renderBondAvatar(name, size = 52) {
+    const safeName = escapeHtml(name);
+    const src = getCharacterAvatar(name);
+    const initial = escapeHtml(Array.from(String(name || '?'))[0] || '?');
+    const fallback = `
+        <div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#ec4899,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${Math.round(size * 0.42)}px;font-weight:700;flex:none;">${initial}</div>`;
+    if (!src) return fallback;
+    return `
+        <div style="position:relative;width:${size}px;height:${size}px;flex:none;">
+            ${fallback}
+            <img src="${escapeHtml(src)}" alt="${safeName}" loading="lazy" decoding="async"
+                style="position:absolute;inset:0;width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.12);"
+                onerror="this.remove()">
+        </div>`;
+}
+
 function renderFriendListItem(contactKey, contact) {
-    /* 适配变量脚本的羁绊列表结构 */
-    const displayName = escapeHtml(contactKey);
-    const isNearby = contact.附近 === true;
-    const affection = contact.好感度 ?? 0;
-    const gender = contact.性别 || '';
-    const race = contact.种族 || '';
-    const level = contact.等级 ?? 1;
-    const isTraveling = contact.同行誓约 === true;
-
-    /* 简要信息：性别 · 种族 · Lv */
-    const infoChips = [gender, race, `Lv.${level}`].filter(Boolean)
-        .map(v => escapeHtml(v)).join(' · ');
-
-    const badges = [
-        isNearby ? '<span class="ph-badge ph-badge--blue">附近</span>' : '',
-        isTraveling ? '<span class="ph-badge ph-badge--purple">同行</span>' : '',
-    ].join('');
+    const displayName = restoreEraText(contactKey);
+    const affection = getContactAffection(contact);
+    const obedience = getContactObedience(contact);
+    const mood = getContactMood(contact) || '暂无记录';
+    const location = getContactLocationText(contact) || '位置未记录';
+    const stream = getContactStream(contact);
 
     return `
-        <div class="list-item friend-item ph-row" data-friend-name="${escapeHtml(contactKey)}">
-            ${renderPhoneAvatar(contactKey)}
-            <div class="ph-row-main">
-                <div class="ph-row-titleline">
-                    <span class="ph-row-title">${displayName}</span>
-                    ${badges}
+        <div class="list-item friend-item"
+             style="cursor:pointer;transition:background-color .2s;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:14px;margin-bottom:10px;"
+             data-friend-name="${escapeHtml(contactKey)}">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                ${renderBondAvatar(displayName, 52)}
+                <div style="min-width:0;flex:1;">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                        <span style="font-size:16px;font-weight:700;color:#1f2937;">${escapeHtml(displayName)}</span>
+                        ${stream.live ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 7px;border-radius:4px;font-weight:600;">直播中</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:12px;font-size:13px;margin-bottom:6px;">
+                        <span style="color:#ef4470;font-weight:600;">❤ ${affection}</span>
+                        <span style="color:#8b5cf6;font-weight:600;">✦ ${obedience}</span>
+                        <span style="color:#d97706;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">☀ ${escapeHtml(mood)}</span>
+                    </div>
+                    <div style="font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        <span>📍</span><span style="overflow:hidden;text-overflow:ellipsis;">${escapeHtml(location)}</span>
+                    </div>
+                    ${stream.live ? `<div style="font-size:11px;color:#7c3aed;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📡 ${escapeHtml(stream.title || '直播中')} · 热度 ${stream.heat.toLocaleString('zh-CN')}</div>` : ''}
                 </div>
-                ${infoChips ? `<div class="ph-row-sub">${infoChips}</div>` : ''}
-                ${contact.当前想法 ? `<div class="ph-row-quote">${escapeHtml(contact.当前想法)}</div>` : ''}
             </div>
-            <div class="ph-row-meta">${renderAffection(affection)}</div>
-            <i class="fas fa-chevron-right ph-chevron"></i>
-        </div>
-    `;
+        </div>`;
 }
 
 function generateFriendsPanel(data) {
     const contactSource = getRelationshipDataSource(data);
-
-    if (!contactSource) {
-        return '<div class="empty-message">暂无羁绊数据</div>';
-    }
+    if (!contactSource) return '<div class="empty-message">暂无羁绊数据</div>';
 
     const contactEntries = getRelationshipKeys(contactSource)
         .map(key => ({ key, contact: contactSource[key] }))
         .filter(entry => entry.contact && typeof entry.contact === 'object')
         .sort((a, b) => {
-            /* 同行誓约的排在前面 */
-            const travelA = a.contact?.同行誓约 === true;
-            const travelB = b.contact?.同行誓约 === true;
-            if (travelA && !travelB) return -1;
-            if (!travelA && travelB) return 1;
-
-            /* 附近的排在前面 */
-            const nearbyA = a.contact?.附近 === true;
-            const nearbyB = b.contact?.附近 === true;
-            if (nearbyA && !nearbyB) return -1;
-            if (!nearbyA && nearbyB) return 1;
-
-            /* 按好感度排序 */
-            const affectionA = a.contact?.好感度 ?? 0;
-            const affectionB = b.contact?.好感度 ?? 0;
-            return affectionB - affectionA;
+            const liveA = getContactStream(a.contact).live;
+            const liveB = getContactStream(b.contact).live;
+            if (liveA !== liveB) return liveA ? -1 : 1;
+            return getContactAffection(b.contact) - getContactAffection(a.contact);
         });
 
-    if (contactEntries.length === 0) {
-        return '<div class="empty-message">暂无羁绊数据</div>';
-    }
-
-    /* 直接渲染联系人列表 */
-    const friendItems = contactEntries.map(({ key, contact }) => renderFriendListItem(key, contact)).join('');
-
+    if (!contactEntries.length) return '<div class="empty-message">暂无羁绊数据</div>';
     return `
         <div class="friend-list-container">
-            <div class="friend-list-header ph-section-title">羁绊 · ${contactEntries.length} 人</div>
-            <div class="friend-list-body">
-                ${friendItems}
-            </div>
-        </div>
-    `;
+            <div class="friend-list-header" style="font-weight:600;font-size:12px;color:#6b7280;margin:8px 4px 12px;">羁绊对象 (${contactEntries.length})</div>
+            <div class="friend-list-body">${contactEntries.map(({ key, contact }) => renderFriendListItem(key, contact)).join('')}</div>
+        </div>`;
 }
 
-/**
- * HTML安全显示文本（避免HTML注入但保留原文）
- */
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text == null) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text);
     return div.innerHTML;
 }
 
-/**
- * 文本还原函数（将特殊编码转换回正常字符）
- * 用于处理变量名中的特殊字符编码
- */
 function restoreEraText(text) {
     if (!text) return '';
-    // 将 __DOT__ 还原为 . （避免路径解析冲突的编码）
-    // 将 __SQUOTE__ 还原为 ' （避免字符串解析冲突的编码）
     return text.replace(/__DOT__/g, '.').replace(/__SQUOTE__/g, "'");
 }
 
-/**
- * 显示好友详情
- * @param {string} friendName - 好友名称
- * @param {object} friendData - 好友数据
- * @param {boolean} isRestoring - 是否是恢复状态（不重置滚动位置）
- */
 function showFriendDetail(friendName, friendData, isRestoring = false) {
+    if (!isRestoring) friendDetailScrollPosition = 0;
 
-    //  只有在非恢复模式下才重置详情页滚动位置
-    if (!isRestoring) {
-        friendDetailScrollPosition = 0;
-    } else {
-    }
-
-    //  保存好友列表的滚动位置（多种方式尝试，确保iframe兼容）
-    let appBodyElement = document.getElementById('phone-app-body');
-
-    // 如果原生方式找不到，尝试使用 jQuery
-    if (!appBodyElement) {
-        const $appBody = $('#phone-app-body');
-        if ($appBody.length > 0) {
-            appBodyElement = $appBody[0];
-        }
-    }
-
+    let appBodyElement = document.getElementById('phone-app-body') || $('#phone-app-body')[0] || null;
     if (appBodyElement) {
-        // 使用原生属性获取滚动位置
         friendsListScrollPosition = appBodyElement.scrollTop;
-
-        //  新增：查找当前点击的好友元素位置
         const $friendItem = $(`.friend-item[data-friend-name="${friendName}"]`);
-        if ($friendItem.length > 0) {
-            const friendItemTop = $friendItem.position().top + appBodyElement.scrollTop;
-
-            // 保存额外信息用于精确定位
-            friendsListScrollPosition = Math.max(friendsListScrollPosition, friendItemTop);
-        } else {
+        if ($friendItem.length) {
+            friendsListScrollPosition = Math.max(friendsListScrollPosition, $friendItem.position().top + appBodyElement.scrollTop);
         }
     } else {
         friendsListScrollPosition = 0;
     }
 
-    //  记录当前查看的好友
     lastViewedFriend = friendName;
-
-    // 保存当前页面到导航栈
-    const currentTitle = $('#phone-app-title').text();
-    const currentContent = $('#phone-app-body').html();
     navigationStack.push({
-        title: currentTitle,
-        content: currentContent,
-        scrollPosition: friendsListScrollPosition //  同时保存到导航栈中
+        title: $('#phone-app-title').text(),
+        content: $('#phone-app-body').html(),
+        scrollPosition: friendsListScrollPosition,
     });
 
-    /* 适配变量脚本的羁绊列表结构 */
-    const gender = friendData.性别 || '';
-    const isNearby = friendData.附近 === true;
-    const race = friendData.种族 || '';
-    const level = friendData.等级 ?? 1;
-    const appearance = friendData.外貌 || '';
-    const clothing = friendData.着装 || '';
-    const affection = friendData.好感度 ?? 0;
-    const isTraveling = friendData.同行誓约 === true;
-    const currentThought = friendData.当前想法 || '';
+    const displayName = restoreEraText(friendName);
+    const affection = getContactAffection(friendData);
+    const obedience = getContactObedience(friendData);
+    const mood = getContactMood(friendData) || '暂无记录';
+    const location = getContactLocationText(friendData) || '位置未记录';
+    const stream = getContactStream(friendData);
+    const streamTitle = stream.live ? (stream.title || '直播中') : '当前未开播';
 
-    /* 好感度进度条颜色 */
-    const affectionPercent = Math.abs(affection);
-    const affectionBarColor = affection >= 50 ? '#ec4899' : affection >= 0 ? '#f59e0b' : '#ef4444';
-    const affectionLabel = affection >= 80 ? '挚友' : affection >= 50 ? '亲密' : affection >= 20 ? '友好' : affection >= 0 ? '普通' : affection >= -50 ? '冷淡' : '敌对';
+    const html = `
+        <div id="friend-detail-scroll-container" style="padding:10px;max-height:calc(100vh - 200px);overflow-y:auto;">
+            <div class="list-item" style="margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:13px;">
+                    ${renderBondAvatar(displayName, 68)}
+                    <div style="min-width:0;flex:1;">
+                        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                            <span style="font-size:18px;font-weight:700;color:#1f2937;">${escapeHtml(displayName)}</span>
+                            <span style="font-size:10px;background:${stream.live ? '#8b5cf6' : '#9ca3af'};color:#fff;padding:2px 7px;border-radius:4px;font-weight:600;">${stream.live ? '直播中' : '未开播'}</span>
+                        </div>
+                        <div style="font-size:12px;color:#6b7280;margin-top:7px;line-height:1.5;">📍 ${escapeHtml(location)}</div>
+                    </div>
+                </div>
+            </div>
 
-    /* 头像 */
-    const avatarUrl = getCharacterAvatar(friendName);
-    const avatarHtml = avatarUrl
-        ? `<img src="${avatarUrl}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-           <div style="display: none; width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; font-size: 28px; color: #fff; border: 3px solid #e5e7eb;">${escapeHtml(friendName.charAt(0))}</div>`
-        : `<div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; border: 3px solid #e5e7eb;">${escapeHtml(friendName.charAt(0))}</div>`;
-
-    let html = `
-        <div id="friend-detail-scroll-container" style="padding: 10px; max-height: calc(100vh - 200px); overflow-y: auto;">
-            <!-- 角色卡片头部 -->
-            <div class="list-item" style="margin-bottom: 12px; text-align: center; padding: 20px 15px;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                    ${avatarHtml}
-                    <div>
-                        <div style="font-size: 18px; font-weight: 700; color: #1f2937;">${escapeHtml(friendName)}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
-                            ${[gender, race, `Lv.${level}`].filter(Boolean).map(v => escapeHtml(v)).join(' · ')}
+            <div class="list-item" style="margin-bottom:12px;">
+                <div class="list-item-header"><span class="list-item-name">💕 羁绊状态</span></div>
+                <div class="list-item-desc">
+                    <div style="display:flex;justify-content:space-around;padding:10px 0 12px;border-bottom:1px solid #e5e7eb;">
+                        <div style="text-align:center;">
+                            <div style="font-size:24px;font-weight:600;color:#ec4899;">❤ ${affection}</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">好感度</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:24px;font-weight:600;color:#8b5cf6;">✦ ${obedience}</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">顺从度</div>
                         </div>
                     </div>
-                    <!-- 状态标签 -->
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
-                        ${isNearby ? '<span style="font-size: 11px; background: #dbeafe; color: #2563eb; padding: 3px 10px; border-radius: 12px; font-weight: 600;">📍 附近</span>' : '<span style="font-size: 11px; background: #f3f4f6; color: #9ca3af; padding: 3px 10px; border-radius: 12px;">不在附近</span>'}
-                        ${isTraveling ? '<span style="font-size: 11px; background: #ede9fe; color: #7c3aed; padding: 3px 10px; border-radius: 12px; font-weight: 600;">⚔ 同行誓约</span>' : ''}
-                    </div>
+                    <div style="padding-top:10px;font-size:13px;color:#92400e;">☀️ 心情：${escapeHtml(mood)}</div>
                 </div>
             </div>
-            
-            <!-- 好感度 -->
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">💕 好感度</span>
-                    <span style="font-size: 13px; font-weight: 600; color: ${affectionBarColor};">${affection} · ${affectionLabel}</span>
-                </div>
-                <div style="margin-top: 8px;">
-                    <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${affectionPercent}%; height: 100%; background: ${affectionBarColor}; border-radius: 4px; transition: width 0.3s ease;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; margin-top: 4px;">
-                        <span>-100</span>
-                        <span>0</span>
-                        <span>100</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 外貌 -->
-            ${appearance ? `
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">👤 外貌</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #4b5563;">${escapeHtml(appearance)}</div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- 着装 -->
-            ${clothing ? `
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">👗 着装</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #4b5563;">${escapeHtml(clothing)}</div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- 当前想法 -->
-            ${currentThought ? `
-            <div class="list-item" style="margin-bottom: 12px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-                <div class="list-item-header">
-                    <span class="list-item-name">💭 当前想法</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #92400e; font-style: italic;">"${escapeHtml(currentThought)}"</div>
-                </div>
-            </div>
-            ` : ''}
-        </div>
-    `;
 
-    /* 设置详情面板 */
-    $('#phone-app-title').text(`👤 ${escapeHtml(friendName)}`);
+            <div class="list-item" style="margin-bottom:12px;">
+                <div class="list-item-header">
+                    <span class="list-item-name">📡 直播状态</span>
+                    <span class="list-item-value" style="color:${stream.live ? '#7c3aed' : '#9ca3af'};">${stream.live ? 'ON AIR' : 'OFFLINE'}</span>
+                </div>
+                <div class="list-item-desc" style="line-height:1.7;">
+                    <div style="font-size:13px;color:#374151;">${escapeHtml(streamTitle)}</div>
+                    ${stream.live ? `<div>热度：${stream.heat.toLocaleString('zh-CN')}</div>` : ''}
+                    <div>粉丝：${stream.followers.toLocaleString('zh-CN')}</div>
+                </div>
+            </div>
+        </div>`;
+
+    $('#phone-app-title').text(`羁绊 · ${displayName}`);
     $('#phone-app-body').html(html);
+    if (!isRestoring) $('#phone-app-body').css('opacity', '1');
 
-    /* 确保内容可见 */
-    if (!isRestoring) {
-        $('#phone-app-body').css('opacity', '1');
-    }
-
-    /* 添加滚动监听器 */
     setTimeout(() => {
-        let scrollContainer = document.getElementById('friend-detail-scroll-container');
-
-        if (!scrollContainer) {
-            const $scrollContainer = $('#friend-detail-scroll-container');
-            if ($scrollContainer.length > 0) {
-                scrollContainer = $scrollContainer[0];
-            }
-        }
-
+        const scrollContainer = document.getElementById('friend-detail-scroll-container') || $('#friend-detail-scroll-container')[0];
         if (scrollContainer) {
             scrollContainer.removeEventListener('scroll', handleDetailScroll);
             scrollContainer.addEventListener('scroll', handleDetailScroll, { passive: true });
@@ -283,17 +170,10 @@ function showFriendDetail(friendName, friendData, isRestoring = false) {
     }, 150);
 }
 
-//  详情页滚动处理函数
 function handleDetailScroll(event) {
-    if (event.target) {
-        friendDetailScrollPosition = event.target.scrollTop;
-        // 使用节流，避免频繁打印日志
-        if (!window._detailScrollLogTimer) {
-            const elementName = event.target.id || event.target.className || 'unknown';
-            window._detailScrollLogTimer = setTimeout(() => {
-                window._detailScrollLogTimer = null;
-            }, 500); // 减少到500ms，更快响应
-        }
+    if (!event.target) return;
+    friendDetailScrollPosition = event.target.scrollTop;
+    if (!window._detailScrollLogTimer) {
+        window._detailScrollLogTimer = setTimeout(() => { window._detailScrollLogTimer = null; }, 500);
     }
 }
-

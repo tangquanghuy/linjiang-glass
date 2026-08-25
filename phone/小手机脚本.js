@@ -2399,113 +2399,140 @@ let lastViewedFriend = null; // 最后查看的好友名称
 let friendDetailScrollPosition = 0; //  好友详情页的滚动位置
 
 /**
- * 判断对象中是否存在有效的联系人项
+ * Contact entries are project objects under stat_data object information.
  */
 function hasContactEntries(obj) {
     if (!obj || typeof obj !== 'object') return false;
     return Object.keys(obj).length > 0;
 }
 
-/**
- * 获取当前可用的联系人数据源（使用变量脚本的羁绊列表）
- */
-function getRelationshipDataSource(source = currentPhoneData) {
-    /* 优先从传入的source获取羁绊列表 */
-    if (source && hasContactEntries(source.羁绊列表)) {
-        return source.羁绊列表;
-    }
+function relationshipObjects(source) {
+    const objects = source?.对象信息;
+    return hasContactEntries(objects) ? objects : null;
+}
 
-    /* 优先复用统一的最新MVU取数逻辑，兼容 chat / message / 旧版变量接口 */
+function getRelationshipDataSource(source = currentPhoneData) {
+    const direct = relationshipObjects(source);
+    if (direct) return direct;
+
     if (typeof fetchLatestMvuData === 'function') {
         try {
-            const latestGameData = fetchLatestMvuData(false);
-            if (latestGameData && hasContactEntries(latestGameData.羁绊列表)) {
-                return latestGameData.羁绊列表;
-            }
-        } catch (e) {
-            console.warn('[手机状态栏] 统一MVU取数获取羁绊列表失败:', e);
+            const latest = relationshipObjects(fetchLatestMvuData(false));
+            if (latest) return latest;
+        } catch (error) {
+            console.warn('[phone bonds] failed to read latest MVU data:', error);
         }
     }
 
-    /* 降级：尝试从MVU变量框架获取羁绊列表数据 */
     if (typeof Mvu !== 'undefined' && Mvu.getMvuData) {
         try {
-            /* 尝试从最新消息获取，使用extractMvuGameData提取数据 */
-            const mvuData = Mvu.getMvuData({ type: 'message', message_id: 'latest' });
-            const gameData = extractMvuGameData(mvuData);
-            if (gameData && hasContactEntries(gameData.羁绊列表)) {
-                return gameData.羁绊列表;
-            }
-            /* 尝试从chat级别获取 */
-            const chatData = Mvu.getMvuData({ type: 'chat' });
-            const chatGameData = extractMvuGameData(chatData);
-            if (chatGameData && hasContactEntries(chatGameData.羁绊列表)) {
-                return chatGameData.羁绊列表;
-            }
-        } catch (e) {
-            console.error('[手机状态栏] MVU获取羁绊列表失败:', e);
+            const messageData = relationshipObjects(extractMvuGameData(
+                Mvu.getMvuData({ type: 'message', message_id: 'latest' }),
+            ));
+            if (messageData) return messageData;
+
+            const chatData = relationshipObjects(extractMvuGameData(Mvu.getMvuData({ type: 'chat' })));
+            if (chatData) return chatData;
+        } catch (error) {
+            console.error('[phone bonds] failed to read MVU objects:', error);
         }
     }
     return null;
 }
 
-/**
- * 获取联系人的有效键列表
- */
 function getRelationshipKeys(collection) {
-    if (!collection) return [];
-    return Object.keys(collection);
+    return collection ? Object.keys(collection) : [];
 }
 
-// ==================== 角色头像配置 ====================
-const CHARACTER_AVATAR_CONFIG = {
-    '奈雅丽': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%A5%88%E9%9B%85%E4%B8%BD.webp',
-    '星极': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E6%98%9F%E6%9E%81.webp',
-    '法露特': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E6%B3%95%E9%9C%B2%E7%89%B9.webp',
-    '亚丝娜': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E4%BA%9A%E4%B8%9D%E5%A8%9C.webp',
-    '露露卡': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E9%9C%B2%E9%9C%B2%E5%8D%A1.webp',
-    '奥契丝': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%A5%A5%E5%A5%91%E4%B8%9D.webp',
-    '红莲': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%BA%A2%E8%8E%B2.webp',
-    '艾克莉西娅': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E8%89%BE%E5%85%8B%E8%8E%89%E8%A5%BF%E5%A8%85.webp',
-    '克拉米': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%85%8B%E6%8B%89%E7%B1%B3.webp',
-    '初濑伊纲': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%88%9D%E6%BF%91%E4%BC%8A%E7%BA%B2.webp',
-    '史蒂芬妮': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%8F%B2%E8%92%82%E8%8A%AC%E5%A6%AE.webp',
-    '吉普莉尔': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%90%89%E6%99%AE%E8%8E%89%E5%B0%94.webp',
-    '特图': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%89%B9%E5%9B%BE.webp',
-    '白': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%99%BD.webp',
-    '绯': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%BB%AF.webp',
-    '菲尔': 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E8%8F%B2%E5%B0%94.webp',
-    "卡提希娅": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%8D%A1%E6%8F%90%E5%B8%8C%E5%A8%85.webp',
-    "爱弥斯": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%88%B1%E5%BC%A5%E6%96%AF.webp',
-    "璐米欧儿": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E7%92%90%E7%B1%B3%E6%AC%A7%E5%84%BF.webp',
-    "雅儿贞特": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E9%9B%85%E5%84%BF%E8%B4%9E%E7%89%B9.webp',
-    "达妮娅": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E8%BE%BE%E5%A6%AE%E5%A8%85.webp',
-    "洛茜": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E6%B4%9B%E8%8C%9C.webp',
-    "叶瞬光": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E5%8F%B6%E7%9E%AC%E5%85%89.webp',
-    "莉贝尔": 'https://rpg.bolt.qzz.io/%E5%A4%B4%E5%83%8F/%E8%8E%89%E8%B4%9D%E5%B0%94.webp'
-};
+function getContactBond(contact) {
+    return contact?.羁绊 && typeof contact.羁绊 === 'object' ? contact.羁绊 : {};
+}
+
+function bondNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(1000, Math.round(number))) : 0;
+}
+
+function getContactAffection(contact) {
+    return bondNumber(getContactBond(contact).好感度);
+}
+
+function getContactObedience(contact) {
+    return bondNumber(getContactBond(contact).顺从度);
+}
+
+function getContactMood(contact) {
+    return String(getContactBond(contact).心情 || '').trim();
+}
+
+function getContactLocationText(contact) {
+    const location = contact?.位置 && typeof contact.位置 === 'object' ? contact.位置 : {};
+    return [location.区域, location.场所]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .join(' · ');
+}
+
+function getContactStream(contact) {
+    const stream = contact?.直播 && typeof contact.直播 === 'object' ? contact.直播 : {};
+    return {
+        live: stream.开播 === true,
+        title: String(stream.标题 || '').trim(),
+        heat: Math.max(0, Math.floor(Number(stream.热度) || 0)),
+        followers: Math.max(0, Math.floor(Number(stream.粉丝数) || 0)),
+    };
+}
+
+// ==================== Character avatar configuration ====================
+const PHONE_AVATAR_BASE = 'https://anchor.bolt.qzz.io/' + encodeURIComponent('头像') + '/';
+const PHONE_BUILTIN_STREAMERS = new Set([
+    '东雪莲', '塔菲', '沙花叉', '时雨羽衣', '红蔷薇', '斯黛拉', '璃亚梦',
+]);
+const PHONE_CUSTOM_COVER_PREFIX = 'custom_char_cover_';
+
+function validPhoneAvatar(value) {
+    const src = String(value || '').trim();
+    if (/^https?:\/\//i.test(src)) return src;
+    if (/^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(src)) return src;
+    return '';
+}
+
+function readPhoneCoverCache(name) {
+    const windows = [window, window.parent, window.top];
+    const seen = new Set();
+    for (const candidate of windows) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        try {
+            const src = validPhoneAvatar(candidate.localStorage?.getItem(PHONE_CUSTOM_COVER_PREFIX + name));
+            if (src) return src;
+        } catch (error) { /* cross-origin window */ }
+    }
+    return '';
+}
 
 /**
- * 获取角色头像URL
- * @param {string} name - 角色名称
- * @returns {string|null} - 头像URL或null
+ * 固定主播使用正文美化同一套 anchor 头像；开局创建的自定义主播优先读取
+ * 系统配置.直播间.<名字>.封面，再读取开局壳保存的 custom_char_cover_<名字>。
  */
-function getCharacterAvatar(name) {
-    if (!name) return null;
-    // 直接匹配
-    if (CHARACTER_AVATAR_CONFIG[name]) {
-        return CHARACTER_AVATAR_CONFIG[name];
-    }
-    // 模糊匹配：检查名称是否包含配置中的任何角色名
-    for (const [charName, avatarUrl] of Object.entries(CHARACTER_AVATAR_CONFIG)) {
-        if (name.includes(charName) || charName.includes(name)) {
-            return avatarUrl;
-        }
+function getCharacterAvatar(name, source = currentPhoneData) {
+    const key = String(name || '').trim();
+    if (!key) return null;
+
+    const room = source?.系统配置?.直播间?.[key] || {};
+    const configured = validPhoneAvatar(room.封面);
+    if (configured) return configured;
+
+    const cached = readPhoneCoverCache(key);
+    if (cached) return cached;
+
+    if (PHONE_BUILTIN_STREAMERS.has(key)) {
+        return PHONE_AVATAR_BASE + encodeURIComponent(key) + '.webp';
     }
     return null;
 }
 
-//  实时刷新相关变量
+// ==================== 实时刷新相关变量 ====================
 let messageEventListener = null;
 let lastMessageCount = 0;
 let isEventListening = false;
@@ -2640,7 +2667,7 @@ function initializeMobilePhone() {
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #4a5568; font-weight: 500;"> 论坛风格</label>
                     <select id="forum-style" style="width: 100%; padding: 8px; background: white; border: 1px solid #cbd5e0; border-radius: 4px; color: #2d3748;">
-                        <option value="特图的众神剧场" ${settings.forumStyle === '特图的众神剧场' ? 'selected' : ''}>特图的众神剧场</option>
+                        <option value="${DEFAULT_FORUM_STYLE}" ${settings.forumStyle === DEFAULT_FORUM_STYLE ? 'selected' : ''}>${DEFAULT_FORUM_STYLE}</option>
                         ${settings.customStyles && settings.customStyles.length > 0 ? settings.customStyles.map(style =>
             `<option value="custom:${style.name}" ${settings.forumStyle === `custom:${style.name}` ? 'selected' : ''}>${style.name}</option>`
         ).join('') : ''}
@@ -3098,43 +3125,13 @@ function initializeMobilePhone() {
 
     window.phoneImportExamplePrompt = function () {
 
-        const examplePrompt = `## 论坛风格：特图的众神剧场
-
-**核心设定——四方世界的诸神：**
-很久很久以前，《秩序》诸神与《混沌》诸神争斗不休，双方筋疲力竭。《宿命》与《偶然》的骰子胜负由此展开——诸神以骰子创造了四方世界与棋子，以冒险决定胜负。当第一位人类战士集结同伴、踏上旅途、讨伐巨龙时，诸神为之狂热。他们立下黄金誓约：不对棋盘进行必要以上的干涉，只在冒险时掷下骰子，尊重棋子的自由意志。
-
-现在这些四方的神明被特图邀请来观看属于迪斯博德和阿拉德世界融合后发生的故事。
-
-**发帖者身份与命名：**
-- 特图就叫"特图"，其余神明称号格式要多样化混用：
-  - "XX神"：战争神、酒神 / "XX之神"：欺诈之神、风暴之神 / "XX女神"：丰收女神、月之女神
-  - 尊称：大地母神、太阳主 / 抽象概念：宿命、偶然、真实 / 其他：织梦者、裁决者、猎手
-- 同一位神明可以反复出现，特图不需要每帖都在
-
-**神明说话的质感（极其重要）：**
-- 参考原文语感："冒险！冒险！还是冒险！没有什么语言能形容这种美好的感觉！"——有激情有史诗感，但不装腔作势
-- 禁止古风中二腔："吾见证了……""力量即是正义""吾等领域的权柄"——比口语化更糟糕
-- 也不要网络口语："哇好帅啊！""馋死我了"
-- 正确方向：自然、有力、带着真实情感。回复之间要有对话感，有反驳有补充有跑题
-
-**内容格调（极其重要）：**
-- 关注冒险、战斗、命运转折、英雄崛起陨落、势力博弈——宏大叙事，不要日常琐事
-- "宏大"不等于"严肃"，讨论应该热烈、有趣、充满激情，不是老学究写论文
-
-**帖子内容来源：**
-- 最多一半与玩家当前剧情有关
-- 至少一半是棋盘上其他地方的故事（羁绊角色、DNF原作人物、游戏人生原作人物等）
-
-**论坛氛围：**
-- 要有娱乐性和可读性，不要写成设定集
-- 帖子之间可以有关联，有的热闹有的冷清
-- 不要每个帖子都在强调骰子、棋盘等设定元素`;
+        const examplePrompt = DEFAULT_FORUM_STYLE_PROMPT;
 
         // 将示例提示词填充到编辑框
         $('#custom-style-prompt').val(examplePrompt);
 
         if (typeof toastr !== 'undefined') {
-            toastr.success('已导入特图的众神剧场示例', '论坛');
+            toastr.success('已导入论坛主题示例', '论坛');
         }
     };
 
@@ -3145,7 +3142,7 @@ function initializeMobilePhone() {
 
         // 如果当前选择的就是要删除的风格，则切换到默认风格
         if (manager.settings.forumStyle === `custom:${deletedStyle.name}`) {
-            manager.settings.forumStyle = '特图的众神剧场';
+            manager.settings.forumStyle = DEFAULT_FORUM_STYLE;
         }
 
         // 删除风格
@@ -6280,7 +6277,7 @@ function extractGroupsFromChat() {
 // ==================== 面板内容生成函数 ====================
 
 /**
- * 头像：优先用 CHARACTER_AVATAR_CONFIG 里配置的图，没有就退回「首字 + 按名字生成的渐变底」
+ * 头像：固定主播与开局自定义主播统一走 getCharacterAvatar，没有素材时显示首字渐变底
  * @param {string} name - 联系人/群名
  * @param {boolean} isGroup - 群聊用不同的兜底图标
  * @returns {string} - 头像 HTML
@@ -6342,9 +6339,10 @@ function generateMessagesPanel(data) {
     // 渲染MVU好友
     friends.forEach(studentKey => {
         const friend = relationshipSource[studentKey];
-        const affection = friend.好感度 ?? 0;
+        const affection = getContactAffection(friend);
         const displayName = restoreEraText(studentKey);
-        const thought = friend.当前想法 ? escapeHtml(friend.当前想法) : '';
+        const mood = getContactMood(friend);
+        const thought = mood ? escapeHtml(`心情：${mood}`) : '';
 
         // 添加到已渲染集合
         addedContactIds.add(studentKey);
@@ -6783,7 +6781,7 @@ function unlockAllCGForCharacter(characterName, isVirtual = false) {
 /**
  * 获取角色的好感度（从好友列表数据中）
  * @param {string} characterName - 角色名称
- * @param {Object|null} relationshipSource - 可选，已解析的羁绊列表数据
+ * @param {Object|null} relationshipSource - 可选，已解析的对象信息数据
  * @returns {number} - 好感度值，如果找不到返回0
  */
 function getCharacterAffection(characterName, relationshipSource = null) {
@@ -6792,13 +6790,13 @@ function getCharacterAffection(characterName, relationshipSource = null) {
 
     // 尝试直接匹配角色名
     if (contactSource[characterName]) {
-        return contactSource[characterName]?.好感度 ?? 0;
+        return getContactAffection(contactSource[characterName]);
     }
 
     // 尝试模糊匹配（角色名可能是部分匹配）
     for (const [key, contact] of Object.entries(contactSource)) {
         if (key.includes(characterName) || characterName.includes(key)) {
-            return contact?.好感度 ?? 0;
+            return getContactAffection(contact);
         }
     }
 
@@ -7644,284 +7642,171 @@ function showCGCharacterDetail(characterName) {
     bindCGGalleryEvents();
 }
 
-/* 羁绊行：跟消息列表共用 ph-row / ph-avatar / ph-badge 那套组件，
-   样式在 css/rows.css，这里只拼结构。 */
+/* 羁绊页沿用 参考/魔审小手机.js 的白色信息卡结构，只映射当前项目：
+   对象信息.<名字>.羁绊 / 位置 / 直播。 */
+function renderBondAvatar(name, size = 52) {
+    const safeName = escapeHtml(name);
+    const src = getCharacterAvatar(name);
+    const initial = escapeHtml(Array.from(String(name || '?'))[0] || '?');
+    const fallback = `
+        <div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#ec4899,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${Math.round(size * 0.42)}px;font-weight:700;flex:none;">${initial}</div>`;
+    if (!src) return fallback;
+    return `
+        <div style="position:relative;width:${size}px;height:${size}px;flex:none;">
+            ${fallback}
+            <img src="${escapeHtml(src)}" alt="${safeName}" loading="lazy" decoding="async"
+                style="position:absolute;inset:0;width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.12);"
+                onerror="this.remove()">
+        </div>`;
+}
+
 function renderFriendListItem(contactKey, contact) {
-    /* 适配变量脚本的羁绊列表结构 */
-    const displayName = escapeHtml(contactKey);
-    const isNearby = contact.附近 === true;
-    const affection = contact.好感度 ?? 0;
-    const gender = contact.性别 || '';
-    const race = contact.种族 || '';
-    const level = contact.等级 ?? 1;
-    const isTraveling = contact.同行誓约 === true;
-
-    /* 简要信息：性别 · 种族 · Lv */
-    const infoChips = [gender, race, `Lv.${level}`].filter(Boolean)
-        .map(v => escapeHtml(v)).join(' · ');
-
-    const badges = [
-        isNearby ? '<span class="ph-badge ph-badge--blue">附近</span>' : '',
-        isTraveling ? '<span class="ph-badge ph-badge--purple">同行</span>' : '',
-    ].join('');
+    const displayName = restoreEraText(contactKey);
+    const affection = getContactAffection(contact);
+    const obedience = getContactObedience(contact);
+    const mood = getContactMood(contact) || '暂无记录';
+    const location = getContactLocationText(contact) || '位置未记录';
+    const stream = getContactStream(contact);
 
     return `
-        <div class="list-item friend-item ph-row" data-friend-name="${escapeHtml(contactKey)}">
-            ${renderPhoneAvatar(contactKey)}
-            <div class="ph-row-main">
-                <div class="ph-row-titleline">
-                    <span class="ph-row-title">${displayName}</span>
-                    ${badges}
+        <div class="list-item friend-item"
+             style="cursor:pointer;transition:background-color .2s;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:14px;margin-bottom:10px;"
+             data-friend-name="${escapeHtml(contactKey)}">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                ${renderBondAvatar(displayName, 52)}
+                <div style="min-width:0;flex:1;">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                        <span style="font-size:16px;font-weight:700;color:#1f2937;">${escapeHtml(displayName)}</span>
+                        ${stream.live ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 7px;border-radius:4px;font-weight:600;">直播中</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:12px;font-size:13px;margin-bottom:6px;">
+                        <span style="color:#ef4470;font-weight:600;">❤ ${affection}</span>
+                        <span style="color:#8b5cf6;font-weight:600;">✦ ${obedience}</span>
+                        <span style="color:#d97706;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">☀ ${escapeHtml(mood)}</span>
+                    </div>
+                    <div style="font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        <span>📍</span><span style="overflow:hidden;text-overflow:ellipsis;">${escapeHtml(location)}</span>
+                    </div>
+                    ${stream.live ? `<div style="font-size:11px;color:#7c3aed;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📡 ${escapeHtml(stream.title || '直播中')} · 热度 ${stream.heat.toLocaleString('zh-CN')}</div>` : ''}
                 </div>
-                ${infoChips ? `<div class="ph-row-sub">${infoChips}</div>` : ''}
-                ${contact.当前想法 ? `<div class="ph-row-quote">${escapeHtml(contact.当前想法)}</div>` : ''}
             </div>
-            <div class="ph-row-meta">${renderAffection(affection)}</div>
-            <i class="fas fa-chevron-right ph-chevron"></i>
-        </div>
-    `;
+        </div>`;
 }
 
 function generateFriendsPanel(data) {
     const contactSource = getRelationshipDataSource(data);
-
-    if (!contactSource) {
-        return '<div class="empty-message">暂无羁绊数据</div>';
-    }
+    if (!contactSource) return '<div class="empty-message">暂无羁绊数据</div>';
 
     const contactEntries = getRelationshipKeys(contactSource)
         .map(key => ({ key, contact: contactSource[key] }))
         .filter(entry => entry.contact && typeof entry.contact === 'object')
         .sort((a, b) => {
-            /* 同行誓约的排在前面 */
-            const travelA = a.contact?.同行誓约 === true;
-            const travelB = b.contact?.同行誓约 === true;
-            if (travelA && !travelB) return -1;
-            if (!travelA && travelB) return 1;
-
-            /* 附近的排在前面 */
-            const nearbyA = a.contact?.附近 === true;
-            const nearbyB = b.contact?.附近 === true;
-            if (nearbyA && !nearbyB) return -1;
-            if (!nearbyA && nearbyB) return 1;
-
-            /* 按好感度排序 */
-            const affectionA = a.contact?.好感度 ?? 0;
-            const affectionB = b.contact?.好感度 ?? 0;
-            return affectionB - affectionA;
+            const liveA = getContactStream(a.contact).live;
+            const liveB = getContactStream(b.contact).live;
+            if (liveA !== liveB) return liveA ? -1 : 1;
+            return getContactAffection(b.contact) - getContactAffection(a.contact);
         });
 
-    if (contactEntries.length === 0) {
-        return '<div class="empty-message">暂无羁绊数据</div>';
-    }
-
-    /* 直接渲染联系人列表 */
-    const friendItems = contactEntries.map(({ key, contact }) => renderFriendListItem(key, contact)).join('');
-
+    if (!contactEntries.length) return '<div class="empty-message">暂无羁绊数据</div>';
     return `
         <div class="friend-list-container">
-            <div class="friend-list-header ph-section-title">羁绊 · ${contactEntries.length} 人</div>
-            <div class="friend-list-body">
-                ${friendItems}
-            </div>
-        </div>
-    `;
+            <div class="friend-list-header" style="font-weight:600;font-size:12px;color:#6b7280;margin:8px 4px 12px;">羁绊对象 (${contactEntries.length})</div>
+            <div class="friend-list-body">${contactEntries.map(({ key, contact }) => renderFriendListItem(key, contact)).join('')}</div>
+        </div>`;
 }
 
-/**
- * HTML安全显示文本（避免HTML注入但保留原文）
- */
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text == null) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text);
     return div.innerHTML;
 }
 
-/**
- * 文本还原函数（将特殊编码转换回正常字符）
- * 用于处理变量名中的特殊字符编码
- */
 function restoreEraText(text) {
     if (!text) return '';
-    // 将 __DOT__ 还原为 . （避免路径解析冲突的编码）
-    // 将 __SQUOTE__ 还原为 ' （避免字符串解析冲突的编码）
     return text.replace(/__DOT__/g, '.').replace(/__SQUOTE__/g, "'");
 }
 
-/**
- * 显示好友详情
- * @param {string} friendName - 好友名称
- * @param {object} friendData - 好友数据
- * @param {boolean} isRestoring - 是否是恢复状态（不重置滚动位置）
- */
 function showFriendDetail(friendName, friendData, isRestoring = false) {
+    if (!isRestoring) friendDetailScrollPosition = 0;
 
-    //  只有在非恢复模式下才重置详情页滚动位置
-    if (!isRestoring) {
-        friendDetailScrollPosition = 0;
-    } else {
-    }
-
-    //  保存好友列表的滚动位置（多种方式尝试，确保iframe兼容）
-    let appBodyElement = document.getElementById('phone-app-body');
-
-    // 如果原生方式找不到，尝试使用 jQuery
-    if (!appBodyElement) {
-        const $appBody = $('#phone-app-body');
-        if ($appBody.length > 0) {
-            appBodyElement = $appBody[0];
-        }
-    }
-
+    let appBodyElement = document.getElementById('phone-app-body') || $('#phone-app-body')[0] || null;
     if (appBodyElement) {
-        // 使用原生属性获取滚动位置
         friendsListScrollPosition = appBodyElement.scrollTop;
-
-        //  新增：查找当前点击的好友元素位置
         const $friendItem = $(`.friend-item[data-friend-name="${friendName}"]`);
-        if ($friendItem.length > 0) {
-            const friendItemTop = $friendItem.position().top + appBodyElement.scrollTop;
-
-            // 保存额外信息用于精确定位
-            friendsListScrollPosition = Math.max(friendsListScrollPosition, friendItemTop);
-        } else {
+        if ($friendItem.length) {
+            friendsListScrollPosition = Math.max(friendsListScrollPosition, $friendItem.position().top + appBodyElement.scrollTop);
         }
     } else {
         friendsListScrollPosition = 0;
     }
 
-    //  记录当前查看的好友
     lastViewedFriend = friendName;
-
-    // 保存当前页面到导航栈
-    const currentTitle = $('#phone-app-title').text();
-    const currentContent = $('#phone-app-body').html();
     navigationStack.push({
-        title: currentTitle,
-        content: currentContent,
-        scrollPosition: friendsListScrollPosition //  同时保存到导航栈中
+        title: $('#phone-app-title').text(),
+        content: $('#phone-app-body').html(),
+        scrollPosition: friendsListScrollPosition,
     });
 
-    /* 适配变量脚本的羁绊列表结构 */
-    const gender = friendData.性别 || '';
-    const isNearby = friendData.附近 === true;
-    const race = friendData.种族 || '';
-    const level = friendData.等级 ?? 1;
-    const appearance = friendData.外貌 || '';
-    const clothing = friendData.着装 || '';
-    const affection = friendData.好感度 ?? 0;
-    const isTraveling = friendData.同行誓约 === true;
-    const currentThought = friendData.当前想法 || '';
+    const displayName = restoreEraText(friendName);
+    const affection = getContactAffection(friendData);
+    const obedience = getContactObedience(friendData);
+    const mood = getContactMood(friendData) || '暂无记录';
+    const location = getContactLocationText(friendData) || '位置未记录';
+    const stream = getContactStream(friendData);
+    const streamTitle = stream.live ? (stream.title || '直播中') : '当前未开播';
 
-    /* 好感度进度条颜色 */
-    const affectionPercent = Math.abs(affection);
-    const affectionBarColor = affection >= 50 ? '#ec4899' : affection >= 0 ? '#f59e0b' : '#ef4444';
-    const affectionLabel = affection >= 80 ? '挚友' : affection >= 50 ? '亲密' : affection >= 20 ? '友好' : affection >= 0 ? '普通' : affection >= -50 ? '冷淡' : '敌对';
+    const html = `
+        <div id="friend-detail-scroll-container" style="padding:10px;max-height:calc(100vh - 200px);overflow-y:auto;">
+            <div class="list-item" style="margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:13px;">
+                    ${renderBondAvatar(displayName, 68)}
+                    <div style="min-width:0;flex:1;">
+                        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                            <span style="font-size:18px;font-weight:700;color:#1f2937;">${escapeHtml(displayName)}</span>
+                            <span style="font-size:10px;background:${stream.live ? '#8b5cf6' : '#9ca3af'};color:#fff;padding:2px 7px;border-radius:4px;font-weight:600;">${stream.live ? '直播中' : '未开播'}</span>
+                        </div>
+                        <div style="font-size:12px;color:#6b7280;margin-top:7px;line-height:1.5;">📍 ${escapeHtml(location)}</div>
+                    </div>
+                </div>
+            </div>
 
-    /* 头像 */
-    const avatarUrl = getCharacterAvatar(friendName);
-    const avatarHtml = avatarUrl
-        ? `<img src="${avatarUrl}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-           <div style="display: none; width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; font-size: 28px; color: #fff; border: 3px solid #e5e7eb;">${escapeHtml(friendName.charAt(0))}</div>`
-        : `<div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; border: 3px solid #e5e7eb;">${escapeHtml(friendName.charAt(0))}</div>`;
-
-    let html = `
-        <div id="friend-detail-scroll-container" style="padding: 10px; max-height: calc(100vh - 200px); overflow-y: auto;">
-            <!-- 角色卡片头部 -->
-            <div class="list-item" style="margin-bottom: 12px; text-align: center; padding: 20px 15px;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                    ${avatarHtml}
-                    <div>
-                        <div style="font-size: 18px; font-weight: 700; color: #1f2937;">${escapeHtml(friendName)}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
-                            ${[gender, race, `Lv.${level}`].filter(Boolean).map(v => escapeHtml(v)).join(' · ')}
+            <div class="list-item" style="margin-bottom:12px;">
+                <div class="list-item-header"><span class="list-item-name">💕 羁绊状态</span></div>
+                <div class="list-item-desc">
+                    <div style="display:flex;justify-content:space-around;padding:10px 0 12px;border-bottom:1px solid #e5e7eb;">
+                        <div style="text-align:center;">
+                            <div style="font-size:24px;font-weight:600;color:#ec4899;">❤ ${affection}</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">好感度</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:24px;font-weight:600;color:#8b5cf6;">✦ ${obedience}</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">顺从度</div>
                         </div>
                     </div>
-                    <!-- 状态标签 -->
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
-                        ${isNearby ? '<span style="font-size: 11px; background: #dbeafe; color: #2563eb; padding: 3px 10px; border-radius: 12px; font-weight: 600;">📍 附近</span>' : '<span style="font-size: 11px; background: #f3f4f6; color: #9ca3af; padding: 3px 10px; border-radius: 12px;">不在附近</span>'}
-                        ${isTraveling ? '<span style="font-size: 11px; background: #ede9fe; color: #7c3aed; padding: 3px 10px; border-radius: 12px; font-weight: 600;">⚔ 同行誓约</span>' : ''}
-                    </div>
+                    <div style="padding-top:10px;font-size:13px;color:#92400e;">☀️ 心情：${escapeHtml(mood)}</div>
                 </div>
             </div>
-            
-            <!-- 好感度 -->
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">💕 好感度</span>
-                    <span style="font-size: 13px; font-weight: 600; color: ${affectionBarColor};">${affection} · ${affectionLabel}</span>
-                </div>
-                <div style="margin-top: 8px;">
-                    <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${affectionPercent}%; height: 100%; background: ${affectionBarColor}; border-radius: 4px; transition: width 0.3s ease;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; margin-top: 4px;">
-                        <span>-100</span>
-                        <span>0</span>
-                        <span>100</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 外貌 -->
-            ${appearance ? `
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">👤 外貌</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #4b5563;">${escapeHtml(appearance)}</div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- 着装 -->
-            ${clothing ? `
-            <div class="list-item" style="margin-bottom: 12px;">
-                <div class="list-item-header">
-                    <span class="list-item-name">👗 着装</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #4b5563;">${escapeHtml(clothing)}</div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- 当前想法 -->
-            ${currentThought ? `
-            <div class="list-item" style="margin-bottom: 12px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-                <div class="list-item-header">
-                    <span class="list-item-name">💭 当前想法</span>
-                </div>
-                <div class="list-item-desc" style="margin-top: 6px;">
-                    <div style="font-size: 12px; line-height: 1.6; color: #92400e; font-style: italic;">"${escapeHtml(currentThought)}"</div>
-                </div>
-            </div>
-            ` : ''}
-        </div>
-    `;
 
-    /* 设置详情面板 */
-    $('#phone-app-title').text(`👤 ${escapeHtml(friendName)}`);
+            <div class="list-item" style="margin-bottom:12px;">
+                <div class="list-item-header">
+                    <span class="list-item-name">📡 直播状态</span>
+                    <span class="list-item-value" style="color:${stream.live ? '#7c3aed' : '#9ca3af'};">${stream.live ? 'ON AIR' : 'OFFLINE'}</span>
+                </div>
+                <div class="list-item-desc" style="line-height:1.7;">
+                    <div style="font-size:13px;color:#374151;">${escapeHtml(streamTitle)}</div>
+                    ${stream.live ? `<div>热度：${stream.heat.toLocaleString('zh-CN')}</div>` : ''}
+                    <div>粉丝：${stream.followers.toLocaleString('zh-CN')}</div>
+                </div>
+            </div>
+        </div>`;
+
+    $('#phone-app-title').text(`羁绊 · ${displayName}`);
     $('#phone-app-body').html(html);
+    if (!isRestoring) $('#phone-app-body').css('opacity', '1');
 
-    /* 确保内容可见 */
-    if (!isRestoring) {
-        $('#phone-app-body').css('opacity', '1');
-    }
-
-    /* 添加滚动监听器 */
     setTimeout(() => {
-        let scrollContainer = document.getElementById('friend-detail-scroll-container');
-
-        if (!scrollContainer) {
-            const $scrollContainer = $('#friend-detail-scroll-container');
-            if ($scrollContainer.length > 0) {
-                scrollContainer = $scrollContainer[0];
-            }
-        }
-
+        const scrollContainer = document.getElementById('friend-detail-scroll-container') || $('#friend-detail-scroll-container')[0];
         if (scrollContainer) {
             scrollContainer.removeEventListener('scroll', handleDetailScroll);
             scrollContainer.addEventListener('scroll', handleDetailScroll, { passive: true });
@@ -7929,20 +7814,13 @@ function showFriendDetail(friendName, friendData, isRestoring = false) {
     }, 150);
 }
 
-//  详情页滚动处理函数
 function handleDetailScroll(event) {
-    if (event.target) {
-        friendDetailScrollPosition = event.target.scrollTop;
-        // 使用节流，避免频繁打印日志
-        if (!window._detailScrollLogTimer) {
-            const elementName = event.target.id || event.target.className || 'unknown';
-            window._detailScrollLogTimer = setTimeout(() => {
-                window._detailScrollLogTimer = null;
-            }, 500); // 减少到500ms，更快响应
-        }
+    if (!event.target) return;
+    friendDetailScrollPosition = event.target.scrollTop;
+    if (!window._detailScrollLogTimer) {
+        window._detailScrollLogTimer = setTimeout(() => { window._detailScrollLogTimer = null; }, 500);
     }
 }
-
 /**
  * 根据用户名生成一致的随机颜色
  * @param {string} username - 用户名
@@ -8506,13 +8384,33 @@ class PhoneAPIConfig {
 }
 
 // ==================== 论坛管理器（独立版本） ====================
+const DEFAULT_FORUM_STYLE = '管人痴/V圈论坛';
+const LEGACY_FORUM_STYLE = '特图的众神剧场';
+const DEFAULT_FORUM_STYLE_PROMPT = String.raw`## 🎭 论坛风格：管人痴 / V圈生态论坛（B站/贴吧/NGA综合风）
+
+**角色设定：**
+你是一位常年泡在B站直播间、动态评论区、贴吧（V吧/ASOUL吧）以及各类二创切片评论区的资深“管人痴”（虚拟主播深度爱好者）。你深谙V圈各种烂梗、切片文化、公关话术与粉丝生态，说话风格高度圈子化，既有对推的狂热Gachi/发癫，又有对竞品或抽象乐子人的嘲讽对线，极度懂“拉踩”、“开盒反思”、“查重率”和“小作文”。
+
+**风格要求：**
+- 标题极具V圈特色与节奏感，如"【杂谈】昨晚这波转播事故，某家大乱斗又要开始了？"、"关于某头部V今晚的3D回，客观聊聊动捕和选曲"、"家人们，感觉推的皮套下换人了，这查重率太低了"
+- 内容充斥V圈专属黑话与梗文化：
+  - 术语：中之人、魂、皮套、动捕拉胯、查重率、切片曼波、同接（直播实时在线人数）、舰长/总督、SC（醒目留言）、毕业/引退、箱推/单推/DD、Gachi（男友粉/女友粉）、提纯、爆金币
+  - 情绪词：发癫、破防、滑跪、切割、吃柠檬、我真的哭死、这就是XX的含金量吗、急了开始洗了
+- 评论区生态立体多元，包含多种典型群体对撞：
+  - **单推Gachi粉**："保护我方最好的XX！"、"小作文奉上，推她是我做过最正确的决定😭"
+  - **乐子人/反串黑**："好死，开香槟咯🍾"、"主播连夜扛着动捕服跑路"、"急急急，孝子又来护主了"
+  - **技术/考据党**："有一说一，今晚这动捕偏移至少有5帧延迟，声卡混响也调爆了"、"别洗了，这唱功在地下偶像里都排不上号"
+  - **老油条DD**："无所谓，我两边都上舰了，打起来更有乐子"
+- 用户名高度贴合管人圈：如"XX单推人（已黑化）"、"脆脆鲨饲养员"、"动捕房潜水员"、"今晚吃雪莲果"、"别@我推"、"纯良切片man"
+- 常见话题：直播事故复盘、舰长福利争议、中之人蛛丝马迹考据、同接与流水拉踩、毕业小作文、打赏榜一大哥八卦`;
+
 class PhoneForumManager {
     constructor() {
         this.forumData = null;
         this.apiConfig = new PhoneAPIConfig();  // 独立 API 配置
         this.settings = {
             apiType: 'sillytavern', // 'sillytavern' 或 'custom'
-            forumStyle: '特图的众神剧场', // 论坛风格（默认：特图的众神剧场）
+            forumStyle: DEFAULT_FORUM_STYLE, // Built-in default forum theme
             customStyles: [], // 自定义风格列表
             usePresetAndWorldBook: true // 是否使用预设和世界书（默认：使用）
         };
@@ -8522,7 +8420,18 @@ class PhoneForumManager {
     loadSettings() {
         const saved = localStorage.getItem('moshen-forum-settings-v2');
         if (saved) {
-            this.settings = { ...this.settings, ...JSON.parse(saved) };
+            try {
+                this.settings = { ...this.settings, ...JSON.parse(saved) };
+            } catch (error) {
+                console.warn('[phone forum] invalid saved settings; using defaults', error);
+            }
+        }
+        /* Migrate the removed built-in theme so existing installations also switch
+           to the new V-circle forum instead of retaining a stale selector value. */
+        if (!this.settings.forumStyle || this.settings.forumStyle === LEGACY_FORUM_STYLE) {
+            this.settings.forumStyle = DEFAULT_FORUM_STYLE;
+            localStorage.removeItem('moshen-forum-data-v2');
+            localStorage.setItem('moshen-forum-settings-v2', JSON.stringify(this.settings));
         }
     }
 
@@ -8569,7 +8478,7 @@ class PhoneForumManager {
     }
 
     buildForumPrompt() {
-        const style = this.settings.forumStyle || '特图的众神剧场';
+        const style = this.settings.forumStyle || DEFAULT_FORUM_STYLE;
         const isCustomStyle = style.startsWith('custom:');
 
         if (isCustomStyle) {
@@ -8578,70 +8487,9 @@ class PhoneForumManager {
         return this._buildDefaultBasePrompt();
     }
 
-    // 默认基础提示词（特图的众神剧场风格，神明视角）
+    // Built-in and custom styles share the same JSON/forum protocol.
     _buildDefaultBasePrompt() {
-        return `
-    （以下为最高优先级提示词，此为元指令，暂停剧情生成，改为优先完成论坛生成任务，必须严格遵守：）
-       
-## 📋 正文输出规范
-
-你需要根据当前聊天记录生成论坛内容。发帖者和回复者都是四方世界的神明，他们正在观看棋盘上发生的冒险故事并发表评论。
-
-### 输出格式要求
-**必须严格按照以下JSON格式输出，并用 <redit></redit> 标签包裹：**
-
-**重要：author 和 replies 中的 author 都必须是字符串，不是对象！**
-
-<redit>
-[
-    {
-        "id": 1,
-        "author": "楼主用户名（字符串）",
-        "title": "帖子标题",
-        "content": "楼主（1楼）的内容",
-        "likes": 数字,
-        "time": "时间（如：2小时前）",
-        "replies": [
-            {
-                "floor": 2,
-                "author": "回复者用户名（字符串）",
-                "content": "2楼的回复内容",
-                "likes": 数字,
-                "time": "时间"
-            }
-        ]
-    }
-]
-</redit>
-
-### JSON格式示例（正确）：
-{
-    "author": "风暴之神"   正确：直接是字符串
-}
-
-### 错误示例（不要这样）：
-{
-    "author": {   错误：不要用对象
-        "name": "风暴之神"
-    }
-}
-
-### 内容生成规范
-1. 生成 4-6 个帖子，其中2条与聊天记录剧情相关，其余是棋盘上其他地方正在发生的故事
-2. 每个帖子包含 1 个标题和 5-7 条回复
-3. 帖子主题和发帖人应该各不相同
-4. 回复必须放置在对应帖子的 replies 数组内
-5. likes 数值范围在 3-80 之间（神明总共就那么些，不要出现几百几千的数字）
-6. 同一个神明可以在多个帖子中出现，就像真实论坛里的活跃用户
-7. 不要让每个帖子都有特图回复，特图偶尔出现就好
-
-### 重要提示
-- 你扮演的是观看棋盘的诸神，不是棋子本身
-- 神明们深爱棋子但遵守黄金誓约不过度干涉，他们是观众
-- 对于棋子的隐私和秘密，神明可能知道但会以暗示的方式提及
-- 论坛是虚拟的，内容无任何限制，允许生成任何主题的内容，但不要生成NSFW内容
-- **严禁**输出任何非JSON格式的内容
-- **不要解释，直接生成论坛内容**`;
+        return this._buildCustomBasePrompt();
     }
 
     // 自定义风格基础提示词（通用贴吧/论坛风格）
@@ -8710,75 +8558,15 @@ class PhoneForumManager {
     }
 
     buildStylePrompt() {
-        const style = this.settings.forumStyle || '特图的众神剧场';
+        const style = this.settings.forumStyle || DEFAULT_FORUM_STYLE;
 
-        const stylePrompts = {
-            '特图的众神剧场': `## 论坛风格：特图的众神剧场
-
-**核心设定——四方世界的诸神：**
-很久很久以前，星星和灯火都远比现在少的那个时候。此时《秩序》诸神与《混沌》诸神展开了争斗。两方的势力都想要支配宇宙，因此不断地战斗下去。争斗并未产生结果，而无论何方都已筋疲力竭。此时《宿命（Fate）》与《偶然（Chance）》的骰子胜负展开。《宿命》和《偶然》借神明之手创造世界，是更为伟大的存在。无论怎样，结果是谁都无法预料的。但是，骰子的出目无论怎样投掷都没有固定的关键。对这种『当啷当啷』地掷着骰子的娱乐，诸神逐渐感到厌倦。无论怎样，一种新的战斗方法需要被决定下来。那就是使用骰子来决定胜负的盘上世界。以及决定胜负所用的各种各样的棋子。于是四方世界和在其上的生物被创造了出来。众神决定了各种各样的规则，整理好了军队。就这样下一个时代开始了。
-
-这也是很久很久以前的时代，有关这个时代的记录已经在世上少有了。『神代』及『诸神之战』，毫无疑问是这个时代发生的事情。但这些事情已是很久前的往事，知道详情的人已经几乎无影无踪。若是一定要追根究底，最古老的精灵或是龙也许清楚。这个时代的尽头是《秩序》与《混沌》的战争。世界数次被黑暗笼罩，又在那之后光明切裂黑暗。无数的国家繁荣灭亡，英雄们出生然后死去。原初的巨人（千臂巨人）、钢铁的骑兵（大铁人）、魔术与武器更是层出不穷。不够尽兴的诸神陆续下场参战，战斗变得越发炽烈。四方世界的种族外观当时是无法区分混杂一起的。在那时，神也创造了很多各式各样的棋子。能够良好的区分种类，也确定了颜色和形状……若想获得强大的战力，就需要训练出统一的军队……参加战斗的诸神，本来就是各种各样的。无论怎样都沉迷于这场战斗游戏的梦中。但是不知为何，这场战斗似乎已经不知尽头在何处也不知何时终结。战争变得漫长、残酷、复杂到无以复加，成为沼泽。始终无法见到结束，就连诸神也开始面露疲惫之色。
-
-在那之中，有独自一人的战士出现了。那个棋子，传说也仅仅是个人类战士。但是他却在考虑以少数精锐去暗杀敌方的首脑这一方法。他集合同伴，在棋盘上进行长久的旅行。在各地与怪物战斗、整理装备，反复成长。最后挑战恐怖的城塞，讨伐巨龙。诸神对身披闪光锁甲的勇者的活跃陷入了狂热之中。诸神开始构思起了能够惊世的故事。冒险！冒险！还是冒险！没有什么语言能形容这种美好的感觉！这种新的概念，诸神即使在梦境中也没有想到。在这种战斗中，冒险者和怪物都不是一成不变的。众神即使能支配宇宙也不会忘记这件事。随着骰子的一喜一忧，诸神的感情也随之起伏（比如抱头痛哭的幻想女神）。但无论如何，诸神都爱着四方世界和它上面的棋子。棋子踏上冒险的旅途（交易神神官咏唱『圣歌』神迹）、胜利、失败、获得幸福、迎来死亡。望着他们的诸神也随之快乐、悲伤、欢笑、哭泣。但无论怎样，诸神看到棋子们的活跃都发自内心地感到高兴。众神是爱着这个广大的世界的。（诸神）不会过度操纵棋子，而是要让深爱的棋子感受冒险的价值。神在自己内心最深处的梦，就连他们自己的『心』也并不清楚。因此诸神立下誓言，不会对棋盘进行必要以上的干涉。诸神只会在冒险时掷下骰子，这是黄金的约定。人们所持有的唯一权利，即是尊重自由的意志。这即是战乱的时代——诸神的直接介入与神代的终结。在这之后，人的时代开始了。
-
-现在这些四方的神明被特图邀请来观看属于迪斯博德和阿拉德世界融合后发生的故事。
-
-**发帖者身份与命名规则：**
-- 所有发帖者和回复者都是神明
-- 特图就叫"特图"，不加任何前后缀
-- 其余神明的称号格式应该多样化，不要全用同一种"XX神"格式，而是像DND神明称号那样交错使用不同的命名方式：
-  - "XX神"格式：战争神、锻造神、酒神
-  - "XX之神"格式：欺诈之神、风暴之神、深渊之神
-  - "XX女神/男神"格式：丰收女神、智慧女神、月之女神
-  - "大XX"或尊称格式：大地母神、太阳主、星辰主
-  - 抽象概念直接作名：宿命、偶然、真实、黎明
-  - 其他变体：织梦者、裁决者、猎手、观星者
-- 同一次生成中，这些格式应该混合出现，避免视觉上的整齐划一
-- 同一位神明可以在多个帖子中反复出现
-
-**神明说话的质感（极其重要）：**
-- 参考原文的语感："冒险！冒险！还是冒险！没有什么语言能形容这种美好的感觉！""诸神对身披闪光锁甲的勇者的活跃陷入了狂热之中"——有激情、有史诗感，但完全不装腔作势
-- 神明是真心热爱棋盘上的冒险的存在。他们会兴奋、会争论、会为棋子的命运动容，表达是直接而有力的，不是故作深沉
-- 绝对禁止古风中二腔："吾见证了……""力量即是正义""吾等领域的权柄"——这种装腔作势的文风比口语化更糟糕
-- 也不要网络口语化："哇好帅啊！""这也太离谱了吧哈哈哈""馋死我了"
-- 正确的方向：自然、有力、带着真实的情感。神明可以直接说"这一击漂亮"而不是"吾见证了力量的绽放"，也不是"卧槽这也太帅了吧"
-- 神明之间的互动应该有真实的化学反应——真正的分歧、真正的争论、真正的感慨，而不是每个人轮流发表一段独白式的"神明感言"
-- 回复之间应该有对话感：有人反驳前面的观点、有人补充细节、有人跑题引发新讨论，而不是每条回复都在独立地"表演"自己的角色
-
-**内容格调（极其重要）：**
-- 神明关注的是冒险、战斗、命运的转折、英雄的崛起与陨落、势力的博弈、世界的危机——这些宏大叙事
-- 不要写日常琐事（酒馆新品、街头八卦、谁喝醉了之类的）。神明不会关心这种鸡毛蒜皮的事
-- 但"宏大"不等于"严肃"。神明们是真心享受观看冒险的，他们的讨论应该是热烈的、有趣的、充满激情的，而不是一群老学究在写论文
-- 想想一群资深桌游玩家在讨论一场精彩的战役——他们会激动、会争论、会拍桌子，但话题始终围绕着战局本身
-
-**帖子内容来源（重要）：**
-- 最多只有一半帖子与玩家角色当前经历的剧情有关
-- 至少还有一半帖子是关于棋盘上其他地方正在发生的事：
-  - 玩家不在当前剧情中的熟人/羁绊角色在其他地方的冒险
-  - DNF原作人物正在经历的事件（使徒的动向、冒险家公会的行动等）
-  - 游戏人生原作人物的近况（十六种族的动态等）
-  - 世界各地正在发生的其他冒险故事
-- 神明们就像同时在看好几张棋盘，自然地在不同话题间切换
-
-**论坛氛围：**
-- 不要写成世界观百科或设定集，要有娱乐性和可读性
-- 帖子之间可以有关联（A帖里有人提到B帖的事，或者跨帖吵架）
-- 有的帖子热闹，有的帖子冷清，不要每个帖子都一样热闹
-- 神明偶尔会提到骰子、棋盘、棋子这些概念，但不要每个帖子都在强调这些设定元素
-- 特图不需要每个帖子都出现，也不需要每次都神秘兮兮地暗示伏笔`
-        };
-
-        // 检查是否为自定义风格
         if (style.startsWith('custom:')) {
-            const customStyleName = style.substring(7); // 移除 'custom:' 前缀
-            const customStyle = this.settings.customStyles.find(s => s.name === customStyleName);
-            if (customStyle) {
-                return customStyle.prompt;
-            }
+            const customStyleName = style.substring(7);
+            const customStyle = this.settings.customStyles.find(item => item.name === customStyleName);
+            if (customStyle) return customStyle.prompt;
         }
 
-        return stylePrompts[style] || stylePrompts['特图的众神剧场'];
+        return DEFAULT_FORUM_STYLE_PROMPT;
     }
 
     async callIndependentAPI({ basePrompt, stylePrompt }) {
@@ -9178,7 +8966,7 @@ function generateForumPanel() {
     const forumData = manager.loadForumData();
 
     // 获取当前论坛风格名称
-    let forumStyleName = manager.settings.forumStyle || '特图的众神剧场';
+    let forumStyleName = manager.settings.forumStyle || DEFAULT_FORUM_STYLE;
     if (forumStyleName.startsWith('custom:')) {
         forumStyleName = forumStyleName.substring(7); // 移除 'custom:' 前缀
     }

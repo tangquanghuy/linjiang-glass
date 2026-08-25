@@ -7,7 +7,7 @@ function generateForumPanel() {
     const forumData = manager.loadForumData();
 
     // 获取当前论坛风格名称
-    let forumStyleName = manager.settings.forumStyle || '特图的众神剧场';
+    let forumStyleName = manager.settings.forumStyle || DEFAULT_FORUM_STYLE;
     if (forumStyleName.startsWith('custom:')) {
         forumStyleName = forumStyleName.substring(7); // 移除 'custom:' 前缀
     }

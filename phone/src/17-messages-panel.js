@@ -1,7 +1,7 @@
 // ==================== 面板内容生成函数 ====================
 
 /**
- * 头像：优先用 CHARACTER_AVATAR_CONFIG 里配置的图，没有就退回「首字 + 按名字生成的渐变底」
+ * 头像：固定主播与开局自定义主播统一走 getCharacterAvatar，没有素材时显示首字渐变底
  * @param {string} name - 联系人/群名
  * @param {boolean} isGroup - 群聊用不同的兜底图标
  * @returns {string} - 头像 HTML
@@ -63,9 +63,10 @@ function generateMessagesPanel(data) {
     // 渲染MVU好友
     friends.forEach(studentKey => {
         const friend = relationshipSource[studentKey];
-        const affection = friend.好感度 ?? 0;
+        const affection = getContactAffection(friend);
         const displayName = restoreEraText(studentKey);
-        const thought = friend.当前想法 ? escapeHtml(friend.当前想法) : '';
+        const mood = getContactMood(friend);
+        const thought = mood ? escapeHtml(`心情：${mood}`) : '';
 
         // 添加到已渲染集合
         addedContactIds.add(studentKey);
