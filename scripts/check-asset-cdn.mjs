@@ -248,7 +248,7 @@ if (WANT_NET) {
        表现是玩家那边图裂或整页白屏（cg/index.html 的 jQuery 是同步阻塞的，取不到
        就一路挂到超时，后面的脚本全不执行）。所以这里直接去取一次。 */
     console.log('\n=== 硬编码外链是否可取 ===');
-    const HARDCODED = ['外部部署/开局.html', 'cg/index.html'];
+    const HARDCODED = ['外部部署/V20260826/开局.html', 'cg/index.html'];
     const seen = new Set();
     for (const file of HARDCODED) {
         if (!existsSync(file)) { fail(`${file} 不在`); continue; }

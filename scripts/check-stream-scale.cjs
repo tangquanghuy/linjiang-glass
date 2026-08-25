@@ -13,7 +13,7 @@ const cut = (src, name) => {
 };
 
 /* 读逻辑那份：streamScale / TIER_LABELS / roundNice 都在 public/shell/aux-shell.js 里，
-   粘贴的 外部部署/辅助计算脚本.js 拆分后只剩礼物表。见 scripts/build-aux-shell.mjs。 */
+   粘贴的 外部部署/V20260826/辅助计算脚本.js 拆分后只剩礼物表。见 scripts/build-aux-shell.mjs。 */
 const auxSrc = fs.readFileSync('public/shell/aux-shell.js', 'utf8');
 const table = auxSrc.slice(auxSrc.indexOf('const TIER_LABELS'), auxSrc.indexOf('function roundNice'));
 const aux = new Function(table + cut(auxSrc, 'roundNice') + cut(auxSrc, 'tierLabel')

@@ -6,7 +6,7 @@ const STEPS=['关于你','住所与工作','我推的主播','自定义主播','
 const LAST_STEP=STEPS.length;
 const ART_HOST='https://anchor.bolt.qzz.io';
 const art=(folder,file)=>ART_HOST+'/'+encodeURIComponent(folder)+'/'+encodeURIComponent(file)+'.webp';
-/* 固定主播池。名字／牌子名／直播档／封面文件名对齐 外部部署/正文美化.html 的
+/* 固定主播池。名字／牌子名／直播档／封面文件名对齐 外部部署/V20260826/正文美化.html 的
    LR_HOSTS，住所对齐 酒馆变量/变量初始化。
 
    followers 是唯一的作者定值，底盘热度和大航海全部由它反解出来（tierOfFollowers
@@ -263,7 +263,7 @@ function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('
 /* ---- 体量模型 ----------------------------------------------------------
    玩家只拉一根「体量档位」滑杆（0–100），粉丝数／底盘热度／大航海全是它的函数。
 
-   这段是 外部部署/辅助计算脚本.js 里 streamScale 的镜像，公式必须一模一样：
+   这段是 外部部署/V20260826/辅助计算脚本.js 里 streamScale 的镜像，公式必须一模一样：
    那边是运行时的唯一出处（LinjiangAux.streamScale），这一页是 GitHub Pages 上的
    独立页面、跨域拿不到酒馆的脚本，所以只能各放一份。改公式要同时改两处，
    scripts/shot-opening.mjs 会把两边的曲线都打出来对照。

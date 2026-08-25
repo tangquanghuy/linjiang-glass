@@ -312,8 +312,8 @@ ${content}
    状态栏现在有两个粘贴目标，它们的差别不在逻辑（同一份 public/shell/status-shell.js 生成）
    而在**装载时序**：
 
-     inline（默认）  外部部署/状态栏.html      脚本内联，同步执行。旧用户粘的就是这一份。
-     boot            外部部署/状态栏-引导壳.html  一句 <script src>，脚本从 http URL 取回再执行。
+     inline（默认）  外部部署/V20260826/状态栏.html      脚本内联，同步执行。旧用户粘的就是这一份。
+     boot            外部部署/V20260826/状态栏-引导壳.html  一句 <script src>，脚本从 http URL 取回再执行。
 
    两条都要能跑回归，因为线上会同时存在这两种安装。boot 那条尤其要测：它把「脚本执行」推到了
    网络之后，所以抬升时机、跨楼层交接、以及脚本里那两道守卫都是 inline 路径下不可能触发的。 */
@@ -325,9 +325,9 @@ const SHELL_VARIANT = (() => {
   return raw === 'boot' || raw === 'flow' ? raw : 'inline';
 })();
 const SHELL_FILES = {
-  inline: '/外部部署/状态栏.html',
-  boot: '/外部部署/状态栏-引导壳.html',
-  flow: '/外部部署/状态栏-测试版-流内嵌入.html',
+  inline: '/外部部署/V20260826/状态栏.html',
+  boot: '/外部部署/V20260826/状态栏-引导壳.html',
+  flow: '/外部部署/V20260826/状态栏-测试版-流内嵌入.html',
 };
 /* ?shellFail=1 ——— 故障注入，只对 boot 有意义：把脚本地址指向一个不存在的文件，
    用来验引导壳「脚本没取到」的兜底提示真的会出现。 */
@@ -440,10 +440,10 @@ function buildRenderBlock(id, source) {
 
 const FILLER_HTML = `
 <div style="padding:8px 10px;font:13px/1.6 system-ui;color:#cfd3e6">
-  <p>正文美化占位楼层。真实环境这里是 外部部署/正文美化.html，同样由酒馆助手注入成一个 srcdoc iframe。</p>
+  <p>正文美化占位楼层。真实环境这里是 外部部署/V20260826/正文美化.html，同样由酒馆助手注入成一个 srcdoc iframe。</p>
 </div>`;
 
-/* ?reading=1 时，带渲染 iframe 的楼层用**真实的** 外部部署/正文美化.html 当内容。
+/* ?reading=1 时，带渲染 iframe 的楼层用**真实的** 外部部署/V20260826/正文美化.html 当内容。
    它的部署方式是 SillyTavern 的正则把 AI 正文捕获成 $1 塞进这个模板，所以这里也照做：
    把 $1 换成一段样例叙事。这是量「每楼层一个 581KB 阅读器」真实代价的唯一诚实办法。 */
 const SAMPLE_PROSE = `
@@ -451,8 +451,8 @@ const SAMPLE_PROSE = `
 <p>“你今天回来得早。”东雪莲把遥控器放到茶几上，声音里没什么起伏，只是抬眼看了一下门口。</p>
 <p>客厅的灯只开了一半，另一半留给电视。屏幕里正在放一档深夜的谈话节目，主持人笑得很用力，声音被调到几乎听不见。</p>`;
 
-/* reading=inline   用 外部部署/正文美化.html（5 张图内联 base64，现状）
-   reading=external 用 外部部署/正文美化-外链素材版.html（同一份源生成，图改外链）
+/* reading=inline   用 外部部署/V20260826/正文美化.html（5 张图内联 base64，现状）
+   reading=external 用 外部部署/V20260826/正文美化-外链素材版.html（同一份源生成，图改外链）
    兼容旧写法：reading=1 等于 inline。
 
    外链版里的前缀指向 jsDelivr，但夹具里要改写成本地的 /reading/ —— vite 把 public/ 挂在根
@@ -467,8 +467,8 @@ const READING_VARIANT = (() => {
 })();
 
 const READING_FILES = {
-  inline: '/外部部署/正文美化.html',
-  external: '/外部部署/正文美化-外链素材版.html',
+  inline: '/外部部署/V20260826/正文美化.html',
+  external: '/外部部署/V20260826/正文美化-外链素材版.html',
 };
 
 /* ?readingPad=<KB>：往 srcdoc 里塞这么多 KB 的惰性文本（HTML 注释 —— 要解析，但不产生元素、

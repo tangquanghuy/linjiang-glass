@@ -69,7 +69,7 @@ const baselineRev = baselineIndex >= 0
 /* --shell inline|boot：把整个用例矩阵压到某一条投递路径上跑。
    默认矩阵里两条都有（见 CASES 的 shell 字段），这个开关是给「怀疑某条路径整体退化」时用的。
 
-   基线模式强制 inline：--baseline 是拿 git 某个版本的 外部部署/状态栏.html 去顶替工作区那份，
+   基线模式强制 inline：--baseline 是拿 git 某个版本的 外部部署/V20260826/状态栏.html 去顶替工作区那份，
    而那份文件本身就是自包含版。引导壳路径下夹具根本不 fetch 它，顶替就落不到实处，断言会
    莫名其妙地绿 —— 那比没有基线更糟。 */
 const shellOverride = argValue('--shell', '');
@@ -190,7 +190,7 @@ for (const kase of CASES) {
        所以基线那条（只匹配 状态栏.html）必须排在后面才能压过兜底。 */
     await stubExternalRequests(page, externalHosts);
     if (baselineShell) {
-      /* 夹具 fetch 的是 '/外部部署/状态栏.html'，请求 URL 是百分号编码的，所以带中文
+      /* 夹具 fetch 的是 '/外部部署/V20260826/状态栏.html'，请求 URL 是百分号编码的，所以带中文
          文件名的 glob 匹配不上，必须用谓词。 */
       await page.route(
         (url) => decodeURIComponent(url.pathname).endsWith('状态栏.html'),

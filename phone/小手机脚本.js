@@ -10296,7 +10296,7 @@ if (typeof window !== 'undefined') {
     exposePhoneLauncher(window.parent);
     exposePhoneLauncher(window.top);
 
-    /* 玻璃状态栏代替悬浮球唤起手机，而它跑在酒馆里另一个 iframe（外部部署/状态栏.html）。
+    /* 玻璃状态栏代替悬浮球唤起手机，而它跑在酒馆里另一个 iframe（外部部署/V20260826/状态栏.html）。
        上面那三次 exposePhoneLauncher 是「同源才成立」的路：只要本脚本所在的框架跟酒馆顶层
        之间有一层跨源/沙箱，赋值就会抛异常被 catch 吞掉，壳层于是在 window / parent / top
        上一个启动函数都找不到 —— 表现就是点了手机钮什么都不发生（HUD 那边 8 秒后一条

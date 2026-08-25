@@ -190,7 +190,7 @@ function fan({ follow = false, tipped = 0, tier = '无', days = 0, mod = false, 
 
 export const MAP_MARKER_ITEM = '城市规划蓝图';
 /* 每次确定建设要付的建设费。蓝图是用品，使用不扣数量，所以它是可反复用的许可证，
-   代价按次收：真正的扣款和拒绝都在宿主（外部部署/状态栏.html 的 saveCustomMapNode）里做，
+   代价按次收：真正的扣款和拒绝都在宿主（外部部署/V20260826/状态栏.html 的 saveCustomMapNode）里做，
    这个常量只管 HUD 这一侧的显示与按钮禁用。改价时那边要一起改。 */
 export const CITY_BUILD_COST = 1000000;
 /* 描述是购买时抄进 MVU 的快照，老存档里存的还是没有建设费那一句的旧文案。

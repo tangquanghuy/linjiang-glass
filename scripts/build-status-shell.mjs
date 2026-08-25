@@ -2,9 +2,9 @@
    ==================================================================
    源只有一份（那个脚本），这里生成两个粘贴目标：
 
-     外部部署/状态栏-引导壳.html   只有一句 <script src>，把脚本从 GitHub Pages 取下来执行。
+     外部部署/V20260826/状态栏-引导壳.html   只有一句 <script src>，把脚本从 GitHub Pages 取下来执行。
                                    粘一次就不用再动，以后改逻辑只推仓库，十分钟内所有人生效。
-     外部部署/状态栏.html          自包含版，把脚本内联回去。给已经装了旧版、暂时不想换成
+     外部部署/V20260826/状态栏.html          自包含版，把脚本内联回去。给已经装了旧版、暂时不想换成
                                    引导壳的用户继续粘。
 
    为什么两份都要生成，而不是手抄
@@ -25,9 +25,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SHELL_JS = join(ROOT, 'public', 'shell', 'status-shell.js');
-const OUT_BOOT = join(ROOT, '外部部署', '状态栏-引导壳.html');
-const OUT_INLINE = join(ROOT, '外部部署', '状态栏.html');
-const OUT_FLOW = join(ROOT, '外部部署', '状态栏-测试版-流内嵌入.html');
+const OUT_BOOT = join(ROOT, '外部部署', 'V20260826', '状态栏-引导壳.html');
+const OUT_INLINE = join(ROOT, '外部部署', 'V20260826', '状态栏.html');
+const OUT_FLOW = join(ROOT, '外部部署', 'V20260826', '状态栏-测试版-流内嵌入.html');
 
 /* 脚本的线上地址。
    ------------------------------------------------------------------
@@ -138,7 +138,7 @@ const INLINE_HEADER = `<!-- 状态栏（自包含版）。粘进角色卡「状�
 
      但它有一个改不掉的毛病 —— 粘下去就冻结了。HUD 产物在 GitHub Pages 上持续更新，这份
      不会。两者是同一个 RPC 契约的两端，脱节的后果是静默错账（已经出过一次：建设费不扣钱）。
-     新装请用 外部部署/状态栏-引导壳.html，那一份粘一次就永远跟着线上走。 -->`;
+     新装请用 外部部署/V20260826/状态栏-引导壳.html，那一份粘一次就永远跟着线上走。 -->`;
 
 const BOOT_SCRIPT = `<!-- 壳层脚本。放在两个元素之后，所以脚本执行时它们一定已经在文档里了。
 
@@ -192,7 +192,7 @@ const FLOW_HEADER = `<!-- 状态栏（实验版：收回态改用酒馆原生嵌
      ==================================================================
      本文件由 scripts/build-status-shell.mjs 从 public/shell/status-shell.js 生成，请勿直接编辑。
 
-     它和 外部部署/状态栏.html 是同一份逻辑，只多一行：加载壳层之前把 __linjiangInlineDock
+     它和 外部部署/V20260826/状态栏.html 是同一份逻辑，只多一行：加载壳层之前把 __linjiangInlineDock
      设成 true。于是壳层里那个开关生效，**只有收回态**改成真正的原生嵌入 ——
      HUD 直接挂在楼层文档里，position:static、宽 100%，滚动 / 裁剪 / 层叠 / 高度全交给酒馆。
 

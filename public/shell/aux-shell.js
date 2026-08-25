@@ -6,12 +6,12 @@
  *
  *   public/shell/aux-shell.js      本文件。全部逻辑与数据。玩家的酒馆用 import() 从
  *                                  jsDelivr 取它。改了推一次 main 就对所有人生效。
- *   外部部署/辅助计算脚本.js        由 scripts/build-aux-shell.mjs 从本文件生成的引导版
+ *   外部部署/V20260826/辅助计算脚本.js        由 scripts/build-aux-shell.mjs 从本文件生成的引导版
  *                                  （约 6.5KB）。粘一次就不用再动。
  *
  * 为什么不是整份搬走、粘贴那份只留一句 import
  * ------------------------------------------------------------------
- * 因为有一个消费方要求**同步可用**：外部部署/正文美化.html 的 mountLiveRoom() 在初始渲染路径
+ * 因为有一个消费方要求**同步可用**：外部部署/V20260826/正文美化.html 的 mountLiveRoom() 在初始渲染路径
  * 里就用 LinjiangAux.roomMenu() 把礼物列表写进 DOM。取不到就退到 LR_MENU_FALLBACK，而那里的
  * 礼物/大航海是空数组 —— 那张卡片会永久显示没有礼物，不崩也不报错。
  *

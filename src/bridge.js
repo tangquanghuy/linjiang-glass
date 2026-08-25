@@ -37,7 +37,7 @@ export function isEmbedded() {
 /* 谁算"壳层"。
    ------------------------------------------------------------------
    以前这里要求 event.source === window.parent，那是壳层还把 HUD iframe 放在自己文档里
-   时候的写法。现在 外部部署/状态栏.html 的 manager 把 HUD iframe 挂到酒馆文档上（这样
+   时候的写法。现在 外部部署/V20260826/状态栏.html 的 manager 把 HUD iframe 挂到酒馆文档上（这样
    楼层交接不会重载 HUD），于是我们的 window.parent 是酒馆顶层窗口，而说话的脚本仍然跑在
    楼层里那个状态栏 iframe 里 —— postMessage 的 source 是"调用它的那个窗口"，也就是状态栏
    iframe，既不是 parent 也不是 top。结果握手回包和 snapshot 全被丢掉，HUD 一直画 data.js
@@ -350,7 +350,7 @@ export function reportOverlay(open, { page = false } = {}) {
 }
 
 /* 默认停靠方式住在 HUD 这边的 localStorage 里，而决定停靠的代码在壳层
-   （外部部署/状态栏.html）。两边不同源，壳层读不到，所以只能由 HUD 通报。
+   （外部部署/V20260826/状态栏.html）。两边不同源，壳层读不到，所以只能由 HUD 通报。
 
    `apply` 区分的是两种完全不同的意图，壳层也据此分别处理：
      false —— 开机通报。壳层只在本会话还没被手动干预时采纳，采纳一次就不再听。

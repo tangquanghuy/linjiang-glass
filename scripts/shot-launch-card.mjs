@@ -1,4 +1,4 @@
-// 把 外部部署/开局.html 放到一块模拟的酒馆聊天底上截图。
+// 把 外部部署/V20260826/开局.html 放到一块模拟的酒馆聊天底上截图。
 // 那张卡是要粘进角色卡楼层的，所以只在浏览器里单开是看不出问题的——
 // 它得在一条深色（或浅色）聊天流中间还站得住。
 // 卡里引的是 GitHub Pages 上的图，这里用 route 拦下来喂本地文件；
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CARD = readFileSync(path.join(root, '外部部署/开局.html'), 'utf8');
+const CARD = readFileSync(path.join(root, '外部部署/V20260826/开局.html'), 'utf8');
 const BASE = 'https://tangquanghuy.github.io/linjiang-glass/assets/';
 const LOCAL = {
   'opening-strip.webp': ['public/assets/opening-strip.webp', 'image/webp'],

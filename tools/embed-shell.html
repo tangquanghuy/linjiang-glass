@@ -12,7 +12,7 @@
 <body>
 <iframe id="hud" title="玻璃状态栏" src="" loading="eager"></iframe>
 <script type="module">
-/* Layout-only twin of 外部部署/状态栏.html: same lift / spacer / portrait
+/* Layout-only twin of 外部部署/V20260826/状态栏.html: same lift / spacer / portrait
    height / detail fill / clip stage.  No MVU.  Numbers come from embed-contract.js. */
 import {
   CHANNEL, MAX_VH, PORTRAIT_GUTTER, desktopHudBox, portraitHud as portraitOf,
@@ -118,7 +118,7 @@ const setSpacer = (frame, height) => {
   apply('background', 'transparent');
 };
 
-/* 裁剪台，和 外部部署/状态栏.html 一样：裁剪交给一个钉在阅读区上的 overflow:hidden
+/* 裁剪台，和 外部部署/V20260826/状态栏.html 一样：裁剪交给一个钉在阅读区上的 overflow:hidden
    容器，HUD 在台内只用 transform 平移并提升为合成层。这个孪生体是"同一套抬升/占位/
    竖屏高度"的布局复刻，所以这一层也必须跟着改 —— 否则 npm run embed 验的是生产已经
    不再使用的那套几何策略。裁剪成本与理由见状态栏那边的长注释。 */

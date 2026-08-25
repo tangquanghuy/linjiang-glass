@@ -2,7 +2,7 @@
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'node:fs';
 
-const source = readFileSync('外部部署/正文美化.html', 'utf8')
+const source = readFileSync('外部部署/V20260826/正文美化.html', 'utf8')
   .replace(/^```\s*\r?\n/, '')
   .replace(/\r?\n```\s*$/, '');
 const port = 5231;

@@ -1,5 +1,5 @@
 // 从 public/assets/opening-background.png 里裁一条横幅用的窄带，压成 webp。
-// 外部部署/开局.html 那张启动卡是一条很扁的横条，直接引 2MB 的原图太重；
+// 外部部署/V20260826/开局.html 那张启动卡是一条很扁的横条，直接引 2MB 的原图太重；
 // 这里取「花枝 — 书架灯 — 窗外湖面 — 桌沿反光」这一段，保留上下一点余量，
 // 让卡片在宽屏（横条）和手机（近方形）两种比例下 object-fit: cover 都裁得住。
 import { chromium } from 'playwright';

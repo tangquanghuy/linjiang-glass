@@ -1,4 +1,4 @@
-/* 从 外部部署/正文美化.html 生成「外链素材版」。
+/* 从 外部部署/V20260826/正文美化.html 生成「外链素材版」。
    ==================================================================
    为什么要这一版
    ------------------------------------------------------------------
@@ -32,7 +32,7 @@
    3. 速度。同一个 2MB 文件，jsDelivr 2.5 秒，Pages 163 秒（在一台不在墙内的机器上测的，
       墙内只会更糟）。单次样本，但和第 2 条方向一致。
 
-   两个源都带 Access-Control-Allow-Origin: *，所以 外部部署/素材缓存脚本.js 都能把它们收进
+   两个源都带 Access-Control-Allow-Origin: *，所以 外部部署/V20260826/素材缓存脚本.js 都能把它们收进
    IndexedDB —— 第一次加载之后就完全不走网络，这一点比 CDN 之间差几十毫秒重要得多。
 
    文件名带内容哈希，因为 jsDelivr 对分支引用（@main）有 12 小时的边缘缓存：换了图就是换了
@@ -78,8 +78,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SOURCE = join(ROOT, '外部部署', '正文美化.html');
-const OUTPUT = join(ROOT, '外部部署', '正文美化-外链素材版.html');
+const SOURCE = join(ROOT, '外部部署', 'V20260826', '正文美化.html');
+const OUTPUT = join(ROOT, '外部部署', 'V20260826', '正文美化-外链素材版.html');
 /* 素材放 public/reading/：vite 把 publicDir 整个拷到 dist 根（Pages 上就是 /reading/），
    而 jsDelivr 的 /gh/ 是直接读仓库路径，所以那边要带 public/ 前缀。两个源的路径形状不同，
    下面的 TARGETS 各写一份，不要试图用一个变量拼。 */
@@ -251,7 +251,7 @@ output = output.slice(0, spanStart) + linkBlock + output.slice(spanEnd);
 assets.push({ name: 'reading-css', file: cssFile, bytes: cssBytes, base64Length: 0, label: `合并后的样式表（22 块）` });
 
 /* 在头部留一条说明，避免有人误以为这份是手写的源。 */
-const banner = `<!-- 本文件由 scripts/build-reading-external.mjs 从 外部部署/正文美化.html 生成，请勿直接编辑。
+const banner = `<!-- 本文件由 scripts/build-reading-external.mjs 从 外部部署/V20260826/正文美化.html 生成，请勿直接编辑。
      与源的差异只有两处：
        1. 5 张内联 base64 WebP 改成了外链；
        2. head 里 22 个内联 <style>（共 ${(cssBytes.length / 1024).toFixed(0)}KB）合并成一个外链样式表。
@@ -299,8 +299,8 @@ writeFileSync(OUTPUT, withBanner);
 const inlinedBytes = assets.reduce((total, asset) => total + asset.base64Length, 0);
 const sourceBytes = Buffer.byteLength(source);
 const outBytes = Buffer.byteLength(withBanner);
-console.log(`源     外部部署/正文美化.html            ${sizeKB(sourceBytes)} KB`);
-console.log(`产物   外部部署/正文美化-外链素材版.html   ${sizeKB(outBytes)} KB`);
+console.log(`源     外部部署/V20260826/正文美化.html            ${sizeKB(sourceBytes)} KB`);
+console.log(`产物   外部部署/V20260826/正文美化-外链素材版.html   ${sizeKB(outBytes)} KB`);
 console.log(`省下   ${sizeKB(sourceBytes - outBytes)} KB —— 其中 base64 图片 ${sizeKB(inlinedBytes)} KB，`
   + `样式表 ${sizeKB(cssBytes.length)} KB`);
 console.log(`       这是**每条 AI 消息**都要省一次的量（每条消息一个独立 iframe）\n`);

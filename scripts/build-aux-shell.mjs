@@ -1,11 +1,11 @@
-/* 从 public/shell/aux-shell.js 生成粘贴用的 外部部署/辅助计算脚本.js（引导版）。
+/* 从 public/shell/aux-shell.js 生成粘贴用的 外部部署/V20260826/辅助计算脚本.js（引导版）。
    ==================================================================
    跟状态栏那次拆分的区别
    ------------------------------------------------------------------
    状态栏是「整块搬走，粘贴那份只剩一句 <script src>」。辅助计算脚本不能这么干，因为它有一个
    **必须同步可用**的消费方：
 
-     外部部署/正文美化.html 的 mountLiveRoom() 在初始渲染路径里就用 lrMenu() 把礼物列表写进
+     外部部署/V20260826/正文美化.html 的 mountLiveRoom() 在初始渲染路径里就用 lrMenu() 把礼物列表写进
      DOM。lrMenu() 取不到 LinjiangAux 时退到 LR_MENU_FALLBACK，而那里的 礼物/大航海 是**空数组**。
      所以只要脚本晚到一点，那张直播间卡片就永久显示没有礼物 —— 不崩、不报错，静默错。
 
@@ -43,7 +43,7 @@ import { Script } from 'node:vm';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SOURCE = join(ROOT, 'public', 'shell', 'aux-shell.js');
-const OUTPUT = join(ROOT, '外部部署', '辅助计算脚本.js');
+const OUTPUT = join(ROOT, '外部部署', 'V20260826', '辅助计算脚本.js');
 
 /* 线上地址。用 jsDelivr 而不是 Pages，理由（延迟差 20 倍的实测）写在
    scripts/build-status-shell.mjs 的 SHELL_URL 那一段，两处是同一个判断。 */
@@ -254,13 +254,13 @@ try { current = readFileSync(OUTPUT, 'utf8'); } catch { /* 还不存在 */ }
 const same = current !== null && Buffer.from(current, 'utf8').equals(Buffer.from(body, 'utf8'));
 
 if (same) {
-  console.log(`  ok    引导版  外部部署/辅助计算脚本.js  ${Buffer.byteLength(body)} 字节`);
+  console.log(`  ok    引导版  外部部署/V20260826/辅助计算脚本.js  ${Buffer.byteLength(body)} 字节`);
 } else if (checkOnly) {
   console.error('\n辅助计算脚本引导版已过期，跑 npm run aux:build 重新生成');
   process.exit(1);
 } else {
   writeFileSync(OUTPUT, body, 'utf8');
-  console.log(`  写入  引导版  外部部署/辅助计算脚本.js  ${Buffer.byteLength(body)} 字节`);
+  console.log(`  写入  引导版  外部部署/V20260826/辅助计算脚本.js  ${Buffer.byteLength(body)} 字节`);
 }
 
 console.log(`\n源：public/shell/aux-shell.js（${source.split('\n').length - 1} 行 / ${Buffer.byteLength(source)} 字节）`);

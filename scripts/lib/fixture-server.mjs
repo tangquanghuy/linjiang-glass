@@ -74,7 +74,7 @@ function localReadingAssetsPlugin() {
    <script> 的内容。抽取规则和 tools/tavern-live-fixture.js 里的一致（取最大的一块），
    两边都断言体积一致，防止漂移。这只是量测支架，不生成任何产物。 */
 function harnessScriptPlugin() {
-  const PRODUCT = join(PROJECT_ROOT, '外部部署', '正文美化-外链素材版.html');
+  const PRODUCT = join(PROJECT_ROOT, '外部部署', 'V20260826', '正文美化-外链素材版.html');
   return {
     name: 'linjiang-harness-script',
     configureServer(server) {
@@ -95,7 +95,7 @@ function harnessScriptPlugin() {
 
 /* 引导壳路径的本地化。
    ------------------------------------------------------------------
-   外部部署/状态栏-引导壳.html 里那句 <script src> 指向 GitHub Pages 上的
+   外部部署/V20260826/状态栏-引导壳.html 里那句 <script src> 指向 GitHub Pages 上的
    shell/status-shell.js。夹具要验的正是「脚本从一个真的 http URL 异步取下来再执行」这条路径
    —— 换成内联或者 blob: 就把异步时序和那两道守卫全绕过去了，等于没测。
 
