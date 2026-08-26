@@ -1,5 +1,5 @@
 (()=>{
-const MAP_REV='20260826-opening-ready-v19';
+const MAP_REV='20260826-opening-tablet-ime-v20';
 const DEFAULT_MAP=`./city/plate_map.html?mode=opening&v=${MAP_REV}`;
 const MAP_URL=new URLSearchParams(location.search).get('map')||DEFAULT_MAP;
 const STEPS=['关于你','住所与工作','我推的主播','自定义主播','确认'];
@@ -7,6 +7,14 @@ const LAST_STEP=STEPS.length;
 const TOUCH_DEVICE=/android|iphone|ipad|ipod/i.test(String(navigator.userAgent||''))
   || (Number(navigator.maxTouchPoints||0)>0&&!!matchMedia?.('(pointer: coarse)')?.matches);
 if(TOUCH_DEVICE)document.documentElement.classList.add('touch-device');
+function focusTouchEditor(event){
+  if(!TOUCH_DEVICE)return;
+  const target=event.target&&event.target.closest&&event.target.closest('textarea,input:not([type=file]):not([type=range]):not([type=button])');
+  if(!target||target.disabled||target.readOnly)return;
+  try{target.focus({preventScroll:true})}catch(_){try{target.focus()}catch(__){}}
+}
+document.addEventListener('touchstart',focusTouchEditor,{capture:true,passive:true});
+document.addEventListener('pointerdown',event=>{if(event.pointerType==='touch')focusTouchEditor(event)},true);
 const ART_HOST='https://anchor.bolt.qzz.io';
 const art=(folder,file)=>ART_HOST+'/'+encodeURIComponent(folder)+'/'+encodeURIComponent(file)+'.webp';
 /* 固定主播池。名字／牌子名／直播档／封面文件名对齐 外部部署/V20260826/正文美化.html 的

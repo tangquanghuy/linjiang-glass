@@ -870,10 +870,8 @@
       return ok;
     }
 
-    /* 礼物等结算交给辅助计算脚本；关注/取关额外保留直接写 MVU 的兜底。
-       原来这个函数自己拼 10 条 MVU 补丁（钱、所在直播间、累计打赏、牌子等级、关注、
-       牌子档位、本场热度、直播热度、高能榜、大航海），跟辅助脚本抢同一批字段。
-       现在一次 roomAction 换回一份快照，连送递减、榜一还手、热度换算都在脚本那边算好。 */
+    /* roomAction 只保留关注/取关。礼物、醒目留言和大航海只向酒馆发送
+       一条消费消息，金钱、累计打赏、牌子和热度统一等模型回合更新 MVU。 */
     function lrApplySnapshot(state, snap) {
       if (!snap) return;
       const has = (key) => Object.prototype.hasOwnProperty.call(snap, key);
@@ -895,7 +893,7 @@
       lrPaintNavy(state);
       lrPaintRank(state);
     }
-    /* 返回 false 表示没写成（钱不够、脚本没跑起来），调用方不要再往弹幕里推那一条。 */
+    /* 这里只服务关注/取关；消费动作不再经过辅助脚本写 MVU。 */
     function lrDoAction(state, action, extra) {
       const aux = lrAux();
       let res = null;
@@ -969,14 +967,14 @@
     }
 
     function lrSendGift(state, name, qty) {
-      // 花多少、加多少人气全由脚本算，这里不再自己乘价格。
+      // 只生成并发送酒馆消息；当前卡片不直接结算金钱、热度或榜单。
       const item = lrGiftItem(name);
-      if (!item) return;
-      if (!lrDoAction(state, '礼物', { 礼物: name, 数量: qty })) return;
-      lrPush(state, { type: 'gift', user: '你', gift: name, n: qty }, true);
+      if (!item) return false;
       const count = Math.max(1, Number(qty) || 1);
       const cost = (Number(item.price) || 0) * count;
-      lrSendRoomChat(state, `消费${cost}，送出${count}个${name}`);
+      if (!lrSendRoomChat(state, `消费${cost}，送出${count}个${name}`)) return false;
+      lrPush(state, { type: 'gift', user: '你', gift: name, n: count }, true);
+      return true;
     }
     function lrOpenGift(state, name) {
       const gift = lrGiftItem(name);
@@ -1008,20 +1006,18 @@
         return;
       }
       if (pending.mode === 'gift') {
-        lrSendGift(state, pending.name, pending.qty);
+        if (!lrSendGift(state, pending.name, pending.qty)) return;
       } else if (pending.mode === 'guard') {
-        // 大航海计数、名单、榜都在脚本那边写，快照回来直接重画
-        if (!lrDoAction(state, '大航海', { 礼物: pending.name })) return;
+        // 大航海结算交给这条酒馆消息之后的模型回合。
+        if (!lrSendRoomChat(state, `消费${pending.price}，开通${state.host}的${pending.name}`)) return;
         lrShowToast(state, { user: '你', gift: pending.name, line: `开通了 ${pending.name} ${pending.days} 天` });
         lrPush(state, { type: 'sys', text: `你成为了${state.host}的${pending.name}（${pending.days} 天）` }, true);
         lrSpawnFly(state, { type: 'gift', gift: pending.name, n: 1 }, true);
-        lrSendRoomChat(state, `消费${pending.price}，开通${state.host}的${pending.name}`);
       } else {
         const text = pending.text.trim();
-        if (!lrDoAction(state, '醒目留言', { 金额: pending.amount, 内容: text })) return;
+        if (!lrSendRoomChat(state, `消费${pending.amount}，发送价值${pending.amount}的SC：${text}`)) return;
         lrPush(state, { type: 'sc', user: '你', amount: pending.amount, text }, true);
         lrEl(state.root, 'say').value = '';
-        lrSendRoomChat(state, `消费${pending.amount}，发送价值${pending.amount}的SC：${text}`);
       }
       lrCloseDlg(state);
     }

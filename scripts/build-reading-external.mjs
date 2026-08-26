@@ -123,6 +123,19 @@ const EXPECTED = [
 
 const source = readFileSync(SOURCE, 'utf8');
 
+/* 直播间消费动作只生成酒馆消息；卡片不先写 MVU。
+   这条由源和外链产物共用，防止以后又把 roomAction 接回确认按钮。 */
+const directConsumptionCalls = [
+  "lrDoAction(state, '礼物'",
+  "lrDoAction(state, '大航海'",
+  "lrDoAction(state, '醒目留言'",
+];
+const directHit = directConsumptionCalls.find((marker) => source.includes(marker));
+if (directHit) throw new Error(`直播间消费又开始直接写 MVU：${directHit}`);
+for (const marker of ['送出${count}个${name}', '开通${state.host}的${pending.name}', '发送价值${pending.amount}的SC']) {
+  if (!source.includes(marker)) throw new Error(`直播间缺少酒馆消息路径：${marker}`);
+}
+
 /* 找出所有 data URI，并把它所在的选择器/属性一起带出来。 */
 const DATA_URI = /url\("data:image\/(?<type>[a-z]+);base64,(?<payload>[A-Za-z0-9+/=]+)"\)/g;
 const found = [];

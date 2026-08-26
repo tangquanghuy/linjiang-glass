@@ -1275,7 +1275,7 @@ body.compact-step .theme-choice{min-height:27px;padding:3px 7px}
    Width-only desktop breakpoints then force four horizontal cards into one row and
    leave each copy column only a few characters wide. The runtime adds
    html.touch-device from UA/pointer facts so tablet cards stay readable. */
-@media (min-width:1351px) and (max-width:1800px) {
+@media (min-width:1351px) and (max-width:2200px) {
   html.touch-device body.oshi-step .oshi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
   html.touch-device body.oshi-step .oshi-card { min-height:238px; }
   html.touch-device body.oshi-step .oshi-art { flex:0 0 42%; min-height:238px; }
@@ -1286,4 +1286,50 @@ body.compact-step .theme-choice{min-height:27px;padding:3px 7px}
   html.touch-device body.oshi-step .oshi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
   html.touch-device body.oshi-step .oshi-card { min-height:230px; }
   html.touch-device body.oshi-step .oshi-art { flex:0 0 40%; min-height:230px; }
+}
+
+/* A touch tablet needs stable content sizes, not the desktop one-screen compression.
+   TT can report a wide CSS viewport together with a short visual viewport; the
+   desktop flex rules then shrink the map to ~260px and stretch the opening picker. */
+@media (min-width:1051px) and (max-width:2200px) {
+  html.touch-device body.life-map-step .shell { height:auto; min-height:calc(100vh - var(--frame)*2); }
+  html.touch-device body.life-map-step .main { overflow:visible; }
+  html.touch-device body.life-map-step .panel[data-panel="2"].active { height:auto; }
+  html.touch-device body.life-map-step .life-map-layout {
+    display:grid; grid-template-columns:minmax(0,1.55fr) minmax(400px,.85fr); gap:14px; align-items:stretch;
+  }
+  html.touch-device body.life-map-step .opening-map-card { display:flex; flex-direction:column; }
+  html.touch-device body.life-map-step .opening-map-viewport { flex:none; height:clamp(520px,34vw,680px); min-height:520px; }
+  html.touch-device body.life-map-step .life-inspector { align-content:stretch; grid-template-rows:1fr 1fr; }
+  html.touch-device body.life-map-step .life-selection-card { height:auto; }
+
+  html.touch-device body.oshi-step .opening-picker,
+  html.touch-device body.oshi-step .opening-picker.custom-active {
+    display:block; flex:none; min-height:0; max-height:none; margin-top:12px; padding:16px 18px 18px; overflow:visible;
+  }
+  html.touch-device body.oshi-step .opening-picker-head {
+    display:flex; flex-direction:row; align-items:flex-end; justify-content:space-between; margin:0 0 12px; padding:0; border:0;
+  }
+  html.touch-device body.oshi-step .opening-picker-head>span { margin:0; max-width:58%; text-align:right; }
+  html.touch-device body.oshi-step .opening-switcher {
+    position:relative; display:grid; grid-template-columns:48px minmax(0,1fr) 48px; gap:10px; width:100%; max-width:none; margin:0;
+  }
+  html.touch-device body.oshi-step .opening-stage { display:block; width:100%; min-width:0; }
+  html.touch-device body.oshi-step .opening-neighbor { display:none; }
+  html.touch-device body.oshi-step .opening-slide {
+    position:relative; display:grid; grid-template-columns:92px minmax(0,1fr); gap:18px; width:100%; min-height:132px; padding:18px 22px;
+  }
+  html.touch-device body.oshi-step .opening-number { position:static; display:flex; align-items:flex-end; justify-content:center; height:auto; padding:0 18px 0 0; }
+  html.touch-device body.oshi-step .opening-slide-copy { display:flex; flex-direction:column; justify-content:center; min-width:0; padding:0; }
+  html.touch-device body.oshi-step .opening-slide-copy>p { white-space:normal; }
+  html.touch-device body.oshi-step .opening-dots { grid-column:1/-1; justify-self:center; margin-top:4px; }
+  html.touch-device body.oshi-step .opening-arrow { align-self:stretch; width:48px; height:auto; min-height:132px; margin:0; }
+  html.touch-device body.oshi-step .custom-opening {
+    position:relative; z-index:12; display:block; width:100%; margin:12px 0 0; padding:12px 0 0; pointer-events:auto;
+  }
+  html.touch-device body.oshi-step .custom-opening.hidden { display:none!important; }
+  html.touch-device #custom-opening-text {
+    position:relative; z-index:1; width:100%; min-height:150px; pointer-events:auto; touch-action:manipulation;
+    -webkit-user-select:text; user-select:text; -webkit-touch-callout:default;
+  }
 }

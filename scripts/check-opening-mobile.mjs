@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+﻿import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { startFixtureServer } from './lib/fixture-server.mjs';
 import { PROJECT_ROOT } from './lib/real-tavern-sources.mjs';
@@ -50,7 +50,7 @@ console.log('\n=== opening overlay readiness with stalled decoration ===');
 
 console.log('\n=== TT tablet opening layout ===');
 {
-  const page = await browser.newPage({ viewport: { width: 1548, height: 916 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, userAgent: mobileUa });
+  const page = await browser.newPage({ viewport: { width: 1824, height: 1000 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, userAgent: mobileUa });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await delayExternalDecoration(page);
@@ -76,15 +76,82 @@ console.log('\n=== TT tablet opening layout ===');
     };
   });
   check(layout.touch, 'Android/TT runtime marks the opening page as touch-device');
-  check(layout.columns === 3 && layout.firstRow === 3, '1548px touch tablet uses three readable cards per row', JSON.stringify(layout));
+  check(layout.columns === 3 && layout.firstRow === 3, '1824px touch tablet uses three readable cards per row', JSON.stringify(layout));
   check(layout.minBody >= 220, 'tablet card copy column stays readable', `${layout.minBody}px`);
   check(layout.overflowX <= 1, 'tablet opening page has no horizontal overflow', `${layout.overflowX}px`);
-  await page.screenshot({ path: join(PROJECT_ROOT, 'artifacts', 'opening-tablet-tt.png'), fullPage: true });
+
+  const picker = await page.evaluate(() => {
+    const switcher = document.querySelector('.opening-switcher').getBoundingClientRect();
+    const slide = document.querySelector('#opening-slide').getBoundingClientRect();
+    return { switcher: Math.round(switcher.width), slide: Math.round(slide.width), ratio: +(slide.width / switcher.width).toFixed(2) };
+  });
+  check(picker.ratio >= .72, 'touch tablet opening selector gives the selected card the main width', JSON.stringify(picker));
+  await page.screenshot({ path: join(PROJECT_ROOT, 'artifacts', 'opening-tablet-tt-oshi.png'), fullPage: true });
+  await page.locator('#opening-prev').click();
+  await page.waitForSelector('#opening-picker.custom-active #custom-opening-box:not(.hidden)');
+  await page.locator('#custom-opening-text').tap();
+  await page.keyboard.type('Touch keyboard input');
+  const customInput = await page.evaluate(() => {
+    const field = document.querySelector('#custom-opening-text');
+    const r = field.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(30, r.height / 2));
+    return { focused: document.activeElement === field, value: field.value, hit: hit?.id || hit?.className || hit?.tagName || '' };
+  });
+  check(customInput.focused && customInput.value.includes('Touch keyboard input'),
+    'custom opening textarea receives a real touch focus and text input', JSON.stringify(customInput));
+  await page.screenshot({ path: join(PROJECT_ROOT, 'artifacts', 'opening-tablet-tt-custom.png'), fullPage: true });
+
   await page.locator('.step-tab[data-step="2"]').click();
   await page.waitForFunction(() => !!document.querySelector('#opening-map-iframe')?.getAttribute('src'));
   const mapSrc = await page.locator('#opening-map-iframe').getAttribute('src');
   check(/plate_map\.html/.test(mapSrc || ''), 'map starts when the player enters step 2', mapSrc || '(empty)');
+  await page.waitForTimeout(500);
+  const mapLayout = await page.evaluate(() => {
+    const viewport = document.querySelector('.opening-map-viewport').getBoundingClientRect();
+    const mapCard = document.querySelector('.opening-map-card').getBoundingClientRect();
+    const inspector = document.querySelector('.life-inspector').getBoundingClientRect();
+    return {
+      viewportH: Math.round(viewport.height), mapH: Math.round(mapCard.height), inspectorH: Math.round(inspector.height),
+      bottomDelta: Math.round(Math.abs(mapCard.bottom - inspector.bottom)), overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  check(mapLayout.viewportH >= 540, 'touch tablet map keeps a useful viewport height', JSON.stringify(mapLayout));
+  check(mapLayout.bottomDelta <= 80, 'map and inspector columns end at a balanced height', JSON.stringify(mapLayout));
+  check(mapLayout.overflowX <= 1, 'map step has no horizontal overflow', `${mapLayout.overflowX}px`);
+  await page.screenshot({ path: join(PROJECT_ROOT, 'artifacts', 'opening-tablet-tt-map.png'), fullPage: true });
   check(errors.length === 0, 'tablet page has no script errors', errors.slice(0, 3).join(' | '));
+  await page.close();
+}
+
+console.log('\n=== TT overlay custom-opening keyboard focus ===');
+{
+  const page = await browser.newPage({ viewport: { width: 1824, height: 1000 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, userAgent: mobileUa });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await delayExternalDecoration(page);
+  let card = readFileSync(join(PROJECT_ROOT, '\u5916\u90e8\u90e8\u7f72', 'V20260826', '\u5f00\u5c40.html'), 'utf8');
+  card = card.replace(
+    /const OPENING_URL = '[^']+';/,
+    `const OPENING_URL = ${JSON.stringify(`${server.url}/opening.html?v=opening-mobile-check`)};`,
+  );
+  await page.setContent('<!doctype html><html><body style="margin:0;background:#101018"><iframe id="shell" style="width:100%;height:500px;border:0"></iframe></body></html>');
+  await page.locator('#shell').evaluate((frame, html) => { frame.srcdoc = html; }, card);
+  await page.frameLocator('#shell').locator('#open').click();
+  await page.waitForSelector('#linjiang-opening-overlay iframe');
+  const opening = page.frameLocator('#linjiang-opening-overlay iframe');
+  await opening.locator('#player-name').fill('Overlay Player');
+  await opening.locator('.step-tab[data-step="3"]').click();
+  await opening.locator('#opening-prev').click();
+  await opening.locator('#custom-opening-text').tap();
+  await page.keyboard.type('Overlay keyboard input');
+  const focus = await opening.locator('#custom-opening-text').evaluate((field) => ({
+    focused: field.ownerDocument.activeElement === field,
+    value: field.value,
+    pointerEvents: getComputedStyle(field).pointerEvents,
+  }));
+  check(focus.focused && focus.value.includes('Overlay keyboard input') && focus.pointerEvents !== 'none',
+    'custom opening stays focusable inside the TT-style full-screen iframe', JSON.stringify(focus));
+  check(errors.length === 0, 'overlay input flow has no script errors', errors.slice(0, 3).join(' | '));
   await page.close();
 }
 

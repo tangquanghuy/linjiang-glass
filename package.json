@@ -78,7 +78,8 @@
     "map:homes": "node scripts/shot-new-homes.mjs",
     "worldbook:locations": "python scripts/import-worldbook-locations.py",
     "map": "node scripts/export-ai-map.mjs && node scripts/build-worldbook-map.mjs && node scripts/check-map-loader.mjs && node scripts/check-init-vars.mjs && node scripts/check-opening-nodes.mjs",
-    "opening:mobile": "node scripts/check-opening-mobile.mjs"
+    "opening:mobile": "node scripts/check-opening-mobile.mjs",
+    "reading:room": "node scripts/check-reading-room-send-only.mjs"
   },
   "devDependencies": {
     "ejs": "3.1.10",
