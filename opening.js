@@ -1,9 +1,12 @@
 (()=>{
-const MAP_REV='20260823-opening-pan-v3';
+const MAP_REV='20260826-opening-ready-v19';
 const DEFAULT_MAP=`./city/plate_map.html?mode=opening&v=${MAP_REV}`;
 const MAP_URL=new URLSearchParams(location.search).get('map')||DEFAULT_MAP;
 const STEPS=['关于你','住所与工作','我推的主播','自定义主播','确认'];
 const LAST_STEP=STEPS.length;
+const TOUCH_DEVICE=/android|iphone|ipad|ipod/i.test(String(navigator.userAgent||''))
+  || (Number(navigator.maxTouchPoints||0)>0&&!!matchMedia?.('(pointer: coarse)')?.matches);
+if(TOUCH_DEVICE)document.documentElement.classList.add('touch-device');
 const ART_HOST='https://anchor.bolt.qzz.io';
 const art=(folder,file)=>ART_HOST+'/'+encodeURIComponent(folder)+'/'+encodeURIComponent(file)+'.webp';
 /* 固定主播池。名字／牌子名／直播档／封面文件名对齐 外部部署/V20260826/正文美化.html 的
@@ -292,6 +295,8 @@ function scaleOfFollowers(followers){return streamScale(tierOfFollowers(follower
 function bigNum(n){n=Math.max(0,Math.round(+n||0));return n>=10000?(Math.round(n/1000)/10).toFixed(1).replace(/\.0$/,'')+'万':n.toLocaleString('en-US')}
 function renderSteps(){document.querySelector('#steps').innerHTML=STEPS.map(function(step,i){var n=i+1;return '<button class="step-tab '+(state.step===n?'active ':'')+(state.step>n?'done ':'')+(skipStep(n)?'skipped':'')+'" data-step="'+n+'"><span>0'+n+'</span><b>'+step+'</b></button>'}).join('');document.querySelectorAll('.step-tab').forEach(function(b){b.onclick=function(){go(+b.dataset.step,true)}})}
 function homeCostText(h){return h&&h.cost||'费用待确认'}
+let openingMapStarted=false;
+function ensureOpeningMap(){var frame=document.querySelector('#opening-map-iframe');if(!frame||openingMapStarted)return;openingMapStarted=true;frame.addEventListener('load',function(){setTimeout(bindOpeningFrame,200)},{once:true});frame.src=MAP_URL+'&target=home'}
 function openingMapApi(){try{var frame=document.querySelector('#opening-map-iframe');return frame&&frame.contentWindow.PLATE_MAP||null}catch(_){return null}}
 function modalMapApi(){try{var frame=document.querySelector('#map-iframe');return frame&&frame.contentWindow.PLATE_MAP||null}catch(_){return null}}
 function mapApi(){return openingMapApi()}
@@ -316,7 +321,7 @@ function renderOshi(){var grid=document.querySelector('#oshi-grid');if(!grid)ret
     return '<button type="button" class="oshi-card'+(on?' on':'')+(full?' full':'')+'" data-oshi="'+esc(o.name)+'" aria-pressed="'+(on?'true':'false')+'">'
       /* 一共就七张封面，全部直接加载：loading="lazy" 在这里只会让下面几张
          在滚动到时才闪出来，省不下什么流量。 */
-      +'<span class="oshi-art"><img src="'+esc(art('封面',o.cover))+'" alt="'+esc(o.name)+'立绘" decoding="async"><i class="oshi-check" aria-hidden="true">✓</i></span>'
+      +'<span class="oshi-art"><img src="'+esc(art('封面',o.cover))+'" alt="'+esc(o.name)+'立绘" loading="lazy" decoding="async"><i class="oshi-check" aria-hidden="true">✓</i></span>'
       +'<span class="oshi-body">'
       +'<span class="oshi-top"><b>'+esc(o.name)+'</b><i>'+esc(o.medal)+'</i></span>'
       +'<span class="oshi-slot">'+esc(o.slot)+'</span>'
@@ -458,7 +463,7 @@ function go(step,direct){if(step>state.step&&!validate(state.step))return;step=M
   /* 05 跟 02 一样要"撑满一屏"：左边档案、右边世界书正文各自内部滚，
      而不是让整页跟着最长的那一列长。 */
   document.body.classList.toggle('confirm-step',state.step===LAST_STEP);
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'出发':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2)setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80);scrollTo({top:0,behavior:'smooth'})}
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.panel===state.step));renderSteps();$('#prev').classList.toggle('hidden',state.step===1);$('#next').textContent=state.step===LAST_STEP?'出发':'继续';if(state.step===LAST_STEP)renderConfirm();if(state.step===2){ensureOpeningMap();setTimeout(function(){var api=openingMapApi();try{if(api)api.fitAll(0)}catch(_){}},80)}scrollTo({top:0,behavior:'smooth'})}
 function emptyExperience(){var item=()=>({次数:0,可更新:true});return{近期性经验次数:0,露出经验:item(),自慰经验:item(),排泄调教经验:item(),道具调教经验:item(),凌辱调教经验:item(),隐奸经验:item(),青奸经验:item(),睡奸经验:item(),催眠奸经验:item(),情趣扮演经验:item(),盗摄经验:item(),性直播经验:item()}}
 function emptyDevelopment(){return{口腔:{档位:0,进度:0,可更新:true,评语:''},胸:{档位:0,进度:0,可更新:true,评语:''},小穴:{档位:0,进度:0,可更新:true,评语:''},肛门:{档位:0,进度:0,可更新:true,评语:''}}}
 function commuteForCurrentJob(){return state.job&&state.job.node?quoteFor(state.job):null}
@@ -493,7 +498,7 @@ opening.detail,
 ].join('\n')}
 function sendMessageToChat(message){try{var doc=document;if(window.parent&&window.parent!==window){try{doc=window.parent.document}catch(_){}}var area=doc.getElementById('send_textarea'),button=doc.getElementById('send_but');if(!area||!button)return false;area.value=message;area.dispatchEvent(new Event('input',{bubbles:true}));area.dispatchEvent(new Event('change',{bubbles:true}));button.click();return true}catch(_){return false}}
 function finish(){const payload=openingPayload();payload.startMessage=buildStartMessage(payload);if(window.parent!==window)parent.postMessage({channel:'linjiang-opening',kind:'event',type:'commitPreview',payload},'*');else sendMessageToChat(payload.startMessage);navigator.clipboard?.writeText(payload.startMessage).catch(()=>{});console.log('[临江开局配置]',payload);toast('开局配置已发送，临江生活即将开始')}
-loadArchives();renderSteps();renderMapInspector();renderOshi();renderOpenings();clearCustomEditor();go(1);var initialMap=document.querySelector('#opening-map-iframe');if(initialMap&&!initialMap.getAttribute('src')){initialMap.src=MAP_URL+'&target=home';initialMap.addEventListener('load',function(){setTimeout(bindOpeningFrame,200)})}
+loadArchives();renderSteps();renderMapInspector();renderOshi();renderOpenings();clearCustomEditor();go(1)
 $('#gender-segment').onclick=e=>{const b=e.target.closest('button');if(!b)return;state.gender=b.dataset.value;$('#gender-segment').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
 document.querySelectorAll('[data-open-map]').forEach(b=>b.onclick=()=>openMap(b.dataset.openMap));
 $('#map-close').onclick=closeMap;$('#map-modal').onclick=e=>{if(e.target===$('#map-modal'))closeMap()};
@@ -517,4 +522,6 @@ $('#profile-yaml').addEventListener('input',e=>{state.yaml=e.target.value;$('#sa
 $('#apply-art-url').onclick=()=>{const u=value('#art-url');if(!u)return toast('先填写网络立绘链接');updateArt(u,'url')};
 $('#art-file').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;setGenerateStatus('正在压缩立绘…','working');try{updateArt(await compactArtFile(f),'upload-preview');setGenerateStatus('立绘已处理，保存在当前浏览器','ok')}catch(_){setGenerateStatus('立绘读取失败','error')}};
 $('#generate-profile').onclick=generateProfile;$('#save-custom').onclick=()=>saveCurrentCustom();$('#prev').onclick=()=>go(prevStep(state.step));$('#next').onclick=()=>state.step===LAST_STEP?finish():go(nextStep(state.step));
+if(window.parent!==window)parent.postMessage({channel:'linjiang-opening',kind:'event',type:'ready'},'*');
+setTimeout(()=>window.__loadLinjiangOpeningFonts?.(),0);
 })();

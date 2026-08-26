@@ -5,9 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>临江市 · 地图（底板 + 节点层）</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Noto+Sans+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    setTimeout(() => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Noto+Sans+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600&display=swap';
+      document.head.appendChild(link);
+    }, 0);
+  </script>
   <script src="./city_mapdata.js?v=20260823-opening-map-v2"></script>
   <script src="./city_net.js?v=20260823-opening-map-v2"></script>
   <style>

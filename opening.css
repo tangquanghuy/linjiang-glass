@@ -1269,3 +1269,21 @@ body.compact-step .custom-opening textarea{min-height:60px}
 .theme-choice.on i{box-shadow:0 0 0 3px rgba(255,255,255,.12),0 0 16px rgba(255,255,255,.28)}
 body.compact-step .theme-options{gap:5px}
 body.compact-step .theme-choice{min-height:27px;padding:3px 7px}
+
+
+/* TT mobile WebViews may expose a landscape tablet as 1200-1600 CSS pixels.
+   Width-only desktop breakpoints then force four horizontal cards into one row and
+   leave each copy column only a few characters wide. The runtime adds
+   html.touch-device from UA/pointer facts so tablet cards stay readable. */
+@media (min-width:1351px) and (max-width:1800px) {
+  html.touch-device body.oshi-step .oshi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  html.touch-device body.oshi-step .oshi-card { min-height:238px; }
+  html.touch-device body.oshi-step .oshi-art { flex:0 0 42%; min-height:238px; }
+  html.touch-device body.oshi-step .oshi-body { padding:15px 17px 16px; }
+  html.touch-device body.oshi-step .oshi-blurb { font-size:11.5px; line-height:1.62; }
+}
+@media (min-width:1051px) and (max-width:1350px) {
+  html.touch-device body.oshi-step .oshi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+  html.touch-device body.oshi-step .oshi-card { min-height:230px; }
+  html.touch-device body.oshi-step .oshi-art { flex:0 0 40%; min-height:230px; }
+}

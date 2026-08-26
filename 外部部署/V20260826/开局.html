@@ -4,9 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>临江 · 故事开场</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
+<script>
+  setTimeout(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500&family=Pinyon+Script&display=swap';
+    document.head.appendChild(link);
+  }, 0);
+</script>
 <style>
   /* 这块启动卡的做法跟 opening.css 是同一套：先铺一张照片，再让玻璃浮在照片上。
      上一版是反过来的——一整块 alpha .55 的紫填充，靠 backdrop-filter 去模糊酒馆的
@@ -327,7 +332,7 @@
   /* 粘进角色卡的「开局」楼层。本页与酒馆同源，能摸到 parent.Mvu / TavernHelper；
      开局页本身托管在 GitHub Pages（跨域），只通过 postMessage 和这里说话。
      这里只做三件事：全屏挂起开局页、代跑人设生成、把 commitPreview 写回酒馆。 */
-  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260824-opening-five-v18-local-cover';
+  const OPENING_URL = 'https://tangquanghuy.github.io/linjiang-glass/opening.html?v=20260826-opening-ready-v19';
   // const OPENING_URL = 'http://127.0.0.1:5173/opening.html';
   const CHANNEL = 'linjiang-opening';
   const OVERLAY_ID = 'linjiang-opening-overlay';
@@ -420,6 +425,8 @@
   })();
   let frame = null;
   let loadingTimer = null;
+  let loadingDone = null;
+  let loadingSlowTimer = null;
 
   const say = (text, tone) => {
     statusBox.textContent = text || '';
@@ -505,6 +512,8 @@
 
   const closeOverlay = () => {
     if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
+    if (loadingSlowTimer) { clearTimeout(loadingSlowTimer); loadingSlowTimer = null; }
+    loadingDone = null;
     const doc = tavernWin().document;
     const box = doc.getElementById(OVERLAY_ID);
     if (box) box.remove();
@@ -557,17 +566,26 @@
     }, 380);
     loadingTimer = timer;
 
-    inner.addEventListener('load', () => {
+    let finished = false;
+    const finishLoading = () => {
+      if (finished) return;
+      finished = true;
       clearInterval(timer);
       if (loadingTimer === timer) loadingTimer = null;
+      if (loadingSlowTimer) { clearTimeout(loadingSlowTimer); loadingSlowTimer = null; }
       setProgress(100);
       loadingCopy.textContent = '准备完成';
-      const wait = Math.max(260, 720 - (Date.now() - startedAt));
+      const wait = Math.max(180, 620 - (Date.now() - startedAt));
       win.setTimeout(() => {
         loading.classList.add('done');
         win.setTimeout(() => { if (loading.parentNode) loading.remove(); }, 500);
       }, wait);
-    }, { once: true });
+    };
+    loadingDone = finishLoading;
+    inner.addEventListener('load', finishLoading, { once: true });
+    loadingSlowTimer = win.setTimeout(() => {
+      if (!finished) loadingCopy.textContent = '部分装饰资源响应较慢，基础界面仍在准备';
+    }, 6500);
     inner.src = OPENING_URL;
 
     const close = doc.createElement('button');
@@ -1044,6 +1062,11 @@ ${PROFILE_FORMAT_SAMPLE.trim()}
     if (!data || data.channel !== CHANNEL) return;
     if (!frame || event.source !== frame.contentWindow) return;
     if (openingOrigin !== '*' && event.origin !== openingOrigin) return;
+
+    if (data.kind === 'event' && data.type === 'ready') {
+      try { loadingDone?.(); } catch (e) {}
+      return;
+    }
 
     if (data.kind === 'request') {
       const reply = { channel: CHANNEL, kind: 'response', id: data.id };
