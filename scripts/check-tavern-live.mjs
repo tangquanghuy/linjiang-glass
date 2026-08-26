@@ -201,6 +201,7 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
 {
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 TauriTavern/2.2.0',
   });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -393,6 +394,119 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
         `关页后 #${id} 与基线一致`, JSON.stringify(back.chrome[id]));
     }
     check(back.pos !== 'fixed', '关页后楼层交还给酒馆（不再是 fixed）', back.pos);
+
+
+    /* TT mobile-safe visibility parking moves the whole JSR iframe into a hidden
+       body-level lot. Flow mode keeps the real HUD inside that document, so the
+       shell reloads while outside #chat and deliberately hides the inner HUD. A
+       restored iframe does not consistently receive resize/pageshow; verify the
+       owner-only resume watch brings it back without a second park cycle. */
+    await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const lot = document.createElement('div');
+      lot.id = 'fixture-tt-runtime-parking-lot';
+      lot.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none';
+      document.body.append(lot);
+      const ghost = document.createElement('div');
+      ghost.className = 'tt-runtime-ghost';
+      ghost.style.minHeight = `${Math.round(frame.getBoundingClientRect().height)}px`;
+      frame.replaceWith(ghost);
+      lot.append(frame);
+      window.__fixtureParkedStatus = { frame, ghost, lot };
+    });
+    await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      const parked = window.__fixtureParkedStatus;
+      parked.ghost.replaceWith(parked.frame);
+    });
+    await page.waitForFunction(() => {
+      const frame = window.__fixtureParkedStatus?.frame;
+      const hud = frame?.contentDocument?.getElementById('linjiang-hud-live');
+      return !!hud && document.getElementById('chat').contains(frame)
+        && hud.contentDocument?.querySelectorAll('*').length > 150
+        && getComputedStyle(hud).visibility === 'visible';
+    }, { timeout: 15000 });
+    const resumed = await page.evaluate(() => {
+      const frame = window.__fixtureParkedStatus.frame;
+      const hud = frame.contentDocument.getElementById('linjiang-hud-live');
+      const result = {
+        visible: getComputedStyle(hud).visibility,
+        nodes: hud.contentDocument?.querySelectorAll('*').length || 0,
+        money: hud.contentDocument?.querySelector('.pmoney b')?.textContent?.trim() || '',
+      };
+      window.__fixtureParkedStatus.lot.remove();
+      delete window.__fixtureParkedStatus;
+      return result;
+    });
+    check(resumed.visible === 'visible' && resumed.nodes > 150,
+      'TT parked iframe resumes inline HUD on first return', JSON.stringify(resumed));
+
+    /* iOS activates the flat scroll composition locally on the first forwarded
+       move, before the shell round-trip.  The full glass must return after touchend. */
+    await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const hud = frame.contentDocument.getElementById('linjiang-hud-live');
+      const win = hud.contentWindow;
+      const doc = hud.contentDocument;
+      const target = doc.elementFromPoint(win.innerWidth / 2, Math.min(320, win.innerHeight / 2)) || doc.body;
+      const touch = (y) => ({
+        identifier: 71, target, clientX: win.innerWidth / 2, clientY: y,
+        screenX: win.innerWidth / 2, screenY: y, pageX: win.innerWidth / 2, pageY: y,
+      });
+      const fire = (type, y, active) => {
+        const point = touch(y);
+        const event = new win.Event(type, { bubbles: true, cancelable: true, composed: true });
+        Object.defineProperties(event, {
+          touches: { value: active ? [point] : [] },
+          targetTouches: { value: active ? [point] : [] },
+          changedTouches: { value: [point] },
+        });
+        target.dispatchEvent(event);
+      };
+      fire('touchstart', 300, true);
+      fire('touchmove', 276, true);
+    });
+    await page.waitForTimeout(80);
+    const iosScrollActive = await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const hud = frame.contentDocument.getElementById('linjiang-hud-live');
+      const root = hud.contentDocument.documentElement;
+      const glass = hud.contentDocument.querySelector('.pglass');
+      return {
+        ios: root.dataset.hudIosScroll || '',
+        active: root.classList.contains('host-scroll-active'),
+        glass: glass ? getComputedStyle(glass).display : null,
+      };
+    });
+    check(iosScrollActive.ios === '1' && iosScrollActive.active && iosScrollActive.glass === 'none',
+      'iOS forwarded touch enters lightweight paint mode', JSON.stringify(iosScrollActive));
+    await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const hud = frame.contentDocument.getElementById('linjiang-hud-live');
+      const win = hud.contentWindow;
+      const doc = hud.contentDocument;
+      const target = doc.elementFromPoint(win.innerWidth / 2, Math.min(320, win.innerHeight / 2)) || doc.body;
+      const point = { identifier: 71, target, clientX: win.innerWidth / 2, clientY: 276, screenX: win.innerWidth / 2, screenY: 276 };
+      const event = new win.Event('touchend', { bubbles: true, cancelable: true, composed: true });
+      Object.defineProperties(event, {
+        touches: { value: [] }, targetTouches: { value: [] }, changedTouches: { value: [point] },
+      });
+      target.dispatchEvent(event);
+    });
+    await page.waitForTimeout(320);
+    const iosScrollRestored = await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const hud = frame.contentDocument.getElementById('linjiang-hud-live');
+      const root = hud.contentDocument.documentElement;
+      const glass = hud.contentDocument.querySelector('.pglass');
+      return {
+        active: root.classList.contains('host-scroll-active'),
+        glass: glass ? getComputedStyle(glass).display : null,
+      };
+    });
+    check(!iosScrollRestored.active && iosScrollRestored.glass !== 'none',
+      'iOS touchend restores full HUD paint', JSON.stringify(iosScrollRestored));
+
     check(errors.length === 0, '无脚本错误', errors.slice(0, 3).join(' | '));
   } catch (error) {
     check(false, '流内嵌入次级页面用例', error.message.split('\n')[0]);

@@ -171,6 +171,12 @@ function applyMode() {
 }
 
 const hostNeedsFlatGlass = new URLSearchParams(location.search).get('host') === 'tauritavern-mobile';
+const iosTouchHost = hostNeedsFlatGlass && (() => {
+  const ua = String(navigator.userAgent || '');
+  if (/iphone|ipad|ipod/i.test(ua)) return true;
+  return navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
+})();
+if (iosTouchHost) document.documentElement.dataset.hudIosScroll = '1';
 const applyPerformanceMode = () => {
   document.documentElement.dataset.hudPerformance = hostNeedsFlatGlass
     || pref('performanceMode') === 'low' ? 'low' : 'auto';

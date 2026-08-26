@@ -87,6 +87,37 @@ html.host-scroll-active *::after {
 }
 
 
+/* iOS WKWebView repaints a transformed portrait iframe on the main thread while
+   the shell forwards a drag into #chat.  On the full glass composition that can
+   starve the HUD's own touch RAF for hundreds of milliseconds, turning a slow
+   gesture into 20-40px jumps.  Keep the layout and text hit targets stable, but
+   suspend decorative raster work only for the gesture window.  Android retains
+   its permanent low mode and never toggles this selector. */
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active *,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active *::before,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active *::after {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  background-image: none !important;
+  mix-blend-mode: normal !important;
+}
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active .pglass,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active .prim,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active .pblossoms {
+  display: none !important;
+}
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active img,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active svg,
+html[data-hud-ios-scroll='1'].portrait-mode.host-scroll-active canvas {
+  visibility: hidden !important;
+}
+
+
 /* Optional low-compositing mode. It keeps tint/rims and interaction affordances
    but removes expensive backdrop sampling on weaker devices. */
 html[data-hud-performance=low] .glass-blur,

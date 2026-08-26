@@ -586,7 +586,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     ? '<label><span>附言</span><input type="text" maxlength="30" placeholder="可选，一句话" data-gift-remark></label>'
     : ''}
         <span class="pgift-line"><span>将发送</span><code>${built.message}</code></span>
-        <span class="pgift-again">再按一次确认送出</span>
+        <button class="pgift-again" type="button" data-gift-confirm-send>确认发送</button>
       </span>`);
     sync();
   };

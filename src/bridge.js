@@ -188,11 +188,18 @@ function onMessage(event) {
   if (data.kind === 'event' && data.type === 'hostScrollState') {
     /* Low mode already removes the expensive sampling permanently. Re-toggling a
        universal selector here only causes a full style invalidation and a flash. */
-    if (document.documentElement.dataset.hudPerformance === 'low') {
+    if (document.documentElement.dataset.hudPerformance === 'low'
+        && document.documentElement.dataset.hudIosScroll !== '1') {
       document.documentElement.classList.remove('host-scroll-active');
       return;
     }
-    document.documentElement.classList.toggle('host-scroll-active', !!data.payload?.active);
+    const active = !!data.payload?.active;
+    /* The shell's 160ms idle detector can expire between two heavily delayed
+       touchScroll messages on iOS. Keep the local gesture downgrade latched until
+       touchend, otherwise the expensive composition returns under the finger and
+       immediately starves the next touch RAF again. */
+    if (!active && document.documentElement.dataset.hudTouchForwarding === '1') return;
+    document.documentElement.classList.toggle('host-scroll-active', active);
   }
 }
 
@@ -398,6 +405,23 @@ export function startBridge() {
   /* Touch gestures do not bubble out of an iframe. Forward vertical drags that
      the HUD itself cannot consume so a phone can keep scrolling the tavern
      reading pane even when the fixed HUD covers most of the viewport. */
+  let iosTouchScrollIdleTimer = 0;
+  const setIosTouchScrollActive = (active) => {
+    if (document.documentElement.dataset.hudIosScroll !== '1') return;
+    clearTimeout(iosTouchScrollIdleTimer);
+    iosTouchScrollIdleTimer = 0;
+    if (active) {
+      document.documentElement.dataset.hudTouchForwarding = '1';
+      document.documentElement.classList.add('host-scroll-active');
+      return;
+    }
+    delete document.documentElement.dataset.hudTouchForwarding;
+    iosTouchScrollIdleTimer = setTimeout(() => {
+      iosTouchScrollIdleTimer = 0;
+      document.documentElement.classList.remove('host-scroll-active');
+    }, 180);
+  };
+
   const touchScroll = {
     id: null,
     startX: 0,
@@ -514,16 +538,19 @@ export function startBridge() {
     if (!touchScroll.forwarding && hudCanConsumeTouch(event, deltaY)) return;
     const gestureStart = !touchScroll.forwarding;
     touchScroll.forwarding = true;
+    if (gestureStart) setIosTouchScrollActive(true);
     if (event.cancelable) event.preventDefault();
     queueTouchScroll(touch, deltaY, gestureStart);
   }, { capture: true, passive: false });
   addEventListener('touchend', (event) => {
     if (touchScroll.id == null || touchById(event.touches, touchScroll.id)) return;
     if (touchScroll.forwarding) postEvent('touchScrollEnd', {});
+    setIosTouchScrollActive(false);
     resetTouchScroll(true);
   }, { capture: true, passive: true });
   addEventListener('touchcancel', () => {
     if (touchScroll.forwarding) postEvent('touchScrollEnd', {});
+    setIosTouchScrollActive(false);
     resetTouchScroll();
   }, { capture: true, passive: true });
 

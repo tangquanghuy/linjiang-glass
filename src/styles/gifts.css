@@ -818,13 +818,23 @@
   color: rgba(238, 234, 252, .86);
 }
 .pgift-again {
-  align-self: flex-start;
-  padding: 6px 18px 7px;
-  border: 2px solid hsl(var(--fit) 66% 70% / .38);
-  border-radius: 20px;
-  font: 500 var(--fs-micro)/1 'Noto Sans SC', sans-serif;
-  color: hsl(var(--fit) 84% 84%);
+  align-self: stretch;
+  min-height: 88px;
+  padding: 0 var(--sp-5);
+  border: 2px solid hsl(var(--fit) 72% 78% / .52);
+  border-radius: 28px;
+  background: linear-gradient(135deg,
+    hsl(var(--fit) 76% 64% / .34),
+    hsl(var(--fit) 64% 50% / .18));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, .14),
+    0 12px 30px hsl(var(--fit) 76% 48% / .16);
+  font: 500 var(--fs-caption)/1 'Noto Sans SC', sans-serif;
+  color: hsl(var(--fit) 88% 92%);
+  letter-spacing: .12em;
+  cursor: pointer;
 }
+.pgift-again:active { transform: translateY(2px); }
 .pgift-done > b {
   font: 500 var(--fs-caption)/1.4 'Noto Sans SC', sans-serif;
   color: rgba(198, 240, 214, .96);

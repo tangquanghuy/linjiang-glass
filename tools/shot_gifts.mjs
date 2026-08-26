@@ -256,8 +256,10 @@ await phone.waitForSelector('.pgift-row.is-confirming', { timeout: 3000 });
 await phone.waitForTimeout(300);
 check(await phone.locator('.pgift-confirm .pgift-line code').count() === 1,
   'row expands and previews the outgoing line');
+check(await phone.locator('.pgift-confirm [data-gift-confirm-send]').count() === 1,
+  'portrait confirmation exposes a visible confirm-send button');
 await phone.locator('.pgift-confirm input').fill('路上小心');
-await phone.locator('.pgift-row.is-confirming').first().click();
+await phone.locator('.pgift-confirm [data-gift-confirm-send]').click();
 await phone.waitForSelector('.pgift-done', { timeout: 3000 });
 await phone.waitForTimeout(280);
 /* The spy is installed on the context, so both pages report through it -- the remark
@@ -302,6 +304,16 @@ for (const [w, h] of [[320, 700], [360, 780], [390, 844], [430, 932], [768, 1024
   });
   check(over <= 1, `${w}x${h}: no horizontal overflow (worst ${over})`);
 }
+
+/* Exact tablet regression: selecting a gift must expose a real confirm action, not
+   only rely on pressing the whole row a second time. */
+await phone.setViewportSize({ width: 768, height: 1024 });
+await phone.locator('.pgift-row.is-tip').first().click();
+await phone.waitForSelector('.pgift-row.is-confirming [data-gift-confirm-send]', { timeout: 3000 });
+const tabletConfirm = phone.locator('.pgift-row.is-confirming [data-gift-confirm-send]');
+check(await tabletConfirm.isVisible(), '768x1024: confirm-send button is visible');
+await tabletConfirm.scrollIntoViewIfNeeded();
+await phone.screenshot({ path: 'artifacts/gift_tablet_confirm.png', fullPage: true });
 await phone.setViewportSize({ width: 412, height: 900 });
 
 await browser.close();

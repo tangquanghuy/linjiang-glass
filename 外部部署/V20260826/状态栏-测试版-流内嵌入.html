@@ -104,7 +104,7 @@
 (function () {
   /* 本页与酒馆同源，所以能摸到 parent.Mvu。
      玻璃 HUD 本身在跨域 iframe 里，只通过 postMessage 和这里说话。 */
-  const SHELL_VERSION = '2026-08-25-split-v2';
+  const SHELL_VERSION = '2026-08-26-flow-ios-v1';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳
@@ -1282,6 +1282,19 @@
   /* Phone / tablet held upright. Tauri WebViews can expose a CSS viewport wider
      than the screenshot/device pixels, so portrait orientation remains authoritative
      for a mobile runtime instead of relying only on the desktop width breakpoint. */
+  const isIosTauriTavernMobile = () => {
+    if (!isTauriTavernMobile()) return false;
+    try {
+      const tavern = tavernWin();
+      const ua = String(tavern.navigator?.userAgent || '');
+      if (/iphone|ipad|ipod/i.test(ua)) return true;
+      return tavern.navigator?.platform === 'MacIntel'
+        && Number(tavern.navigator?.maxTouchPoints || 0) > 1;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const portraitHud = () => {
     const { w, h } = tavernSize();
     return w < h && (w < DESKTOP_MIN || isTauriTavernMobile());
@@ -2467,7 +2480,7 @@
       else url.searchParams.set('fit', 'body');
       if (isTauriTavernMobile()) url.searchParams.set('host', 'tauritavern-mobile');
       else url.searchParams.delete('host');
-      url.searchParams.set('v', 'body33-tt-parking-guard');
+      url.searchParams.set('v', 'body34-ios-flow-scroll-resume');
       return url.toString();
     } catch (e) {
       return HUD_URL;
@@ -2543,6 +2556,36 @@
   };
 
   let followTick = 0;
+  let inlineResumeTimer = 0;
+
+  /* TauriTavern mobile parks message runtimes by moving the outer JSR iframe into
+     a hidden 0x0 container. The inline HUD hides itself there, but moving it back
+     is not guaranteed to emit resize/pageshow; its ordinary observer also routes
+     through followHud(), which intentionally returns for align=inline. Recover the
+     owning layout as soon as the anchor is back inside #chat. */
+  const recoverInlineDock = () => {
+    if (!isOwner() || !INLINE_DOCK || !compacted || !isTauriTavernMobile()) return;
+    const frame = window.frameElement;
+    if (!frame || !anchorInReadingPane(frame)) return;
+    const needsLayout = hudFrame._linjiangAlign !== 'inline'
+      || hudFrame.ownerDocument !== document
+      || hudFrame.parentNode !== document.body
+      || hudFrame.style.visibility === 'hidden'
+      || hudFrame.style.pointerEvents === 'none';
+    if (needsLayout) fitParentFrame();
+  };
+
+  const startInlineResumeWatch = () => {
+    if (inlineResumeTimer || !INLINE_DOCK || !isTauriTavernMobile()) return;
+    /* WebKit may reload the JSR document while it is in TT's parking lot. The new
+       controller starts hidden there, then receives no reliable lifecycle event on
+       the move back. This owner-only 4Hz check is dormant work outside that mode and
+       bounds the black interval to at most one tick. */
+    inlineResumeTimer = setInterval(() => {
+      try { recoverInlineDock(); } catch (e) {}
+    }, 250);
+  };
+
   const requestFollow = () => {
     if (!isOwner() || followTick) return;
     followTick = requestAnimationFrame(() => {
@@ -2579,7 +2622,7 @@
     /* Tauri mobile uses a permanently flat glass surface. Toggling a universal
        backdrop-filter selector at gesture boundaries makes Android WebView
        reallocate the iframe layer and appear to flash. */
-    if (isTauriTavernMobile()) return;
+    if (isTauriTavernMobile() && !isIosTauriTavernMobile()) return;
     postToHud({
       channel: CHANNEL,
       kind: 'event',
@@ -3197,6 +3240,8 @@
     slotObserver = null;
     try { clearInterval(pollTimer); } catch (e) {}
     pollTimer = 0;
+    try { clearInterval(inlineResumeTimer); } catch (e) {}
+    inlineResumeTimer = 0;
     if (followTick) {
       try { cancelAnimationFrame(followTick); } catch (e) {}
       followTick = 0;
@@ -3248,11 +3293,20 @@
       const frame = window.frameElement;
       const pane = readingPane();
       if (frame && typeof IntersectionObserver === 'function') {
-        slotObserver = new IntersectionObserver(() => requestFollow(), {
+        slotObserver = new IntersectionObserver(() => {
+          if (INLINE_DOCK && hudFrame._linjiangAlign === 'inline') recoverInlineDock();
+          else requestFollow();
+        }, {
           root: pane && pane.contains(frame) ? pane : null,
           threshold: [0, 0.01, 0.08, 0.2, 0.5, 1],
         });
         slotObserver.observe(frame);
+      }
+      if (INLINE_DOCK && isTauriTavernMobile()) {
+        startInlineResumeWatch();
+        listen(window, 'pageshow', recoverInlineDock, { passive: true });
+        listen(window, 'focus', recoverInlineDock, { passive: true });
+        listen(document, 'visibilitychange', recoverInlineDock, { passive: true });
       }
       [50, 150, 400, 900].forEach((ms) => {
         setTimeout(() => { if (isOwner()) requestFollow(); }, ms);
