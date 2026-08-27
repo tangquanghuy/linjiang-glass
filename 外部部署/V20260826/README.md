@@ -38,6 +38,34 @@
 | `public/shell/status-shell.js` | 116.4 KB | `状态栏-引导壳.html` 用 `<script src>` |
 | `public/shell/aux-shell.js` | 139.6 KB | `辅助计算脚本.js` 用 `import()` |
 
+## 2026-08-27: native browser mobile flow
+
+Target: **SillyTavern 1.18.0 + Tavern Helper 4.9.3 + mobile Chrome/Safari**.
+The production browser-mobile path no longer lifts a HUD iframe into the tavern body.
+It loads the Pages CSS/module directly into Tavern Helper's srcdoc document:
+
+```text
+SillyTavern #chat
+  -> Tavern Helper srcdoc iframe
+       -> #linjiang-mobile-native-root (HUD DOM)
+```
+
+This path has no inner `#hud` iframe, `linjiang-hud-stage`, `followHud`,
+`nudgePortraitHud`, or synthetic `touchScroll`. Dragging on the HUD uses the
+browser's native #chat scrolling, matching the reference bottom-status-bar architecture.
+Detail pages remain in the normal-flow floor and do not hide or rewrite tavern chrome.
+
+Desktop keeps the lifted/clip-stage architecture unchanged. TauriTavern keeps its
+existing compatibility path until that host is migrated and tested separately.
+Regression command:
+
+```bash
+npm run tavern:mobile-flow
+```
+
+The check covers inline and boot shells, direct DOM mounting, absence of an inner HUD
+iframe, native touch scrolling, hidden desktop docking settings, and normal-flow detail pages.
+
 ## 为什么非得这么绕
 
 这套东西有两半，更新节奏完全不同：

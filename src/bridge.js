@@ -1,4 +1,4 @@
-/* Cross-origin bridge between the HUD and the same-origin tavern deployment shell. */
+/* HUD transport: postMessage on lifted hosts, direct adapter in mobile native-flow. */
 import { applyStatData, applyMoney } from './data.js';
 import { pref, setPref } from './prefs.js';
 
@@ -29,7 +29,16 @@ const parentOrigin = (() => {
   catch { return '*'; }
 })();
 
+/* Mobile native-flow runs the HUD bundle directly inside Tavern Helper's srcdoc
+   document. There is no inner HUD iframe in that mode, so bridge requests can call
+   the same-document adapter instead of crossing postMessage. */
+function directBridge() {
+  const bridge = window.__linjiangMobileDirectBridge;
+  return bridge && typeof bridge.request === 'function' ? bridge : null;
+}
+
 export function isEmbedded() {
+  if (directBridge()) return true;
   try { return window.parent && window.parent !== window; }
   catch { return false; }
 }
@@ -92,6 +101,13 @@ function resetContext(next) {
 }
 
 function rpc(action, payload = {}, timeoutMs = 8000) {
+  const direct = directBridge();
+  if (direct) {
+    return Promise.resolve().then(() => direct.request(action, payload, {
+      timeoutMs,
+      context: { ...bridgeContext },
+    }));
+  }
   if (!isEmbedded()) return Promise.reject(new Error('not embedded'));
   const id = ++seq;
   const requestContext = { ...bridgeContext };
@@ -318,6 +334,11 @@ export function flushMoney() {
 
 let lastPortraitH = 0;
 function postEvent(type, payload) {
+  const direct = directBridge();
+  if (direct) {
+    direct.event?.(type, payload, { context: { ...bridgeContext } });
+    return;
+  }
   if (!isEmbedded()) return;
   window.parent.postMessage({ channel: CHANNEL, kind: 'event', context: bridgeContext, type, payload }, parentOrigin);
 }
@@ -376,6 +397,26 @@ export function startBridge() {
   if (isEmbedded()) document.documentElement.classList.add('is-embedded');
   addEventListener('message', onMessage);
   if (!isEmbedded()) return;
+
+  const finishStartup = () => {
+    rpc('handshake').then((hello) => {
+      if (hello?.context) resetContext(hello.context);
+      /* Native-flow has no docking geometry to configure. Keeping the preference in
+         storage is harmless, but sending it would wake the desktop layout state machine. */
+      if (!directBridge()) reportDockDefault(pref('dockDefault'));
+      return rpc('getSnapshot');
+    }).then((payload) => scheduleSnapshot(payload)).catch((err) => {
+      console.warn('[hud] bridge', err);
+    });
+  };
+
+  /* In native-flow the HUD DOM is already part of the Tavern Helper document. Let
+     Chrome perform ordinary scroll chaining; installing touch/wheel forwarding here
+     would recreate the exact cross-frame feedback loop this mode is meant to remove. */
+  if (directBridge()) {
+    finishStartup();
+    return;
+  }
 
   const postPointerEvent = (type, point) => postEvent(type, {
     clientX: point.clientX,
@@ -577,14 +618,5 @@ export function startBridge() {
     });
   }, { passive: false });
 
-  rpc('handshake').then((hello) => {
-    if (hello?.context) resetContext(hello.context);
-    /* 握手之后立刻通报默认停靠方式：壳层已经按它自己的默认排过一次版了，这一步
-       是把 HUD 侧的偏好补上。放在 getSnapshot 之前，好让重排和首帧数据一起落地，
-       而不是先画好再跳一次。 */
-    reportDockDefault(pref('dockDefault'));
-    return rpc('getSnapshot');
-  }).then((payload) => scheduleSnapshot(payload)).catch((err) => {
-    console.warn('[hud] bridge', err);
-  });
+  finishStartup();
 }

@@ -162,6 +162,12 @@ for (const kase of CASES) {
   if (only && !kase.id.includes(only) && !String(kase.w).includes(only)) continue;
   /* 基线模式只能跑 inline —— 理由在上面 shellOverride 那段。 */
   const shell = baselineShell ? 'inline' : (shellOverride || kase.shell);
+  const nativeMobileFlow = !baselineShell && !kase.host && kase.w < 880;
+  if (nativeMobileFlow) {
+    console.log(`
+--- skip ${kase.id}: native mobile flow has no lifted iframe; covered by check-mobile-native-flow.mjs ---`);
+    continue;
+  }
   if (baselineShell && kase.shell === 'boot') {
     console.log(`\n--- 跳过 ${kase.id}：基线模式下引导壳路径不 fetch 状态栏.html，顶替落不到实处 ---`);
     continue;

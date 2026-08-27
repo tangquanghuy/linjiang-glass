@@ -261,8 +261,15 @@ async function mountChat() {
 
 function liveHud() {
   return document.getElementById('linjiang-hud-live')
+    || statusFrame?.contentDocument?.getElementById('linjiang-mobile-native-root')
     || statusFrame?.contentDocument?.getElementById('hud')
     || null;
+}
+
+function hudDocument(hud = liveHud()) {
+  if (!hud) return null;
+  if (hud.tagName === 'IFRAME') return hud.contentDocument?.documentElement ? hud.contentDocument : null;
+  return hud.ownerDocument?.documentElement ? hud.ownerDocument : null;
 }
 
 function frameBox(element) {
@@ -288,7 +295,7 @@ function measure() {
   const slot = frameBox(statusFrame);
   const hud = liveHud();
   const hudBox = frameBox(hud);
-  const hudDoc = hud?.contentDocument;
+  const hudDoc = hudDocument(hud);
   const portraitDom = !!hudDoc?.querySelector('.pstage')
     && getComputedStyle(hudDoc.querySelector('.pstage')).display !== 'none';
   return {
@@ -313,7 +320,8 @@ function measure() {
     hudH: Math.round(hudBox?.height || 0),
     hudTop: Math.round(hudBox?.top || 0),
     alignment: hudBox && slot ? +(hudBox.top - slot.top).toFixed(2) : null,
-    lifted: hud?.id === 'linjiang-hud-live',
+    lifted: hud?.id === 'linjiang-hud-live' && hud?.tagName === 'IFRAME',
+    nativeFlow: hud?.id === 'linjiang-mobile-native-root',
     portraitDom,
     portraitStatus: hudDoc ? {
       whoLabels: [...hudDoc.querySelectorAll('.pworld-who em')].map((element) => element.textContent.trim()),
@@ -328,6 +336,7 @@ function measure() {
       ?.textContent.replace(/\s+/g, '').trim() || '',
     helperHeightSamples: [...helperHeightSamples],
     liveHudCount: document.querySelectorAll('#linjiang-hud-live').length
+      + (statusFrame?.contentDocument?.getElementById('linjiang-mobile-native-root') ? 1 : 0)
       + (statusFrame?.contentDocument?.getElementById('hud') ? 1 : 0),
     autoscrollMarker: !!document.getElementById('linjiang-hud-autoscroll'),
   };

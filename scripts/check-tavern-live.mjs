@@ -7,7 +7,8 @@
      · 真实 ST 样式真的生效了 —— 尤其 #chat 自带 backdrop-filter，这是手写夹具漏掉的
      · 真实 #message_template 被用上了（.mes 结构完整）
      · 酒馆助手注入的真实 adjust_iframe_height.js 真的在改 iframe 高度
-     · 状态栏被抬起、对齐栏位、MVU 快照落到了 HUD 上
+     · PC / Tauri 状态栏被抬起；原生移动浏览器直接在楼层 srcdoc 内挂载
+     · 两种架构都与栏位对齐，MVU 快照都落到了 HUD 上
      · TauriTavern 模式下真实的 geometry firewall 与浮层准入在跑，
        而状态栏 iframe 保住了 data-tt-mobile-surface="none" 的退出契约
 
@@ -105,9 +106,14 @@ for (const kase of CASES) {
       m.shellVersion || '(空 —— boot 路径下即「脚本没取到」)');
     check(!m.shellHint.includes('没取到'), '引导壳没有报「脚本没取到」', m.shellHint || '(无提示)');
 
-    check(m.lifted, '状态栏被抬成 #linjiang-hud-live');
+    const expectNativeFlow = !kase.host && kase.w < 880;
+    check(m.nativeFlow === expectNativeFlow,
+      `架构选择（期望 ${expectNativeFlow ? '移动端原生流内' : '桌面抬升'}）`,
+      `native=${m.nativeFlow} lifted=${m.lifted}`);
+    check(m.lifted === !expectNativeFlow,
+      expectNativeFlow ? '移动端没有创建内层 HUD iframe' : '状态栏被抬成 #linjiang-hud-live');
     check(Math.abs(m.alignment) <= 1, 'HUD 与栏位对齐', `${m.alignment}px`);
-    check(m.hudMoney.includes('512,300'), 'MVU 快照落到 HUD 上', m.hudMoney || '(空)');
+    check(m.hudMoney.includes('512,300'), 'MVU 快照落到 HUD 上', m.hudMoney || '（空）');
     check(m.liveHudCount === 1, 'HUD 只有一份', String(m.liveHudCount));
     check(m.hudNodes > 150, 'HUD 构图已建完', `${m.hudNodes} 节点`);
 

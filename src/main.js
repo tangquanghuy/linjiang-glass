@@ -49,7 +49,9 @@ import { onPref, pref } from './prefs.js';
 
    ?mode=portrait / ?mode=landscape forces one for testing. */
 const portraitMq = matchMedia('(max-width: 879px) and (orientation: portrait)');
-let hostMode = null;
+let hostMode = window.__linjiangHostMode === 'portrait' || window.__linjiangHostMode === 'landscape'
+  ? window.__linjiangHostMode
+  : null;
 
 function wantsPortrait() {
   const forced = hostMode || new URLSearchParams(location.search).get('mode');

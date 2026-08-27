@@ -74,7 +74,7 @@ const probe = (page) => page.evaluate(() => {
     .filter(Boolean);
   return {
     ...result,
-    hudMobileSurface: hud?.getAttribute('data-tt-mobile-surface') || '',
+    hudMobileSurface: hud?.tagName === 'IFRAME' ? (hud.getAttribute('data-tt-mobile-surface') || '') : '',
     chromeMobileSurfaces: chrome.map((element) => element.getAttribute('data-tt-mobile-surface') || ''),
   };
 });
@@ -91,6 +91,7 @@ for (const preset of geometryPresets) {
   const page = await openPreset(preset);
   const m = await probe(page);
   const expectedMode = expectedHudMode(preset.vw, preset.vh);
+  const expectedNativeFlow = preset.vw < 880;
   const expectedReading = expectedReadingWidth(preset.vw, preset.sheldVw ?? 50);
 
   check(preset.id, Math.abs(m.sheldW - expectedReading) <= 2, `sheld ${m.sheldW}, expected ${expectedReading}`);
@@ -100,16 +101,23 @@ for (const preset of geometryPresets) {
   check(preset.id, m.slotW > 80 && m.slotH > 100, `invalid helper iframe ${m.slotW}x${m.slotH}`);
   check(preset.id, m.hudW > 100 && m.hudH > 100, `invalid HUD ${m.hudW}x${m.hudH}`);
   check(preset.id, m.liveHudCount === 1, `live HUD count ${m.liveHudCount}`);
-  check(preset.id, m.hudMobileSurface === 'none',
-    `HUD mobile surface declaration is ${m.hudMobileSurface || '(missing)'}`);
-  check(preset.id, m.chromeMobileSurfaces.length === 2
-    && m.chromeMobileSurfaces.every((surface) => surface === 'none'),
-  `HUD chrome mobile surface declarations are ${m.chromeMobileSurfaces.join(',') || '(missing)'}`);
-  if (expectedMode !== 'mobile-landscape') {
-    check(preset.id, m.lifted, 'production HUD was not lifted to tavern body');
+  check(preset.id, m.nativeFlow === expectedNativeFlow,
+    `native-flow=${m.nativeFlow}, expected ${expectedNativeFlow}`);
+  if (expectedNativeFlow) {
+    check(preset.id, !m.lifted, 'native mobile HUD unexpectedly lifted');
+    check(preset.id, Math.abs(m.hudW - m.slotW) <= 2, `native HUD ${m.hudW} does not fit slot ${m.slotW}`);
+  } else {
+    check(preset.id, m.hudMobileSurface === 'none',
+      `HUD mobile surface declaration is ${m.hudMobileSurface || '(missing)'}`);
+    check(preset.id, m.chromeMobileSurfaces.length === 2
+      && m.chromeMobileSurfaces.every((surface) => surface === 'none'),
+    `HUD chrome mobile surface declarations are ${m.chromeMobileSurfaces.join(',') || '(missing)'}`);
+    if (expectedMode !== 'mobile-landscape') {
+      check(preset.id, m.lifted, 'production HUD was not lifted to tavern body');
+    }
   }
   check(preset.id, Math.abs(m.alignment ?? 999) <= 1, `HUD/spacer alignment ${m.alignment}px`);
-  if (expectedMode === 'portrait') {
+  if (expectedNativeFlow || expectedMode === 'portrait') {
     check(preset.id, m.portraitDom, 'portrait HUD DOM not active');
     check(preset.id, Math.abs(m.hudOverflowX ?? 0) <= 2, `HUD horizontal overflow ${m.hudOverflowX}px`);
     check(preset.id, m.portraitStatus?.whoLabels?.join() === '\u540c\u884c,\u5728\u770b',
@@ -394,16 +402,17 @@ console.log(`  ${'-'.repeat(112)}`);
   const page = await openPreset(preset, { wrapPx: 140 });
   const m = await probe(page);
   check('compressed-140', m.slotW <= 142, `slot width ${m.slotW}`);
-  check('compressed-140', m.hudW > m.slotW + 80, `HUD ${m.hudW} did not break out of slot ${m.slotW}`);
+  check('compressed-140', m.nativeFlow && Math.abs(m.hudW - m.slotW) <= 2,
+    `native HUD ${m.hudW} did not fit slot ${m.slotW}`);
   check('compressed-140', Math.abs(m.alignment ?? 999) <= 1, `alignment ${m.alignment}`);
-  console.log(`  ${m.slotW <= 142 && m.hudW > m.slotW + 80 ? 'ok  ' : 'FAIL'}  slot=${m.slotW}, HUD=${m.hudW}, alignment=${m.alignment}`);
+  console.log(`  ${m.slotW <= 142 && m.nativeFlow && Math.abs(m.hudW - m.slotW) <= 2 ? 'ok  ' : 'FAIL'}  slot=${m.slotW}, HUD=${m.hudW}, alignment=${m.alignment}`);
   await page.close();
 }
 
 
 console.log('\n  partial-slot scroll regression');
 console.log(`  ${'-'.repeat(112)}`);
-for (const presetId of ['desktop-work', 'phone-iphone']) {
+for (const presetId of ['desktop-work']) {
   const preset = REAL_PRESETS.find((item) => item.id === presetId);
   const page = await openPreset(preset);
   await page.evaluate(() => {

@@ -343,7 +343,7 @@ function loadProductionStatusSource() {
       .then((source) => {
         if (SHELL_VARIANT === 'flow') {
           /* 测试版是自包含的，只需要把 HUD_URL 指到夹具本地那份 HUD。 */
-          const localHud = new URL('/', location.href).href;
+          const localHud = params.get('hud') || new URL('/', location.href).href;
           const replaced = source.replace(
             /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
             `const HUD_URL = ${JSON.stringify(localHud)};`,
@@ -370,7 +370,7 @@ function loadProductionStatusSource() {
             : '引导壳的脚本地址指向夹具本地 /shell/status-shell.js（HUD_URL 由服务端改写）');
           return replaced;
         }
-        const localHud = new URL('/', location.href).href;
+        const localHud = params.get('hud') || new URL('/', location.href).href;
         const replaced = source.replace(
           /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
           `const HUD_URL = ${JSON.stringify(localHud)};`,
@@ -637,8 +637,17 @@ addEventListener('resize', () => {
 
 function liveHud() {
   return document.getElementById('linjiang-hud-live')
+    || statusFrame?.contentDocument?.getElementById('linjiang-mobile-native-root')
     || statusFrame?.contentDocument?.getElementById('hud')
     || null;
+}
+
+function hudDocument(hud = liveHud()) {
+  if (!hud) return null;
+  if (hud.tagName === 'IFRAME') {
+    return hud.contentDocument?.documentElement ? hud.contentDocument : null;
+  }
+  return hud.ownerDocument?.documentElement ? hud.ownerDocument : null;
 }
 
 function frameBox(element) {
@@ -664,7 +673,7 @@ function measure() {
   const slot = frameBox(statusFrame);
   /* 刚被创建、还没导航完的 iframe 有 contentDocument 但 documentElement 是 null。
      measure() 会在轮询里被反复调用，所以这里必须挺得住那个中间态。 */
-  const hudDoc = hud?.contentDocument?.documentElement ? hud.contentDocument : null;
+  const hudDoc = hudDocument(hud);
   const hudRoot = hudDoc?.documentElement || null;
   const pstage = hudDoc?.querySelector('.pstage');
   const chatStyle = getComputedStyle(chatEl);
@@ -695,7 +704,8 @@ function measure() {
     hudH: Math.round(hudBox?.height || 0),
     hudTop: Math.round(hudBox?.top || 0),
     alignment: hudBox && slot ? +(hudBox.top - slot.top).toFixed(2) : null,
-    lifted: hud?.id === 'linjiang-hud-live',
+    lifted: hud?.id === 'linjiang-hud-live' && hud?.tagName === 'IFRAME',
+    nativeFlow: hud?.id === 'linjiang-mobile-native-root',
     portraitDom: !!pstage && !pstage.hasAttribute('hidden'),
     hudPerformanceMode: hudRoot?.dataset.hudPerformance || '',
     hudHostScrollActive: !!hudRoot?.classList.contains('host-scroll-active'),
@@ -705,11 +715,12 @@ function measure() {
     hudMoney: (hudDoc?.querySelector('.pmoney b') || hudDoc?.querySelector('.money-line .num'))
       ?.textContent.replace(/\s+/g, '').trim() || '',
     /* TT 的准入契约：状态栏必须始终保持"已声明 none 且未被接管"。 */
-    ttSurface: hud?.getAttribute('data-tt-mobile-surface') ?? null,
-    ttAdmitted: hud?.hasAttribute('data-tt-mobile-surface-admitted') ?? null,
-    ttOriginalTop: hud?.style.getPropertyValue('--tt-original-top') || '',
+    ttSurface: hud?.tagName === 'IFRAME' ? hud.getAttribute('data-tt-mobile-surface') : null,
+    ttAdmitted: hud?.tagName === 'IFRAME' ? hud.hasAttribute('data-tt-mobile-surface-admitted') : null,
+    ttOriginalTop: hud?.tagName === 'IFRAME' ? (hud.style.getPropertyValue('--tt-original-top') || '') : '',
     ttFirewallInstalled: !!document.getElementById('tt-mobile-geometry-firewall'),
     liveHudCount: document.querySelectorAll('#linjiang-hud-live').length
+      + (statusFrame?.contentDocument?.getElementById('linjiang-mobile-native-root') ? 1 : 0)
       + (statusFrame?.contentDocument?.getElementById('hud') ? 1 : 0),
     /* 壳层走的哪条投递路径，以及它有没有真的执行过。
        shellVersion 读的是壳层脚本一开头落在 <html> 上的记号（见 status-shell.js 里
@@ -740,7 +751,7 @@ async function waitUntilPainted(timeout = 30000) {
   const started = performance.now();
   while (performance.now() - started < timeout) {
     const hud = liveHud();
-    const doc = hud?.contentDocument?.documentElement ? hud.contentDocument : null;
+    const doc = hudDocument(hud);
     const built = doc && (
       doc.querySelector('.pstage:not([hidden]) .pcontent > .ppanel')
       || doc.querySelector('#stage:not([hidden]) #content *')

@@ -40,7 +40,10 @@ export const SETTINGS_ROWS = [
 /* 一行 = 说明 + 一组互斥按钮。用 role=radiogroup / role=radio 而不是一堆普通按钮：
    这确实是"从几个里选一个"，读屏器需要知道当前选中的是哪个，光靠 is-on 的样式说不出来。 */
 export function settingsBody() {
-  return SETTINGS_ROWS.map((row) => {
+  const rows = window.__linjiangNativeFlow
+    ? SETTINGS_ROWS.filter((row) => row.name !== 'dockDefault')
+    : SETTINGS_ROWS;
+  return rows.map((row) => {
     const choices = PREF_CHOICES[row.name] || [];
     const current = pref(row.name);
     const options = choices.map(([value, label]) => {

@@ -102,9 +102,9 @@
    —— 这一点比「等所有人重新粘贴」强得多。
 */
 (function () {
-  /* 本页与酒馆同源，所以能摸到 parent.Mvu。
-     玻璃 HUD 本身在跨域 iframe 里，只通过 postMessage 和这里说话。 */
-  const SHELL_VERSION = '2026-08-26-flow-ios-v1';
+  /* This srcdoc is same-origin with the tavern. Desktop/Tauri keep the cross-origin
+     HUD iframe transport; native mobile browsers mount the HUD bundle in this document. */
+  const SHELL_VERSION = '2026-08-27-mobile-native-flow-v1';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳
@@ -157,12 +157,39 @@
     try { return !!window.__linjiangInlineDock; } catch (e) { return false; }
   })();
 
+  /* Mobile browsers use a different architecture: the HUD bundle is executed directly
+     in this Tavern Helper srcdoc document. The outer JSR iframe stays in normal flow,
+     so Chrome owns touch scrolling exactly like the reference bottom status bar.
+     The decision is locked for this document; keyboard and toolbar viewport changes do
+     not switch architectures mid-session. */
+  const MOBILE_NATIVE_FLOW = (() => {
+    try {
+      if (window.__linjiangForceDesktopShell) return false;
+      const host = window.top || window.parent || window;
+      /* This branch targets native Chrome/Safari SillyTavern. TauriTavern keeps its
+         existing compatibility path until it is migrated and tested separately. */
+      if (host.__TAURITAVERN__) return false;
+      const nav = host.navigator || navigator;
+      const uaMobile = /android|iphone|ipad|ipod|mobile/i.test(String(nav.userAgent || ''));
+      const coarse = !!host.matchMedia?.('(pointer: coarse)')?.matches
+        || Number(nav.maxTouchPoints || 0) > 0;
+      return (uaMobile || coarse) && Number(host.innerWidth || innerWidth) <= 879;
+    } catch (e) {
+      return false;
+    }
+  })();
+
   const localHudFrame = document.getElementById('hud');
   let hudFrame = localHudFrame;
   const hint = document.getElementById('hint');
   const hudOrigin = (() => {
     try { return new URL(HUD_URL, location.href).origin; }
     catch (e) { return '*'; }
+  })();
+
+  const shellOrigin = (() => {
+    try { return document.referrer ? new URL(document.referrer).origin : location.origin; }
+    catch (e) { return location.origin || '*'; }
   })();
 
   const showHint = (text) => {
@@ -422,8 +449,20 @@
     return { profile, unlocked };
   };
 
-  const hudWindow = () => hudFrame.contentWindow;
+  const hudWindow = () => hudFrame?.contentWindow || null;
   const postToHud = (payload) => {
+    if (MOBILE_NATIVE_FLOW) {
+      /* Reuse bridge.js's normal inbound-message parser, but deliver inside this
+         document. source/origin deliberately look like the same-origin tavern parent. */
+      try {
+        dispatchEvent(new MessageEvent('message', {
+          data: payload,
+          source: window.parent,
+          origin: shellOrigin,
+        }));
+      } catch (e) {}
+      return;
+    }
     const target = hudWindow();
     if (!target) return;
     try { target.postMessage(payload, hudOrigin === '*' ? '*' : hudOrigin); }
@@ -2555,6 +2594,170 @@
     } catch (e) {}
   };
 
+  /* ---------------------------------------------------------------- Mobile native flow
+     The HUD bundle is loaded as a module into this srcdoc document. There is no inner
+     iframe and no geometry bridge; Tavern Helper's own ResizeObserver sizes this floor. */
+  let mobileNativeMountPromise = null;
+  let mobileNativeRoot = null;
+  let mobileNativeBridge = null;
+  const MOBILE_NATIVE_STYLE_ID = 'linjiang-mobile-native-shell-style';
+  const MOBILE_NATIVE_ROOT_ID = 'linjiang-mobile-native-root';
+  const MOBILE_WRITE_ACTIONS = new Set([
+    'patch', 'clockIn', 'arcadeEvent', 'purchaseShopProduct',
+    'saveCustomMapNode', 'deleteCustomMapNode',
+  ]);
+
+  const restoreMobileNativeAnchor = () => {
+    const frame = window.frameElement;
+    if (!frame) return;
+    for (const name of ['height', 'min-height', 'opacity', 'pointer-events']) {
+      frame.style.removeProperty(name);
+    }
+    delete frame.dataset.linjiangH;
+    requestAnimationFrame(() => {
+      try {
+        const height = Math.max(1, Math.ceil(document.body?.scrollHeight || 0));
+        frame.style.height = `${height}px`;
+      } catch (e) {}
+    });
+  };
+
+  const queueMobileNativeHeight = () => {
+    requestAnimationFrame(() => {
+      try {
+        const frame = window.frameElement;
+        if (!frame || !isOwner()) return;
+        const height = Math.max(1, Math.ceil(document.body?.scrollHeight || 0));
+        if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
+      } catch (e) {}
+    });
+  };
+
+  const installMobileNativeBridge = () => {
+    const bridge = {
+      owner: INSTANCE_ID,
+      async request(action, payload) {
+        if (!isOwner()) throw new Error('?????????????');
+        /* Docking belongs only to the desktop lifted architecture. */
+        if (action === 'collapseHud') return true;
+        const result = await handleRequest(action, payload || {});
+        if (MOBILE_WRITE_ACTIONS.has(action)) queueMicrotask(() => pushSnapshot(true));
+        return result;
+      },
+      event(type) {
+        /* The document is in normal flow. Portrait size/page/overlay reports only
+           need Tavern Helper to remeasure body height; no host geometry is changed. */
+        if (type === 'portraitSize' || type === 'portraitPage' || type === 'overlay') {
+          queueMobileNativeHeight();
+        }
+      },
+    };
+    mobileNativeBridge = bridge;
+    window.__linjiangMobileDirectBridge = bridge;
+  };
+
+  const removeMobileNativeBridge = () => {
+    if (window.__linjiangMobileDirectBridge === mobileNativeBridge) {
+      try { delete window.__linjiangMobileDirectBridge; }
+      catch (e) { window.__linjiangMobileDirectBridge = null; }
+    }
+    mobileNativeBridge = null;
+  };
+
+  const ensureMobileNativeShellStyle = () => {
+    if (document.getElementById(MOBILE_NATIVE_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = MOBILE_NATIVE_STYLE_ID;
+    style.textContent = `
+      html[data-linjiang-mobile-native="1"],
+      html[data-linjiang-mobile-native="1"] body {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important;
+        background: #05040a !important;
+      }
+      #${MOBILE_NATIVE_ROOT_ID} { display:block; width:100%; min-height:1px; }
+      #${MOBILE_NATIVE_ROOT_ID}[hidden] { display:none !important; }
+      html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *,
+      html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *::before,
+      html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *::after {
+        animation-play-state: paused !important;
+      }
+      #hud { display:none !important; }
+    `;
+    document.head.appendChild(style);
+  };
+
+  const copyMobileNativeStyles = (parsed, baseUrl) => {
+    parsed.querySelectorAll('link[rel="stylesheet"]').forEach((source) => {
+      const href = source.getAttribute('href');
+      if (!href) return;
+      const absolute = new URL(href, baseUrl).toString();
+      if ([...document.styleSheets].some((sheet) => sheet.href === absolute)) return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = absolute;
+      if (source.media) link.media = source.media;
+      if (source.crossOrigin) link.crossOrigin = source.crossOrigin;
+      document.head.appendChild(link);
+    });
+  };
+
+  const mountMobileNativeHud = () => {
+    restoreMobileNativeAnchor();
+    ensureMobileNativeShellStyle();
+    document.documentElement.dataset.linjiangMobileNative = '1';
+    window.__linjiangNativeFlow = true;
+    window.__linjiangHostMode = 'portrait';
+    try { localHudFrame?.remove(); } catch (e) {}
+
+    mobileNativeRoot = document.getElementById(MOBILE_NATIVE_ROOT_ID);
+    if (!mobileNativeRoot) {
+      mobileNativeRoot = document.createElement('div');
+      mobileNativeRoot.id = MOBILE_NATIVE_ROOT_ID;
+      document.body.insertBefore(mobileNativeRoot, hint || null);
+    }
+    mobileNativeRoot.hidden = false;
+    if (mobileNativeMountPromise) return mobileNativeMountPromise;
+
+    mobileNativeRoot.innerHTML = '<div class="viewport"></div>';
+    showHint('???????????');
+    mobileNativeMountPromise = (async () => {
+      const response = await fetch(new URL(HUD_URL, location.href).toString(), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HUD ?? HTTP ${response.status}`);
+      const html = await response.text();
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      copyMobileNativeStyles(parsed, response.url);
+      const entries = [...parsed.querySelectorAll('script[type="module"][src]')];
+      const entry = entries.find((item) => !String(item.getAttribute('src') || '').includes('/@vite/client'))
+        || entries.at(-1);
+      if (!entry) throw new Error('HUD ???? module script');
+      const src = new URL(entry.getAttribute('src'), response.url).toString();
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = src;
+        script.crossOrigin = 'anonymous';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('??? HUD ??????'));
+        document.head.appendChild(script);
+      });
+      showHint('');
+      queueMobileNativeHeight();
+      pushSnapshot(true);
+      return true;
+    })().catch((error) => {
+      console.error('[?????] ??????????', error);
+      showHint('?????????????????');
+      throw error;
+    });
+    return mobileNativeMountPromise;
+  };
+
   let followTick = 0;
   let inlineResumeTimer = 0;
 
@@ -3221,6 +3424,17 @@
 
   const deactivate = () => {
     if (!active) { collapseAnchor(); return; }
+    if (MOBILE_NATIVE_FLOW) {
+      active = false;
+      try { clearInterval(pollTimer); } catch (e) {}
+      pollTimer = 0;
+      clearHostListeners();
+      removeMobileNativeBridge();
+      document.documentElement.dataset.linjiangNativeActive = '0';
+      if (mobileNativeRoot) mobileNativeRoot.hidden = true;
+      collapseAnchor();
+      return;
+    }
     clearTimeout(hostScrollIdleTimer);
     hostScrollIdleTimer = 0;
     setHostScrollActive(false);
@@ -3253,6 +3467,21 @@
       hudFrame.style.pointerEvents = 'none';
     }
     collapseAnchor();
+  };
+
+  const bindMobileNativeRuntime = () => {
+    /* Only cross-feature messages remain. Scroll, wheel, geometry and pointer
+       listeners belong to the desktop lifted HUD and stay completely unbound here. */
+    listen(window, 'message', onPhoneAck);
+    listen(window, 'message', onCGUnlockRecord);
+    try {
+      const tavern = tavernWin();
+      if (tavern && tavern !== window) {
+        listen(tavern, 'message', onPhoneAck);
+        listen(tavern, 'message', onCGUnlockRecord);
+      }
+    } catch (e) {}
+    listen(window, 'resize', queueMobileNativeHeight, { passive: true });
   };
 
   const bindActiveRuntime = () => {
@@ -3318,6 +3547,20 @@
     if (destroyed) return;
     active = true;
     uninstalled = false;
+    if (MOBILE_NATIVE_FLOW) {
+      /* A native-flow owner owns its own document; never create or move the shared
+         desktop HUD iframe. New-message handover simply mounts in the new floor. */
+      try { manager.resetHudFrame?.(); } catch (e) {}
+      manager.dockMode = 'embedded';
+      installMobileNativeBridge();
+      document.documentElement.dataset.linjiangNativeActive = '1';
+      bindMobileNativeRuntime();
+      restoreMobileNativeAnchor();
+      showHint('???????????');
+      pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
+      mountMobileNativeHud().catch(() => {});
+      return;
+    }
     /* A message/status re-render elects a new controller without reloading the
        managed HUD iframe. Restore the shared docking state before the first layout,
        otherwise the new owner falls back to the viewport-wide desktop box. If a page

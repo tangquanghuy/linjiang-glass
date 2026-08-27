@@ -179,7 +179,10 @@ for (const spec of SHELLS) {
       const m = await page.evaluate(() => window.__linjiangTavernLive.measure());
 
       /* ---- 兼容地板：六个版本都必须过 ---- */
-      check(m.lifted, '壳层把 HUD 抬成了 #linjiang-hud-live');
+      const expectsNativeFlow = !spec.rev && target.host !== 'tauritavern';
+      check(expectsNativeFlow ? (m.nativeFlow && !m.lifted) : m.lifted,
+        expectsNativeFlow ? 'workspace browser shell uses native srcdoc HUD' : 'shell lifts HUD as #linjiang-hud-live',
+        `native=${m.nativeFlow} lifted=${m.lifted}`);
       check(Math.abs(m.alignment) <= 1, 'HUD 与栏位对齐', `${m.alignment}px`);
       check(m.hudMoney.includes('512,300'),
         'MVU 快照落到 HUD 上（等于验通 handshake + getSnapshot 往返）', m.hudMoney || '(空)');
