@@ -92,7 +92,7 @@
 (function () {
   /* This srcdoc is same-origin with the tavern. Desktop/Tauri keep the cross-origin
      HUD iframe transport; native mobile browsers mount the HUD bundle in this document. */
-  const SHELL_VERSION = '2026-08-30-blackout-fixes-v1';
+  const SHELL_VERSION = '2026-08-30-9aa91f63';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳

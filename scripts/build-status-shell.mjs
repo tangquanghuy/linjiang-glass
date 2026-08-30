@@ -19,6 +19,7 @@
      node scripts/build-status-shell.mjs            # 生成两份
      node scripts/build-status-shell.mjs --check    # 只校验，不写盘（CI / 提交前用）
 */
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,7 +163,47 @@ const BOOT_SCRIPT = `<!-- 壳层脚本。放在两个元素之后，所以脚本
   }
 </script>`;
 
-const shellJs = readFileSync(SHELL_JS, 'utf8');
+/* 壳层版本号由本脚本按**源码内容**自动打戳，不再靠人记着改。
+   ==================================================================
+   为什么要自动：SHELL_VERSION 原来是一个手写常量。壳层是复制粘贴部署的，那个字符串是用户
+   唯一能确认"我手上是哪一版"的东西 —— 而我连着改了十几次壳层都没动它，用户因此分不清新旧，
+   白测了好几轮。这种"必须记得手动同步"的东西迟早会漂，而漂的那一次正是最需要它的那一次。
+
+   版本 = 日期 + 壳层源码（去掉版本行本身之后）的内容哈希前 8 位。
+   于是任何一处逻辑改动都会换号，纯注释改动也会换号（宁可多换，不可漏换）；
+   而重复构建同一份源码得到同一个号，--check 才能是确定的。
+
+   版本行本身要从哈希输入里剔掉，否则就是"改哈希导致哈希变"的自指循环。 */
+/* 这个标志在下面还会以 checkOnly 的名字用一次；打戳发生在产物比对之前，所以要先取。 */
+const CHECK = process.argv.includes('--check');
+const VERSION_RE = /(const\s+SHELL_VERSION\s*=\s*')([^']*)(')/;
+
+const stampShellVersion = () => {
+  const raw = readFileSync(SHELL_JS, 'utf8');
+  if (!VERSION_RE.test(raw)) {
+    throw new Error('status-shell.js 里找不到 SHELL_VERSION，无法打版本戳');
+  }
+  const neutral = raw.replace(VERSION_RE, '$1__STAMP__$3');
+  const hash = createHash('sha256').update(neutral, 'utf8').digest('hex').slice(0, 8);
+  const stamp = `${new Date().toISOString().slice(0, 10)}-${hash}`;
+  const current = raw.match(VERSION_RE)[2];
+  if (current === stamp) return { text: raw, stamp, changed: false };
+  return { text: raw.replace(VERSION_RE, `$1${stamp}$3`), stamp, changed: true };
+};
+
+const stamped = stampShellVersion();
+if (stamped.changed) {
+  if (CHECK) {
+    console.error(`  版本戳过期：源码里是 ${readFileSync(SHELL_JS, 'utf8').match(VERSION_RE)[2]}，应为 ${stamped.stamp}`);
+    console.error('  跑 npm run shell:build 重新打戳。');
+    process.exitCode = 1;
+  } else {
+    writeFileSync(SHELL_JS, stamped.text, 'utf8');
+    console.log(`  版本戳  ${stamped.stamp}（按壳层源码内容算，自动）`);
+  }
+}
+
+const shellJs = stamped.text;
 
 /* 内联安全检查。脚本里只要出现 </script，HTML 解析器就会在那里提前闭合 <script> 元素，
    后面的代码变成页面文本 —— 而且是静默的，页面照样显示，只是壳层没跑。宁可在这里炸。 */
@@ -222,7 +263,7 @@ const targets = [
   { path: OUT_FLOW, label: '流内嵌入实验版', body: toCrlf(skeleton(FLOW_HEADER, FLOW_SCRIPT)) },
 ];
 
-const checkOnly = process.argv.includes('--check');
+const checkOnly = CHECK;
 const stale = [];
 
 for (const target of targets) {
