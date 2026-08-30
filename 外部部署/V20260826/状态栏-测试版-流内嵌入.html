@@ -104,7 +104,7 @@
 (function () {
   /* This srcdoc is same-origin with the tavern. Desktop/Tauri keep the cross-origin
      HUD iframe transport; native mobile browsers mount the HUD bundle in this document. */
-  const SHELL_VERSION = '2026-08-30-9aa91f63';
+  const SHELL_VERSION = '2026-08-30-9ad45c7f';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳
@@ -2994,6 +2994,32 @@
      代价是覆盖层不再铺满屏幕，只铺满"一个屏幕高的楼层"，需要时用户还得滚一下对齐。
      不好看，但不会让人手机变一块黑。真全屏的正确做法是把覆盖层挂到酒馆 body 下当子节点
      （根层叠上下文，能盖住顶栏而不需要藏任何东西，嵌套层数还从 3 降到 2）—— 那条路另做。 */
+  /* 记住 HUD 当前打开的是哪一页，记在**酒馆窗口**上（manager 身上）。
+     ==================================================================
+     真机症状：TT 的「角色卡渲染管理 = 自动」时，打开主播完整档案、来回上下滑几次，面板会
+     突然像刷新一样消失，视口回到滚动条中央；把渲染管理关掉就不会。
+
+     成因：渲染管理会随滚动把楼层运行时挪进/挪出停车场，被挪的那条楼层**文档会被销毁重建**
+     （壳层里 startInlineResumeWatch 上面那段早就记过 WebKit 会重载停车场里的文档）。
+     而原生流下 HUD 的整个 DOM —— 包括"当前打开哪一页"这个状态 —— 就住在那个文档里。
+     文档一没，用户正在看的档案面板就凭空消失；同时重新选举把 owner 换到另一条楼层，
+     那条在聊天里的位置不同，于是视口也"跳"了。
+
+     所以状态不能只存在楼层文档里。manager 挂在酒馆顶层窗口上，活得比任何一条楼层都久，
+     把页名和参数记在它身上；新楼层挂载前再塞回去（见 mountMobileNativeHud 里那句
+     __linjiangRestorePage），HUD 首帧就能把这一页重新打开 —— 对用户来说等于没发生过。
+
+     只记竖屏路径的页面。横向的 overlay 事件不带 page，rememberNativePage 会原样忽略。 */
+  const rememberNativePage = (payload) => {
+    try {
+      if (!payload) return;
+      if (!payload.open) { manager.uiPage = null; return; }
+      /* 没带页名的通报（比如横向的 overlay）不覆盖已记住的值 —— 宁可不记，也不能记错。 */
+      if (!payload.page) return;
+      manager.uiPage = { page: String(payload.page), arg: payload.arg ?? null };
+    } catch (e) {}
+  };
+
   let nativeTallOn = false;
   let nativeTallSavedChatTop = null;
 
@@ -3177,6 +3203,7 @@
            竖屏路径（原生流恒为竖屏）对次级页面和覆盖层报的都是 portraitPage；overlay 是横向
            路径的通报，这里一并接住只是防御，语义相同。 */
         if (type === 'portraitPage' || type === 'overlay') {
+          rememberNativePage(payload);
           if (payload && payload.open) {
             /* geometry='flow'：只撑高楼层，绝不碰酒馆文档。带 iframe 的覆盖层走这条 ——
                理由（真机全黑）写在 enterMobileNativeTallFloor 上面那段。 */
@@ -3347,6 +3374,14 @@
       const entry = await resolveNativeEntry();
       /* 必须在注入 bundle **之前**写：HUD 一跑起来就可能去解析内嵌页面的地址。 */
       if (entry.base) window.__linjiangHudBase = entry.base;
+      /* 同理要在 bundle 之前：HUD 首帧就会读它，把上一条楼层被销毁前打开的那一页恢复回来。
+         理由见 rememberNativePage —— TT 的渲染管理会销毁重建楼层文档，用户正在看的档案面板
+         不该因此消失。 */
+      try {
+        const restore = manager.uiPage;
+        if (restore && restore.page) window.__linjiangRestorePage = { ...restore };
+        else delete window.__linjiangRestorePage;
+      } catch (e) {}
       applyNativeStyles(entry.css);
       /* 重试时给入口加一个查询串。同一个 URL 一旦进了本文档的 module map 就不会再执行，
          所以"加载成功但没画出来"那种失败必须换 URL 才有第二次机会。 */

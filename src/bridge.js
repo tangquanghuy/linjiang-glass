@@ -372,10 +372,26 @@ export function reportPortraitSize(height) {
    所以带 iframe 的那几个先退到 'flow'：把手从酒馆文档上拿开，代价是它们不再是真全屏。
    真全屏的正确做法是把覆盖层挂到酒馆 body 下当子节点（那才是根层叠上下文，能盖住顶栏而
    不需要藏任何东西，而且嵌套层数从 3 降到 2）—— 那条路还没建好。 */
-export function reportPortraitPage(open, { geometry = 'page' } = {}) {
+export function reportPortraitPage(open, { geometry = 'page', page = null, arg = null } = {}) {
   if (!isEmbedded()) return;
   if (!open) lastPortraitH = 0;
-  postEvent('portraitPage', { open: !!open, geometry });
+  /* page/arg 会被壳层记在**酒馆窗口**上，用来在楼层文档被销毁后把这一页恢复回来。
+     理由见 status-shell.js 的 rememberNativePage：TT 的「角色卡渲染管理=自动」会随滚动把
+     楼层挪进停车场并重建它的文档，而"当前打开哪一页"原本只活在那个文档的 DOM 里 ——
+     文档一没，用户正在看的档案面板就凭空消失了。 */
+  postEvent('portraitPage', { open: !!open, geometry, page, arg });
+}
+
+/* 楼层文档刚被重建时，壳层会把上一次打开的页面塞在这里，由 HUD 自己恢复。
+   放在全局而不是走一次 RPC：恢复要在首帧就发生，等一次往返会让用户看见面板闪一下才回来。 */
+export function pendingRestorePage() {
+  try {
+    const raw = window.__linjiangRestorePage;
+    if (!raw || typeof raw !== 'object') return null;
+    return { page: raw.page || null, arg: raw.arg ?? null };
+  } catch {
+    return null;
+  }
 }
 
 /* 横向构图开了铺满视口的覆盖层（地图 / 街机 / CG）。

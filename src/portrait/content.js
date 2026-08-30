@@ -505,7 +505,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
        iframe」会让整个 WebView 停止绘制（真机：打开后约 0.2 秒全黑，连挂在酒馆文档里的
        诊断条都一起消失）。所以它们只要求 'flow' —— 只撑高楼层，不碰酒馆文档。
        纯 DOM 的次级页面走 'page'，那条路在真机上一直是好的。 */
-    reportPortraitPage(true, { geometry: 'flow' });
+    reportPortraitPage(true, { geometry: 'flow', page: name, arg: null });
     closeOverlay();
     const options = name === 'map' ? { onTravel: onMapTravel, ...overlayOptions } : overlayOptions;
     unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage, ...options });
@@ -534,7 +534,10 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     workspace = page;
     workspaceArg = arg ?? null;
     document.documentElement.classList.add('is-page-open');
-    reportPortraitPage(true);
+    /* 带上页名和参数：TT 的渲染管理会销毁重建这条楼层的文档，届时壳层要靠这两个值把用户
+       正在看的那一页恢复回来（见 status-shell.js 的 rememberNativePage）。
+       档案页的 arg 是主播名字，所以必须一起记 —— 不然恢复出来的是别人的档案。 */
+    reportPortraitPage(true, { page, arg: typeof arg === 'string' ? arg : null });
     if (page === 'inventory') {
       inventorySelection.clear();
       inventoryNotice = '';

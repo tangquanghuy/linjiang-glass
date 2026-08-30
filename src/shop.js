@@ -2,7 +2,6 @@
    only successful product redemption crosses the bridge and writes MVU 背包. */
 import { purchaseShopProduct } from './bridge.js';
 import { hudPage } from './asset.js';
-import { mountNativeDiag } from './native-diag.js';
 import { mountFrameLoading } from './overlay-loading.js';
 
 export function shopSrc() {
@@ -47,10 +46,8 @@ export function mountShopOverlay(host, { onClose } = {}) {
   /* 加载状态：这几个页面从 GitHub Pages 取，国内可能很慢甚至取不回来，而覆盖层底色是近黑
      —— 真机上表现为"点商店直接整屏黑"。理由与实测见 src/overlay-loading.js。 */
   const unmountLoading = mountFrameLoading(layer, iframe, { label: '商店', onClose: close });
-  const unmountDiag = mountNativeDiag(iframe, { onClose: close });
   return () => {
     unmountLoading();
-    unmountDiag();
     removeEventListener('message', onMessage);
     layer.remove();
     if (!document.querySelector('.shop-layer')) document.documentElement.classList.remove('has-shop');

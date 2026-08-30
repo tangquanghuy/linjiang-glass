@@ -459,6 +459,16 @@ for (const kase of cases) {
     check(beforeKill.floorPosition === 'fixed' && beforeKill.topbar === 'hidden',
       '前提：整页状态已生效（楼层 fixed、chrome 隐藏）', JSON.stringify(beforeKill));
 
+    /* 先把页面关掉，再造残局。
+       ------------------------------------------------------------------
+       这一步是新加的，原因是"文档被销毁后恢复用户那一页"上线之后，这段测试的前提失效了：
+       页面开着的话，重建的文档会**正确地把它恢复回来**，于是整页几何再次生效、记号再次出现，
+       而这段要验的恰恰是"没有页面时不许留残留"。两个契约都对，只是不能叠在一起测。 */
+    await hud.locator('.pclose').click();
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => !window.__linjiangHudManagerV2?.uiPage),
+      '关页之后壳层不再记着任何页面（否则下面会被恢复干扰）');
+
     await page.evaluate(() => {
       const frame = window.__linjiangTavernLive.statusFrame;
       const chat = document.getElementById('chat');
@@ -570,6 +580,51 @@ for (const kase of cases) {
     check(await page.evaluate(() => !window.__linjiangTavernLive.statusFrame.contentDocument.querySelector('.shop-layer')),
       '等待状态里的关闭钮真的能退出');
     await page.unroute('**/shop/index.html*');
+
+    /* 楼层文档被销毁重建之后，用户正在看的那一页必须回来。
+       ==================================================================
+       真机症状（TT「角色卡渲染管理 = 自动」）：打开主播完整档案、来回上下滑几次，面板会突然
+       像刷新一样消失、视口回到滚动条中央；把渲染管理关掉就不会。
+
+       成因：渲染管理随滚动把楼层挪进/挪出停车场，被挪的那条**楼层文档会被销毁重建**。原生流
+       下 HUD 的整个 DOM（包括"当前打开哪一页"）就住在那个文档里，所以面板凭空消失。
+
+       这里用重新赋值 srcdoc 复现"文档被换掉"。它比真机温和（会正常触发 pagehide），但对这条
+       契约足够：要验的是"新文档挂载后能不能把那一页恢复回来"，而恢复所需的状态记在酒馆窗口上
+       （manager.uiPage），跟旧文档怎么死的无关。 */
+    await hud.locator('.pdest-btn[data-page="schedule"]').first().click();
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame.contentDocument;
+      return doc.documentElement.classList.contains('is-page-open');
+    }), '前提：次级页面已打开');
+    const remembered = await page.evaluate(() => {
+      const mgr = window.__linjiangHudManagerV2;
+      return mgr?.uiPage ? `${mgr.uiPage.page}/${mgr.uiPage.arg ?? '-'}` : '(没记住)';
+    });
+    check(remembered.startsWith('schedule'),
+      '壳层把当前页记在酒馆窗口上（楼层文档死了也还在）', remembered);
+
+    await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      frame.srcdoc = frame.srcdoc;   // 换一个新文档
+    });
+    await page.waitForTimeout(4500);
+    const revived = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame.contentDocument;
+      return {
+        pageOpen: doc.documentElement.classList.contains('is-page-open'),
+        restoreGlobal: !!doc.defaultView.__linjiangRestorePage,
+        hasPanel: !!doc.querySelector('.pclose'),
+        rootNodes: doc.getElementById('linjiang-mobile-native-root')?.querySelectorAll('*').length ?? -1,
+      };
+    });
+    /* 门槛按「恢复出来的是一页，不是完整基础列」定：日程页约 86 个节点，而基础列有 300+。
+       原来照基础列写了 >100，结果把正确行为判成失败 —— 恢复的本来就该只是那一页。
+       真正要挡住的是"挂了个空壳"，所以 40 足够。 */
+    check(revived.rootNodes > 40, '楼层文档换掉后 HUD 重新挂上了', `根节点 ${revived.rootNodes}`);
+    check(revived.pageOpen && revived.hasPanel,
+      '并且把用户正在看的那一页恢复回来了（不再凭空消失）', JSON.stringify(revived));
 
     check(errors.length === 0, 'no script errors', errors.slice(0, 3).join(' | '));
   } catch (error) {

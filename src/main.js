@@ -37,7 +37,7 @@ import { buildDrawerDefs } from './drawer.js';
 import { renderContent } from './content.js';
 import { createPortraitStage } from './portrait/stage.js';
 import { mountPortraitContent } from './portrait/content.js';
-import { startBridge } from './bridge.js';
+import { pendingRestorePage, startBridge } from './bridge.js';
 import { onPref, pref, prefStored } from './prefs.js';
 
 /* Two layouts, not one layout with breakpoints.
@@ -125,7 +125,7 @@ function bootPortrait() {
   }
 
   const stage = createPortraitStage(host);
-  mountPortraitContent(stage, {
+  const column = mountPortraitContent(stage, {
     /* Every route the column offers is built (see src/portrait/pages.js), so this only
        fires for a name nothing routes -- which should be loud rather than a blank
        panel. */
@@ -133,6 +133,21 @@ function bootPortrait() {
       console.warn('[portrait] no page routed for:', page, arg ?? '');
     },
   });
+
+  /* 把楼层文档被销毁之前打开的那一页恢复回来。
+     ------------------------------------------------------------------
+     TT 的「角色卡渲染管理 = 自动」会随滚动把楼层挪进停车场并重建它的文档。原生流下 HUD 的
+     DOM 就住在那个文档里，所以用户正在看的档案面板会凭空消失、视口也跟着跳 —— 真机反馈的
+     就是这个。页名和参数由壳层记在酒馆窗口上（见 status-shell.js 的 rememberNativePage），
+     这里首帧读回来重开，对用户来说等于没发生过。
+
+     放在 mountPortraitContent 之后、且不等任何往返：等一次 RPC 会让面板先闪一下基础列再回来。 */
+  try {
+    const restore = pendingRestorePage();
+    if (restore?.page) column.openPage(restore.page, restore.arg ?? undefined);
+  } catch (error) {
+    console.warn('[portrait] 恢复上一页失败', error);
+  }
   return stage;
 }
 
