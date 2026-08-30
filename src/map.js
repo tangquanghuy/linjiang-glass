@@ -16,6 +16,7 @@
 import { CITY_BUILD_COST, characterDetails, customMapNodes, girls, onLive, player, world } from './data.js';
 import { deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
 import { hudPage } from './asset.js';
+import { mountFrameLoading } from './overlay-loading.js';
 
 const MAP_REV = '20260823-custom-nodes-v1';
 
@@ -188,9 +189,13 @@ export function mountMapOverlay(host, { onClose, onTravel, createMode = null } =
   bindFrame(iframe, { onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete });
   layer.querySelector('[data-map-close]').addEventListener('click', () => onClose?.());
   document.documentElement.classList.add('has-map');
+  /* 同商店/街机/CG：页面从 Pages 取，慢的时候覆盖层就是一片近黑。见 src/overlay-loading.js。
+     地图这条尤其值得有 —— 它带的资源最重（city/ 有 32MB）。 */
+  const unmountLoading = mountFrameLoading(layer, iframe, { label: '地图', onClose: () => onClose?.() });
   const offLive = onLive(() => applyToFrame(iframe, { resetView: false, onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete }));
   return () => {
     offLive();
+    unmountLoading();
     layer.remove();
     if (!document.querySelector('.map-layer')) document.documentElement.classList.remove('has-map');
   };

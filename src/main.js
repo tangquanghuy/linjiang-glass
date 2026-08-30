@@ -25,6 +25,10 @@ import './styles/perf.css';
 
 import { asset, cssUrl } from './asset.js';
 import { installImageFallbacks } from './dom.js';
+import { warmOverlayPages } from './overlay-loading.js';
+import { shopSrc } from './shop.js';
+import { cgSrc } from './cg.js';
+import { arcadeSrc } from './arcade.js';
 installImageFallbacks();
 
 import { buildDefs, buildRim, buildLens } from './glass.js';
@@ -229,6 +233,14 @@ applyMode();
    跑在它出现之前。 */
 syncHeavyTextures();
 startBridge();
+
+/* 预热几个内嵌页面的 HTML。
+   ------------------------------------------------------------------
+   它们从 GitHub Pages 取，而国内网络下第一次可能要等很久 —— 真机上表现为"点商店直接黑屏"
+   （诊断出的实况：iframe 还停在 about:blank，load 从未触发）。加载状态已经把那个失败模式
+   变成看得懂的等待，这一步再把等待本身挪到用户不在等的时候。
+   只取 HTML、不碰各自的重资源；空闲时才发，失败静默。理由见 src/overlay-loading.js。 */
+warmOverlayPages([shopSrc(), cgSrc(), arcadeSrc()]);
 
 let modeTick = 0;
 const scheduleMode = () => {

@@ -12,6 +12,7 @@
 
 import { characterDetails, onLive } from './data.js';
 import { hudPage } from './asset.js';
+import { mountFrameLoading } from './overlay-loading.js';
 
 const CHANNEL = 'linjiang-cg';
 
@@ -51,6 +52,8 @@ export function mountCgOverlay(host, { onClose } = {}) {
   const iframe = layer.querySelector('[data-cg-frame]');
   layer.querySelector('[data-cg-close]').addEventListener('click', () => onClose?.());
   document.documentElement.classList.add('has-cg');
+  /* 同商店/街机：页面从 Pages 取，慢的时候覆盖层就是一片近黑。见 src/overlay-loading.js。 */
+  const unmountLoading = mountFrameLoading(layer, iframe, { label: 'CG 鉴赏', onClose: () => onClose?.() });
 
   const push = () => {
     try { iframe.contentWindow?.postMessage({ type: `${CHANNEL}:data`, bonds: bondMap() }, '*'); }
@@ -78,6 +81,7 @@ export function mountCgOverlay(host, { onClose } = {}) {
 
   return () => {
     offLive();
+    unmountLoading();
     removeEventListener('message', onFrameMsg);
     removeEventListener('linjiang:cg-unlock', pushUnlock);
     layer.remove();

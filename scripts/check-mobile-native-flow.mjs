@@ -453,6 +453,66 @@ for (const kase of cases) {
       '楼层文档被销毁后，酒馆 chrome 自愈（这是黑屏的直接成因）', JSON.stringify(healed));
     check(healed.chatBackdrop !== 'none' && healed.leftoverMarkers === 0,
       '#chat 的 backdrop-filter 还原，且宿主上不留残留记号', JSON.stringify(healed));
+    /* 内嵌页面取不回来时，用户必须看到「可读的等待」，而不是一片近黑。
+       ==================================================================
+       真机实况（诊断条读出来的）：
+           商店加载：等待中           ← load 从未触发
+           商店内页：同源 body节点=0   ← 还停在初始 about:blank
+       楼层是 tauri://localhost/、商店在 Pages 上，两者不可能同源 —— 能读到且 body 为空，
+       说明那个 iframe 压根没导航过去。屏幕上于是只剩 .shop-layer 的底色 #0c1024（近黑），
+       用户报的就是"点商店直接黑屏"，而"多开几次就好了"是命中了缓存。
+
+       根因是这几个页面走 GitHub Pages，国内可能很慢甚至取不回来（本仓库早就量过 178~240 秒，
+       素材因此改走 jsDelivr；但页面不能简单换源，街机和 CG 的 localStorage 存档绑在 origin 上）。
+
+       所以这里锁的不是"加载要多快"，而是**失败模式必须是可理解、可退出的**：
+       拦掉商店地址模拟取不回来，断言加载层在、有文字、并且给出重试/关闭。 */
+    await page.route('**/shop/index.html*', (route) => { /* 永不响应，模拟取不回来 */ });
+    await hud.locator('.pdest-btn[data-page="shop"]').first().click();
+    await page.waitForTimeout(1200);
+    const loadingEarly = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame.contentDocument;
+      const box = doc.querySelector('.shop-layer .overlay-loading');
+      if (!box) return { present: false };
+      const r = box.getBoundingClientRect();
+      return {
+        present: true,
+        area: Math.round(r.width * r.height),
+        text: (box.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+        buttons: box.querySelectorAll('button').length,
+        buttonsVisible: [...box.querySelectorAll('button')]
+          .filter((b) => b.offsetParent !== null).length,
+      };
+    });
+    check(loadingEarly.present && loadingEarly.area > 10000 && loadingEarly.text.includes('正在加载'),
+      '内嵌页面加载期间显示可读的等待状态（不是一片近黑）', JSON.stringify(loadingEarly));
+
+    /* 超过 SLOW_MS（6s）之后必须给出解释和出路，否则用户只能杀进程。 */
+    await page.waitForTimeout(6500);
+    const loadingSlow = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame.contentDocument;
+      const box = doc.querySelector('.shop-layer .overlay-loading');
+      if (!box) return { present: false };
+      return {
+        present: true,
+        text: (box.textContent || '').replace(/\s+/g, ' ').trim(),
+        buttonsVisible: [...box.querySelectorAll('button')]
+          .filter((b) => b.offsetParent !== null).map((b) => b.textContent.trim()),
+      };
+    });
+    check(loadingSlow.present && loadingSlow.buttonsVisible.includes('重试')
+      && loadingSlow.buttonsVisible.includes('关闭'),
+      '慢到一定程度给出重试与关闭（用户有出路）', JSON.stringify(loadingSlow.buttonsVisible));
+    check(/慢|网络/.test(loadingSlow.text),
+      '并且解释了为什么慢', loadingSlow.text.slice(0, 60));
+
+    /* 用它自己的关闭钮退出：这条路不依赖被测页面加载成功。 */
+    await hud.locator('.shop-layer .overlay-loading button', { hasText: '关闭' }).click();
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => !window.__linjiangTavernLive.statusFrame.contentDocument.querySelector('.shop-layer')),
+      '等待状态里的关闭钮真的能退出');
+    await page.unroute('**/shop/index.html*');
+
     check(errors.length === 0, 'no script errors', errors.slice(0, 3).join(' | '));
   } catch (error) {
     check(false, `${kase.id} execution`, error.message);
