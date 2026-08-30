@@ -197,7 +197,9 @@ if (args.includes('--verify')) {
   if (bad) process.exitCode = 1;
 }
 
-writeFileSync(join(OUT_DIR, 'README.md'), `# 预览用的外部部署文件
+/* 刻意不叫 README.md：外部部署目录里本来就有一份 README.md（生产的部署清单），它会被上面的
+   循环复制过来。同名会把它**静默覆盖**掉 —— 而那份 README 恰好是最该带在预览包里的参考。 */
+writeFileSync(join(OUT_DIR, '说明-预览包.md'), `# 预览用的外部部署文件
 
 **这些是测试用的副本，不要粘到正式角色卡上。**
 
