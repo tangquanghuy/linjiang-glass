@@ -23,10 +23,9 @@ import './styles/dest.css';
 import './styles/settings.css';
 import './styles/perf.css';
 
-import { cssUrl } from './asset.js';
+import { asset, cssUrl } from './asset.js';
 import { installImageFallbacks } from './dom.js';
 installImageFallbacks();
-document.documentElement.style.setProperty('--hud-frost', cssUrl('frost.png'));
 
 import { buildDefs, buildRim, buildLens } from './glass.js';
 import { buildDockDefs } from './dock.js';
@@ -192,16 +191,43 @@ if (iosTouchHost) document.documentElement.dataset.hudIosScroll = '1';
 const nativeFlowHost = (() => {
   try { return !!window.__linjiangNativeFlow; } catch (e) { return false; }
 })();
+/* 两张大贴图跟着档位走。
+   ------------------------------------------------------------------
+   低负载档以前只关 backdrop-filter，贴图一张不少（perf.css 顶部那句「Frost, tint and
+   plus-lighter edge are fills, not filters」说的就是这个）。但在低端机上这两张才是大头：
+
+     bg-plate.png  1672×941  解码后约 6MB 位图
+     frost.png     1024×1024 解码后约 4MB，而且要 repeat 铺在 6 个面上
+
+   一份 HUD 实例约 10MB 解码位图，而参考实现（参考/底部状态栏.html）一张图都没有 —— 1G 内存
+   的机器上这就是「它不卡我们卡爆」的差距所在。探针实测（6× 限速）：换成 1×1 之后传输
+   3076KB → 15KB、首屏解码 69.6ms → 1ms。位图内存和弱 GPU 的合成带宽夹具量不到，只会更多。
+
+   --hud-frost 必须在 JS 里改：它是写在 <html> 上的 inline 自定义属性，样式表覆盖不了。
+   .pplate 的 src 也在这里同步，这样用户在设置页来回切换能立刻看到效果，不用重挂。 */
+const syncHeavyTextures = () => {
+  const low = document.documentElement.dataset.hudPerformance === 'low';
+  document.documentElement.style.setProperty('--hud-frost', low ? 'none' : cssUrl('frost.png'));
+  document.querySelectorAll('img.pplate').forEach((img) => {
+    if (low) img.removeAttribute('src');
+    else if (img.getAttribute('src') !== asset('bg-plate.png')) img.src = asset('bg-plate.png');
+  });
+};
+
 const applyPerformanceMode = () => {
   const choice = pref('performanceMode');
   const low = choice === 'low'
     || hostNeedsFlatGlass
     || (nativeFlowHost && !prefStored('performanceMode'));
   document.documentElement.dataset.hudPerformance = low ? 'low' : 'auto';
+  syncHeavyTextures();
 };
 applyPerformanceMode();
 
 applyMode();
+/* 构图建完之后再同步一次：.pplate 是 applyMode 里才创建的，开机那次 syncHeavyTextures
+   跑在它出现之前。 */
+syncHeavyTextures();
 startBridge();
 
 let modeTick = 0;

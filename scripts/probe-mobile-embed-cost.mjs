@@ -56,6 +56,21 @@ const only = (args.find((a) => a.startsWith('--only=')) || '').slice('--only='.l
    backdrop-filter（40 处）的移动端路径。这个开关用来量清楚：把它打开值多少。
    走 localStorage 而不是改代码：原生流下 HUD 与夹具同源，prefs 就落在这个 origin 上。 */
 const FLAT_GLASS = args.includes('--flat');
+/* --noplate：把三张大贴图换成 1×1 透明 PNG。
+   ------------------------------------------------------------------
+   bg-plate.png 1672×941（解码后约 6MB 位图）、frost.png 1024×1024（约 4MB，还要 repeat
+   铺在 6 个面上）、polish.png 512×384（约 0.8MB）—— 每份 HUD 实例约 11MB 解码位图，而参考
+   底部状态栏一张图都没有。1G 内存的机器上这是决定性的差距。
+
+   用路由替换而不是改产物：布局一个像素都不变（<img> 还在、background 还在，只是源变成
+   1×1），于是量出来的差值就是**纯解码与位图内存**那一笔，不掺任何排版变化。这样才能在
+   动不动视觉之前先知道它值多少。 */
+const NO_PLATE = args.includes('--noplate');
+const TRANSPARENT_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+const BIG_TEXTURES = /\/assets\/(?:bg-plate|frost|polish|polish-mask)\.png/;
 const OUT_DIR = join(PROJECT_ROOT, 'artifacts', 'embed-cost');
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -130,7 +145,14 @@ for (const kase of CASES) {
       } catch (e) {}
     });
   }
-  const row = { id: kase.id, label: kase.label, cpu: CPU, flatGlass: FLAT_GLASS };
+  if (NO_PLATE) {
+    /* 必须后于 stubExternalRequests 注册：Playwright 按逆序匹配。本机地址被那条兜底
+       `route.continue()` 放过，所以这里要自己拦。 */
+    await page.route((url) => BIG_TEXTURES.test(url.pathname), (route) => route.fulfill({
+      status: 200, contentType: 'image/png', body: TRANSPARENT_PNG,
+    }));
+  }
+  const row = { id: kase.id, label: kase.label, cpu: CPU, flatGlass: FLAT_GLASS, noPlate: NO_PLATE };
   rows.push(row);
 
   /* trace 收集封装成一段一段的，静止相和滚动相各来一次。 */
@@ -235,6 +257,39 @@ for (const kase of CASES) {
       const lifted = document.getElementById('linjiang-hud-live')?.contentDocument;
       return (doc?.querySelectorAll('*').length || 0) + (lifted?.querySelectorAll('*').length || 0);
     });
+    /* 这一层文档实际下了多少图、以及按像素算的解码后位图有多大。
+       解码位图不进 JS 堆，Performance.getMetrics 看不到它，所以只能这样算：
+       拿 resource timing 的清单，配上已知的像素尺寸（w×h×4 字节）。 */
+    row.图 = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrames[0].contentDocument;
+      const win = doc?.defaultView;
+      const known = {
+        'bg-plate.png': [1672, 941], 'frost.png': [1024, 1024],
+        'polish.png': [512, 384], 'polish-mask.png': [512, 384],
+      };
+      const rows = [];
+      let bytes = 0;
+      let bitmapMb = 0;
+      for (const entry of (win?.performance?.getEntriesByType('resource') || [])) {
+        if (!/\.(?:png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(entry.name)) continue;
+        const name = entry.name.split('/').pop().split('?')[0];
+        bytes += Number(entry.transferSize || entry.encodedBodySize || 0);
+        const size = known[name];
+        if (size) {
+          bitmapMb += (size[0] * size[1] * 4) / 1048576;
+          rows.push(name);
+        }
+      }
+      return {
+        张数: (win?.performance?.getEntriesByType('resource') || [])
+          .filter((e) => /\.(?:png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(e.name)).length,
+        传输KB: Math.round(bytes / 1024),
+        大贴图: rows,
+        解码位图MB: +bitmapMb.toFixed(1),
+      };
+    });
+    console.log(`  图 ${row.图.张数} 张 / 传输 ${row.图.传输KB}KB / 大贴图解码位图 ${row.图.解码位图MB}MB ${JSON.stringify(row.图.大贴图)}`);
+
     /* HUD 实际用的是哪一档玻璃。--flat 到底有没有落地，要看这个而不是看命令行参数。 */
     row.玻璃档 = await page.evaluate(() => {
       const doc = window.__linjiangTavernLive.statusFrames[0].contentDocument;

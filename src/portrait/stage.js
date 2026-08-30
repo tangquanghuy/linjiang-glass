@@ -153,9 +153,18 @@ const blossom = (p) => {
  */
 export function createPortraitStage(host) {
   host.classList.add('pstage');
+  /* 低负载档不给底图 src。
+     ------------------------------------------------------------------
+     bg-plate.png 是 1672×941，解码后约 6MB 位图，而它在竖屏里被缩到一条不到 400px 宽的栏
+     后面 —— 严重过采样。移动端（原生流）默认就在低负载档，所以默认不再付这笔钱。
+
+     留着元素、只不给 src：<img> 没有 src 就既不发请求也不解码，而任何 querySelector('.pplate')
+     仍然命中。用户在设置页切回「完整效果」时由 main.js 的 syncHeavyTextures 把 src 补上。 */
+  const plateSrc = document.documentElement.dataset.hudPerformance === 'low'
+    ? '' : asset('bg-plate.png');
   host.innerHTML = `
 <div class="pscale">
-  <img class="pplate" src="${asset('bg-plate.png')}" alt="" draggable="false">
+  <img class="pplate"${plateSrc ? ` src="${plateSrc}"` : ''} alt="" draggable="false">
   <svg class="pdefs" aria-hidden="true"></svg>
   <div class="pglass" aria-hidden="true"></div>
   <div class="pcontent"></div>

@@ -136,3 +136,17 @@ html[data-hud-performance=low] .cg-panel {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* 低负载档：两张大贴图不参与绘制。
+   src 是由 src/main.js 的 syncHeavyTextures 摘掉的（不给 src 才真的不解码），这里补上
+   绘制侧：把底图藏干净，并给它原来占的位置一层平铺的暗色，免得露出骨架底色显得像没画完。
+   色值取自 bg-plate 的整体调子，不追求还原画面，只求这一层看起来是刻意的。 */
+html[data-hud-performance=low] .pplate,
+html[data-hud-performance=low] .plate {
+  display: none !important;
+}
+html[data-hud-performance=low] .pscale,
+html[data-hud-performance=low] .stage {
+  background:
+    radial-gradient(120% 80% at 30% 0%, #241b33 0%, #15101f 55%, #0b0812 100%);
+}
