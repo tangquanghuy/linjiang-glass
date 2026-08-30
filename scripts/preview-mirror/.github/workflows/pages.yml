@@ -1,0 +1,65 @@
+name: Deploy HUD preview
+
+# 这个仓库是 linjiang-glass 的**测试镜像**，只为一件事存在：让还没上线的 HUD 改动能在真机 /
+# 模拟器上被验证，而完全不动生产环境。
+#
+# 为什么需要单独一个仓库
+# ------------------------------------------------------------------
+# 状态栏是两半各自部署的：壳层是复制粘贴的（跟 git 无关，粘下去立刻生效），HUD 是构建产物、
+# 只能通过 GitHub Pages 到用户手上。而一个仓库只有一个 Pages 站点，生产那个绑在
+# linjiang-glass 的 main 上。所以想在真机上验 HUD 侧改动，以前只有两条路：合并到 main（等于
+# 对所有玩家上线），或者把 HUD 指到本机（要同网段，反复用很别扭）。
+#
+# 这个仓库是第三条路。它的 Pages 地址就是一个稳定的公网 HUD 地址：
+#     https://tangquanghuy.github.io/linjiang-dev/
+# 把它填进壳层的 HUD_URL，粘一次就能一直用来验。生产的 Pages 与 jsDelivr 一个字节都不受影响。
+#
+# 与生产构建的唯一差别：这里不 purge 任何 CDN 缓存（没有壳层脚本走 CDN），其余按生产的来。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # ASSET_CDN=1 跟生产部署保持一致，这一点很要紧：素材（bg-plate 2MB / frost 1MB）走
+      # GitHub Pages 在国内实测要 178~240 秒甚至超时失败，走 jsDelivr 是几秒。如果预览站让
+      # 素材走自己的 Pages，那量出来的"卡"里就掺进了一份生产环境根本不存在的下载等待 ——
+      # 比较就没有意义了。
+      #
+      # 注意 CDN_REF 指向的是 linjiang-glass@main 上那份素材（见 scripts/asset-cdn.mjs）。
+      # 素材本身很少变；真要改素材，得先把素材推到那个仓库的 main。
+      - run: npm run build
+        env:
+          ASSET_CDN: '1'
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
