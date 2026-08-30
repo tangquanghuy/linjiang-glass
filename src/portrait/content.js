@@ -384,6 +384,34 @@ export function mountPortraitContent(stage, { onPage } = {}) {
      them back rather than at the top of a column they had already scrolled past. */
   let baseScrollY = 0;
 
+  /* 谁才是真正在滚的那个容器。
+     ==================================================================
+     原来这里直接用 window 的 scrollTo / scrollY，那在两种架构下并不都对：
+
+       抬升 / 独立预览   文档自己滚 → window 就是滚动容器，正确
+       原生流（整页）    壳层把 html/body 钉成 height:100%;overflow:hidden，
+                        把溢出交给 #linjiang-mobile-native-root（理由见壳层里那段：
+                        酒馆助手照 body.scrollHeight 写楼层高度，document 一旦可滚就会
+                        把钉好的视口高覆盖掉）。这时 window.scrollTo 是**空操作**。
+
+     真机症状就是它：打开次级页面后画面不在顶部，关闭钮在上面看不见，得很用力往上滑才拽得出来。
+     所以取一次真正的滚动容器，两种架构都对。 */
+  const scroller = () => {
+    const root = document.getElementById('linjiang-mobile-native-root');
+    if (root && root.scrollHeight > root.clientHeight + 1) return root;
+    return null;
+  };
+  const scrollTopTo = (top) => {
+    const box = scroller();
+    if (box) box.scrollTop = top;
+    /* 两个都做：容器判定万一没命中，window 这条仍然是对的退路。 */
+    try { scrollTo({ top, behavior: 'auto' }); } catch (e) {}
+  };
+  const currentScrollTop = () => {
+    const box = scroller();
+    return box ? box.scrollTop : scrollY;
+  };
+
   const panel = () => content.querySelector('[data-panel="girls"]');
   const rail = () => content.querySelector('.prail');
   const dots = () => content.querySelector('.pdots');
@@ -468,7 +496,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     overlayOverPage = !!workspace && !OVERLAYS[workspace];
     if (!workspace) {
       railScroll = rail()?.scrollLeft ?? railScroll;
-      baseScrollY = scrollY;
+      baseScrollY = currentScrollTop();
     }
     workspace = name;
     workspaceArg = null;
@@ -497,7 +525,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
        into a 档案) must not overwrite where the base column was. */
     if (!workspace) {
       railScroll = rail()?.scrollLeft ?? railScroll;
-      baseScrollY = scrollY;
+      baseScrollY = currentScrollTop();
     }
     workspace = page;
     workspaceArg = arg ?? null;
@@ -514,7 +542,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     sync();
     /* A page is a new view, not a continuation of the one underneath: start it at the
        top even if the reader had scrolled the column. */
-    scrollTo({ top: 0, behavior: 'auto' });
+    scrollTopTo(0);
   };
 
   const closePage = () => {
@@ -534,7 +562,7 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     paintBase();
     /* After the layout settles, or the restore lands against the page's height rather
        than the column's. */
-    requestAnimationFrame(() => scrollTo({ top: baseScrollY, behavior: 'auto' }));
+    requestAnimationFrame(() => scrollTopTo(baseScrollY));
   };
 
   /* Confirming a gift, in place.

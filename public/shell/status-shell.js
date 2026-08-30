@@ -2824,13 +2824,53 @@
   let nativeSavedScrolling = null;
   let nativeSavedChatTop = null;
 
+  /* 顶部安全区（刘海 / 状态栏）的高度。
+     ==================================================================
+     这是「次级页面和商店的顶部被遮挡、关闭钮要很用力往上滑才点得到」的成因，而且我一开始
+     找错了对象 —— 以为是 TT 的顶部导航栏压在上面。真机诊断条给出的数字否掉了那个判断：
+
+         楼层框    430x932 @0,0            ← 我们的全屏本身是对的
+         #top-bar  hidden fixed 430x35@0,59 ← 导航栏是隐藏的，没在挡
+
+     真正占着顶上那一条的是 iOS 的安全区：@0,59 里的 59 就是它。楼层钉在 top:0，于是内容
+     最上面 59px 跑到状态栏底下，而关闭钮正好在那儿。
+
+     TT 自己所有的面都靠 --tt-inset-top 避开这块（见它的 mobile-geometry-firewall：
+     `top: max(var(--tt-inset-top), 0px)`），我们这条全屏路径也必须避。
+
+     取值三级退路，因为不同宿主提供的方式不同：
+       一、TT 的 --tt-inset-top（TT 移动端一定有，是它自己的契约）
+       二、直接量一个 env(safe-area-inset-top) 探针（普通 iOS 浏览器走这条）
+       三、都拿不到就当 0（桌面、安卓大多如此），行为跟以前一样 */
+  const hostInsetTop = () => {
+    try {
+      const tavern = tavernWin();
+      const raw = tavern.getComputedStyle(tavern.document.documentElement)
+        .getPropertyValue('--tt-inset-top').trim();
+      const value = parseFloat(raw);
+      if (Number.isFinite(value) && value > 0) return Math.round(value);
+    } catch (e) {}
+    try {
+      const tavern = tavernWin();
+      const probe = tavern.document.createElement('div');
+      probe.style.cssText = 'position:fixed;left:0;top:0;width:0;'
+        + 'height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+      tavern.document.body.appendChild(probe);
+      const height = Math.round(probe.getBoundingClientRect().height);
+      try { probe.remove(); } catch (e) {}
+      if (height > 0) return height;
+    } catch (e) {}
+    return 0;
+  };
+
   const mobileNativePageBox = () => {
     const tavern = tavernWin();
     const vv = tavern.visualViewport;
-    return {
-      vw: Math.round((vv && vv.width) || tavern.innerWidth || innerWidth),
-      vh: Math.round((vv && vv.height) || tavern.innerHeight || innerHeight),
-    };
+    const vw = Math.round((vv && vv.width) || tavern.innerWidth || innerWidth);
+    const vh = Math.round((vv && vv.height) || tavern.innerHeight || innerHeight);
+    const top = Math.min(hostInsetTop(), Math.max(0, vh - 120));
+    /* 只让开顶部：底部那条 home indicator 压在内容上是无害的，而顶部藏着关闭钮。 */
+    return { vw, vh: Math.max(1, vh - top), top };
   };
 
   /* 视口尺寸取 visualViewport 而不是 100dvh：移动端 vh 不等于可见高度（地址栏、软键盘），
@@ -2839,9 +2879,9 @@
   const layoutMobileNativePage = () => {
     const frame = window.frameElement;
     if (!frame || !nativePageOn) return;
-    const { vw, vh } = mobileNativePageBox();
+    const { vw, vh, top } = mobileNativePageBox();
     const floorCss = [
-      'position:fixed', 'left:0', 'top:0',
+      'position:fixed', 'left:0', `top:${top}px`,
       `width:${vw}px`, `height:${vh}px`,
       'max-width:none', 'max-height:none',
       'margin:0', 'border:0', 'display:block',

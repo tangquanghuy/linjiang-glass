@@ -31,6 +31,10 @@ const check = (ok, label, detail = '') => {
 const cases = [
   { id: 'android-inline', shell: 'inline', preset: 'phone-android', w: 360, h: 800 },
   { id: 'android-boot', shell: 'boot', preset: 'phone-iphone', w: 390, h: 844 },
+  /* TauriTavern。用户真机就是这个宿主，而它跟普通浏览器有一个要紧的差别：
+     它提供非零的 --tt-inset-top（刘海 / 状态栏）。整页必须让开那一条，否则页面顶部会被塞进
+     状态栏底下、右上角关闭钮点不到 —— 真机上就是这么坏的，而只跑浏览器宿主的用例看不见。 */
+  { id: 'tauri-inset', shell: 'inline', preset: 'phone-iphone', w: 393, h: 852, host: 'tauritavern' },
 ];
 const userAgent = 'Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36';
 
@@ -57,6 +61,7 @@ for (const kase of cases) {
       statusFloors: '3', shell: kase.shell,
       /* HUD 换到第二个源，理由见文件顶部那段。 */
       hud: HUD_ORIGIN,
+      ...(kase.host ? { host: kase.host } : {}),
     });
     await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });
@@ -183,10 +188,32 @@ for (const kase of cases) {
        现在的契约跟抬升架构一致（见 check-tavern-live.mjs 里那条「整页锚在视口原点」）：
        整页期间楼层自己铺满视口、盖住宿主 chrome；关掉之后一切按原样还回去。所以这里改成
        断言「进去铺满、出来复原」这一对，而不是断言楼层从不动。 */
+    /* 顶部安全区必须让开。
+       ==================================================================
+       真机上「次级页面和商店顶部被遮挡、关闭钮要很用力往上滑才点得到」就是漏了这一条。
+       诊断条给出的数字排除了我最初的猜测（以为是 TT 顶部导航栏压在上面）：
+
+           楼层框    430x932 @0,0            ← 全屏本身是对的
+           #top-bar  hidden fixed 430x35@0,59 ← 导航栏是隐藏的，没在挡
+
+       占着顶上那一条的是 iOS 安全区（@0,59 里的 59）。TT 自己所有的面都靠 --tt-inset-top
+       避开它，我们这条全屏路径也必须避。夹具里这个变量是 47px，所以下面按它来断言。 */
     const viewport = await page.evaluate(() => ({
       w: Math.round(window.visualViewport?.width || innerWidth),
       h: Math.round(window.visualViewport?.height || innerHeight),
+      insetTop: Math.round(parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--tt-inset-top'),
+      ) || 0),
     }));
+    /* 普通浏览器宿主没有这个变量（值为 0），断言退化成「从 0 开始铺满」——跟以前一样。
+       真正验「让开安全区」的是下面 host=tauritavern 那个用例，TT 会提供非零的 --tt-inset-top。
+       所以这里只报数，不当失败：否则非 TT 用例会因为一个它压根没有的东西而红。 */
+    if (kase.host === 'tauritavern') {
+      check(viewport.insetTop > 0,
+        '前提：TT 提供了非零顶部安全区（否则下面那条等于空转）', `--tt-inset-top=${viewport.insetTop}px`);
+    } else {
+      console.log(`  note  这个宿主没有顶部安全区，按 0 断言  --tt-inset-top=${viewport.insetTop}px`);
+    }
     const restFloor = await page.evaluate(() => {
       const chat = document.getElementById('chat');
       const frame = window.__linjiangTavernLive.statusFrame;
@@ -221,8 +248,12 @@ for (const kase of cases) {
         form: getComputedStyle(document.getElementById('form_sheld')).visibility,
       };
     });
-    const covers = (state) => state.position === 'fixed' && state.left === 0 && state.top === 0
-      && Math.abs(state.width - viewport.w) <= 2 && Math.abs(state.height - viewport.h) <= 2;
+  /* 铺满「安全区以下的整个视口」，而不是从 0 开始铺满 —— 从 0 开始就会把顶部塞进状态栏底下，
+     那正是真机上关闭钮点不到的成因。 */
+    const covers = (state) => state.position === 'fixed' && state.left === 0
+      && state.top === viewport.insetTop
+      && Math.abs(state.width - viewport.w) <= 2
+      && Math.abs(state.height - (viewport.h - viewport.insetTop)) <= 2;
 
     await hud.locator('.pdest-btn[data-page="schedule"]').first().click();
     await page.waitForTimeout(300);
@@ -230,8 +261,21 @@ for (const kase of cases) {
     check(pageState.open && pageState.marker === '1' && covers(pageState),
       'detail page pins the floor to the visual viewport', JSON.stringify(pageState));
     check(pageState.docOverflow === 'hidden' && pageState.rootOverflow === 'auto'
-      && Math.abs(pageState.bodyScroll - viewport.h) <= 2,
+      && Math.abs(pageState.bodyScroll - (viewport.h - viewport.insetTop)) <= 2,
       'detail page keeps body height equal to the viewport (no height tug-of-war)', JSON.stringify(pageState));
+    /* 打开就该停在顶部。整页模式下滚动容器是 #linjiang-mobile-native-root 而不是 window，
+       HUD 原来调的 window.scrollTo 在那儿是空操作 —— 真机症状是页面不在顶部、右上角关闭钮
+       在视野之外，要很用力往上滑才拽得出来。 */
+    const atTop = await page.evaluate(() => {
+      const doc = window.__linjiangTavernLive.statusFrame.contentDocument;
+      const root = doc.getElementById('linjiang-mobile-native-root');
+      return {
+        rootScrollTop: Math.round(root?.scrollTop ?? -1),
+        scrollable: !!root && root.scrollHeight > root.clientHeight + 1,
+      };
+    });
+    check(atTop.rootScrollTop === 0,
+      '次级页面打开时停在顶部（关闭钮在视野内）', JSON.stringify(atTop));
     check(pageState.topbar === 'hidden' && pageState.form === 'hidden',
       'detail page hides the tavern chrome it cannot out-stack', JSON.stringify(pageState));
     await hud.locator('.pclose').click();
@@ -314,8 +358,10 @@ for (const kase of cases) {
 
     check(shop.layer && shop.innerFrames === 1 && covers(shop),
       'shop overlay pins the floor to the visual viewport', JSON.stringify(shop));
-    check(Math.abs(shop.layerW - viewport.w) <= 2 && Math.abs(shop.layerH - viewport.h) <= 2,
-      'shop overlay actually covers the phone screen', `${shop.layerW}x${shop.layerH} vs ${viewport.w}x${viewport.h}`);
+    /* 「铺满屏幕」= 铺满安全区以下的那块，不是铺满 0..vh。 */
+    const usableH = viewport.h - viewport.insetTop;
+    check(Math.abs(shop.layerW - viewport.w) <= 2 && Math.abs(shop.layerH - usableH) <= 2,
+      'shop overlay actually covers the phone screen', `${shop.layerW}x${shop.layerH} vs ${viewport.w}x${usableH}`);
     check(shop.topbar === 'hidden' && shop.form === 'hidden',
       'shop overlay hides the tavern chrome it cannot out-stack', JSON.stringify(shop));
     await hud.locator('[data-shop-close]').click();
