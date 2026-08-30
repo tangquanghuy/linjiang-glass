@@ -73,6 +73,21 @@ function collect(iframe, loadState) {
     add('残留记号数', String(window.parent.document.querySelectorAll('[data-linjiang-cb-saved],[data-linjiang-floor-saved]').length));
   } catch (e) { /* 上面那条已经报过跨源了 */ }
 
+  /* 生命周期日志。它住在 manager 上（酒馆顶层窗口），比任何一条楼层活得久 —— 所以即使
+     刚刚发生过「状态栏像刷新一样重置」，导致重置的那几条事件仍然读得到。 */
+  try {
+    const mgr = window.parent.__linjiangHudManagerV2;
+    const log = Array.isArray(mgr?.log) ? mgr.log : null;
+    add('owner', mgr?.owner ? String(mgr.owner.id).slice(0, 4) : '(无)');
+    add('候选/已挂载', `${mgr?.candidates?.size ?? '?'} / ${(mgr?.mounted || []).length}`);
+    if (log && log.length) {
+      const t0 = log[log.length - 1].t;
+      add('事件（新→旧）', `\n${log.slice(-14).reverse()
+        .map((row) => `  ${String(Math.round((row.t - t0) / 100) / 10).padStart(6)}s ${row.msg}`)
+        .join('\n')}`);
+    } else add('事件', '(空)');
+  } catch (e) { add('事件', `读不到 ${e && e.name}`); }
+
   return out;
 }
 
@@ -89,6 +104,8 @@ export function mountNativeDiag(iframe, { onClose } = {}) {
     /* 贴底、按钮靠左：商店自己的关闭钮在右上角，贴顶会正好压在它上面 ——
        回归里 [data-shop-close] 因此永远过不了 Playwright 的命中检测，真机上也点不到。 */
     'position:fixed', 'left:0', 'right:0', 'bottom:0', 'z-index:2147483647',
+    /* 封顶，别让日志把整屏吃掉；它不吃指针事件也就没法滚，所以只能靠少显示几条。 */
+    'max-height:82%', 'overflow:hidden',
     'background:#0b1220', 'color:#d8e2ff', 'border-top:2px solid #4ea1ff',
     'font:500 11px/1.45 ui-monospace,Menlo,Consolas,monospace',
     'padding:8px 10px 10px', 'box-sizing:border-box',

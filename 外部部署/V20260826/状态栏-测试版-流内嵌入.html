@@ -1154,6 +1154,22 @@
   const createManager = (host) => {
     const manager = {
       version: MANAGER_VERSION,
+      /* 生命周期事件环形日志（临时仪器）。
+         ==================================================================
+         真机症状：原生流下快速上下滑动时，状态栏有概率"像刷新了一样"整块重置 —— 打开的
+         角色详情档案消失，视口也不在状态栏那一条上了。
+
+         这两件同时发生，最像 owner 交接或者 release()（把老楼层导航成 about:blank）。但这些
+         事件全发生在**楼层文档里**，而那个文档正是被销毁的一方，所以日志不能留在它自己身上。
+         manager 挂在酒馆顶层窗口上，它活得比任何一条楼层都久 —— 所以日志放这儿。
+         查清成因后跟诊断条一起删。 */
+      log: [],
+      note(msg) {
+        try {
+          this.log.push({ t: Date.now(), msg: String(msg) });
+          if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
+        } catch (e) {}
+      },
       host,
       sequence: 0,
       epoch: 1,
@@ -1297,8 +1313,10 @@
           this.timers.set(controller.id, { defer: controller.defer, alive: controller.alive });
         }
         this.candidates.set(record.id, record);
+        this.note(`register ${String(record.id).slice(0, 4)} rank=${record.rank} 候选=${this.candidates.size}`);
         this.adoptSurvivors();
         if (this.owner && !this.owner.frame?.isConnected) {
+          this.note(`owner ${String(this.owner.id).slice(0, 4)} 的楼层已离开 DOM`);
           try { this.owner.deactivate('disconnected'); } catch (e) {}
           this.owner = null;
         }
@@ -1311,6 +1329,7 @@
         this.timers.delete(id);
         this.mounted = this.mounted.filter((row) => row !== id);
         if (this.retiring?.id === id) this.retiring = null;
+        this.note(`unregister ${String(id).slice(0, 4)}${this.owner?.id === id ? '（它是 owner）' : ''}`);
         if (this.owner?.id === id) {
           try { record?.deactivate('removed'); } catch (e) {}
           this.owner = null;
@@ -1389,6 +1408,7 @@
           if (released < excess && !guarded) {
             released += 1;
             const record = this.candidates.get(row);
+            this.note(`release ${String(row).slice(0, 4)} →about:blank`);
             try { record?.release?.(); } catch (e) {}
             continue;
           }
@@ -1418,6 +1438,8 @@
         }
         const previous = this.owner;
         this.owner = next;
+        this.note(`owner ${previous ? String(previous.id).slice(0, 4) : '(无)'}`
+          + ` → ${next ? String(next.id).slice(0, 4) : '(无)'}  候选=${rows.length}`);
         if (!this.holdRetire(previous, next)) {
           try { previous?.deactivate('superseded'); } catch (e) {}
         }
@@ -3246,6 +3268,7 @@
         document.head.appendChild(script);
       });
       await waitForNativePaint(6000);
+      try { manager.note(`mounted ${INSTANCE_ID.slice(0, 4)} 第${attempt}次`); } catch (e) {}
       showHint('');
       queueMobileNativeHeight();
       pushSnapshot(true);
@@ -3994,7 +4017,8 @@
     } catch (e) {}
   };
 
-  const deactivate = () => {
+  const deactivate = (reason = '?') => {
+    try { manager.note(`deactivate ${INSTANCE_ID.slice(0, 4)} 原因=${reason} active=${active}`); } catch (e) {}
     /* 从来没被激活过的控制器也要走这里：它唯一要做的事就是把楼层高度交出去。
        落选的楼层不折叠 = 屏幕上一块纯黑，详见 manager.retireLosers 上面那段。 */
     if (!active) { collapseAnchor(); return; }
@@ -4228,6 +4252,7 @@
     if (destroyed) return;
     destroyed = true;
     uninstalled = true;
+    try { manager.note(`uninstall ${INSTANCE_ID.slice(0, 4)}`); } catch (e) {}
     deactivate('removed');
     try { frameObserver?.disconnect(); } catch (e) {}
     frameObserver = null;
@@ -4240,7 +4265,13 @@
     const fe = window.frameElement;
     if (fe && fe.parentNode && typeof MutationObserver === 'function') {
       frameObserver = new MutationObserver(() => {
-        if (!fe.isConnected) { uninstall(); return; }
+        if (!fe.isConnected) {
+          /* 楼层 iframe 被从 DOM 里摘掉 —— TT 的渲染管理停车、或者酒馆重渲染这条消息。
+             这一步会 unregister 并触发重新选举，是"状态栏像刷新一样重置"的头号嫌疑。 */
+          try { manager.note(`楼层离开 DOM ${INSTANCE_ID.slice(0, 4)}`); } catch (e) {}
+          uninstall();
+          return;
+        }
         if (isOwner()) fitParentFrame();
       });
       frameObserver.observe(fe.parentNode, { childList: true });
