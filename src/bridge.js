@@ -358,10 +358,24 @@ export function reportPortraitSize(height) {
   postEvent('portraitSize', { height: h });
 }
 
-export function reportPortraitPage(open) {
+/* geometry 说的是「壳层该为这一页做多少事」。
+   ==================================================================
+   'page'  楼层 iframe 变成 position:fixed 铺满视口，并中和祖先的 backdrop-filter、
+           藏掉宿主 chrome。这是真全屏，但它**改动酒馆文档**。
+   'flow'  只把楼层高度撑到一个屏幕高，其余一概不动。不是真全屏，但对宿主零改动。
+
+   为什么要有这个区分：iOS + TauriTavern 上，带 iframe 的覆盖层（商店/CG/街机）走 'page'
+   会在打开后约 0.2 秒整屏全黑 —— 连挂在**酒馆文档**里的诊断条都一起消失，也就是整个 WebView
+   停止了绘制。而纯 DOM 的次级页面（日程、档案）走同一条 'page' 一直正常。
+   两者的差别是里面有没有一个跨源 iframe。
+
+   所以带 iframe 的那几个先退到 'flow'：把手从酒馆文档上拿开，代价是它们不再是真全屏。
+   真全屏的正确做法是把覆盖层挂到酒馆 body 下当子节点（那才是根层叠上下文，能盖住顶栏而
+   不需要藏任何东西，而且嵌套层数从 3 降到 2）—— 那条路还没建好。 */
+export function reportPortraitPage(open, { geometry = 'page' } = {}) {
   if (!isEmbedded()) return;
   if (!open) lastPortraitH = 0;
-  postEvent('portraitPage', { open: !!open });
+  postEvent('portraitPage', { open: !!open, geometry });
 }
 
 /* 横向构图开了铺满视口的覆盖层（地图 / 街机 / CG）。

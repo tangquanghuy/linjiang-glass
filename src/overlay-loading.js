@@ -48,6 +48,11 @@ export function mountFrameLoading(layer, iframe, { label = '页面', onClose } =
     'gap:16px', 'padding:22px', 'box-sizing:border-box', 'text-align:center',
     /* 比任何一个覆盖层的底色都明显更亮（它们是 #0c1024 / #100d17 / #070a14 / #05040a）。 */
     'background:#1a2340', 'color:#eef3ff',
+    /* 整块不吃指针事件，只有下面那两颗按钮例外。
+       覆盖层自己的关闭钮（.shop-chrome 里那颗，z-index 81）在这块之上，但命中检测仍会被
+       挡住 —— 回归里 [data-shop-close] 就是这样点不动的，真机上同样点不到。
+       跟诊断条踩的是同一个坑，那边也是这么解的。 */
+    'pointer-events:none',
     'font:500 15px/1.65 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif',
   ].join(';');
 
@@ -95,6 +100,8 @@ export function mountFrameLoading(layer, iframe, { label = '页面', onClose } =
       `border:1px solid ${primary ? '#b9dcff' : 'rgba(238,243,255,.45)'}`,
       `background:${primary ? '#2f5f92' : 'rgba(238,243,255,.08)'}`,
       'color:#eef3ff', 'font:600 14px/1 inherit', 'touch-action:manipulation', 'cursor:pointer',
+      /* 外层是 pointer-events:none，按钮要自己收回来。 */
+      'pointer-events:auto',
     ].join(';');
     return btn;
   };

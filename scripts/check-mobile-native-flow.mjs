@@ -356,20 +356,75 @@ for (const kase of cases) {
       '商店 iframe 解析到 HUD 的源，而不是酒馆的源（真机黑屏的根因）',
       originCheck.shopResolved);
 
-    check(shop.layer && shop.innerFrames === 1 && covers(shop),
-      'shop overlay pins the floor to the visual viewport', JSON.stringify(shop));
-    /* 「铺满屏幕」= 铺满安全区以下的那块，不是铺满 0..vh。 */
-    const usableH = viewport.h - viewport.insetTop;
-    check(Math.abs(shop.layerW - viewport.w) <= 2 && Math.abs(shop.layerH - usableH) <= 2,
-      'shop overlay actually covers the phone screen', `${shop.layerW}x${shop.layerH} vs ${viewport.w}x${usableH}`);
-    check(shop.topbar === 'hidden' && shop.form === 'hidden',
-      'shop overlay hides the tavern chrome it cannot out-stack', JSON.stringify(shop));
+    /* 带 iframe 的覆盖层走 'flow'：只撑高楼层，**对酒馆文档零改动**。
+       ==================================================================
+       这一段的契约又改过一次，原因是真机上「整页几何 + 里面一个跨源 iframe」会让整个 WebView
+       停止绘制：打开商店后约 0.2 秒整屏全黑，连挂在**酒馆文档**里的诊断条都一起消失 ——
+       所以不是"我们的近黑背景露出来了"，是绘制整个停了。而纯 DOM 的次级页面走同一条整页几何
+       在真机上一直正常，两者唯一的差别就是里面有没有 iframe。
+
+       整页几何对宿主做三件事：楼层变 position:fixed、中和祖先的 backdrop-filter、
+       藏掉 #top-bar / #form_sheld。'flow' 一件都不做，只写楼层 height。
+       所以这里断言的重点从"铺满视口"变成 **"宿主一点没被碰"** —— 那才是这次改动要保住的东西。
+       代价是覆盖层不再真全屏（只铺满一个屏幕高的楼层），这是明知的取舍，不是回归。 */
+    check(shop.layer && shop.innerFrames === 1,
+      '商店作为覆盖层开出来了（一层一个 iframe）', JSON.stringify({ layer: shop.layer, frames: shop.innerFrames }));
+    check(shop.position === 'static',
+      "'flow' 模式下楼层留在常规流（不变 fixed）", shop.position);
+    check(shop.topbar === 'visible' && shop.form === 'visible',
+      '酒馆 chrome 一个都没被藏（这是真机全黑前发生的事）', JSON.stringify({ topbar: shop.topbar, form: shop.form }));
+    const untouched = await page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      return {
+        chatBackdrop: getComputedStyle(chat).backdropFilter,
+        chatStyleAttr: chat.getAttribute('style') || '',
+        markers: document.querySelectorAll('[data-linjiang-cb-saved],[data-linjiang-floor-saved]').length,
+      };
+    });
+    check(untouched.chatBackdrop === restFloor.backdrop && untouched.chatStyleAttr === ''
+      && untouched.markers === 0,
+      '#chat 的模糊没被中和、宿主上没有我们的记号', JSON.stringify(untouched));
+    /* 'flow' 模式的目标是**填满阅读区**，不是填满屏幕：它刻意不藏宿主 chrome，所以顶栏和
+       输入栏仍在，楼层能安全占用的就是 #chat 的可视框。同时断言覆盖层的关闭钮真的没被顶栏
+       盖住 —— 实测踩过：楼层顶端对齐安全区(47) 时关闭钮落在 y=78，而 #top-bar 占 47..82，
+       那个点上最上面的是 div#top-bar，按钮点不到。 */
+    const pane = await page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const doc = frame.contentDocument;
+      const btn = doc.querySelector('[data-shop-close]');
+      const br = btn?.getBoundingClientRect();
+      const fr = frame.getBoundingClientRect();
+      const hit = br
+        ? document.elementFromPoint(Math.round(fr.left + br.left + br.width / 2),
+          Math.round(fr.top + br.top + br.height / 2))
+        : null;
+      return {
+        paneTop: Math.round(chat.getBoundingClientRect().top),
+        paneH: Math.round(chat.clientHeight),
+        floorTop: Math.round(fr.top),
+        floorH: Math.round(fr.height),
+        closeHitTag: hit ? `${hit.tagName.toLowerCase()}${hit.id ? '#' + hit.id : ''}` : '(null)',
+      };
+    });
+    check(Math.abs(pane.floorH - pane.paneH) <= 4 && Math.abs(pane.floorTop - pane.paneTop) <= 4,
+      "'flow' 模式下楼层填满阅读区并与它对齐",
+      `楼层 ${pane.floorH}px@${pane.floorTop} / 阅读区 ${pane.paneH}px@${pane.paneTop}`);
+    check(!/top-bar|form_sheld|top-settings/.test(pane.closeHitTag),
+      '覆盖层的关闭钮没被酒馆 chrome 盖住', pane.closeHitTag);
     await hud.locator('[data-shop-close]').click();
     await page.waitForTimeout(300);
     const shopClosed = await readPageState();
     check(!shopClosed.open && !shopClosed.marker && shopClosed.position === 'static'
       && shopClosed.topbar === 'visible' && shopClosed.form === 'visible',
       'shop closes back to native flow without remounting the main HUD', JSON.stringify(shopClosed));
+    /* 关掉之后楼层高度必须交回「内容决定」，否则聊天里会留下一屏高的空楼层。 */
+    const heightBack = await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      return Math.round(frame.getBoundingClientRect().height);
+    });
+    check(Math.abs(heightBack - restFloor.height) <= 6,
+      '关掉后楼层高度交回内容决定（不留一屏高的空楼层）', `${heightBack}px vs ${restFloor.height}px`);
     check(await page.evaluate(() => !window.__linjiangTavernLive.statusFrame.contentDocument.querySelector('.shop-layer')),
       'shop overlay is torn down on close');
 
@@ -387,7 +442,10 @@ for (const kase of cases) {
        终态**：把死文档会留在宿主上的东西原样摆好（楼层钉满视口 + chrome 隐藏 + 记号属性），
        然后让一个新控制器启动，断言它必须把宿主收拾干净。
        验的是不变量「任何新控制器启动后，宿主上不得残留整页状态」，而这正是黑屏的直接成因。 */
-    await hud.locator('.pdest-btn[data-page="shop"]').first().click();
+    /* 用**次级页面**来验自愈，不能用商店。
+       商店现在走 'flow'（不碰酒馆文档），它压根不会产生"整页残局"，拿它当前提必然失败。
+       次级页面仍然走 'page'，它才是会在宿主上留下 fixed 楼层与隐藏 chrome 的那一支。 */
+    await hud.locator('.pdest-btn[data-page="schedule"]').first().click();
     await page.waitForTimeout(400);
     const beforeKill = await page.evaluate(() => {
       const frame = window.__linjiangTavernLive.statusFrame;

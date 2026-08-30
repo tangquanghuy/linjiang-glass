@@ -501,7 +501,11 @@ export function mountPortraitContent(stage, { onPage } = {}) {
     workspace = name;
     workspaceArg = null;
     document.documentElement.classList.add('is-page-open');
-    reportPortraitPage(true);
+    /* 这几个覆盖层里装的是 iframe，而 iOS + TT 上「楼层变 fixed 铺满视口 + 里面一个跨源
+       iframe」会让整个 WebView 停止绘制（真机：打开后约 0.2 秒全黑，连挂在酒馆文档里的
+       诊断条都一起消失）。所以它们只要求 'flow' —— 只撑高楼层，不碰酒馆文档。
+       纯 DOM 的次级页面走 'page'，那条路在真机上一直是好的。 */
+    reportPortraitPage(true, { geometry: 'flow' });
     closeOverlay();
     const options = name === 'map' ? { onTravel: onMapTravel, ...overlayOptions } : overlayOptions;
     unmountOverlay = OVERLAYS[name](document.querySelector('.viewport'), { onClose: closePage, ...options });

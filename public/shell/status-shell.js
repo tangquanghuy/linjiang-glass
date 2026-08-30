@@ -2915,6 +2915,91 @@
     try { frame.dataset.ttMobileSurface = 'none'; } catch (e) {}
   };
 
+  /* 'flow' 模式：只把楼层撑到一个屏幕高，**对酒馆文档零改动**。
+     ==================================================================
+     为什么要有这条退路：真机（iPhone + TauriTavern）上，带 iframe 的覆盖层走整页几何
+     （enterMobileNativePage）会在打开后约 0.2 秒整屏全黑 —— 而且连挂在**酒馆文档**里的
+     诊断条都一起消失，说明不是"我们的近黑背景露出来了"，是整个 WebView 停止了绘制。
+     纯 DOM 的次级页面走同一条整页几何一直正常，两者唯一的差别是里面有没有跨源 iframe。
+
+     整页几何对宿主做了三件事：楼层变 position:fixed、中和祖先的 backdrop-filter、
+     藏掉 #top-bar / #form_sheld。这条 'flow' 一件都不做，只写楼层的 height ——
+     而高度本来就是这个模式下唯一由我们管的量（酒馆助手也在写它，写同一个数不打架）。
+
+     代价是覆盖层不再铺满屏幕，只铺满"一个屏幕高的楼层"，需要时用户还得滚一下对齐。
+     不好看，但不会让人手机变一块黑。真全屏的正确做法是把覆盖层挂到酒馆 body 下当子节点
+     （根层叠上下文，能盖住顶栏而不需要藏任何东西，嵌套层数还从 3 降到 2）—— 那条路另做。 */
+  let nativeTallOn = false;
+  let nativeTallSavedChatTop = null;
+
+  const enterMobileNativeTallFloor = () => {
+    const frame = window.frameElement;
+    if (!frame) return;
+    const first = !nativeTallOn;
+    nativeTallOn = true;
+    /* 目标不是"填满屏幕"，是**填满阅读区**。
+       ------------------------------------------------------------------
+       'flow' 模式刻意不藏宿主 chrome，所以屏幕顶上那条顶栏和底下那条输入栏仍然在，它们会
+       盖住楼层。实测（elementFromPoint 问出来的）：楼层顶端对齐到安全区 47px 时，覆盖层
+       右上角的关闭钮落在 y=78，而 #top-bar 占 47..82 —— 那个点上最上面的是 div#top-bar，
+       按钮点不到。这跟之前「被安全区盖住」是同一个症状，但这次挡路的是顶栏本身。
+
+       楼层活在 #chat 里，能安全占用的正是 #chat 的可视框。所以高度取 #chat.clientHeight、
+       顶端对齐 #chat 的顶端 —— 手机上这块约占屏幕八成（实测 430x728 / 932），
+       不是真全屏，但完整可见、完整可点，而且一个字节都没动酒馆文档。 */
+    let paneTop = mobileNativePageBox().top;
+    let height = Math.max(240, mobileNativePageBox().vh);
+    try {
+      const chat = tavernWin().document.getElementById('chat');
+      if (chat) {
+        paneTop = Math.round(chat.getBoundingClientRect().top);
+        height = Math.max(240, Math.round(chat.clientHeight));
+      }
+    } catch (e) {}
+    if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
+    if (!first) return;
+    const top = paneTop;
+
+    /* 把楼层顶端滚到视口顶端。
+       ------------------------------------------------------------------
+       楼层留在聊天流里，它在屏幕上的位置由当前阅读位置决定 —— 完全可能是负的。实测（回归里
+       量到的）top=-48：覆盖层顶部连同它右上角的关闭钮一起跑到视口外面，点不到。这跟之前
+       「被安全区盖住所以关闭钮点不到」是同一类问题，只是这次的偏移来自滚动而不是安全区。
+
+       这里只改 #chat 的 scrollTop —— 不动任何样式、不藏任何东西，也就不会走上整页几何那条
+       让 WebView 停止绘制的路。滚动位置存下来，关闭时放回去。 */
+    try {
+      const tavern = tavernWin();
+      const chat = tavern.document.getElementById('chat');
+      if (!chat) return;
+      nativeTallSavedChatTop = Number(chat.scrollTop) || 0;
+      /* 等高度那一笔生效之后再量，否则量到的是旧位置。 */
+      requestAnimationFrame(() => {
+        try {
+          const rect = frame.getBoundingClientRect();
+          chat.scrollTop += Math.round(rect.top - top);
+        } catch (e) {}
+      });
+    } catch (e) {}
+  };
+
+  const exitMobileNativeTallFloor = () => {
+    if (!nativeTallOn) return;
+    nativeTallOn = false;
+    /* 高度交回「内容决定」那条路。 */
+    queueMobileNativeHeight();
+    const back = nativeTallSavedChatTop;
+    nativeTallSavedChatTop = null;
+    if (back == null) return;
+    /* 等楼层缩回内容高度之后再放回阅读位置，否则这一下会被夹掉。 */
+    requestAnimationFrame(() => {
+      try {
+        const chat = tavernWin().document.getElementById('chat');
+        if (chat) chat.scrollTop = back;
+      } catch (e) {}
+    });
+  };
+
   const enterMobileNativePage = () => {
     const frame = window.frameElement;
     if (!frame) return;
@@ -3002,6 +3087,9 @@
            照旧写 scrollHeight 就是和整页几何对着写 —— 那种互抢在真机上表现为疯狂闪烁
            （同一类事故的记录在 layoutInlineDock 里 handOverHeight 上面那段）。 */
         if (nativePageOn) return;
+        /* 'flow' 模式同理：那时楼层高度由 enterMobileNativeTallFloor 定（一个屏幕高），
+           照旧写 scrollHeight 会把它压回内容高度，覆盖层就又被挤扁了。 */
+        if (nativeTallOn) return;
         const height = Math.max(1, Math.ceil(document.body?.scrollHeight || 0));
         if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
       } catch (e) {}
@@ -3024,8 +3112,15 @@
            竖屏路径（原生流恒为竖屏）对次级页面和覆盖层报的都是 portraitPage；overlay 是横向
            路径的通报，这里一并接住只是防御，语义相同。 */
         if (type === 'portraitPage' || type === 'overlay') {
-          if (payload && payload.open) enterMobileNativePage();
-          else exitMobileNativePage();
+          if (payload && payload.open) {
+            /* geometry='flow'：只撑高楼层，绝不碰酒馆文档。带 iframe 的覆盖层走这条 ——
+               理由（真机全黑）写在 enterMobileNativeTallFloor 上面那段。 */
+            if (payload.geometry === 'flow') { exitMobileNativePage(); enterMobileNativeTallFloor(); }
+            else { exitMobileNativeTallFloor(); enterMobileNativePage(); }
+          } else {
+            exitMobileNativePage();
+            exitMobileNativeTallFloor();
+          }
           return;
         }
         /* 常态：文档就在常规流里，自报高度只需要让酒馆助手重新量一次 body。 */
