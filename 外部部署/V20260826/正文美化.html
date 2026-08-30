@@ -1527,6 +1527,20 @@
     }
   </style>
   <style id="sanshijian-theme">
+    /* ── 预算派生色（derived color tokens）─────────────────────────────
+       旧 WebView（Chromium < 111 / WKWebView < 16.2）不认 color-mix。麻烦的是
+       原来那批 color-mix 里都套着 var()：含 var() 的声明在解析期一律算合法，
+       替换要到计算期才做，混色函数认不出来时整条属性变成 "invalid at
+       computed-value time"，按规范当 unset 处理。也就是说继承属性掉回继承值、
+       非继承属性掉回初始值 —— 在前面补一条纯色打底救不回来，会被后面这条
+       "看起来合法" 的声明覆盖掉再作废。事件卡上的表现就是竖条、分类胶囊、
+       结算色一起消失。
+
+       所以混色一律在这里预先算好，CSS 侧只用 rgb()/var()，各引擎结果一致：
+         --X-rgb   "R G B" 通道串，配 rgb(var(--X-rgb) / .5) 做纯 alpha 缩放
+         --X-a     基色自带的 alpha，配 calc(var(--X-a) * .5) 继续缩放
+         --X-wNN   基色与 #fff 按 NN% 混出的实色（白混改的是色相，无法用 alpha 表达）
+       改基色时同组派生值要一起改，npm run reading:colormix 会逐项比对。 */
     /* ===== 三时笺三主题 ===== */
     :root,
     body[data-theme="warm-white"] {
@@ -1558,7 +1572,20 @@
       --font-main: var(--serif);
       --shadow-color: rgba(42, 61, 53, .12);
       --container-shadow: var(--shadow);
-      --header-bg: color-mix(in srgb, var(--paper) 88%, transparent);
+      --header-bg: rgb(var(--paper-rgb) / .88);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 250 248 241;
+      --paper-soft-rgb: 255 253 248;
+      --stage-rgb: 236 238 232;
+      --accent-rgb: 102 133 120;
+      --edge-rgb: 72 104 91; --edge-a: .16;
+      --rule-rgb: 73 107 94; --rule-a: .22;
+      --quote-bg-rgb: 103 133 120; --quote-bg-a: .105;
+      --char-hover-bg: rgba(213, 217, 207, .3592);
+      --dlg-node-mid: #b7c4bb;
+      --bubble-ink: #3f524c;
+      --dialogue-em-ink: #667d73;
     }
 
     body[data-theme="dark"] {
@@ -1590,7 +1617,20 @@
       --font-main: var(--serif);
       --shadow-color: rgba(0, 0, 0, .34);
       --container-shadow: var(--shadow);
-      --header-bg: color-mix(in srgb, var(--paper) 88%, transparent);
+      --header-bg: rgb(var(--paper-rgb) / .88);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 23 29 37;
+      --paper-soft-rgb: 27 34 44;
+      --stage-rgb: 14 18 24;
+      --accent-rgb: 142 167 197;
+      --edge-rgb: 163 184 209; --edge-a: .13;
+      --rule-rgb: 153 177 205; --rule-a: .17;
+      --quote-bg-rgb: 170 132 65; --quote-bg-a: .07;
+      --char-hover-bg: rgba(41, 51, 64, .352);
+      --dlg-node-mid: #4d5b6d;
+      --bubble-ink: #bec3ca;
+      --dialogue-em-ink: #a3977b;
     }
 
     body[data-theme="green"] {
@@ -1622,7 +1662,20 @@
       --font-main: var(--serif);
       --shadow-color: rgba(82, 57, 39, .14);
       --container-shadow: var(--shadow);
-      --header-bg: color-mix(in srgb, var(--paper) 88%, transparent);
+      --header-bg: rgb(var(--paper-rgb) / .88);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 240 228 207;
+      --paper-soft-rgb: 246 235 216;
+      --stage-rgb: 216 203 183;
+      --accent-rgb: 154 105 72;
+      --edge-rgb: 116 77 50; --edge-a: .16;
+      --rule-rgb: 117 76 48; --rule-a: .21;
+      --quote-bg-rgb: 145 93 59; --quote-bg-a: .09;
+      --char-hover-bg: rgba(216, 193, 166, .352);
+      --dlg-node-mid: #c9ad92;
+      --bubble-ink: #5f4e40;
+      --dialogue-em-ink: #86634d;
     }
 
     html {
@@ -1666,10 +1719,10 @@
       padding: 4px;
       border: 1px solid var(--edge);
       border-radius: 999px;
-      background: color-mix(in srgb, var(--paper) 88%, transparent);
+      background: rgb(var(--paper-rgb) / .88);
       -webkit-backdrop-filter: blur(12px) saturate(.9);
       backdrop-filter: blur(12px) saturate(.9);
-      box-shadow: 0 2px 12px color-mix(in srgb, var(--stage) 48%, transparent);
+      box-shadow: 0 2px 12px rgb(var(--stage-rgb) / .48);
       transition: background var(--ease), border-color var(--ease), box-shadow var(--ease);
     }
 
@@ -1786,7 +1839,7 @@
       z-index: 5;
       inset: 11px;
       pointer-events: none;
-      border: 1px solid color-mix(in srgb, var(--edge) 56%, transparent);
+      border: 1px solid rgb(var(--edge-rgb) / calc(var(--edge-a) * .56));
     }
 
     .reading-opening-mark {
@@ -1902,7 +1955,7 @@
       color: var(--speech-ink);
       border-left: 2px solid var(--quote-line);
       border-radius: 0 .55em .55em 0;
-      background: linear-gradient(90deg, var(--quote-bg), color-mix(in srgb, var(--quote-bg) 42%, transparent));
+      background: linear-gradient(90deg, var(--quote-bg), rgb(var(--quote-bg-rgb) / calc(var(--quote-bg-a) * .42)));
       font-family: var(--kai);
       font-size: .98em;
       line-height: 1.95;
@@ -1923,7 +1976,7 @@
       color: var(--speech-ink);
       border-left: 2px solid var(--quote-line);
       border-radius: 0 .42em .42em 0;
-      background: linear-gradient(90deg, var(--quote-bg), color-mix(in srgb, var(--quote-bg) 36%, transparent));
+      background: linear-gradient(90deg, var(--quote-bg), rgb(var(--quote-bg-rgb) / calc(var(--quote-bg-a) * .36)));
       font-family: var(--kai);
       font-weight: 500;
       letter-spacing: .045em;
@@ -1978,7 +2031,7 @@
 
     body[data-theme] .settings-option:hover,
     body[data-theme] .custom-char-item:hover {
-      background: color-mix(in srgb, var(--accent-soft) 72%, var(--paper-deep));
+      background: var(--char-hover-bg);
     }
 
     body[data-theme] .settings-label,
@@ -2151,7 +2204,7 @@
     }
 
     .reading-content::before {
-      border-color: color-mix(in srgb, var(--edge) 36%, transparent);
+      border-color: rgb(var(--edge-rgb) / calc(var(--edge-a) * .36));
     }
 
     .reading-opening-mark {
@@ -2181,7 +2234,7 @@
       background: linear-gradient(
         90deg,
         var(--quote-bg),
-        color-mix(in srgb, var(--quote-bg) 78%, transparent)
+        rgb(var(--quote-bg-rgb) / calc(var(--quote-bg-a) * .78))
       );
       font-family: var(--kai);
       font-size: 1.045em;
@@ -2209,7 +2262,7 @@
       background: linear-gradient(
         90deg,
         var(--quote-bg),
-        color-mix(in srgb, var(--quote-bg) 76%, transparent)
+        rgb(var(--quote-bg-rgb) / calc(var(--quote-bg-a) * .76))
       );
       font-family: var(--kai);
       font-size: 1.015em;
@@ -2317,12 +2370,25 @@
       --edge: rgba(82, 108, 99, .11);
       --shadow: none;
       --selection: rgba(118, 145, 135, .22);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 250 247 240;
+      --paper-soft-rgb: 255 250 242;
+      --stage-rgb: 244 240 232;
+      --accent-rgb: 114 135 127;
+      --edge-rgb: 82 108 99; --edge-a: .11;
+      --rule-rgb: 82 108 99; --rule-a: .18;
+      --quote-bg-rgb: 112 133 125; --quote-bg-a: .095;
+      --char-hover-bg: rgba(216, 215, 205, .3412);
+      --dlg-node-mid: #bdc5bd;
+      --bubble-ink: #48514c;
+      --dialogue-em-ink: #6c7c74;
     }
     .header {
       height: 64px !important;
       color: var(--ink);
       border-bottom: 0;
-      background: color-mix(in srgb, var(--paper) 70%, transparent);
+      background: rgb(var(--paper-rgb) / .7);
       box-shadow: none;
       -webkit-backdrop-filter: blur(14px) saturate(.86);
       backdrop-filter: blur(14px) saturate(.86);
@@ -2335,7 +2401,7 @@
     }
 
     .theme-controls .control-btn.active {
-      background: color-mix(in srgb, var(--paper-soft) 82%, transparent);
+      background: rgb(var(--paper-soft-rgb) / .82);
       box-shadow: 0 2px 10px rgba(0, 0, 0, .055);
     }
 
@@ -2462,11 +2528,24 @@
         radial-gradient(circle at 16% 4%, var(--stage-glow), transparent 30rem),
         radial-gradient(circle at 86% 96%, var(--stage-glow), transparent 34rem),
         var(--stage);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 250 247 238;
+      --paper-soft-rgb: 253 249 241;
+      --stage-rgb: 239 237 231;
+      --accent-rgb: 102 133 120;
+      --edge-rgb: 72 104 91; --edge-a: .16;
+      --rule-rgb: 73 107 94; --rule-a: .22;
+      --quote-bg-rgb: 103 133 120; --quote-bg-a: .105;
+      --char-hover-bg: rgba(213, 216, 205, .3592);
+      --dlg-node-mid: #b7c4b9;
+      --bubble-ink: #3f524b;
+      --dialogue-em-ink: #667d73;
     }
 
     body[data-theme="warm-white"] .header {
       color: var(--ink);
-      background: color-mix(in srgb, var(--paper) 88%, transparent);
+      background: rgb(var(--paper-rgb) / .88);
       border-bottom-color: var(--edge);
       box-shadow: none;
     }
@@ -2590,7 +2669,7 @@
     }
 
     body[data-theme="warm-white"] .bubble-text .dialogue-em {
-      color: color-mix(in srgb, var(--speech-ink) 58%, var(--ink-faint));
+      color: var(--dialogue-em-ink);
       letter-spacing: .02em;
     }
 
@@ -2602,7 +2681,7 @@
       font-weight: 600;
       letter-spacing: .018em;
       text-decoration-line: underline;
-      text-decoration-color: color-mix(in srgb, var(--accent) 34%, transparent);
+      text-decoration-color: rgb(var(--accent-rgb) / .34);
       text-decoration-thickness: 1px;
       text-underline-offset: .16em;
       -webkit-text-stroke: 0;
@@ -2710,7 +2789,7 @@
     .theme-controls .control-btn:hover {
       color: var(--accent-strong);
       background: transparent;
-      box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent) 46%, transparent);
+      box-shadow: inset 0 -1px 0 rgb(var(--accent-rgb) / .46);
     }
 
     .theme-controls .control-btn.active {
@@ -2935,7 +3014,7 @@
     }
 
     body[data-theme] .reading-content .inner-voice {
-      border-left-color: color-mix(in srgb, var(--rule) 68%, transparent);
+      border-left-color: rgb(var(--rule-rgb) / calc(var(--rule-a) * .68));
     }
     /* 鸟主题钢笔画：按白昼、黑夜、茶色分别使用同源配色素材。 */
     .logo-container.bird-logo {
@@ -3032,6 +3111,19 @@
       background:
         radial-gradient(circle at 50% -12rem, var(--stage-glow), transparent 36rem),
         var(--stage);
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 27 27 29;
+      --paper-soft-rgb: 33 33 35;
+      --stage-rgb: 17 17 19;
+      --accent-rgb: 145 138 128;
+      --edge-rgb: 255 255 255; --edge-a: .045;
+      --rule-rgb: 171 154 128; --rule-a: .22;
+      --quote-bg-rgb: 151 132 115; --quote-bg-a: .065;
+      --char-hover-bg: rgba(43, 43, 43, .3124);
+      --dlg-node-mid: #504d4a;
+      --bubble-ink: #c5c5bc;
+      --dialogue-em-ink: #928980;
     }
 
     html:has(body[data-theme="dark"]) {
@@ -3635,6 +3727,19 @@
         rgba(100, 95, 80, .02) 14px,
         rgba(100, 95, 80, .02) 15px
       );
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 234 231 224;
+      --paper-soft-rgb: 240 237 231;
+      --stage-rgb: 234 231 224;
+      --accent-rgb: 139 123 85;
+      --edge-rgb: 200 196 184; --edge-a: .72;
+      --rule-rgb: 200 196 184; --rule-a: 1;
+      --quote-bg-rgb: 139 123 85; --quote-bg-a: .11;
+      --char-hover-bg: rgba(207, 202, 188, .352);
+      --dlg-node-mid: #bfb6a1;
+      --bubble-ink: #43453c;
+      --dialogue-em-ink: #746a53;
     }
 
     html:has(body[data-theme="green"]) {
@@ -3856,14 +3961,14 @@
       margin: 1.85em 0 2em;
       padding: 1.05em .9em .95em;
       background-image:
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent)),
-        linear-gradient(color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 52%, transparent));
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52)),
+        linear-gradient(rgb(var(--accent-rgb) / .52), rgb(var(--accent-rgb) / .52));
       background-repeat: no-repeat;
       background-size:
         15px 1px, 1px 15px,
@@ -3887,9 +3992,9 @@
       pointer-events: none;
       background-image:
         linear-gradient(var(--paper), var(--paper)),
-        linear-gradient(color-mix(in srgb, var(--paper) 55%, var(--accent)), color-mix(in srgb, var(--paper) 55%, var(--accent))),
-        linear-gradient(color-mix(in srgb, var(--accent) 72%, transparent), color-mix(in srgb, var(--accent) 72%, transparent)),
-        linear-gradient(90deg, transparent, color-mix(in srgb, var(--rule) 82%, transparent) 16%, color-mix(in srgb, var(--rule) 82%, transparent) 84%, transparent);
+        linear-gradient(var(--dlg-node-mid), var(--dlg-node-mid)),
+        linear-gradient(rgb(var(--accent-rgb) / .72), rgb(var(--accent-rgb) / .72)),
+        linear-gradient(90deg, transparent, rgb(var(--rule-rgb) / calc(var(--rule-a) * .82)) 16%, rgb(var(--rule-rgb) / calc(var(--rule-a) * .82)) 84%, transparent);
       background-repeat: no-repeat;
       background-size: 14px 9px, 7px 7px, 5px 5px, 100% 1px;
       background-position: center, center, center, center;
@@ -3954,7 +4059,7 @@
     body[data-theme] .dialogue-container .bubble-text {
       min-height: 40px;
       padding: 0 0 0 12px;
-      color: color-mix(in srgb, var(--ink) 88%, var(--paper));
+      color: var(--bubble-ink);
       border: 0;
       border-left: 2px solid var(--border-color);
       border-radius: 0;
@@ -4954,6 +5059,80 @@
 .evt[data-cat="催眠奸"]   { --signal: #34dcc8; --rim: rgba(206, 250, 242, .90); --glow: rgba(96, 224, 206, .36); --wash: rgba(140, 232, 219, .22); }
 .evt[data-cat="特殊H"]    { --signal: #ff4668; --rim: rgba(255, 198, 210, .92); --glow: rgba(255, 96, 130, .44); --wash: rgba(255, 138, 165, .25); }
 
+/* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+.evt {
+  --signal-rgb: 143 155 216;
+  --signal-w96: #939fda; --signal-w88: #9ca7dd; --signal-w72: #aeb7e3;
+  --signal-w60: #bcc3e8; --signal-w40: #d2d7ef; --signal-w30: #dde1f3;
+  --signal-hover-bg: rgba(93, 105, 163, .5476);
+  --rim-rgb: 226 231 255; --rim-a: .62;
+  --glow-rgb: 150 162 255; --glow-a: .34;
+  --wash-rgb: 160 180 255; --wash-a: .22;
+}
+.evt[data-cat="纯爱"] {
+  --signal-rgb: 255 95 168;
+  --signal-w96: #ff65ab; --signal-w88: #ff72b2; --signal-w72: #ff8cc0;
+  --signal-w60: #ff9fcb; --signal-w40: #ffbfdc; --signal-w30: #ffcfe5;
+  --signal-hover-bg: rgba(138, 81, 144, .5476);
+  --rim-rgb: 255 218 235; --rim-a: .92;
+  --glow-rgb: 255 148 198; --glow-a: .42;
+  --wash-rgb: 255 178 213; --wash-a: .26;
+}
+.evt[data-cat="日常"] {
+  --signal-rgb: 111 211 255;
+  --signal-w96: #75d5ff; --signal-w88: #80d8ff; --signal-w72: #97dfff;
+  --signal-w60: #a9e5ff; --signal-w40: #c5edff; --signal-w30: #d4f2ff;
+  --signal-hover-bg: rgba(80, 128, 179, .5476);
+  --rim-rgb: 214 238 255; --rim-a: .9;
+  --glow-rgb: 126 198 255; --glow-a: .34;
+  --wash-rgb: 160 206 255; --wash-a: .22;
+}
+.evt[data-cat="生理窘迫"] {
+  --signal-rgb: 255 190 69;
+  --signal-w96: #ffc14c; --signal-w88: #ffc65b; --signal-w72: #ffd079;
+  --signal-w60: #ffd88f; --signal-w40: #ffe5b5; --signal-w30: #ffecc7;
+  --signal-hover-bg: rgba(138, 119, 104, .5476);
+  --rim-rgb: 255 236 199; --rim-a: .93;
+  --glow-rgb: 255 200 118; --glow-a: .4;
+  --wash-rgb: 255 214 158; --wash-a: .24;
+}
+.evt[data-cat="调教"] {
+  --signal-rgb: 168 116 255;
+  --signal-w96: #ab7aff; --signal-w88: #b285ff; --signal-w72: #c09bff;
+  --signal-w60: #cbacff; --signal-w40: #dcc7ff; --signal-w30: #e5d5ff;
+  --signal-hover-bg: rgba(103, 90, 179, .5476);
+  --rim-rgb: 236 222 255; --rim-a: .92;
+  --glow-rgb: 196 152 255; --glow-a: .42;
+  --wash-rgb: 214 186 255; --wash-a: .25;
+}
+.evt[data-cat="睡奸"] {
+  --signal-rgb: 125 140 255;
+  --signal-w96: #8291ff; --signal-w88: #8d9aff; --signal-w72: #a1acff;
+  --signal-w60: #b1baff; --signal-w40: #cbd1ff; --signal-w30: #d8ddff;
+  --signal-hover-bg: rgba(86, 99, 179, .5476);
+  --rim-rgb: 219 224 255; --rim-a: .9;
+  --glow-rgb: 150 162 255; --glow-a: .38;
+  --wash-rgb: 176 186 255; --wash-a: .23;
+}
+.evt[data-cat="催眠奸"] {
+  --signal-rgb: 52 220 200;
+  --signal-w96: #3cddca; --signal-w88: #4ce0cf; --signal-w72: #6de6d7;
+  --signal-w60: #85eade; --signal-w40: #aef1e9; --signal-w30: #c2f5ef;
+  --signal-hover-bg: rgba(57, 131, 157, .5476);
+  --rim-rgb: 206 250 242; --rim-a: .9;
+  --glow-rgb: 96 224 206; --glow-a: .36;
+  --wash-rgb: 140 232 219; --wash-a: .22;
+}
+.evt[data-cat="特殊H"] {
+  --signal-rgb: 255 70 104;
+  --signal-w96: #ff4d6e; --signal-w88: #ff5c7a; --signal-w72: #ff7a92;
+  --signal-w60: #ff90a4; --signal-w40: #ffb5c3; --signal-w30: #ffc8d2;
+  --signal-hover-bg: rgba(138, 71, 118, .5476);
+  --rim-rgb: 255 198 210; --rim-a: .92;
+  --glow-rgb: 255 96 130; --glow-a: .44;
+  --wash-rgb: 255 138 165; --wash-a: .25;
+}
+
 .evt-glass {
   position: relative;
   isolation: isolate;
@@ -4962,14 +5141,14 @@
   /* 小样原本铺在整页夜景上；正式正文可能是暖白/青绿纸面，所以卡片必须自带
      一层深色承托，不能只靠透明玻璃去采样页面背景。 */
   background:
-    radial-gradient(ellipse 78% 66% at 14% -12%, color-mix(in srgb, var(--wash) 48%, transparent), transparent 66%),
-    radial-gradient(ellipse 58% 72% at 104% 18%, color-mix(in srgb, var(--glow) 22%, transparent), transparent 70%),
+    radial-gradient(ellipse 78% 66% at 14% -12%, rgb(var(--wash-rgb) / calc(var(--wash-a) * .48)), transparent 66%),
+    radial-gradient(ellipse 58% 72% at 104% 18%, rgb(var(--glow-rgb) / calc(var(--glow-a) * .22)), transparent 70%),
     linear-gradient(148deg, rgba(31, 41, 82, .985) 0%, rgba(18, 24, 52, .992) 54%, rgba(11, 15, 34, .996) 100%);
   backdrop-filter: blur(26px) saturate(1.34);
   -webkit-backdrop-filter: blur(26px) saturate(1.34);
   box-shadow:
     0 24px 58px rgba(7, 8, 27, .46),
-    0 0 30px color-mix(in srgb, var(--glow) 66%, transparent),
+    0 0 30px rgb(var(--glow-rgb) / calc(var(--glow-a) * .66)),
     inset 0 1px 0 rgba(255, 255, 255, .42),
     inset 1px 0 0 rgba(255, 255, 255, .16),
     inset -1px 0 0 rgba(190, 200, 255, .07),
@@ -5003,8 +5182,8 @@
   background:
     radial-gradient(ellipse 72% 92% at 108% 16%, rgba(255,255,255,.14), transparent 68%),
     linear-gradient(90deg, transparent 40%,
-      color-mix(in srgb, var(--wash) 30%, transparent) 54%,
-      color-mix(in srgb, var(--wash) 78%, transparent) 70%,
+      rgb(var(--wash-rgb) / calc(var(--wash-a) * .3)) 54%,
+      rgb(var(--wash-rgb) / calc(var(--wash-a) * .78)) 70%,
       var(--wash) 100%);
 }
 
@@ -5013,7 +5192,7 @@
   font: 400 11px/1 ui-sans-serif, "Segoe UI", sans-serif;
   color: var(--ink-faint); letter-spacing: .17em; text-transform: uppercase;
 }
-.evt-eyebrow .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--signal) 72%, #fff); }
+.evt-eyebrow .ic { width: 12px; height: 12px; color: var(--signal-w72); }
 .evt-eyebrow s { text-decoration: none; opacity: .42; }
 .evt-title {
   font: 700 21px/1.34 "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -5037,12 +5216,14 @@
   background: rgba(226, 230, 255, .22);
 }
 .evt-pips s.on {
-  background: color-mix(in srgb, var(--signal) 88%, #fff);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--signal) 70%, transparent);
+  background: var(--signal-w88);
+  box-shadow: 0 0 6px rgb(var(--signal-rgb) / .7);
 }
 
 .evt-cast {
   --ac: #9aa4dd;
+  /* 预算派生色：这里只是缺省角色色；实际角色色由 evtAcVars() 连同 --ac 一起写进 style。 */
+  --ac-rgb: 154 164 221; --ac-w70: #b8bfe7; --ac-w34: #dde0f3; --ac-w30: #e1e4f5;
   position: absolute; left: 18px; bottom: 15px; z-index: 4;
   display: flex; align-items: center; gap: 11px;
   max-width: calc(100% - 36px);
@@ -5052,12 +5233,12 @@
   width: 62px; height: 62px; flex: none;
   border-radius: 17px;
   overflow: hidden;
-  border: 1.5px solid color-mix(in srgb, var(--ac) 70%, #fff);
+  border: 1.5px solid var(--ac-w70);
   background: linear-gradient(160deg,
-    color-mix(in srgb, var(--ac) 42%, transparent),
+    rgb(var(--ac-rgb) / .42),
     rgba(16, 20, 44, .9));
   box-shadow:
-    0 0 16px color-mix(in srgb, var(--ac) 60%, transparent),
+    0 0 16px rgb(var(--ac-rgb) / .6),
     0 6px 18px rgba(6, 8, 20, .52),
     inset 0 1px 0 rgba(255, 255, 255, .32);
 }
@@ -5083,7 +5264,7 @@
 }
 .evt-who .nm em {
   font: 400 10.5px/1 ui-sans-serif, "Segoe UI", sans-serif; font-style: normal;
-  color: color-mix(in srgb, var(--ac) 34%, #fff);
+  color: var(--ac-w34);
   letter-spacing: .16em; text-transform: uppercase;
   opacity: .9;
 }
@@ -5096,11 +5277,11 @@
   letter-spacing: .05em; white-space: nowrap;
 }
 .evt-mood {
-  border: 1px solid color-mix(in srgb, var(--ac) 40%, transparent);
-  background: color-mix(in srgb, var(--ac) 16%, transparent);
+  border: 1px solid rgb(var(--ac-rgb) / .4);
+  background: rgb(var(--ac-rgb) / .16);
   color: #fff;
 }
-.evt-mood .ic { width: 11px; height: 11px; color: color-mix(in srgb, var(--ac) 30%, #fff); }
+.evt-mood .ic { width: 11px; height: 11px; color: var(--ac-w30); }
 .evt-abn {
   border: 1px solid rgba(255, 155, 61, .42);
   background: rgba(255, 155, 61, .14);
@@ -5110,24 +5291,28 @@
 .evt-bond {
   display: inline-flex; align-items: center; gap: 4px;
   height: 22px; padding: 0 9px;
-  border: 1px solid color-mix(in srgb, var(--bc) 34%, transparent);
+  border: 1px solid rgb(var(--bc-rgb) / .34);
   border-radius: 11px;
   background: rgba(8, 10, 26, .46);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   white-space: nowrap;
 }
-.evt-bond .ic { width: 11px; height: 11px; color: color-mix(in srgb, var(--bc) 76%, #fff); }
+.evt-bond .ic { width: 11px; height: 11px; color: var(--bc-w76); }
 .evt-bond .bk {
   font: 400 10.5px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
   color: rgba(226, 228, 250, .60); letter-spacing: .08em;
 }
 .evt-bond .bv {
   font: 500 12.5px/1 ui-sans-serif, "Segoe UI", sans-serif;
-  color: color-mix(in srgb, var(--bc) 86%, #fff);
-  text-shadow: 0 0 9px color-mix(in srgb, var(--bc) 48%, transparent);
+  color: var(--bc-w86);
+  text-shadow: 0 0 9px rgb(var(--bc-rgb) / .48);
 }
 .evt-bond[data-k="好感度"] { --bc: #ff8ebd; }
 .evt-bond[data-k="顺从度"] { --bc: #be9aff; }
+
+/* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+.evt-bond[data-k="好感度"] { --bc-rgb: 255 142 189; --bc-w76: #ffa9cd; --bc-w86: #ff9ec6; }
+.evt-bond[data-k="顺从度"] { --bc-rgb: 190 154 255; --bc-w76: #ceb2ff; --bc-w86: #c7a8ff; }
 body[data-theme] .reading-content .evt .evt-brief {
   margin: 0;
   color: rgba(246, 247, 255, .92);
@@ -5164,24 +5349,83 @@ body[data-theme] .reading-content .evt .evt-brief {
 .evt-opt[data-cat="睡奸"]     { --signal: #7d8cff; --glow: rgba(150, 162, 255, .42); }
 .evt-opt[data-cat="催眠奸"]   { --signal: #34dcc8; --glow: rgba(96, 224, 206, .40); }
 .evt-opt[data-cat="特殊H"]    { --signal: #ff4668; --glow: rgba(255, 96, 130, .48); }
+
+/* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+.evt-opt {
+  --signal-rgb: 143 155 216;
+  --signal-w96: #939fda; --signal-w88: #9ca7dd; --signal-w72: #aeb7e3;
+  --signal-w60: #bcc3e8; --signal-w40: #d2d7ef; --signal-w30: #dde1f3;
+  --signal-hover-bg: rgba(93, 105, 163, .5476);
+  --glow-rgb: 150 162 255; --glow-a: .34;
+  --rim-rgb: 226 231 255; --rim-a: .62;
+}
+.evt-opt[data-cat="纯爱"] {
+  --signal-rgb: 255 95 168;
+  --signal-w96: #ff65ab; --signal-w88: #ff72b2; --signal-w72: #ff8cc0;
+  --signal-w60: #ff9fcb; --signal-w40: #ffbfdc; --signal-w30: #ffcfe5;
+  --signal-hover-bg: rgba(138, 81, 144, .5476);
+  --glow-rgb: 255 148 198; --glow-a: .46;
+}
+.evt-opt[data-cat="日常"] {
+  --signal-rgb: 111 211 255;
+  --signal-w96: #75d5ff; --signal-w88: #80d8ff; --signal-w72: #97dfff;
+  --signal-w60: #a9e5ff; --signal-w40: #c5edff; --signal-w30: #d4f2ff;
+  --signal-hover-bg: rgba(80, 128, 179, .5476);
+  --glow-rgb: 126 198 255; --glow-a: .38;
+}
+.evt-opt[data-cat="生理窘迫"] {
+  --signal-rgb: 255 190 69;
+  --signal-w96: #ffc14c; --signal-w88: #ffc65b; --signal-w72: #ffd079;
+  --signal-w60: #ffd88f; --signal-w40: #ffe5b5; --signal-w30: #ffecc7;
+  --signal-hover-bg: rgba(138, 119, 104, .5476);
+  --glow-rgb: 255 200 118; --glow-a: .44;
+}
+.evt-opt[data-cat="调教"] {
+  --signal-rgb: 168 116 255;
+  --signal-w96: #ab7aff; --signal-w88: #b285ff; --signal-w72: #c09bff;
+  --signal-w60: #cbacff; --signal-w40: #dcc7ff; --signal-w30: #e5d5ff;
+  --signal-hover-bg: rgba(103, 90, 179, .5476);
+  --glow-rgb: 196 152 255; --glow-a: .46;
+}
+.evt-opt[data-cat="睡奸"] {
+  --signal-rgb: 125 140 255;
+  --signal-w96: #8291ff; --signal-w88: #8d9aff; --signal-w72: #a1acff;
+  --signal-w60: #b1baff; --signal-w40: #cbd1ff; --signal-w30: #d8ddff;
+  --signal-hover-bg: rgba(86, 99, 179, .5476);
+  --glow-rgb: 150 162 255; --glow-a: .42;
+}
+.evt-opt[data-cat="催眠奸"] {
+  --signal-rgb: 52 220 200;
+  --signal-w96: #3cddca; --signal-w88: #4ce0cf; --signal-w72: #6de6d7;
+  --signal-w60: #85eade; --signal-w40: #aef1e9; --signal-w30: #c2f5ef;
+  --signal-hover-bg: rgba(57, 131, 157, .5476);
+  --glow-rgb: 96 224 206; --glow-a: .4;
+}
+.evt-opt[data-cat="特殊H"] {
+  --signal-rgb: 255 70 104;
+  --signal-w96: #ff4d6e; --signal-w88: #ff5c7a; --signal-w72: #ff7a92;
+  --signal-w60: #ff90a4; --signal-w40: #ffb5c3; --signal-w30: #ffc8d2;
+  --signal-hover-bg: rgba(138, 71, 118, .5476);
+  --glow-rgb: 255 96 130; --glow-a: .48;
+}
 .evt-opt > .bar {
   align-self: stretch;
   border-radius: 14px 0 0 14px;
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--signal) 96%, #fff),
-    color-mix(in srgb, var(--signal) 62%, transparent));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 80%, transparent);
+    var(--signal-w96),
+    rgb(var(--signal-rgb) / .62));
+  box-shadow: 0 0 10px rgb(var(--signal-rgb) / .8);
 }
 @media (hover: hover) {
   .evt-opt:hover {
     transform: translateX(2px);
-    border-color: color-mix(in srgb, var(--rim) 88%, transparent);
+    border-color: rgb(var(--rim-rgb) / calc(var(--rim-a) * .88));
     background: linear-gradient(135deg,
-      color-mix(in srgb, var(--signal) 22%, rgba(60, 72, 128, .42)),
+      var(--signal-hover-bg),
       rgba(30, 38, 78, .50));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .20),
-      0 0 20px color-mix(in srgb, var(--glow) 85%, transparent),
+      0 0 20px rgb(var(--glow-rgb) / calc(var(--glow-a) * .85)),
       0 6px 20px rgba(8, 10, 28, .30);
   }
   .evt-opt:hover .evt-go { opacity: 1; transform: translateX(2px); }
@@ -5189,13 +5433,13 @@ body[data-theme] .reading-content .evt .evt-brief {
 .evt-cat {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 46px; height: 22px; padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--signal) 52%, transparent);
+  border: 1px solid rgb(var(--signal-rgb) / .52);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--signal) 20%, transparent);
-  color: color-mix(in srgb, var(--signal) 30%, #fff);
+  background: rgb(var(--signal-rgb) / .2);
+  color: var(--signal-w30);
   font: 700 11px/1 "PingFang SC", "Microsoft YaHei", sans-serif; letter-spacing: .08em;
   white-space: nowrap;
-  text-shadow: 0 0 8px color-mix(in srgb, var(--signal) 55%, transparent);
+  text-shadow: 0 0 8px rgb(var(--signal-rgb) / .55);
 }
 .evt-opt .col {
   display: block;
@@ -5227,12 +5471,23 @@ body[data-theme] .reading-content .evt .evt-brief {
 .evt-gain[data-tone="sky"]     { --gc: #7cd0ff; }
 .evt-gain[data-tone="gold"]    { --gc: #ffd35f; }
 .evt-gain[data-tone="coin"]    { --gc: #d8c98a; }
-.evt-gain .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--gc) 82%, #fff); }
+
+/* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+.evt-gain { --gc-rgb: 207 212 245; --gc-w82: #d8dcf7; --gc-w88: #d5d9f6; }
+.evt-gain[data-tone="rose"] { --gc-rgb: 255 127 180; --gc-w82: #ff96c2; --gc-w88: #ff8ebd; }
+.evt-gain[data-tone="violet"] { --gc-rgb: 181 140 255; --gc-w82: #c2a1ff; --gc-w88: #be9aff; }
+.evt-gain[data-tone="crimson"] { --gc-rgb: 255 92 126; --gc-w82: #ff7995; --gc-w88: #ff708d; }
+.evt-gain[data-tone="mint"] { --gc-rgb: 76 224 196; --gc-w82: #6ce6cf; --gc-w88: #61e4cb; }
+.evt-gain[data-tone="amber"] { --gc-rgb: 255 155 61; --gc-w82: #ffad60; --gc-w88: #ffa754; }
+.evt-gain[data-tone="sky"] { --gc-rgb: 124 208 255; --gc-w82: #94d8ff; --gc-w88: #8cd6ff; }
+.evt-gain[data-tone="gold"] { --gc-rgb: 255 211 95; --gc-w82: #ffdb7c; --gc-w88: #ffd872; }
+.evt-gain[data-tone="coin"] { --gc-rgb: 216 201 138; --gc-w82: #dfd39f; --gc-w88: #ddcf98; }
+.evt-gain .ic { width: 12px; height: 12px; color: var(--gc-w82); }
 .evt-gain .k { font: 400 11.5px/1 "PingFang SC", "Microsoft YaHei", sans-serif; color: rgba(226, 228, 250, .60); }
 .evt-gain .v {
   font: 500 13px/1 ui-sans-serif, "Segoe UI", sans-serif;
-  color: color-mix(in srgb, var(--gc) 88%, #fff);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--gc) 55%, transparent);
+  color: var(--gc-w88);
+  text-shadow: 0 0 10px rgb(var(--gc-rgb) / .55);
 }
 .evt-gain .v.word {
   font: 500 12px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -5240,6 +5495,8 @@ body[data-theme] .reading-content .evt .evt-brief {
 }
 .evt-gain.down[data-tone="rose"],
 .evt-gain.down[data-tone="violet"] { --gc: #ff3c52; }
+.evt-gain.down[data-tone="rose"],
+.evt-gain.down[data-tone="violet"] { --gc-rgb: 255 60 82; --gc-w82: #ff5f71; --gc-w88: #ff5367; }
 .evt-gain.down[data-tone="rose"] .v,
 .evt-gain.down[data-tone="violet"] .v {
   font-weight: 600;
@@ -5256,7 +5513,7 @@ body[data-theme] .reading-content .evt .evt-brief {
 }
 .evt-go {
   width: 20px; height: 20px; flex: none;
-  color: color-mix(in srgb, var(--signal) 40%, #fff);
+  color: var(--signal-w40);
   opacity: .5;
   transition: opacity .18s ease, transform .18s ease;
 }
@@ -5288,7 +5545,7 @@ body[data-theme] .reading-content .evt .evt-brief {
 }
 .evt-req .ic { width: 11px; height: 11px; }
 .evt-opt.locked .evt-req { color: rgba(255, 190, 190, .62); background: rgba(48, 16, 26, .40); }
-.evt-req.met { color: color-mix(in srgb, var(--signal) 30%, #fff); background: color-mix(in srgb, var(--signal) 16%, transparent); }
+.evt-req.met { color: var(--signal-w30); background: rgb(var(--signal-rgb) / .16); }
 
 .evt-a .evt-glass { border-radius: 22px; }
 .evt-a .evt-art { -webkit-mask-image: none; mask-image: none; }
@@ -5296,7 +5553,7 @@ body[data-theme] .reading-content .evt .evt-brief {
   background:
     linear-gradient(90deg, rgba(10, 13, 32, .10) 0%, rgba(12, 16, 40, .52) 40%, rgba(14, 19, 46, .80) 100%),
     linear-gradient(180deg, transparent 34%, rgba(10, 13, 32, .62) 100%),
-    linear-gradient(90deg, transparent 46%, color-mix(in srgb, var(--wash) 34%, transparent) 100%);
+    linear-gradient(90deg, transparent 46%, rgb(var(--wash-rgb) / calc(var(--wash-a) * .34)) 100%);
 }
 .evt-a .stage {
   position: relative; z-index: 2; overflow: hidden;
@@ -5316,7 +5573,7 @@ body[data-theme] .reading-content .evt .evt-brief {
   font: 500 11.5px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
   color: rgba(255, 255, 255, .92); letter-spacing: .06em; white-space: nowrap;
 }
-.evt-a .plate .ic { width: 12px; height: 12px; color: color-mix(in srgb, var(--signal) 60%, #fff); }
+.evt-a .plate .ic { width: 12px; height: 12px; color: var(--signal-w60); }
 .evt-a .head {
   position: relative; z-index: 2;
   width: 100%; min-width: 0; max-width: none;
@@ -5328,7 +5585,7 @@ body[data-theme] .reading-content .evt .evt-brief {
   width: 100%; min-width: 0; max-width: none;
   padding: 15px 24px 20px;
   background:
-    radial-gradient(ellipse 54% 90% at 8% 110%, color-mix(in srgb, var(--wash) 24%, transparent), transparent 72%),
+    radial-gradient(ellipse 54% 90% at 8% 110%, rgb(var(--wash-rgb) / calc(var(--wash-a) * .24)), transparent 72%),
     linear-gradient(180deg, rgba(27, 34, 70, .95), rgba(17, 22, 48, .985));
   box-shadow:
     inset 0 1px 0 rgba(225, 230, 255, .12),
@@ -5340,7 +5597,7 @@ body[data-theme] .reading-content .evt .evt-brief {
   .evt-a .evt-art::after {
     background:
       linear-gradient(180deg, rgba(10, 13, 32, .12) 0%, rgba(12, 16, 40, .40) 52%, rgba(14, 19, 46, .86) 100%),
-      linear-gradient(90deg, transparent 50%, color-mix(in srgb, var(--wash) 30%, transparent) 100%);
+      linear-gradient(90deg, transparent 50%, rgb(var(--wash-rgb) / calc(var(--wash-a) * .3)) 100%);
   }
   .evt-a .stage > .spacer { height: 158px; }
   .evt-a .head { padding: 14px 18px 15px; }
@@ -5484,6 +5741,19 @@ html[data-tt-mobile="1"] .evt-edge {
       --header-bg: #171717;
       color: #dcdcd2;
       background: #171717;
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 23 23 23;
+      --paper-soft-rgb: 30 30 30;
+      --stage-rgb: 23 23 23;
+      --accent-rgb: 188 231 207;
+      --edge-rgb: 0 0 0; --edge-a: .82;
+      --rule-rgb: 0 0 0; --rule-a: 1;
+      --quote-bg-rgb: 225 138 36; --quote-bg-a: .055;
+      --char-hover-bg: rgba(50, 57, 53, .334);
+      --dlg-node-mid: #61756a;
+      --bubble-ink: #c4c4bc;
+      --dialogue-em-ink: #bf8d52;
     }
 
     html:has(body[data-theme="dark"]) {
@@ -5582,6 +5852,19 @@ html[data-tt-mobile="1"] .evt-edge {
       --header-bg: rgba(255, 255, 255, .94);
       color: var(--ink);
       background: #ffffff;
+
+      /* 预算派生色，见文件内 "预算派生色" 说明；改上面基色要同步改这组。 */
+      --paper-rgb: 255 255 255;
+      --paper-soft-rgb: 247 247 248;
+      --stage-rgb: 255 255 255;
+      --accent-rgb: 17 17 17;
+      --edge-rgb: 222 222 222; --edge-a: 1;
+      --rule-rgb: 229 229 229; --rule-a: 1;
+      --quote-bg-rgb: 247 247 248; --quote-bg-a: 1;
+      --char-hover-bg: rgba(215, 215, 217, .3196);
+      --dlg-node-mid: #949494;
+      --bubble-ink: #2a2a2a;
+      --dialogue-em-ink: #3f3f3f;
     }
 
     html:has(body[data-theme="paper-white"]) {
@@ -5753,7 +6036,7 @@ html[data-tt-mobile="1"] .evt-edge {
 
   <style id="named-inner-voice-style">
     /* (角色名：*心理活动想法*) 专用心声块：比正文略小，保留独立的内心标记 */
-    .named-inner-voice { margin: 1.28em 0 1.42em; padding: .48em 0 .52em 1.18em; border-left: 1px dashed color-mix(in srgb, var(--accent, #668578) 52%, transparent); color: var(--ink-soft); font-family: var(--psychology, var(--kai)); font-size: .88em; font-weight: 400; line-height: 1.9; letter-spacing: .06em; text-align: left; }
+    .named-inner-voice { margin: 1.28em 0 1.42em; padding: .48em 0 .52em 1.18em; border-left: 1px dashed rgb(var(--accent-rgb, 102 133 120) / .52); color: var(--ink-soft); font-family: var(--psychology, var(--kai)); font-size: .88em; font-weight: 400; line-height: 1.9; letter-spacing: .06em; text-align: left; }
     /* 折叠交互：收起时只留「角色名 · 心声」标签行，点击展开正文 */
     .named-inner-voice__trigger { display: inline-flex; align-items: baseline; gap: .5em; margin: 0; padding: 0; border: 0; background: none; color: var(--accent-strong, #496b5e); font-family: var(--serif); font-size: .76em; font-weight: 600; line-height: 1.35; letter-spacing: .16em; text-indent: 0; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .2s ease, opacity .2s ease; }
     .named-inner-voice__trigger:hover { opacity: .78; }
@@ -5869,10 +6152,10 @@ html[data-tt-mobile="1"] .evt-edge {
         padding: 4px;
         border: 1px solid var(--edge);
         border-radius: 12px;
-        background: color-mix(in srgb, var(--paper) 94%, transparent);
+        background: rgb(var(--paper-rgb) / .94);
         -webkit-backdrop-filter: blur(12px) saturate(.9);
         backdrop-filter: blur(12px) saturate(.9);
-        box-shadow: 0 6px 18px color-mix(in srgb, var(--stage) 42%, transparent);
+        box-shadow: 0 6px 18px rgb(var(--stage-rgb) / .42);
         visibility: hidden;
         opacity: 0;
         transform: translateY(-4px);
@@ -7341,6 +7624,40 @@ html[data-tt-mobile="1"] .evt-edge {
       return raw;
     }
 
+    /* 预算派生色的运行期版本。角色主色来自 CHARACTER_CONFIG，也可能是 evtCharOf
+       兜底生成的 hsl()，形态不固定，所以先用 canvas 把它归一化成 rgb 通道再算派生值。
+       CSS 侧只认 --ac-rgb / --ac-wNN（理由见样式里的「预算派生色」说明），所以这里
+       必须和 --ac 一起写进 style，否则旧 WebView 上角色环和心情标签会掉回缺省色。 */
+    let evtColorCtx;
+    function evtColorChannels(value) {
+      try {
+        if (evtColorCtx === undefined) evtColorCtx = document.createElement('canvas').getContext('2d');
+        if (!evtColorCtx) return null;
+        evtColorCtx.fillStyle = '#000';
+        evtColorCtx.fillStyle = value; // 非法值被忽略，留在 #000
+        const s = String(evtColorCtx.fillStyle);
+        let m = /^#([0-9a-f]{6})$/i.exec(s);
+        if (m) return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+        m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(s);
+        if (m) return [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3])];
+        return null;
+      } catch (e) { return null; }
+    }
+
+    function evtAcVars(value) {
+      const ch = evtColorChannels(value);
+      // 取不到通道就只写 --ac，派生值留给 .evt-cast 的缺省色，至少保持整块自洽。
+      if (!ch) return '--ac:' + value;
+      const h2 = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
+      // 与 #fff 按 p 混色：两侧都不透明，预乘退化成普通线性插值
+      const w = (p) => '#' + ch.map((c) => h2(c * p + 255 * (1 - p))).join('');
+      return '--ac:' + value
+        + ';--ac-rgb:' + ch.join(' ')
+        + ';--ac-w70:' + w(.70)
+        + ';--ac-w34:' + w(.34)
+        + ';--ac-w30:' + w(.30);
+    }
+
     function evtCharOf(name) {
       const canon = evtCanonName(name) || name;
       const cfg = (typeof CHARACTER_CONFIG !== 'undefined' && CHARACTER_CONFIG[canon]) || null;
@@ -7551,7 +7868,7 @@ html[data-tt-mobile="1"] .evt-edge {
         const face = cc.avatar
           ? '<img src="' + evtAttr(cc.avatar) + '" alt="" loading="lazy" onerror="this.remove()"><i>' + evtEsc((cc.name || '?')[0]) + '</i>'
           : '<i>' + evtEsc((cc.name || '?')[0]) + '</i>';
-        castHtml = '<div class="evt-cast" style="--ac:' + evtAttr(cc.color) + '">'
+        castHtml = '<div class="evt-cast" style="' + evtAttr(evtAcVars(cc.color)) + '">'
           + '<span class="evt-face">' + face + '</span>'
           + '<div class="evt-who"><span class="nm">' + evtEsc(cc.name) + '<em>同行</em></span>'
           + '<span class="st">'

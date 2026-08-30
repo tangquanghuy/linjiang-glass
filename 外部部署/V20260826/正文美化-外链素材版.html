@@ -2,7 +2,7 @@
 <!-- 本文件由 scripts/build-reading-external.mjs 从 外部部署/V20260826/正文美化.html 生成，请勿直接编辑。
      与源的差异只有两处：
        1. 5 张内联 base64 WebP 改成了外链；
-       2. head 里 22 个内联 <style>（共 171KB）合并成一个外链样式表。
+       2. head 里 22 个内联 <style>（共 183KB）合并成一个外链样式表。
      素材前缀：https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/reading/
      改动请改源文件再重新生成；npm run reading:check 会校验这份有没有过期。 -->
 <!DOCTYPE html>
@@ -52,10 +52,10 @@
     })();
   </script>
     <link rel="preconnect" href="https://testingcf.jsdelivr.net" crossorigin>
-  <!-- 这里原本是 22 个内联 <style>（共 171KB）。
+  <!-- 这里原本是 22 个内联 <style>（共 183KB）。
        每条 AI 消息都是一个独立 iframe，内联就等于每层重新解析一遍，所以抽成外链。
        注意它是渲染阻塞的：取不到时浏览器会以无样式状态渲染正文。 -->
-  <link rel="stylesheet" href="https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/reading/reading.bab922d8.css">
+  <link rel="stylesheet" href="https://testingcf.jsdelivr.net/gh/tangquanghuy/linjiang-glass@main/public/reading/reading.0697f41a.css">
 </head>
 
 <body class="theme-preload render-pending">
@@ -1493,6 +1493,40 @@
       return raw;
     }
 
+    /* 预算派生色的运行期版本。角色主色来自 CHARACTER_CONFIG，也可能是 evtCharOf
+       兜底生成的 hsl()，形态不固定，所以先用 canvas 把它归一化成 rgb 通道再算派生值。
+       CSS 侧只认 --ac-rgb / --ac-wNN（理由见样式里的「预算派生色」说明），所以这里
+       必须和 --ac 一起写进 style，否则旧 WebView 上角色环和心情标签会掉回缺省色。 */
+    let evtColorCtx;
+    function evtColorChannels(value) {
+      try {
+        if (evtColorCtx === undefined) evtColorCtx = document.createElement('canvas').getContext('2d');
+        if (!evtColorCtx) return null;
+        evtColorCtx.fillStyle = '#000';
+        evtColorCtx.fillStyle = value; // 非法值被忽略，留在 #000
+        const s = String(evtColorCtx.fillStyle);
+        let m = /^#([0-9a-f]{6})$/i.exec(s);
+        if (m) return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+        m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(s);
+        if (m) return [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3])];
+        return null;
+      } catch (e) { return null; }
+    }
+
+    function evtAcVars(value) {
+      const ch = evtColorChannels(value);
+      // 取不到通道就只写 --ac，派生值留给 .evt-cast 的缺省色，至少保持整块自洽。
+      if (!ch) return '--ac:' + value;
+      const h2 = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
+      // 与 #fff 按 p 混色：两侧都不透明，预乘退化成普通线性插值
+      const w = (p) => '#' + ch.map((c) => h2(c * p + 255 * (1 - p))).join('');
+      return '--ac:' + value
+        + ';--ac-rgb:' + ch.join(' ')
+        + ';--ac-w70:' + w(.70)
+        + ';--ac-w34:' + w(.34)
+        + ';--ac-w30:' + w(.30);
+    }
+
     function evtCharOf(name) {
       const canon = evtCanonName(name) || name;
       const cfg = (typeof CHARACTER_CONFIG !== 'undefined' && CHARACTER_CONFIG[canon]) || null;
@@ -1703,7 +1737,7 @@
         const face = cc.avatar
           ? '<img src="' + evtAttr(cc.avatar) + '" alt="" loading="lazy" onerror="this.remove()"><i>' + evtEsc((cc.name || '?')[0]) + '</i>'
           : '<i>' + evtEsc((cc.name || '?')[0]) + '</i>';
-        castHtml = '<div class="evt-cast" style="--ac:' + evtAttr(cc.color) + '">'
+        castHtml = '<div class="evt-cast" style="' + evtAttr(evtAcVars(cc.color)) + '">'
           + '<span class="evt-face">' + face + '</span>'
           + '<div class="evt-who"><span class="nm">' + evtEsc(cc.name) + '<em>同行</em></span>'
           + '<span class="st">'

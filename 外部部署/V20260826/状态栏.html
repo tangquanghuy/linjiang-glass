@@ -2432,6 +2432,10 @@
      临时藏起来 —— 效果与生产的全屏一致，不是新增行为。
 
      退出时按原样精确还原（连 !important 优先级一起存）。 */
+  /* 记在宿主元素上的还原信息。理由见 escapeFixedContainingBlock 里 patch 上面那段：
+     楼层文档会被 WebKit 重载，闭包保不住，只有 DOM 属性能跟元素同生共死。 */
+  const CB_SAVED_ATTR = 'data-linjiang-cb-saved';
+  const FLOOR_SAVED_ATTR = 'data-linjiang-floor-saved';
   const CB_PROPS = ['backdrop-filter', '-webkit-backdrop-filter', 'filter',
     'transform', 'perspective', 'will-change', 'contain', 'container-type'];
   /* 中和值不能一律用 none：will-change 的初始值是 auto，contain 是 none，container-type 是 normal。 */
@@ -2463,6 +2467,20 @@
           saved[p] = [el.style.getPropertyValue(p), el.style.getPropertyPriority(p)];
         });
         cbPatched.push({ el, saved });
+        /* 还原信息同时写进**宿主 DOM**，不只留在这个闭包里。
+           ==================================================================
+           这是一次真机事故的修法。TT 移动端的「角色卡渲染管理」会把楼层运行时挪进 0×0
+           停车场，而 WebKit 会重载停在里面的文档（startInlineResumeWatch 上面那段注释
+           早就记了这件事）。文档一重载，cbPatched 就跟着消失 —— 可是 DOM 上的改动还在：
+           楼层仍然是 position:fixed 铺满视口、background:#05040a，#top-bar 和 #form_sheld
+           仍然 visibility:hidden。于是屏幕永久停在全屏近黑，而且**进程没死**，所以切后台
+           再回来照样黑（用户实测：App 响应正常、来回切很丝滑、切回来仍然黑屏）。
+
+           把 saved 序列化到元素自己身上，任何一个后来的控制器都能收拾残局，不依赖
+           「当初那个文档还活着」。attribute 选它是因为它跟元素同生共死，正是我们要的生命周期。 */
+        try {
+          el.setAttribute(CB_SAVED_ATTR, JSON.stringify(saved));
+        } catch (e) {}
         props.forEach((p) => el.style.setProperty(p, value(p), 'important'));
       };
 
@@ -2484,19 +2502,54 @@
     } catch (e) {}
   };
 
+  const applySavedStyles = (el, saved) => {
+    Object.keys(saved || {}).forEach((p) => {
+      const entry = saved[p];
+      const value = Array.isArray(entry) ? entry[0] : '';
+      const priority = Array.isArray(entry) ? entry[1] : '';
+      if (value) el.style.setProperty(p, value, priority);
+      else el.style.removeProperty(p);
+    });
+  };
+
   const restoreFixedContainingBlock = () => {
     if (!cbPatched) return;
     const patched = cbPatched;
     cbPatched = null;
     for (const entry of patched) {
       try {
-        Object.keys(entry.saved).forEach((p) => {
-          const [value, priority] = entry.saved[p];
-          if (value) entry.el.style.setProperty(p, value, priority);
-          else entry.el.style.removeProperty(p);
-        });
+        applySavedStyles(entry.el, entry.saved);
+        entry.el.removeAttribute(CB_SAVED_ATTR);
       } catch (e) {}
     }
+  };
+
+  /* 收拾「上一个文档没来得及还原」的残局。
+     ==================================================================
+     只靠 restoreFixedContainingBlock 是不够的：它要求当初打补丁的那个文档还活着。楼层被
+     TT 停进停车场、被 WebKit 重载之后，那个文档没了，DOM 上的改动却留着 —— 全屏近黑、
+     顶栏和输入栏永久隐藏，而且没有任何代码还知道该怎么收。
+
+     所以每个新控制器启动时都主动扫一遍宿主：凡是带我们记号的，一律按记下来的原样还回去。
+     这样做是安全的，因为**一个刚启动的控制器身上不可能有整页开着** —— 记号只可能是残留。
+     顺带把楼层自己的几何也收回来（它可能还钉在满视口上）。 */
+  const reclaimHostLeftovers = () => {
+    try {
+      const tavern = tavernWin();
+      tavern.document.querySelectorAll(`[${CB_SAVED_ATTR}]`).forEach((el) => {
+        let saved = null;
+        try { saved = JSON.parse(el.getAttribute(CB_SAVED_ATTR) || 'null'); } catch (e) {}
+        try { applySavedStyles(el, saved); } catch (e) {}
+        el.removeAttribute(CB_SAVED_ATTR);
+      });
+      tavern.document.querySelectorAll(`[${FLOOR_SAVED_ATTR}]`).forEach((el) => {
+        const saved = el.getAttribute(FLOOR_SAVED_ATTR) || '';
+        el.removeAttribute(FLOOR_SAVED_ATTR);
+        if (saved) el.setAttribute('style', saved);
+        else el.removeAttribute('style');
+        el.removeAttribute('scrolling');
+      });
+    } catch (e) {}
   };
 
   const layoutInlineDockPage = () => {
@@ -2508,6 +2561,9 @@
     if (!inlinePageOn) {
       inlinePageOn = true;
       if (savedFloorStyle === null) savedFloorStyle = frame.getAttribute('style');
+      /* 跟原生流那边同一个理由（见 CB_SAVED_ATTR）：楼层文档会被 TT 停车 + WebKit 重载，
+         闭包里的 savedFloorStyle 保不住，得写在楼层元素身上才有人能收拾。 */
+      try { frame.setAttribute(FLOOR_SAVED_ATTR, savedFloorStyle || ''); } catch (e) {}
     }
     /* 必须在下面写 position:fixed 之前做：否则这一帧的 fixed 仍然锚在 #chat 上。 */
     escapeFixedContainingBlock(frame);
@@ -2561,6 +2617,7 @@
     /* 先把祖先的模糊/变换还回去，再还原楼层样式：顺序不重要，但两件事必须成对，
        漏掉这一句的后果是 #chat 永久失去 backdrop-filter。 */
     restoreFixedContainingBlock();
+    try { frame.removeAttribute(FLOOR_SAVED_ATTR); } catch (e) {}
     if (savedFloorStyle === null) frame.removeAttribute('style');
     else frame.setAttribute('style', savedFloorStyle);
     savedFloorStyle = null;
@@ -2856,6 +2913,9 @@
       nativePageOn = true;
       nativeSavedFloorStyle = frame.getAttribute('style');
       nativeSavedScrolling = frame.getAttribute('scrolling');
+      /* 跟 CB_SAVED_ATTR 同一个理由：楼层的原始样式也要写在楼层元素身上，否则这个文档
+         一被重载，它就永久钉在满视口的近黑上，没人知道原来长什么样。 */
+      try { frame.setAttribute(FLOOR_SAVED_ATTR, nativeSavedFloorStyle || ''); } catch (e) {}
       /* 楼层一离开常规流，#chat 的内容就短掉一截、滚动位置会被夹。整页盖着屏幕时看不见，
          但关掉之后读者会发现自己被挪走了，所以存下来照原样放回去。 */
       try {
@@ -2887,6 +2947,7 @@
     }
     nativeSavedFloorStyle = null;
     nativeSavedScrolling = null;
+    try { frame?.removeAttribute(FLOOR_SAVED_ATTR); } catch (e) {}
     /* 高度重新交回「内容决定」那条路（酒馆助手的 ResizeObserver 也会跟着量一次）。 */
     queueMobileNativeHeight();
     const chatTop = nativeSavedChatTop;
@@ -4028,6 +4089,11 @@
       /* A native-flow owner owns its own document; never create or move the shared
          desktop HUD iframe. New-message handover simply mounts in the new floor. */
       try { manager.resetHudFrame?.(); } catch (e) {}
+      /* 先收拾上一任留下的残局，再做任何自己的排版。
+         这一楼可能就是「刚被 TT 停进停车场、被 WebKit 重载」的那一楼：DOM 上还挂着整页
+         状态（楼层钉在满视口的近黑、顶栏和输入栏隐藏），而当初记着怎么还原的那个文档已经
+         没了。不先收，用户看到的就是永久黑屏 —— 进程没死，所以切后台也回不来。 */
+      try { reclaimHostLeftovers(); } catch (e) {}
       manager.dockMode = 'embedded';
       installMobileNativeBridge();
       document.documentElement.dataset.linjiangNativeActive = '1';
@@ -4061,6 +4127,10 @@
       });
       return;
     }
+    /* 同原生流：先收拾上一任在宿主上留下的整页残局。抬升这边 deactivate 里有
+       leaveInlineDockPage 兜底，但那同样要求上一个文档还活着 —— 被 TT 停车后重载的那一楼
+       不会执行任何清理，顶栏和输入栏就那么一直隐藏着。 */
+    try { reclaimHostLeftovers(); } catch (e) {}
     /* 抬升架构不需要留着上一任：共用的 HUD 不重载，接手只是一次重排。 */
     try { manager.commitRetire(); } catch (e) {}
     /* A message/status re-render elects a new controller without reloading the

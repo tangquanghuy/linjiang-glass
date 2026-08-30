@@ -279,6 +279,87 @@ for (const kase of cases) {
       'shop closes back to native flow without remounting the main HUD', JSON.stringify(shopClosed));
     check(await page.evaluate(() => !window.__linjiangTavernLive.statusFrame.contentDocument.querySelector('.shop-layer')),
       'shop overlay is torn down on close');
+
+    /* 整页开着时楼层文档被销毁 —— TT 移动端「角色卡渲染管理」的真实行为。
+       ==================================================================
+       真机事故：iPhone 上开商店后整个 TauriTavern 变成全屏黑，App 仍然响应、切后台再回来
+       照样黑。原因不是崩溃也不是内存 —— 是整页状态的还原信息只活在楼层文档的 JS 闭包里
+       （cbPatched / savedFloorStyle）。TT 把楼层挪进 0×0 停车场，WebKit 重载那个文档，
+       闭包随之消失，而 DOM 上的改动全留着：楼层仍是 position:fixed 铺满视口 +
+       background:#05040a（近黑），#top-bar / #form_sheld 仍是 visibility:hidden。
+       于是屏幕永久停在全屏近黑，没有任何代码还知道该怎么收。
+
+       怎么测：Chromium 造不出 WebKit 那个语义 —— 这里重新赋值 srcdoc 会正常触发 pagehide，
+       旧文档照样跑完清理（实测修复前后都绿，也就是这样测等于没测）。所以改为直接**植入那个
+       终态**：把死文档会留在宿主上的东西原样摆好（楼层钉满视口 + chrome 隐藏 + 记号属性），
+       然后让一个新控制器启动，断言它必须把宿主收拾干净。
+       验的是不变量「任何新控制器启动后，宿主上不得残留整页状态」，而这正是黑屏的直接成因。 */
+    await hud.locator('.pdest-btn[data-page="shop"]').first().click();
+    await page.waitForTimeout(400);
+    const beforeKill = await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      return {
+        floorPosition: getComputedStyle(frame).position,
+        topbar: getComputedStyle(document.getElementById('top-bar')).visibility,
+        form: getComputedStyle(document.getElementById('form_sheld')).visibility,
+        markers: document.querySelectorAll('[data-linjiang-cb-saved],[data-linjiang-floor-saved]').length,
+      };
+    });
+    check(beforeKill.floorPosition === 'fixed' && beforeKill.topbar === 'hidden',
+      '前提：整页状态已生效（楼层 fixed、chrome 隐藏）', JSON.stringify(beforeKill));
+
+    await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const chat = document.getElementById('chat');
+      /* 1. 先让当前文档正常退出整页（它还活着，会自己收干净）。 */
+      frame.srcdoc = frame.srcdoc;
+      /* 2. 再手工摆出「死文档留下的残局」。这一步刻意绕过所有活代码，就像那个文档从没有
+            机会执行清理一样。saved 值按真实 patch 的形状写：[value, priority]。 */
+      window.__linjiangPlantLeak = () => {
+        frame.setAttribute('data-linjiang-floor-saved', '');
+        frame.style.cssText = [
+          'position:fixed', 'left:0', 'top:0', 'width:100%', 'height:100%',
+          'z-index:2147483000', 'background:#05040a', 'overflow:hidden',
+        ].join(';');
+        chat.setAttribute('data-linjiang-cb-saved', JSON.stringify({
+          'backdrop-filter': ['', ''], '-webkit-backdrop-filter': ['', ''],
+        }));
+        chat.style.setProperty('backdrop-filter', 'none', 'important');
+        ['top-bar', 'top-settings-holder', 'form_sheld'].forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.setAttribute('data-linjiang-cb-saved', JSON.stringify({ visibility: ['', ''] }));
+          el.style.setProperty('visibility', 'hidden', 'important');
+        });
+      };
+    });
+    await page.waitForTimeout(2500);
+    /* 残局要在新文档挂载**之前**摆好，否则那一任已经收拾过了。用一次再重载来制造
+       「先有残局、后有新控制器」的顺序。 */
+    await page.evaluate(() => {
+      window.__linjiangPlantLeak();
+      const frame = window.__linjiangTavernLive.statusFrame;
+      frame.srcdoc = frame.srcdoc;
+    });
+    await page.waitForTimeout(3500);
+
+    const healed = await page.evaluate(() => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const chat = document.getElementById('chat');
+      return {
+        floorPosition: getComputedStyle(frame).position,
+        topbar: getComputedStyle(document.getElementById('top-bar')).visibility,
+        form: getComputedStyle(document.getElementById('form_sheld')).visibility,
+        chatBackdrop: getComputedStyle(chat).backdropFilter,
+        leftoverMarkers: document.querySelectorAll('[data-linjiang-cb-saved],[data-linjiang-floor-saved]').length,
+      };
+    });
+    check(healed.floorPosition === 'static',
+      '楼层文档被销毁后，楼层几何自愈（不再钉在满视口）', healed.floorPosition);
+    check(healed.topbar === 'visible' && healed.form === 'visible',
+      '楼层文档被销毁后，酒馆 chrome 自愈（这是黑屏的直接成因）', JSON.stringify(healed));
+    check(healed.chatBackdrop !== 'none' && healed.leftoverMarkers === 0,
+      '#chat 的 backdrop-filter 还原，且宿主上不留残留记号', JSON.stringify(healed));
     check(errors.length === 0, 'no script errors', errors.slice(0, 3).join(' | '));
   } catch (error) {
     check(false, `${kase.id} execution`, error.message);

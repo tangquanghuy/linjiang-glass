@@ -1,0 +1,1388 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>鉴宝竞拍</title>
+<style>
+/* ================================================================
+ * 主题。深色是本作的主形态（拍卖厅是暗的），另外三套是街机共用主题的
+ * 适配。橙色贯穿所有主题：它是「玩家自己」的标识色。
+ * ============================================================== */
+/* 表面层次不能用半透明黑堆。深色底上 #00000030 会做出漂亮的凹陷，
+   浅色底上同一个值只会糊成一片脏米黄，于是「未探的格子」和「已探到轮廓
+   的格子」颜色几乎一样，核心信息显示直接失效。所以凹陷面、仓库格、遮罩
+   都各自出一个主题变量：
+     --sunk   凹陷面（名牌、竞拍人卡、数据格）
+     --sunk2  更深一层（仓库底、图标框）
+     --fog    仓库里还没探到的格子
+     --found  探到轮廓但还不知道是什么的格子（必须明显比 --fog 亮）
+     --scrim  遮罩层背景 */
+/* color-scheme 绝对不能写在 :root 上。canvas 底色是按根元素的 color-scheme
+   画的，一旦根元素声明了 dark，浏览器就用暗色填满整页背景 —— 即使
+   html/body 都是 transparent。结果是页面嵌进大厅的 iframe 后，拍卖厅以外
+   的区域全是黑的，透不出大厅自己的底色，浅色主题下像开了个洞。
+   所以只挂在 body 的各主题选择器上。 */
+:root,body[data-theme=dark]{
+  --bg:#0a0b0e;--panel:#14161b;--panel2:#1b1e25;--panel3:#23272f;
+  --line:#ffffff1a;--line2:#ffffff2e;--text:#eef1f5;--muted:#98a1af;--dim:#78818f;
+  --orange:#ff8a3d;--orange2:#c2551a;--gold:#ffb02e;--pink:#ff4d8d;
+  --good:#3ddc97;--bad:#e0526a;--glass:#0b0d11e6;
+  --sunk:#00000038;--sunk2:#00000055;--fog:#0d0f13;--found:#39404b;--scrim:#05060899}
+body[data-theme=dark]{color-scheme:dark}
+body[data-theme=warm-white]{color-scheme:light;
+  --bg:#e7e3dc;--panel:#fdfbf7;--panel2:#f4efe6;--panel3:#e8e1d5;
+  --line:#2b211a30;--line2:#2b211a52;--text:#221b14;--muted:#5a5145;--dim:#6b6154;
+  --orange:#d75f14;--orange2:#9c3d08;--gold:#a4711a;--pink:#bd2f68;
+  --good:#137048;--bad:#ab2f46;--glass:#fdfbf7f5;
+  --sunk:#ffffffcc;--sunk2:#e3dbcc;--fog:#cbc2b1;--found:#ffffff;--scrim:#4a3c2e5c}
+body[data-theme=green]{color-scheme:light;
+  --bg:#dbe7de;--panel:#f7fdf8;--panel2:#e9f2eb;--panel3:#d8e5db;
+  --line:#1f4a3630;--line2:#1f4a3652;--text:#1b2c22;--muted:#4f5f55;--dim:#5d6d63;
+  --orange:#cf6416;--orange2:#8f3f0c;--gold:#8e6f22;--pink:#b23a6c;
+  --good:#136746;--bad:#a4374b;--glass:#f7fdf8f5;
+  --sunk:#ffffffcc;--sunk2:#dae7dd;--fog:#bfd0c4;--found:#ffffff;--scrim:#26402f5c}
+body[data-theme=classic-dark]{color-scheme:dark;
+  --bg:#12100d;--panel:#1d1a15;--panel2:#26221b;--panel3:#332c22;
+  --line:#e1c99c26;--line2:#e1c99c42;--text:#ece1cf;--muted:#b0a08a;--dim:#8b7c66;
+  --orange:#e09248;--orange2:#9a5b20;--gold:#cfa960;--pink:#c4738d;
+  --good:#7fbf9a;--bad:#cf7280;--glass:#1d1a15ee;
+  --sunk:#00000040;--sunk2:#00000060;--fog:#13100b;--found:#463c2c;--scrim:#0d0a0699}
+
+
+/* 品质色阶固定，不随主题走：它承载信息，不是装饰 */
+:root{--q-common:#8b97a8;--q-fine:#35c1e8;--q-rare:#b478f5;--q-unique:#ffb02e;--q-fake:#e0526a}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;min-width:0;height:100%;background:transparent}
+body{display:flex;padding:8px;color:var(--text);overflow:hidden;
+  font:14px/1.5 "Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+.n{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em}
+
+/* 整屏应用式：顶栏 + 三栏 + 操作条，三栏吃掉剩下的全部高度。
+   早期版本用 width:min(100%,1180px) + 内容撑高，宽屏下缩成中间一小块、
+   下面一大片空，字也显得特别小。 */
+.hall{position:relative;flex:1;min-width:0;min-height:0;max-width:1560px;margin:0 auto;
+  display:flex;flex-direction:column;
+  border:1px solid var(--line2);border-radius:14px;overflow:hidden;
+  background:
+    radial-gradient(120% 70% at 50% -10%,color-mix(in srgb,var(--orange) 14%,transparent),transparent 60%),
+    radial-gradient(70% 55% at 100% 100%,color-mix(in srgb,var(--pink) 9%,transparent),transparent 58%),
+    linear-gradient(168deg,var(--panel2),var(--bg) 72%);
+  box-shadow:0 18px 54px #00000073,inset 0 1px 0 #ffffff12}
+/* 拍卖厅四角的装饰角标：给这个「柜机」一点器物感 */
+.hall:before,.hall:after{content:"";position:absolute;z-index:2;width:22px;height:22px;
+  pointer-events:none;opacity:.5}
+.hall:before{left:7px;top:7px;border-left:2px solid var(--orange);border-top:2px solid var(--orange);
+  border-radius:5px 0 0 0}
+.hall:after{right:7px;bottom:7px;border-right:2px solid var(--orange);border-bottom:2px solid var(--orange);
+  border-radius:0 0 5px 0}
+
+/* ================================================================
+ * 顶栏：回合倒计时居中，资产靠右
+ * ============================================================== */
+.top{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+  padding:11px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 7%,transparent),transparent)}
+.top-left{display:flex;align-items:center;gap:7px;min-width:0}
+.top-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+.mark{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--line2);
+  border-radius:8px;background:var(--sunk)}
+.mark b{font-size:12px;letter-spacing:.14em}
+.mark small{color:var(--muted);font-size:9.5px;letter-spacing:.16em}
+
+.timer{display:flex;align-items:center;justify-content:center;gap:7px;flex:none;
+  padding:5px 14px;white-space:nowrap;
+  border:1px solid var(--line2);border-radius:999px;background:var(--sunk)}
+.timer i{width:13px;height:13px;border-radius:50%;border:2px solid var(--muted);
+  border-top-color:var(--orange);flex:none}
+.timer b{font-size:16px;font-weight:800}
+.timer.hot{border-color:color-mix(in srgb,var(--bad) 60%,transparent);
+  background:color-mix(in srgb,var(--bad) 16%,transparent)}
+.timer.hot b{color:var(--bad)}
+.timer.hot i{border-top-color:var(--bad);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.asset{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;
+  border:1px solid var(--line2);border-radius:999px;background:var(--sunk)}
+.asset .coin{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;
+  background:linear-gradient(150deg,var(--gold),var(--orange2));color:#2a1a06;
+  font-size:11px;font-weight:900;box-shadow:0 2px 6px #0006}
+.asset small{color:var(--muted);font-size:10px;letter-spacing:.1em}
+.asset b{font-size:14px;color:var(--gold)}
+.lotpill{padding:4px 10px;border:1px solid var(--line2);border-radius:999px;
+  background:var(--sunk);color:var(--muted);font-size:10px;font-weight:800;white-space:nowrap}
+
+/* ================================================================
+ * 主体三栏
+ * ============================================================== */
+/* 三栏各自内部滚动，整体不滚：竞价时视线要在「仓库 / 情报 / 对手」之间来回跳，
+   页面一滚就全乱。 */
+.deck{flex:1;min-height:0;display:grid;
+  grid-template-columns:clamp(228px,15vw,296px) minmax(0,1fr) clamp(350px,38vw,760px)}
+.col{min-width:0;min-height:0;display:flex;flex-direction:column;gap:10px;padding:14px}
+.col.mid{border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.col-title{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.col-title h2{margin:0;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:800}
+.col-title span{color:var(--muted);font-size:10px}
+.col-scroll{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;display:flex;flex-direction:column;
+  /* 滚动区顶端渐隐，暗示上面还有内容 */
+  mask-image:linear-gradient(180deg,transparent 0,#000 10px);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 10px)}
+</style>
+<style>
+/* ================================================================
+ * 左栏：竞拍人与他们每回合的出价槽
+ * 出价公开是「行为情报」的载体 —— 谁在第几回合跳了价，本身就是线索。
+ * ============================================================== */
+.seats-row{flex:1;display:flex;flex-direction:column;gap:9px}
+.seat{position:relative;flex:1 1 auto;min-height:88px;max-height:126px;display:flex;flex-direction:column;justify-content:space-between;padding:11px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--sunk);
+  transition:opacity .25s,border-color .2s,box-shadow .2s}
+.seat.out{opacity:.4}
+.seat.top{border-color:color-mix(in srgb,var(--gold) 52%,transparent);
+  background:color-mix(in srgb,var(--gold) 14%,var(--sunk))}
+.seat-head{display:grid;grid-template-columns:40px minmax(0,1fr);gap:9px;align-items:center}
+.face{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;
+  border:1px solid var(--line2);background:linear-gradient(150deg,var(--panel3),var(--panel));
+  font-size:21px}
+.seat.me .face{border-color:var(--orange);
+  background:linear-gradient(150deg,color-mix(in srgb,var(--orange) 34%,var(--panel3)),var(--panel))}
+.seat-id{min-width:0}
+.nameplate{display:inline-block;max-width:100%;padding:3px 10px;border-radius:999px;
+  background:var(--panel3);color:var(--text);font-size:11.5px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat.me .nameplate{background:var(--orange);color:#20130a}
+.seat-say{margin-top:3px;color:var(--muted);font-size:10px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.seat-say.read{color:var(--pink)}
+.slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin-top:7px}
+.slot{position:relative;min-height:34px;padding:2px 1px 1px;border-radius:5px;
+  background:var(--fog);border:1px solid var(--line);text-align:center;overflow:hidden}
+.slot em{display:block;color:var(--dim);font-size:8px;font-style:normal;line-height:1}
+.slot b{display:block;font-size:11px;line-height:1.2;color:var(--muted)}
+.slot.filled{border-color:var(--line2);background:var(--panel3)}
+.slot.filled b{color:var(--text)}
+.seat.me .slot.filled{border-color:color-mix(in srgb,var(--orange) 55%,transparent);
+  background:color-mix(in srgb,var(--orange) 18%,var(--fog))}
+.seat.me .slot.filled b{color:var(--orange)}
+.slot.now{box-shadow:inset 0 0 0 1px var(--line2)}
+.listen{margin-top:6px;width:100%;padding:3px;border:1px solid var(--line);border-radius:7px;
+  background:#ffffff0a;cursor:pointer;font-size:9px;font-weight:800;color:var(--muted)}
+.listen:hover:not(:disabled){background:#ffffff16;color:var(--text)}
+.listen:disabled{opacity:.35;cursor:default}
+
+/* ================================================================
+ * 中栏：回合标题 + 情报卡堆
+ * ============================================================== */
+.round-bar{position:relative;flex:none;padding:13px 16px;border:1px solid var(--line2);border-radius:11px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 12%,var(--panel2)),var(--panel));
+  text-align:center;flex:none}
+.round-bar b{font-size:18px;letter-spacing:.12em}
+.round-bar:after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.round-dots{display:flex;justify-content:center;gap:4px;margin-top:6px}
+.round-dots i{width:16px;height:3px;border-radius:99px;background:var(--line2)}
+.round-dots i.done{background:var(--gold)}
+.round-dots i.now{background:var(--orange);box-shadow:0 0 7px var(--orange)}
+
+.cards{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;
+  gap:8px;padding-right:3px;scrollbar-width:thin}
+.card{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:center;flex:none;padding:13px 15px;
+  border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:10px;
+  background:linear-gradient(100deg,var(--panel2),var(--panel));animation:card-in .3s ease}
+@keyframes card-in{from{opacity:0;transform:translateY(-6px)}}
+.card.gold{border-left-color:var(--gold)}
+.card.kit{border-left-color:var(--pink)}
+.card-ico{display:grid;place-items:center;width:46px;height:46px;border-radius:11px;
+  border:1px solid var(--line2);background:var(--sunk2);font-size:23px}
+.card-txt{min-width:0}
+.card-txt b{display:block;font-size:13px;letter-spacing:.04em}
+.card-txt p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.55;
+  overflow-wrap:anywhere}
+.card-round{float:right;color:var(--muted);font-size:9px;font-weight:800}
+.cards-empty{display:grid;place-items:center;min-height:132px;border:1px dashed var(--line2);
+  border-radius:10px;color:var(--muted);font-size:11px}
+/* 不要给它画虚线框：一个 400px 高的空框子看起来像没做完，纯文字提示反而干净 */
+.cards-more{flex:1;min-height:56px;display:grid;place-items:center;padding:14px;
+  color:var(--dim);font-size:11.5px;text-align:center;letter-spacing:.04em}
+
+/* 出价台 */
+.bidpad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;flex:none}
+.bidcell{padding:11px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);
+  text-align:center;min-width:0}
+.bidcell small{display:block;color:var(--muted);font-size:9.5px;letter-spacing:.08em}
+.bidcell b{display:block;margin-top:3px;font-size:22px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bidcell.hi{border-color:color-mix(in srgb,var(--gold) 42%,var(--line))}
+.bidcell.hi b{color:var(--gold)}
+.bidcell.me{border-color:color-mix(in srgb,var(--orange) 42%,var(--line))}
+.bidcell.me b{color:var(--orange)}
+
+/* ================================================================
+ * 右栏：仓库网格 + 当前估价
+ * ============================================================== */
+.est{flex:none;display:flex;align-items:center;gap:11px;padding:11px 14px;
+  border:1px solid var(--line2);border-radius:10px;background:var(--sunk)}
+.est .cube{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+  background:linear-gradient(150deg,var(--orange),var(--orange2));color:#20130a;
+  font-size:12px;font-weight:900}
+.est small{color:var(--muted);font-size:10px;letter-spacing:.1em}
+.est b{margin-left:auto;font-size:30px;font-weight:800;color:var(--orange);text-shadow:0 0 22px color-mix(in srgb,var(--orange) 45%,transparent)}
+
+/* 仓库要吃掉右栏剩下的全部高度，同时保持格子是正方形。外层负责给空间，
+   内层用 aspect-ratio 在宽/高两个方向上都收住。 */
+/* overflow:hidden 是兜底：这里曾经因为 max-height:100% 对 aspect-ratio 不生效，
+   仓库整整溢出 48px，正好盖住下面的品质色例，看起来像色例被删了。 */
+.vault-fit{flex:1;min-height:0;display:grid;place-items:center;overflow:hidden}
+/* 按高度定尺寸、宽度用 aspect-ratio 反推。反过来（width:100% + max-height）
+   在弹性容器里拿不到确定的百分比基准，会溢出。 */
+.vault{position:relative;display:grid;gap:3px;
+  grid-template-columns:repeat(var(--cols,7),minmax(0,1fr));
+  grid-template-rows:repeat(var(--rows,6),1fr);
+  aspect-ratio:var(--cols,7) / var(--rows,6);
+  /* 默认按宽度定尺寸（结算面板里的仓库就是这种，父容器没有确定高度）。
+     只有 .vault-fit 里的那一个才反过来按高度定，见下一条。 */
+  width:100%;height:auto;max-width:100%;
+  padding:7px;border:1px solid var(--line2);border-radius:12px;
+  background:var(--sunk2);box-shadow:inset 0 2px 10px #00000038}
+/* 竞价页的仓库要吃满右栏高度：父容器高度是确定的，所以按高度定、宽度反推。
+   写成全局规则会连带把结算面板里的仓库撑爆 —— 那里父容器高度是 auto，
+   height:100% 拿不到基准，结果仓库溢出盖住了「下一箱」按钮。 */
+.vault-fit > .vault{height:100%;width:auto}
+/* 仓库四角的定位角标 */
+.vault:before,.vault:after{content:"";position:absolute;width:14px;height:14px;
+  border-color:color-mix(in srgb,var(--orange) 70%,transparent);opacity:.65;pointer-events:none}
+.vault:before{left:-1px;top:-1px;border-left:2px solid;border-top:2px solid;border-radius:5px 0 0 0}
+.vault:after{right:-1px;bottom:-1px;border-right:2px solid;border-bottom:2px solid;border-radius:0 0 5px 0}
+/* 未探格：明显凹下去、带一层斜纹，暗示「这里还是封着的」 */
+.vc{border:1px solid var(--line2);border-radius:3px;background:var(--fog);
+  background-image:repeating-linear-gradient(45deg,#00000014 0 3px,transparent 3px 7px);
+  box-shadow:inset 0 1px 2px #0000001f}
+.vc.hot{cursor:crosshair}
+.vc.hot:hover{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 26%,var(--fog))}
+.vc.void{background:var(--sunk2);border-style:dashed;opacity:.5}
+
+.it{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px;overflow:hidden;border-radius:5px;
+  border:1px solid color-mix(in srgb,var(--qc,var(--muted)) 70%,transparent);
+  background:linear-gradient(150deg,color-mix(in srgb,var(--qc,var(--muted)) 30%,var(--panel)),
+                                    color-mix(in srgb,var(--qc,var(--muted)) 10%,var(--fog)));
+  box-shadow:inset 0 1px 0 #ffffff16;animation:it-in .26s ease}
+@keyframes it-in{from{opacity:0;transform:scale(.74)}}
+/* 跳过动画时整箱一次性铺出来，不要几十件同时淡入闪一下 */
+.it.instant{animation:none}
+/* 只探到轮廓也是一次「发现」，必须比未探格明显亮一档 —— 浅色主题下这两者
+   曾经几乎同色，仓库看上去一片空白，情报等于白给。 */
+.it.blank{border-style:dashed;border-color:var(--line2);
+  background:var(--found);box-shadow:inset 0 0 0 1px #ffffff14,0 2px 6px #0000002e}
+.it.blank .gd{color:var(--text);font-size:9px;font-weight:800;opacity:.72}
+.it .gi{font-size:min(2.1vw,18px);line-height:1.05}
+.it .gt{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;font-weight:800}
+.it .gv{font-size:9px;color:var(--good);font-weight:800}
+.it .gq{position:absolute;left:2px;top:1px;width:5px;height:5px;border-radius:50%;
+  background:var(--qc,var(--muted))}
+.it.fake{--qc:var(--q-fake)}
+.it.fake:after{content:"仿";position:absolute;right:2px;top:0;color:var(--q-fake);
+  font-size:9px;font-weight:900}
+.it .gd{color:var(--dim);font-size:8px}
+
+.qlegend{flex:none;display:flex;flex-wrap:wrap;gap:9px;color:var(--muted);font-size:10px}
+.qlegend i{display:inline-block;width:7px;height:7px;margin-right:3px;border-radius:50%;
+  vertical-align:middle}
+.lotinfo{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.li{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);
+  text-align:center;min-width:0}
+.li small{display:block;color:var(--muted);font-size:10px;letter-spacing:.08em}
+.li b{display:block;margin-top:2px;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.facts{flex:none;display:flex;flex-wrap:wrap;gap:6px;min-height:22px}
+.fact{padding:3px 8px;border:1px solid var(--line2);border-radius:999px;background:var(--sunk);color:var(--muted);font-size:10px}
+.fact b{color:var(--gold)}
+.fact.warn b{color:var(--bad)}
+</style>
+<style>
+/* ================================================================
+ * 底部操作条
+ * ============================================================== */
+.foot{flex:none;display:flex;flex-direction:column;gap:11px;
+  padding:12px 16px;border-top:1px solid var(--line2);background:var(--sunk)}
+.footrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.kitbar{display:flex;flex-wrap:wrap;gap:6px;min-width:0;overflow:hidden}
+.kit{display:flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid var(--line);
+  border-radius:999px;background:var(--sunk);font-size:11.5px;white-space:nowrap}
+.kit b{font-weight:800}
+.kit small{color:var(--muted);font-size:9.5px}
+.kit.live{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 16%,transparent);
+  cursor:pointer}
+.kit.armed{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 30%,transparent);
+  box-shadow:0 0 12px color-mix(in srgb,var(--pink) 34%,transparent)}
+.acts{display:flex;gap:8px;flex:none}
+.act{min-width:120px;min-height:48px;padding:0 20px;border:1px solid var(--line2);
+  border-radius:10px;background:linear-gradient(180deg,var(--panel3),var(--panel));
+  cursor:pointer;font-size:15px;font-weight:800;letter-spacing:.08em;
+  transition:transform .1s,box-shadow .16s,filter .16s}
+.act:hover:not(:disabled){filter:brightness(1.16)}
+.act:active:not(:disabled){transform:translateY(2px)}
+.act:disabled{opacity:.38;cursor:default;transform:none}
+.act.go{border-color:color-mix(in srgb,var(--orange) 66%,transparent);
+  background:linear-gradient(180deg,var(--orange),var(--orange2));color:#1d1206;
+  box-shadow:0 5px 16px color-mix(in srgb,var(--orange) 30%,transparent),inset 0 1px 0 #ffffff40}
+
+/* ================================================================
+ * 出价键盘
+ * ============================================================== */
+.veil{position:absolute;inset:0;z-index:90;display:grid;place-items:center;padding:12px;
+  background:var(--scrim);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+/* 遮罩只有拍卖厅这么大，所以里面的面板一律按 100% 收高度并自己滚 */
+.veil > *{max-height:100%}
+/* 窄屏的拍卖厅是竖着排的、很高，面板在其中居中就等于跑到屏幕外面去了。
+   顶部对齐，再配合 showVeil() 把它滚进视野。 */
+@media(max-width:720px){.veil{align-items:start;padding-top:8px}}
+.pad{width:min(430px,100%);border:1px solid var(--line2);border-radius:16px;
+  background:linear-gradient(168deg,var(--panel2),var(--panel));box-shadow:0 22px 60px #000b}
+.pad-head{padding:13px 15px 11px;border-bottom:1px solid var(--line)}
+.pad-head h3{margin:0;font-size:13px;letter-spacing:.06em}
+.pad-head p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+.pad-head p b{color:var(--gold)}
+.pad-input{margin:11px 15px 0;padding:10px 13px;border:1px solid var(--line2);border-radius:10px;
+  background:var(--fog);text-align:right}
+.pad-input small{display:block;color:var(--dim);font-size:9px;letter-spacing:.1em;text-align:left}
+.pad-input b{font-size:26px;color:var(--orange)}
+.pad-warn{margin:6px 15px 0;color:var(--bad);font-size:10px;min-height:14px;text-align:right}
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:11px 15px}
+.key{min-height:46px;border:1px solid var(--line2);border-radius:9px;
+  background:linear-gradient(180deg,var(--panel3),var(--panel));cursor:pointer;
+  font-size:17px;font-weight:800;transition:filter .12s,transform .08s}
+.key:hover{filter:brightness(1.2)}
+.key:active{transform:translateY(2px)}
+.key.fn{font-size:11px;font-weight:800;color:var(--muted)}
+.key.wide{grid-column:span 1}
+.pad-foot{display:flex;gap:8px;padding:0 15px 15px}
+.pad-foot .act{flex:1;min-width:0}
+
+/* ================================================================
+ * 竞拍结束
+ * ============================================================== */
+.result{width:min(920px,100%);max-height:100%;overflow:auto;
+  border:1px solid var(--line2);border-radius:16px;scrollbar-width:thin;
+  background:linear-gradient(168deg,var(--panel2),var(--bg) 82%);box-shadow:0 24px 70px #000b}
+.result-head{position:relative;padding:15px 18px 12px;border-bottom:1px solid var(--line);
+  overflow:hidden}
+.result-head h2{margin:0;font-size:17px;letter-spacing:.16em}
+.result-head p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.result-ghost{position:absolute;right:12px;top:2px;color:color-mix(in srgb,var(--text) 7%,transparent);font-size:44px;
+  font-weight:900;letter-spacing:-.02em;pointer-events:none;white-space:nowrap}
+.result-body{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;padding:14px 18px 16px}
+.tri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tri-cell{padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--sunk)}
+.tri-cell small{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em}
+.tri-cell b{font-size:18px}
+.tri-cell.gain b{color:var(--good)}
+.tri-cell.loss b{color:var(--bad)}
+.gradebox{display:grid;grid-template-columns:82px minmax(0,1fr);gap:12px;align-items:center;
+  margin-top:11px;padding:12px;border:1px solid var(--line);border-radius:12px;
+  background:var(--sunk)}
+.gradebox .g{display:grid;place-items:center;width:82px;height:82px;border-radius:14px;
+  border:2px solid var(--gc,var(--muted));background:color-mix(in srgb,var(--gc,var(--muted)) 15%,transparent);
+  color:var(--gc,var(--muted));font:900 46px/1 ui-monospace,Consolas,monospace;
+  text-shadow:0 0 22px currentColor}
+.gradebox-txt small{display:block;color:var(--dim);font-size:9px;letter-spacing:.14em}
+.gradebox-txt b{display:block;margin-top:3px;font-size:14px;color:var(--gc,var(--text))}
+.gradebox-txt p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.sold{margin-top:11px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--sunk);color:var(--muted);font-size:10.5px;line-height:1.6}
+.sold b{color:var(--text)}
+.result-vault{min-width:0}
+.result-foot{display:flex;gap:8px;padding:0 18px 16px}
+.result-foot .act{flex:1}
+
+.ledger{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}
+.ledger th,.ledger td{padding:6px 5px;border-bottom:1px solid var(--line);text-align:right}
+.ledger th{color:var(--dim);font-size:9px;font-weight:800;letter-spacing:.06em}
+.ledger th:first-child,.ledger td:first-child{text-align:left}
+.ledger td.up{color:var(--good)}.ledger td.down{color:var(--bad)}
+.ledger td .gg{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:5px;
+  font:900 10px/1 ui-monospace,monospace}
+
+/* 开场：装备选择 */
+.setup{width:min(720px,100%);max-height:100%;overflow:auto;scrollbar-width:thin;
+  border:1px solid var(--line2);border-radius:16px;
+  background:linear-gradient(168deg,var(--panel2),var(--bg) 84%);box-shadow:0 22px 60px #000b}
+.setup-head{padding:15px 18px 12px;border-bottom:1px solid var(--line)}
+.setup-head h2{margin:0;font-size:16px;letter-spacing:.08em}
+.setup-head p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.65}
+.setup-head p b{color:var(--orange)}
+.slotline{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;
+  border-bottom:1px solid var(--line);color:var(--dim);font-size:10px;letter-spacing:.1em}
+.slotline b{color:var(--orange);font-size:13px}
+.kitgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(214px,1fr));gap:8px;padding:13px 18px}
+.kitcard{display:grid;grid-template-columns:34px minmax(0,1fr);gap:9px;padding:10px;
+  border:1px solid var(--line);border-radius:11px;background:var(--sunk);cursor:pointer;
+  text-align:left;transition:border-color .16s,background .16s}
+.kitcard:hover:not(:disabled){background:#ffffff0c}
+.kitcard[aria-pressed=true]{border-color:var(--pink);
+  background:color-mix(in srgb,var(--pink) 14%,transparent)}
+.kitcard:disabled{opacity:.58;cursor:default}
+.kitcard:disabled .kitcard-top span{border-color:color-mix(in srgb,var(--bad) 50%,transparent);color:var(--bad)}
+.kitcard .card-ico{width:34px;height:34px;font-size:17px}
+.kitcard-txt{min-width:0}
+.kitcard-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.kitcard-top b{font-size:11.5px}
+.kitcard-top span{flex:none;padding:1px 6px;border:1px solid var(--line2);border-radius:999px;
+  color:var(--gold);font-size:9px;font-weight:900}
+.kitcard-txt p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
+
+.toast{position:fixed;left:50%;bottom:16px;z-index:130;max-width:min(88vw,420px);
+  padding:9px 15px;border:1px solid var(--line2);border-radius:10px;background:var(--glass);
+  box-shadow:0 14px 36px #0008;font-size:12px;font-weight:700;text-align:center;
+  transform:translate(-50%,10px);opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+/* ================================================================
+ * 响应式
+ * ============================================================== */
+/* 中等宽度：竞拍人挪到底部一整行，横向排开，仓库和情报各占一半 */
+@media(max-width:1080px){
+  .deck{grid-template-columns:minmax(0,1fr) clamp(320px,40vw,420px);
+    grid-template-rows:minmax(0,1fr) auto}
+  .col.left{grid-column:1/-1;grid-row:2;border-top:1px solid var(--line)}
+  .col.left .col-scroll{overflow-x:auto;overflow-y:hidden;mask-image:none;-webkit-mask-image:none}
+  .col.left .seats-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(186px,1fr);gap:8px}
+  .col.mid{border-left:0}
+  .result-body{grid-template-columns:minmax(0,1fr)}
+}
+/* 窄屏：三栏叠成一列，整块内容区滚动，顶栏和操作条固定 */
+@media(max-width:720px){
+  body{padding:4px}
+  .hall{border-radius:12px}
+  .hall:before,.hall:after{display:none}
+  .deck{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
+    display:flex;flex-direction:column;overflow:auto;scrollbar-width:thin}
+  .col{flex:none;padding:11px}
+  .col-scroll{overflow:visible}
+  /* 仓库是判断依据，必须排在情报和出价按钮之前 */
+  .col.right{order:1;border-bottom:1px solid var(--line)}
+  .col.mid{order:2;border-right:0;border-left:0}
+  .col.left{order:3;border-top:1px solid var(--line)}
+  .col.left .seats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+  .vault-fit{display:block;overflow:visible}
+  .vault-fit > .vault{height:auto;width:100%;margin:auto;max-width:min(100%,420px)}
+  /* 360px 下顶栏折成两行：计时与资产一行，场次公告独占第二行。
+     公告是本场的先验分布，是真情报，不能因为窄就藏掉；「鉴宝竞拍」这个
+     品牌名由大厅的标签栏交代，这里省掉。 */
+  .top{grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"timer right" "theme theme";padding:7px 8px;gap:6px}
+  .timer{grid-area:timer;padding:4px 10px;gap:5px}
+  .top-right{grid-area:right}
+  .top-left{grid-area:theme;min-width:0}
+  .top-left .mark:first-child{display:none}
+  .top-left .mark{flex:1;min-width:0}
+  .top-left #themeName{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .timer b{font-size:13px}
+  .timer i{width:11px;height:11px}
+  .lotpill{padding:3px 8px;font-size:9px}
+  .asset{padding:4px 9px 4px 5px}
+  .asset small{display:none}
+  .asset b{font-size:13px}
+  .col{padding:9px}
+  .cards{max-height:210px}
+  .est b{font-size:17px}
+  /* 底栏已经在滚动区之外了，不需要 sticky —— 加了反而变成浮层把内容盖住 */
+  .foot{gap:9px;padding:10px 11px}
+  .footrow{grid-template-columns:minmax(0,1fr) auto;gap:9px}
+  /* 四列在 390px 下会把「1,920」截成「1,9…」，改成两行两列 */
+  .bidpad{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .bidcell{padding:8px}
+  .bidcell b{font-size:18px}
+  .acts{display:grid;grid-template-columns:1fr 1.3fr}
+  .act{min-width:0;min-height:46px;padding:0 12px;font-size:14px}
+  /* 装备条压成一行横向滚动，否则换行会把底栏顶得很高 */
+  .kitbar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+  .kitbar::-webkit-scrollbar{display:none}
+  .keys{gap:5px;padding:9px 11px}
+  .key{min-height:44px;font-size:16px}
+  .result-foot,.pad-foot{padding-left:11px;padding-right:11px}
+  .gradebox{grid-template-columns:64px minmax(0,1fr)}
+  .gradebox .g{width:64px;height:64px;font-size:34px}
+  .tri-cell b{font-size:15px}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="hall">
+  <header class="top">
+    <div class="top-left">
+      <div class="mark"><b>鉴宝竞拍</b></div>
+      <div class="mark" id="themeMark"><small id="themeName">等待开场</small></div>
+    </div>
+    <div class="timer" id="timer"><i aria-hidden="true"></i><b class="n" id="clock">00:30</b></div>
+    <div class="top-right">
+      <span class="lotpill" id="lotPill">第 –/– 箱</span>
+      <div class="asset">
+        <span class="coin" aria-hidden="true">¥</span>
+        <small>我的资产</small>
+        <b class="n" id="asset">0</b>
+      </div>
+    </div>
+  </header>
+
+  <div class="deck">
+    <section class="col left">
+      <div class="col-title"><h2>竞 拍 人</h2><span id="seatHint">五回合出价</span></div>
+      <div class="col-scroll" id="seats"></div>
+    </section>
+
+    <section class="col mid">
+      <div class="round-bar">
+        <b id="roundTitle">竞拍第 1 回合</b>
+        <div class="round-dots" id="roundDots" aria-hidden="true"></div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section class="col right">
+      <div class="col-title"><h2>仓 库</h2><span id="vaultHint">全封，未探</span></div>
+      <div class="est">
+        <span class="cube" aria-hidden="true">◈</span>
+        <small>当前估价</small>
+        <b class="n" id="estimate">0</b>
+      </div>
+      <div class="vault-fit"><div class="vault" id="vault" style="--cols:7;--rows:6"></div></div>
+      <div class="qlegend">
+        <span><i style="background:var(--q-common)"></i>普品</span>
+        <span><i style="background:var(--q-fine)"></i>精品</span>
+        <span><i style="background:var(--q-rare)"></i>珍品</span>
+        <span><i style="background:var(--q-unique)"></i>孤品</span>
+        <span><i style="background:var(--q-fake)"></i>不开门</span>
+      </div>
+      <div class="facts" id="facts"></div>
+      <!-- 右栏底部：仓库是 7:6 的方阵，高度总吃不满，剩下的空间用真正有用的
+           数字补上，而不是留个洞。 -->
+      <div class="lotinfo">
+        <div class="li"><small>可用资金</small><b class="n" id="liBudget">–</b></div>
+        <div class="li"><small>佣金</small><b class="n" id="liFee">–</b></div>
+        <div class="li"><small>钻验花费</small><b class="n" id="liProbe">–</b></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 底部操作台。出价台这四个数原本只在键盘浮层里能看到；摆到台面上，
+       「该出多少」这个决定不用先点开键盘才能想，也给整屏布局压了个底。 -->
+  <footer class="foot">
+    <div class="bidpad">
+      <div class="bidcell"><small>起拍价</small><b class="n" id="bpFloor">–</b></div>
+      <div class="bidcell"><small>推荐参考</small><b class="n" id="bpSuggest">–</b></div>
+      <div class="bidcell hi"><small>明面最高</small><b class="n" id="bpHigh">–</b></div>
+      <div class="bidcell me"><small>你的最高</small><b class="n" id="bpMine">–</b></div>
+    </div>
+    <div class="footrow">
+      <div class="kitbar" id="kitbar"></div>
+      <div class="acts">
+        <button class="act" id="btnPass" type="button">放弃</button>
+        <button class="act go" id="btnBid" type="button">出价</button>
+      </div>
+    </div>
+  </footer>
+
+<!-- 遮罩层放在 .hall 内部并用 absolute 定位。用 position:fixed 时，页面嵌在
+     大厅的 iframe 里会把整个 iframe 区域（包括拍卖厅下方的空白）刷成一块
+     暗色，在浅色主题的大厅上像开了个洞。 -->
+<!-- 出价键盘 -->
+<div class="veil" id="padVeil" hidden>
+  <section class="pad" role="dialog" aria-modal="true" aria-labelledby="padTitle">
+    <header class="pad-head">
+      <h3 id="padTitle">请输入你愿意出的价格</h3>
+      <p>推荐出价参考 <b class="n" id="padSuggest">0</b> ·
+         明面最高 <b class="n" id="padHigh">0</b><br>
+         可输入范围 <span class="n" id="padRange">0~0</span></p>
+    </header>
+    <div class="pad-input"><small>出价</small><b class="n" id="padValue">0</b></div>
+    <p class="pad-warn" id="padWarn"></p>
+    <div class="keys" id="keys"></div>
+    <footer class="pad-foot">
+      <button class="act" id="padCancel" type="button">改价</button>
+      <button class="act go" id="padOk" type="button">确认出价</button>
+    </footer>
+  </section>
+</div>
+
+<!-- 竞拍结束 -->
+<div class="veil" id="resultVeil" hidden>
+  <section class="result" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+    <header class="result-head">
+      <span class="result-ghost" aria-hidden="true">AUCTION ENDED</span>
+      <h2 id="resultTitle">竞 拍 结 束</h2>
+      <p id="resultSub"></p>
+    </header>
+    <div class="result-body">
+      <div>
+        <div class="tri">
+          <div class="tri-cell"><small>最终成交价</small><b class="n" id="rPrice">0</b></div>
+          <div class="tri-cell"><small>实际价值</small><b class="n" id="rGross">0</b></div>
+          <div class="tri-cell" id="rNetCell"><small>收益</small><b class="n" id="rNet">0</b></div>
+        </div>
+        <div class="gradebox" id="gradeBox">
+          <span class="g" id="rGrade">–</span>
+          <div class="gradebox-txt">
+            <small>竞拍表现</small>
+            <b id="rGradeLine">—</b>
+            <p id="rQuip"></p>
+          </div>
+        </div>
+        <div class="sold" id="rSold"></div>
+      </div>
+      <div class="result-vault">
+        <div class="est"><span class="cube" aria-hidden="true">◈</span><small>出售价值</small>
+          <b class="n" id="rRunning">0</b></div>
+        <div class="vault" id="resultVault" style="--cols:7;--rows:6"></div>
+      </div>
+    </div>
+    <footer class="result-foot">
+      <button class="act" id="btnSkipAnim" type="button">跳过动画</button>
+      <button class="act go" id="btnNext" type="button">下一箱</button>
+    </footer>
+  </section>
+</div>
+
+<!-- 全场总账 -->
+<div class="veil" id="summaryVeil" hidden>
+  <section class="result" role="dialog" aria-modal="true" aria-labelledby="sumTitle" style="width:min(560px,100%)">
+    <header class="result-head">
+      <span class="result-ghost" aria-hidden="true">CLOSED</span>
+      <h2 id="sumTitle">散 场</h2>
+      <p id="sumSub"></p>
+    </header>
+    <div class="result-body" style="grid-template-columns:minmax(0,1fr)">
+      <table class="ledger">
+        <thead><tr><th>标的</th><th>评级</th><th>成交</th><th>实际价值</th><th>收益</th></tr></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+    <footer class="result-foot">
+      <button class="act go" id="btnAgain" type="button">再来一场</button>
+    </footer>
+  </section>
+</div>
+
+<!-- 开场：装备 -->
+<div class="veil" id="setupVeil">
+  <section class="setup" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <header class="setup-head">
+      <h2 id="setupTitle">上场之前，先配仪器</h2>
+      <p>一场三箱，每箱五个回合，每回合所有人各填一次价，填完公开，全场出价最高者得。<br>
+         拍卖师透露的情报<b>在场所有人同时听见</b>，价格会跟着一起涨；只有仪器给的是只有你知道的东西。
+         所以越早拿到的私有情报越值钱 —— 「大型品鉴仪」看着最强，其实是最弱的那个。</p>
+    </header>
+    <div class="slotline"><span>装备位</span><b id="slotCount">0 / 4</b></div>
+    <div class="kitgrid" id="kitGrid"></div>
+    <footer class="result-foot">
+      <button class="act" id="btnRandom" type="button">随便配</button>
+      <button class="act go" id="btnStart" type="button">入场</button>
+    </footer>
+  </section>
+</div>
+
+</div><!-- /.hall -->
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="auction-engine.js"></script>
+<script>
+(() => {
+'use strict';
+const Engine = window.AIRPAuctionEngine;
+const VERSION = '0.2.0';
+const NS = 'airp-auction';
+const KEY = 'airp_auction_state_v1';
+const WALLET_KEY = 'airp_arcade_wallet_v1';
+const PEER_KEYS = ['airp_fishing_state_v1', 'airp_scratch_card_state_v2', 'airp_physical_slot_state_v2'];
+const THEMES = new Set(['dark', 'warm-white', 'green', 'classic-dark']);
+const DEFAULT_BALANCE = 1000;
+const LOTS = 3;
+const RIVALS = 4;
+/* 每回合 30 秒。?nolimit=1 关掉计时，给自动化检查和手动调试用 —— 否则
+   脚本一步步点比 30 秒慢，计时到点会自己放弃，测的就不是真流程了。 */
+const NO_LIMIT = /[?&]nolimit=1/.test(location.search);
+const ROUND_SECONDS = 30;
+/* 数据表用的是真实古玩市场量级（整箱几万），街机钱包默认只有 ¥1000。
+   按资产动态缩放，让一箱的先验价值大约落在资产的四成半 —— 三箱打不完全部
+   资产，但一箱失手会很疼。资产涨了箱子也跟着涨，数字规模自然变大。 */
+const scaleFor = (bal) => Math.max(0.002, Math.max(400, bal) / 93000);
+
+const E = (id) => document.getElementById(id);
+const el = {};
+for (const id of ['themeName', 'timer', 'clock', 'lotPill', 'asset', 'seats', 'seatHint',
+  'roundTitle', 'roundDots', 'cards', 'estimate', 'vault', 'vaultHint', 'facts', 'kitbar',
+  'bpFloor', 'bpSuggest', 'bpHigh', 'bpMine', 'liBudget', 'liFee', 'liProbe',
+  'btnPass', 'btnBid', 'padVeil', 'padSuggest', 'padHigh', 'padRange', 'padValue', 'padWarn',
+  'keys', 'padCancel', 'padOk', 'resultVeil', 'resultSub', 'rPrice', 'rGross', 'rNet',
+  'rNetCell', 'gradeBox', 'rGrade', 'rGradeLine', 'rQuip', 'rSold', 'rRunning', 'resultVault',
+  'btnSkipAnim', 'btnNext', 'summaryVeil', 'sumSub', 'ledgerBody', 'btnAgain',
+  'setupVeil', 'slotCount', 'kitGrid', 'btnRandom', 'btnStart', 'toast']) el[id] = E(id);
+
+/* ---------------- 钱包（与街机其余页面共用） ---------------- */
+const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { return null; } };
+const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+const money = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0; };
+const fm = (v) => Math.round(v).toLocaleString('en-US');
+const fmS = (v) => (v > 0 ? '+' : v < 0 ? '-' : '') + fm(Math.abs(v));
+/* 出价槽很窄，大额压成 12.4K / 3.1M */
+function fmK(v) {
+  const a = Math.abs(v);
+  if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M';
+  if (a >= 1e4) return (v / 1e3).toFixed(a >= 1e5 ? 0 : 1) + 'K';
+  return fm(v);
+}
+
+function readBalance() {
+  const w = readJSON(WALLET_KEY);
+  if (w && Number.isFinite(+w.balance)) return money(w.balance);
+  for (const k of PEER_KEYS.concat(KEY)) {
+    const s = readJSON(k);
+    if (s && Number.isFinite(+s.balance)) return money(s.balance);
+  }
+  return DEFAULT_BALANCE;
+}
+function writeBalance(v) {
+  balance = money(v);
+  writeJSON(WALLET_KEY, { balance: balance, updatedAt: Date.now(), source: 'auction' });
+  for (const k of PEER_KEYS) {
+    const s = readJSON(k);
+    if (s && typeof s === 'object') { s.balance = balance; writeJSON(k, s); }
+  }
+  save(); renderAsset();
+  return balance;
+}
+const save = () => writeJSON(KEY, { version: VERSION, balance: balance, kits: picked.slice(), stats });
+function load() {
+  const s = readJSON(KEY);
+  if (s && Array.isArray(s.kits)) {
+    const ok = s.kits.filter((id) => Engine.INSTRUMENTS.some((k) => k.id === id));
+    if (ok.length) picked = ok;
+  }
+  if (s && s.stats) stats = { ...stats, ...s.stats };
+}
+function emit(name, detail) {
+  const payload = { ...detail, version: VERSION, balance: balance };
+  try { dispatchEvent(new CustomEvent(name, { detail: payload })); } catch (_) {}
+  try { if (parent && parent !== window) parent.postMessage({ type: name, detail: payload }, '*'); } catch (_) {}
+}
+/* 打开遮罩面板。面板是 .hall 内的绝对定位元素，而窄屏的 .hall 有近两千像素
+   高，所以必须主动把面板滚进视野 —— 同源 iframe 里 scrollIntoView 会带动
+   外层大厅一起滚，这正是我们要的。 */
+function showVeil(veil) {
+  veil.hidden = false;
+  const sheet = veil.firstElementChild;
+  try { (sheet || veil).scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (_) {}
+}
+
+let toastTimer = 0;
+function toast(text) {
+  el.toast.textContent = text;
+  el.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1900);
+}
+
+/* ---------------- 运行时状态 ---------------- */
+let balance = readBalance();
+let picked = ['scope-s', 'uv-lamp', 'regular'];
+let stats = { sessions: 0, lotsWon: 0, bestNet: 0, totalNet: 0 };
+let session = null, view = null, lastSettle = null;
+let probeArmed = false;
+const voidCells = new Set();
+let padBuf = '';
+let clockLeft = ROUND_SECONDS, clockTimer = 0;
+let revealTimer = 0;
+const kitById = (id) => Engine.INSTRUMENTS.find((k) => k.id === id) || null;
+const hasKit = (kind) => picked.some((id) => (kitById(id) || {}).kind === kind);
+
+/* ================================================================
+ * 渲染
+ * ============================================================== */
+function renderAsset() { el.asset.textContent = fm(balance); }
+
+function qColor(item) {
+  if (item.fake) return 'var(--q-fake)';
+  if (item.rarity) return `var(--q-${item.rarity})`;
+  return null;
+}
+
+/* 一个格子里的拍品。信息密度跟着占格走：1 格塞四行字会挤成一团糊，
+   省掉的内容进 title。 */
+function buildItem(cell, opts) {
+  const o = opts || {};
+  const t = document.createElement('div');
+  t.className = 'it' + (o.cls ? ' ' + o.cls : '');
+  if (cell.fake) t.classList.add('fake');
+  const c = qColor(cell);
+  if (c) t.style.setProperty('--qc', c);
+  t.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
+  t.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
+  const area = cell.w * cell.h;
+  const known = cell.categoryName || cell.rarityName || cell.band || o.value != null;
+  if (!known) {
+    t.classList.add('blank');
+    t.innerHTML = `<span class="gd">${cell.w}×${cell.h}</span>`;
+    t.title = `只探到轮廓：占 ${cell.w}×${cell.h} 格`;
+    return t;
+  }
+  const bits = [];
+  if (cell.rarity || cell.fake) bits.push('<span class="gq"></span>');
+  if (cell.icon && area >= 2) bits.push(`<span class="gi">${cell.icon}</span>`);
+  if (cell.categoryName) {
+    bits.push(`<span class="gt">${(cell.rarityName && area >= 4 ? cell.rarityName : '') + cell.categoryName}</span>`);
+  } else if (cell.rarityName) bits.push(`<span class="gt">${cell.rarityName}</span>`);
+  if (o.value != null) bits.push(`<span class="gv">${fmK(o.value)}</span>`);
+  else if (cell.band && area >= 2) bits.push(`<span class="gv">${fmK(cell.band[0])}~${fmK(cell.band[1])}</span>`);
+  t.innerHTML = bits.join('');
+  t.title = [cell.rarityName, cell.categoryName, cell.conditionName ? '品相' + cell.conditionName : '',
+    cell.fake ? '不开门' : '', o.value != null ? fm(o.value) : '',
+    cell.band ? `${fm(cell.band[0])}~${fm(cell.band[1])}` : '', `占 ${cell.w}×${cell.h} 格`]
+    .filter(Boolean).join(' · ');
+  return t;
+}
+
+function paintVault(host, grid, heads, opts) {
+  const o = opts || {};
+  host.style.setProperty('--cols', grid.cols);
+  host.style.setProperty('--rows', grid.rows);
+  host.innerHTML = '';
+  const covered = new Set();
+  for (const h of heads) {
+    for (let dy = 0; dy < h.h; dy++) {
+      for (let dx = 0; dx < h.w; dx++) covered.add((h.y + dy) * grid.cols + (h.x + dx));
+    }
+  }
+  for (let y = 0; y < grid.rows; y++) {
+    for (let x = 0; x < grid.cols; x++) {
+      const idx = y * grid.cols + x;
+      if (covered.has(idx)) continue;
+      const c = document.createElement('div');
+      c.className = 'vc' + (o.voids && o.voids.has(idx) ? ' void' : '');
+      c.style.gridColumn = String(x + 1);
+      c.style.gridRow = String(y + 1);
+      if (o.probe && !(o.voids && o.voids.has(idx))) {
+        c.classList.add('hot');
+        c.title = '钻验这一格';
+        c.addEventListener('click', () => doProbe(x, y));
+      }
+      host.appendChild(c);
+    }
+  }
+  return covered;
+}
+
+function renderVault() {
+  const g = view.grid;
+  const heads = [];
+  for (let y = 0; y < g.rows; y++) {
+    for (let x = 0; x < g.cols; x++) {
+      const cell = g.cells[y][x];
+      if (cell && cell.head) heads.push(cell);
+    }
+  }
+  paintVault(el.vault, g, heads, { probe: probeArmed, voids: voidCells });
+  for (const h of heads) el.vault.appendChild(buildItem(h));
+  el.vaultHint.textContent = heads.length ? `已探 ${heads.length} 处` : '全封，未探';
+}
+
+function renderFacts() {
+  const b = view.book;
+  const out = [];
+  if (b.avgNote) out.push(`<span class="fact">${b.avgNote.rarityName}均价 <b>${fm(b.avgNote.avg)}</b></span>`);
+  if (b.topRarity) {
+    const name = (Engine.RARITIES.find((r) => r.id === b.topRarity) || {}).name || b.topRarity;
+    out.push(`<span class="fact">最高品质 <b>${name}</b></span>`);
+  }
+  if (b.fakeCount != null) out.push(`<span class="fact${b.fakeCount ? ' warn' : ''}">不开门 <b>${b.fakeCount} 件</b></span>`);
+  if (b.fakeCells && b.fakeCells.length) out.push(`<span class="fact warn">已标出 <b>${b.fakeCells.length} 处</b></span>`);
+  el.facts.innerHTML = out.join('') || '<span class="fact">还没有任何情报</span>';
+}
+
+function renderSeats() {
+  /* 座位统一装进 .seats-row，这样竖排 / 横排 / 网格三种断点只改容器的 CSS，
+     不用改这里的渲染逻辑。 */
+  el.seats.innerHTML = '';
+  const holder = document.createElement('div');
+  holder.className = 'seats-row';
+  el.seats.appendChild(holder);
+  const canListen = view.readLeft > 0 && view.phase === 'bidding';
+  const topBid = Math.max(view.playerBest, ...view.rivals.map((r) => r.best));
+  const rows = [{
+    me: true, name: '你（鉴定师）', face: '🔍', active: view.playerActive,
+    bids: view.playerBids, best: view.playerBest,
+    say: view.hideBid ? '出价已加密' : (view.playerActive ? '' : '已放弃'),
+  }].concat(view.rivals.map((r) => ({
+    me: false, seat: r.seat, name: r.name, face: r.face, active: r.active,
+    bids: r.bids, best: r.best, readBand: r.readBand,
+    say: r.readBand ? `心理价位 ${fmK(r.readBand[0])}~${fmK(r.readBand[1])}`
+      : r.active ? r.quip : '不要了',
+  })));
+
+  for (const row of rows) {
+    const card = document.createElement('div');
+    card.className = 'seat' + (row.me ? ' me' : '') + (row.active ? '' : ' out')
+      + (topBid > 0 && row.best === topBid ? ' top' : '');
+    let slots = '';
+    for (let i = 0; i < view.roundsTotal; i++) {
+      const v = row.bids[i];
+      const cls = 'slot' + (v != null ? ' filled' : '') + (i === view.round - 1 ? ' now' : '');
+      slots += `<span class="${cls}"><em>${i + 1}</em><b class="n">${v != null ? fmK(v) : '–'}</b></span>`;
+    }
+    card.innerHTML =
+      `<div class="seat-head"><span class="face" aria-hidden="true">${row.face}</span>` +
+      `<span class="seat-id"><span class="nameplate">${row.name}</span>` +
+      `<span class="seat-say${row.readBand ? ' read' : ''}">${row.say || '&nbsp;'}</span></span></div>` +
+      `<div class="slots">${slots}</div>`;
+    if (!row.me && hasKit('read-rival')) {
+      const btn = document.createElement('button');
+      btn.className = 'listen';
+      btn.type = 'button';
+      btn.textContent = row.readBand ? '已听过' : '耳报机 · 听价';
+      btn.disabled = !canListen || !row.active || !!row.readBand;
+      btn.addEventListener('click', () => doListen(row.seat));
+      card.appendChild(btn);
+    }
+    holder.appendChild(card);
+  }
+}
+
+function renderCards() {
+  if (!view.cards.length) {
+    el.cards.innerHTML = '<div class="cards-empty">本回合还没有情报</div>';
+    return;
+  }
+  el.cards.innerHTML = view.cards.map((c) => {
+    const tone = c.source === 'auctioneer' ? 'gold' : 'kit';
+    return `<article class="card ${tone}"><span class="card-ico" aria-hidden="true">${c.icon}</span>` +
+      `<span class="card-txt"><b><span class="card-round">R${c.round}</span>${c.title}</b>` +
+      `<p>${c.text}</p></span></article>`;
+  }).join('') +
+    /* 情报是逐回合累积的，前几回合这一栏必然是空的。写明白它会长起来，
+       比留一片没解释的空白好。 */
+    (view.round < view.roundsTotal
+      ? `<div class="cards-more">后面 ${view.roundsTotal - view.round} 个回合的情报会继续累积在这里</div>`
+      : '');
+}
+
+function renderKits() {
+  el.kitbar.innerHTML = '';
+  for (const id of picked) {
+    const k = kitById(id);
+    if (!k) continue;
+    const pill = document.createElement('div');
+    pill.className = 'kit';
+    let tail = '';
+    if (k.kind === 'probe-cell') {
+      tail = `<small>本回合 ${view ? view.probeLeft : k.perRound} 次</small>`;
+      pill.classList.add('live');
+      if (probeArmed) pill.classList.add('armed');
+      pill.addEventListener('click', () => {
+        if (!view || view.phase !== 'bidding') return;
+        probeArmed = !probeArmed && view.probeLeft > 0;
+        renderKits(); renderVault();
+        toast(probeArmed ? '点仓库里的格子钻验' : '已收手');
+      });
+    } else if (k.kind === 'read-rival') {
+      tail = `<small>本回合 ${view ? view.readLeft : k.perRound} 次</small>`;
+    } else if (Array.isArray(k.rounds)) {
+      tail = `<small>R${k.rounds.join('/')}</small>`;
+    } else tail = '<small>常驻</small>';
+    pill.innerHTML = `<span aria-hidden="true">${k.icon}</span><b>${k.name}</b>${tail}`;
+    pill.title = k.desc;
+    el.kitbar.appendChild(pill);
+  }
+}
+
+function renderRound() {
+  el.roundTitle.textContent = `竞拍第 ${Math.min(view.round, view.roundsTotal)} 回合`;
+  let dots = '';
+  for (let i = 1; i <= view.roundsTotal; i++) {
+    dots += `<i class="${i < view.round ? 'done' : i === view.round ? 'now' : ''}"></i>`;
+  }
+  el.roundDots.innerHTML = dots;
+  el.lotPill.textContent = `第 ${view.lotIndex + 1}/${view.lotsTotal} 箱`;
+  el.themeName.textContent = `${view.theme.name} · ${view.theme.announce}`;
+  el.estimate.textContent = fm(view.estimate);
+  el.bpFloor.textContent = fm(view.floorPrice);
+  el.bpSuggest.textContent = fm(view.suggest);
+  el.bpHigh.textContent = view.high ? fm(view.high) : '尚无';
+  el.bpMine.textContent = view.playerBest ? fm(view.playerBest) : '未出价';
+  el.liBudget.textContent = fm(view.budgetLeft);
+  el.liFee.textContent = Math.round(view.commissionRate * 100) + '%';
+  el.liProbe.textContent = view.probeFees ? fm(view.probeFees) : '0';
+  const bidding = view.phase === 'bidding';
+  el.btnBid.disabled = !bidding || !view.playerActive;
+  el.btnPass.disabled = !bidding || !view.playerActive;
+}
+
+function render() {
+  if (!view) return;
+  renderRound(); renderSeats(); renderCards(); renderVault(); renderFacts(); renderKits(); renderAsset();
+}
+
+/* ================================================================
+ * 回合计时
+ * ============================================================== */
+function stopClock() { clearInterval(clockTimer); clockTimer = 0; }
+function startClock() {
+  stopClock();
+  clockLeft = ROUND_SECONDS;
+  paintClock();
+  if (NO_LIMIT) { el.clock.textContent = '--:--'; return; }
+  clockTimer = setInterval(() => {
+    clockLeft--;
+    paintClock();
+    if (clockLeft <= 0) {
+      stopClock();
+      /* 超时按放弃处理：三十秒的压迫感是这套玩法的一部分 */
+      if (view && view.phase === 'bidding' && view.playerActive) {
+        toast('时间到，本箱作罢');
+        closePad();
+        submit(null);
+      }
+    }
+  }, 1000);
+}
+function paintClock() {
+  const m = String(Math.floor(Math.max(0, clockLeft) / 60)).padStart(2, '0');
+  const s = String(Math.max(0, clockLeft) % 60).padStart(2, '0');
+  el.clock.textContent = `${m}:${s}`;
+  el.timer.classList.toggle('hot', clockLeft <= 8);
+}
+
+/* ================================================================
+ * 出价键盘
+ * ============================================================== */
+const KEYS = [
+  { t: '1' }, { t: '2' }, { t: '3' }, { t: '⌫', fn: 'back' },
+  { t: '4' }, { t: '5' }, { t: '6' }, { t: '×2', fn: 'x2' },
+  { t: '7' }, { t: '8' }, { t: '9' }, { t: '上轮出价', fn: 'last' },
+  { t: '0' }, { t: '00' }, { t: '000' }, { t: '清空', fn: 'clear' },
+];
+function buildKeys() {
+  el.keys.innerHTML = '';
+  for (const k of KEYS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'key' + (k.fn ? ' fn' : '');
+    b.textContent = k.t;
+    b.addEventListener('click', () => {
+      if (!k.fn) { padBuf = (padBuf + k.t).replace(/^0+(?=\d)/, '').slice(0, 12); }
+      else if (k.fn === 'back') padBuf = padBuf.slice(0, -1);
+      else if (k.fn === 'clear') padBuf = '';
+      else if (k.fn === 'x2') padBuf = String(Math.max(1, (padNum() || view.high || view.floorPrice) * 2));
+      else if (k.fn === 'last') padBuf = String(view.playerBest || view.floorPrice);
+      paintPad();
+    });
+    el.keys.appendChild(b);
+  }
+}
+const padNum = () => Math.max(0, Math.floor(Number(padBuf) || 0));
+function padCeiling() {
+  return Math.floor(view.budgetLeft / (1 + view.commissionRate));
+}
+function paintPad() {
+  const v = padNum();
+  el.padValue.textContent = fm(v);
+  el.padSuggest.textContent = fm(view.suggest);
+  el.padHigh.textContent = view.high ? fm(view.high) : '尚无';
+  el.padRange.textContent = `${fm(view.floorPrice)}~${fm(padCeiling())}`;
+  let warn = '';
+  if (v && v < view.floorPrice) warn = `低于起拍价 ${fm(view.floorPrice)}`;
+  else if (v > padCeiling()) warn = '超出可用资金（含佣金）';
+  else if (v && v <= view.playerBest) warn = '不能低于你上一口价';
+  el.padWarn.textContent = warn;
+  el.padOk.disabled = !!warn || !v;
+}
+function openPad() {
+  if (!view || view.phase !== 'bidding') return;
+  padBuf = String(Math.max(view.floorPrice, Math.min(padCeiling(),
+    view.high ? Math.round(view.high * 1.06) : view.floorPrice)));
+  paintPad();
+  buildKeys();
+  showVeil(el.padVeil);
+  el.padOk.focus();
+}
+function closePad() { el.padVeil.hidden = true; }
+
+/* ================================================================
+ * 动作
+ * ============================================================== */
+function submit(amount) {
+  if (!session || !view || view.phase !== 'bidding') return;
+  const res = session.bid(amount);
+  if (res.ok === false) {
+    for (const e of res.events) if (e.text) toast(e.text);
+    return;
+  }
+  closePad();
+  view = res.view;
+  render();
+  if (view.phase === 'hammered') { stopClock(); setTimeout(openResult, 380); }
+  else startClock();
+}
+
+function doProbe(x, y) {
+  if (!probeArmed || !session) return;
+  const res = session.probe(x, y);
+  if (!res.ok) { toast(res.text); return; }
+  if (res.fee) { writeBalance(balance - res.fee); emit(NS + ':transaction', { kind: 'probe', delta: -res.fee }); }
+  if (res.empty) voidCells.add(y * view.grid.cols + x);
+  toast(res.text);
+  view = session.view();
+  probeArmed = view.probeLeft > 0 && probeArmed;
+  render();
+}
+
+function doListen(seat) {
+  const res = session.readRival(seat);
+  if (!res.ok) { toast(res.text); return; }
+  toast(res.text);
+  view = session.view();
+  render();
+}
+
+/* ================================================================
+ * 竞拍结束：逐件翻开
+ * ============================================================== */
+function openResult() {
+  const out = session.settle();
+  if (!out) return;
+  lastSettle = out;
+  const e = out.entry;
+  const g = view.grid;
+
+  el.resultSub.textContent = e.won
+    ? `你以 ${fm(e.price)} 拿下，佣金 ${fm(e.commission)}。`
+    : (e.winner === '流拍' ? '无人应价，本箱流拍。' : `本箱被${e.winner}以 ${fm(view.hammerPrice)} 拿走。`);
+  el.rPrice.textContent = e.won ? fm(e.price) : fm(view.hammerPrice);
+  el.rGross.textContent = fm(0);
+  el.rNet.textContent = fm(0);
+  el.rRunning.textContent = fm(0);
+  el.rNetCell.classList.remove('gain', 'loss');
+  el.rGrade.textContent = '–';
+  el.gradeBox.style.setProperty('--gc', e.gradeColor);
+  el.rGradeLine.textContent = '结算中…';
+  el.rQuip.textContent = '';
+  el.rSold.innerHTML = `件数 <b>${e.itemCount}</b> · 不开门 <b>${e.fakeCount}</b> · ` +
+    `情报回合 <b>${e.rounds}</b>${e.probeFees ? ` · 钻验花费 <b>${fm(e.probeFees)}</b>` : ''}`;
+  el.btnNext.textContent = session.lotIndex + 1 >= LOTS ? '看总账' : '下一箱';
+  el.btnSkipAnim.hidden = false;
+  paintVault(el.resultVault, g, [], {});
+  showVeil(el.resultVeil);
+
+  let i = 0, running = 0;
+  const tiles = [];
+  const flip = () => {
+    if (i >= out.reveals.length) { finishResult(e, running); return; }
+    const r = out.reveals[i];
+    const t = buildItem(r, { value: r.value });
+    el.resultVault.appendChild(t);
+    tiles.push(t);
+    running += r.value;
+    el.rGross.textContent = fm(running);
+    el.rRunning.textContent = fm(running);
+    const net = e.won ? running - e.paid : -e.probeFees;
+    el.rNet.textContent = fmS(net);
+    el.rNetCell.classList.toggle('gain', net > 0);
+    el.rNetCell.classList.toggle('loss', net < 0);
+    i++;
+    revealTimer = setTimeout(flip, 300);
+  };
+  const skip = () => {
+    clearTimeout(revealTimer);
+    while (i < out.reveals.length) {
+      const r = out.reveals[i];
+      el.resultVault.appendChild(buildItem(r, { value: r.value, cls: 'instant' }));
+      running += r.value;
+      i++;
+    }
+    el.rGross.textContent = fm(running);
+    el.rRunning.textContent = fm(running);
+    finishResult(e, running);
+  };
+  el.btnSkipAnim.onclick = skip;
+  revealTimer = setTimeout(flip, 260);
+}
+
+function finishResult(e, running) {
+  clearTimeout(revealTimer);
+  el.btnSkipAnim.hidden = true;
+  el.rGrade.textContent = e.grade;
+  el.rGradeLine.textContent = e.won ? `评级 ${e.grade}` : '未拍到';
+  el.rQuip.textContent = e.quip;
+  const net = e.won ? running - e.paid : -e.probeFees;
+  el.rNet.textContent = fmS(net);
+  el.rNetCell.classList.toggle('gain', net > 0);
+  el.rNetCell.classList.toggle('loss', net < 0);
+  if (e.won) writeBalance(balance + e.gross - e.price - e.commission);
+  stats.totalNet += e.net;
+  if (e.won) stats.lotsWon++;
+  if (e.net > stats.bestNet) stats.bestNet = e.net;
+  save();
+  emit(NS + ':settled', {
+    lot: e.lot, theme: e.theme, themeName: e.themeName, won: e.won,
+    price: e.price, commission: e.commission, paid: e.paid, gross: e.gross, net: e.net,
+    grade: e.grade, itemCount: e.itemCount, fakeCount: e.fakeCount, categories: e.categories,
+    rounds: e.rounds, winner: e.winner,
+    payout: Math.max(0, e.won ? e.gross : 0), delta: e.net, profitable: e.net > 0,
+  });
+}
+
+/* ================================================================
+ * 装备选择与场次流程
+ * ============================================================== */
+const slotUsed = (list) => list.reduce((s, id) => s + ((kitById(id) || {}).slot || 0), 0);
+function renderKitPicker() {
+  const used = slotUsed(picked);
+  el.slotCount.textContent = `${used} / ${Engine.INSTRUMENT_SLOTS}`;
+  el.kitGrid.innerHTML = '';
+  for (const k of Engine.INSTRUMENTS) {
+    const on = picked.includes(k.id);
+    const card = document.createElement('button');
+    card.className = 'kitcard';
+    card.type = 'button';
+    card.setAttribute('aria-pressed', String(on));
+    card.disabled = !on && used + k.slot > Engine.INSTRUMENT_SLOTS;
+    card.innerHTML =
+      `<span class="card-ico" aria-hidden="true">${k.icon}</span>` +
+      `<span class="kitcard-txt"><span class="kitcard-top"><b>${k.name}</b>` +
+      `<span>${k.slot} 位</span></span><p>${k.desc}</p></span>`;
+    card.addEventListener('click', () => {
+      if (on) picked = picked.filter((id) => id !== k.id);
+      else if (used + k.slot <= Engine.INSTRUMENT_SLOTS) picked.push(k.id);
+      renderKitPicker();
+    });
+    el.kitGrid.appendChild(card);
+  }
+  /* 空手上场是一种合法打法（模拟里空手 ROI −2.4%，不是不能玩），
+     所以入场永不禁用；把「你现在是空手」这件事写在按钮上就够了。 */
+  el.btnStart.textContent = picked.length ? '入场' : '空手入场';
+}
+function randomKits() {
+  picked = [];
+  for (const k of Engine.INSTRUMENTS.slice().sort(() => Math.random() - 0.5)) {
+    if (slotUsed(picked) + k.slot <= Engine.INSTRUMENT_SLOTS) picked.push(k.id);
+  }
+  renderKitPicker();
+}
+
+function startSession() {
+  balance = readBalance();
+  if (balance < 60) { toast('资产见底了，先去别的机器上转两把'); return; }
+  session = Engine.createSession({
+    seed: (Date.now() ^ Math.floor(Math.random() * 0xffffff)) >>> 0,
+    budget: balance, lots: LOTS, rivalCount: RIVALS,
+    kits: picked.slice(), valueScale: scaleFor(balance),
+  });
+  stats.sessions++; save();
+  el.setupVeil.hidden = true;
+  el.summaryVeil.hidden = true;
+  nextLot();
+}
+
+function nextLot() {
+  voidCells.clear();
+  probeArmed = false;
+  el.resultVeil.hidden = true;
+  const started = session.beginLot();
+  if (!started) { showSummary(); return; }
+  view = started.view;
+  render();
+  startClock();
+}
+
+function showSummary() {
+  stopClock();
+  const net = session.ledger.reduce((a, e) => a + e.net, 0);
+  const won = session.ledger.filter((e) => e.won).length;
+  el.sumSub.textContent = `三箱拿下 ${won} 箱，` +
+    (net > 0 ? `净赚 ${fm(net)}。` : net < 0 ? `净亏 ${fm(-net)}。` : '不赚不亏。');
+  el.ledgerBody.innerHTML = session.ledger.map((e) => {
+    const cls = e.net > 0 ? 'up' : e.net < 0 ? 'down' : '';
+    const badge = `<span class="gg" style="color:${e.gradeColor};background:${e.gradeColor}22">${e.grade}</span>`;
+    return `<tr><td>第 ${e.lot + 1} 箱 · ${e.themeName}</td><td>${badge}</td>` +
+      `<td class="n">${e.won ? fm(e.price) : '—'}</td><td class="n">${fm(e.gross)}</td>` +
+      /* 没拍到的箱子收益写 0 会被读成「打平」，其实是根本没参与 */
+      `<td class="n ${cls}">${e.won || e.net ? fmS(e.net) : '—'}</td></tr>`;
+  }).join('');
+  showVeil(el.summaryVeil);
+}
+
+/* ================================================================
+ * 主题 / 宿主消息 / 绑定
+ * ============================================================== */
+function setTheme(v) { document.body.dataset.theme = THEMES.has(v) ? v : 'dark'; }
+function initTheme() {
+  let v = 'dark';
+  try {
+    const s = localStorage.getItem('kivotos-theme') || localStorage.getItem('theme');
+    if (THEMES.has(s)) v = s;
+    const p = parent !== window && parent.document && parent.document.body
+      ? parent.document.body.dataset.theme : null;
+    if (THEMES.has(p)) v = p;
+  } catch (_) {}
+  setTheme(v);
+}
+addEventListener('message', (ev) => {
+  const d = ev.data || {};
+  if (d.type === 'kivotos-theme-change' || d.type === NS + ':set-theme') setTheme(d.theme);
+  if (d.type === NS + ':set-balance' && Number.isFinite(+d.balance)) { balance = money(d.balance); save(); renderAsset(); }
+  if (d.type === NS + ':reset-command') {
+    stopClock(); session = null; view = null;
+    if (d.keepBalance !== true) writeBalance(DEFAULT_BALANCE);
+    el.resultVeil.hidden = true; el.summaryVeil.hidden = true; el.padVeil.hidden = true;
+    showVeil(el.setupVeil); renderKitPicker();
+  }
+});
+addEventListener('storage', (ev) => {
+  if ([WALLET_KEY].concat(PEER_KEYS).includes(ev.key)) { balance = readBalance(); renderAsset(); }
+  if (ev.key === 'kivotos-theme' && THEMES.has(ev.newValue)) setTheme(ev.newValue);
+});
+
+el.btnBid.addEventListener('click', openPad);
+el.btnPass.addEventListener('click', () => submit(null));
+el.padCancel.addEventListener('click', closePad);
+el.padOk.addEventListener('click', () => submit(padNum()));
+el.btnNext.addEventListener('click', nextLot);
+el.btnStart.addEventListener('click', startSession);
+el.btnRandom.addEventListener('click', randomKits);
+el.btnAgain.addEventListener('click', () => {
+  el.summaryVeil.hidden = true; showVeil(el.setupVeil); renderKitPicker();
+});
+addEventListener('keydown', (ev) => {
+  if (!el.padVeil.hidden) {
+    if (/^[0-9]$/.test(ev.key)) { padBuf = (padBuf + ev.key).replace(/^0+(?=\d)/, '').slice(0, 12); paintPad(); }
+    else if (ev.key === 'Backspace') { padBuf = padBuf.slice(0, -1); paintPad(); }
+    else if (ev.key === 'Enter' && !el.padOk.disabled) submit(padNum());
+    else if (ev.key === 'Escape') closePad();
+    ev.preventDefault();
+    return;
+  }
+  if (!el.setupVeil.hidden || !el.resultVeil.hidden || !el.summaryVeil.hidden) return;
+  if (ev.key === 'Enter') { ev.preventDefault(); openPad(); }
+});
+
+load(); initTheme(); renderAsset(); renderKitPicker(); buildKeys();
+window.AIRPAuction = Object.freeze({
+  version: VERSION,
+  getBalance: () => balance,
+  getView: () => (view ? JSON.parse(JSON.stringify(view)) : null),
+  getLedger: () => (session ? JSON.parse(JSON.stringify(session.ledger)) : []),
+  instruments: () => Engine.INSTRUMENTS.map((k) => ({ ...k })),
+  bid: submit, probe: doProbe, listen: doListen, start: startSession,
+});
+emit(NS + ':ready', { lots: LOTS, rivals: RIVALS, rounds: Engine.ROUNDS,
+  instruments: Engine.INSTRUMENTS.map((k) => k.id) });
+})();
+</script>
+</body>
+</html>

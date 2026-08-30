@@ -9,7 +9,7 @@ let started = false;
 let autoscrollActive = false;
 let bridgeContext = { chatKey: null, epoch: 0 };
 /* 壳层版本。原生流下壳层与 HUD 同文档，直接读全局；抬升架构下它随握手回包到达。
-   两条路都要有：壳层是粘贴部署的，「用户手上到底是哪一版」只有它自己知道，而 HUD 是跟着
+   两条路都要有：壳层是粘贴部署的，"用户手上到底是哪一版"只有它自己知道，而 HUD 是跟着
    Pages 自动更新的 —— 排查时要确认的几乎总是前者。 */
 let shellVersion = (() => {
   try { return String(window.__linjiangShellVersion || ''); } catch { return ''; }
@@ -515,17 +515,18 @@ export function startBridge() {
     if (max <= 1) return false;
     return deltaY > 0 ? element.scrollTop < max - 1 : element.scrollTop > 1;
   };
-  const hudCanConsumeTouch = (event, deltaY) => {
+  const hudTouchScroller = (event, deltaY) => {
     const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
     const seen = new Set();
     for (const candidate of path) {
       if (!(candidate instanceof Element) || seen.has(candidate)) continue;
       seen.add(candidate);
-      if (elementCanConsumeTouch(candidate, deltaY)) return true;
+      if (elementCanConsumeTouch(candidate, deltaY)) return candidate;
     }
     const root = document.scrollingElement || document.documentElement;
-    return !seen.has(root) && elementCanConsumeTouch(root, deltaY);
+    return !seen.has(root) && elementCanConsumeTouch(root, deltaY) ? root : null;
   };
+  const hudCanConsumeTouch = (event, deltaY) => !!hudTouchScroller(event, deltaY);
   const queueTouchScroll = (point, deltaY, gestureStart = false) => {
     touchScroll.pendingY += deltaY;
     touchScroll.pendingPoint = { clientX: point.clientX, clientY: point.clientY };
@@ -602,6 +603,121 @@ export function startBridge() {
     setIosTouchScrollActive(false);
     resetTouchScroll();
   }, { capture: true, passive: true });
+
+  /* Chrome device emulation only produces TouchEvents when its touch mapping is
+     enabled before the page loads. In responsive mode (or when the mapping toggle is
+     off), dragging the circular/arrow cursor is an ordinary mouse drag: browsers do
+     not scroll pages for that gesture, and the touch bridge above never sees it.
+
+     Mirror the two gestures the mobile HUD already exposes, only for a real mouse:
+       - horizontal drag on an overflow-x rail scrolls that rail;
+       - vertical drag scrolls an internal page, or forwards to the tavern reading pane.
+     Touch-generated compatibility mouse events advertise firesTouchEvents and are
+     ignored, otherwise one finger would be handled twice. */
+  const mouseDragScroll = {
+    active: false,
+    axis: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    horizontal: null,
+    forwarding: false,
+    consumed: false,
+    suppressClick: false,
+  };
+  const eventElements = (event) => {
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+    return path.filter((candidate) => candidate instanceof Element);
+  };
+  const horizontalScroller = (event) => {
+    for (const element of eventElements(event)) {
+      let overflowX = '';
+      try { overflowX = getComputedStyle(element).overflowX; } catch { continue; }
+      if ((overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')
+          && element.scrollWidth > element.clientWidth + 1) return element;
+    }
+    return null;
+  };
+  const resetMouseDragScroll = () => {
+    mouseDragScroll.active = false;
+    mouseDragScroll.axis = null;
+    mouseDragScroll.horizontal = null;
+    mouseDragScroll.forwarding = false;
+    mouseDragScroll.consumed = false;
+  };
+  addEventListener('mousedown', (event) => {
+    if (!isEmbedded() || event.button !== 0 || event.sourceCapabilities?.firesTouchEvents) return;
+    if (lastOverlay) return;
+    mouseDragScroll.active = true;
+    mouseDragScroll.axis = null;
+    mouseDragScroll.startX = mouseDragScroll.lastX = event.clientX;
+    mouseDragScroll.startY = mouseDragScroll.lastY = event.clientY;
+    mouseDragScroll.horizontal = horizontalScroller(event);
+    mouseDragScroll.forwarding = false;
+    mouseDragScroll.consumed = false;
+  }, { capture: true, passive: true });
+  addEventListener('mousemove', (event) => {
+    if (!mouseDragScroll.active || !(event.buttons & 1)) return;
+    const totalX = event.clientX - mouseDragScroll.startX;
+    const totalY = event.clientY - mouseDragScroll.startY;
+    if (!mouseDragScroll.axis) {
+      if (Math.max(Math.abs(totalX), Math.abs(totalY)) < 6) return;
+      mouseDragScroll.axis = Math.abs(totalY) >= Math.abs(totalX) ? 'y' : 'x';
+    }
+    const deltaX = mouseDragScroll.lastX - event.clientX;
+    const deltaY = mouseDragScroll.lastY - event.clientY;
+    mouseDragScroll.lastX = event.clientX;
+    mouseDragScroll.lastY = event.clientY;
+
+    if (mouseDragScroll.axis === 'x') {
+      const scroller = mouseDragScroll.horizontal;
+      if (!scroller || !deltaX) return;
+      const before = scroller.scrollLeft;
+      scroller.scrollLeft += deltaX;
+      if (Math.abs(scroller.scrollLeft - before) < 0.01) return;
+      mouseDragScroll.consumed = true;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (!deltaY) return;
+    const internal = hudTouchScroller(event, deltaY);
+    if (internal) {
+      const before = internal.scrollTop;
+      internal.scrollTop += deltaY;
+      if (Math.abs(internal.scrollTop - before) < 0.01) return;
+      mouseDragScroll.consumed = true;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (document.documentElement.classList.contains('is-page-open')) return;
+    const gestureStart = !mouseDragScroll.forwarding;
+    mouseDragScroll.forwarding = true;
+    mouseDragScroll.consumed = true;
+    event.preventDefault();
+    event.stopPropagation();
+    queueTouchScroll(event, deltaY, gestureStart);
+  }, { capture: true, passive: false });
+  addEventListener('mouseup', (event) => {
+    if (!mouseDragScroll.active || event.button !== 0) return;
+    if (mouseDragScroll.forwarding) postEvent('touchScrollEnd', {});
+    if (mouseDragScroll.consumed) {
+      mouseDragScroll.suppressClick = true;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    resetMouseDragScroll();
+  }, { capture: true, passive: false });
+  addEventListener('blur', resetMouseDragScroll);
+  addEventListener('click', (event) => {
+    if (!mouseDragScroll.suppressClick) return;
+    mouseDragScroll.suppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true, passive: false });
 
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || event.metaKey || event.defaultPrevented) return;
