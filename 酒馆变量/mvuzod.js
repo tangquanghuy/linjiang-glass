@@ -304,14 +304,14 @@ const experienceSchema = z.preprocess(
 );
 
 /* 升档门槛：从档位 n 升到 n+1 所需的进度，档位 5 封顶所以只有五个数。
-   不是固定 100 一档 —— 每档比上一档多要 40/50/60/70，前面几档便宜、后面越来越贵。
-   同一份表在 外部部署/V20260826/辅助计算脚本.js（真正执行升档）和 src/data.js（面板画进度条）
-   各有一份，三处必须同时改。这里只负责截断：够门槛的进度由辅助脚本换成档位，所以
-   Schema 允许的上限是门槛前一格。 */
+   Schema 会先于 VARIABLE_UPDATE_ENDED 执行，而真正的升档在辅助脚本监听这个事件后完成，
+   所以这里必须保留“恰好到门槛”的一格作为交接哨兵。若档位 0 在这里先截成 39，旧值已经是
+   39 时，之后模型无论再写 40 还是 500 都仍会变成 39；辅助脚本看不到正增量，进度便永久卡住。
+   超过门槛的值仍会被压到门槛，单轮上限与升档次数继续由辅助脚本控制。 */
 const DEV_TIER_STEPS = [40, 80, 130, 190, 260];
-const devCeiling = tier => {
+const devProposalCeiling = tier => {
     const need = DEV_TIER_STEPS[_.clamp(Math.floor(Number(tier) || 0), 0, 5)];
-    return need ? need - 1 : 0;
+    return need || 0;
 };
 
 const devPartSchema = z.preprocess(v => {
@@ -328,10 +328,10 @@ const devPartSchema = z.preprocess(v => {
     可更新: boolPreprocess(true),
     评语: str(''),
 }).transform(r => ({
-    /* 进度按档位截断，而不是一刀 0~999：AI 一次写个 500 进来，或者门槛调过之后老档里
-       存着「档位 0 · 进度 99」，都不该留在门槛线上方 —— 那会让部位看起来永远差一点点。 */
+    /* 为辅助脚本的升档阶段保留门槛值；超过门槛的异常大数仍在这里折叠。辅助脚本消费后，
+       会把没有成功升档的持久值统一压回门槛前一格。 */
     ...r,
-    进度: _.clamp(r.进度, 0, devCeiling(r.档位)),
+    进度: _.clamp(r.进度, 0, devProposalCeiling(r.档位)),
 })));
 
 const developmentSchema = z.preprocess(v => {

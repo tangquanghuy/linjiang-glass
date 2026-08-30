@@ -69,7 +69,9 @@
        同一份表在 src/data.js（DEV_TIER_STEPS / DEV_DAILY_CAP，面板画进度条用）和
        酒馆变量/mvuzod.js（截断进度用）各有一份。三处必须同时改。 */
     const DEVELOPMENT_TIER_STEPS = [40, 80, 130, 190, 260];
-    /* 某档位内进度的上限。够门槛就该升档，所以停在门槛前一格；封顶档没有下一档，恒 0。 */
+    /* 某档位持久化进度的上限。够门槛就该升档，所以辅助脚本消费提案后停在门槛前一格；
+       MVU Schema 会临时允许“恰好等于门槛”作为交接哨兵，否则 39 → 40 会在事件到达这里前
+       被重新截成 39，无法识别升档。封顶档没有下一档，恒 0。 */
     const developmentCeiling = (tier) => {
         const need = DEVELOPMENT_TIER_STEPS[tier];
         return need ? need - 1 : 0;

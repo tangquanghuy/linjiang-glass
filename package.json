@@ -82,7 +82,8 @@
     "reading:room": "node scripts/check-reading-room-send-only.mjs",
     "tavern:mobile-flow": "node scripts/check-mobile-native-flow.mjs",
     "tavern:blackout": "node scripts/check-status-blackout.mjs",
-    "tavern:blackout:shots": "node scripts/check-status-blackout.mjs --shots"
+    "tavern:blackout:shots": "node scripts/check-status-blackout.mjs --shots",
+    "development:check": "node scripts/check-development-progress.mjs"
   },
   "devDependencies": {
     "ejs": "3.1.10",
