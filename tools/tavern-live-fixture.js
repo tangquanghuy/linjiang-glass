@@ -318,6 +318,10 @@ note('predefine.js 使用精简替身（真实那份需要完整的 TavernHelper
  * 差异只有两处：CDN 依赖被替换/跳过，predefine 用替身。
  */
 function createSrcContent(content) {
+  /* forceLifted 的注入点必须在楼层内容**之前**：壳层是在自己顶部一次性读这个全局的。 */
+  const forceLifted = FORCE_LIFTED
+    ? '<script>window.__linjiangForceDesktopShell = true;<\/script>'
+    : '';
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -332,6 +336,7 @@ ${thirdParty.html}
 <script>${PREDEFINE_STAND_IN}<\/script>
 <script>${adjustViewportSource}<\/script>
 <script>${adjustHeightSource}<\/script>
+${forceLifted}
 </head>
 <body>
 ${content}
@@ -355,15 +360,31 @@ ${content}
 /* flow = 状态栏-测试版-流内嵌入.html：把 HUD 建在楼层文档里、几何全交给酒馆的那份实验品。
    它跟 inline/boot 是完全不同的机制（不抬升、没有裁剪台），所以夹具里那些「HUD 被抬成
    #linjiang-hud-live」之类的断言对它一概不适用 —— 只用来验它能不能起来、能不能拿到数据。 */
+/* reference = 参考/底部状态栏.html：别人那条状态栏，用来当性能基准。
+   ------------------------------------------------------------------
+   它和我们的产物在**载荷形态**上是两个东西，而这正是要量的：它整份内联（329KB JS +
+   186KB CSS，运行时除了字体图标不取任何东西、一张图都不解码、零处 will-change），
+   我们是从 Pages 取一个 vite bundle 起一整个应用（259KB JS + 147KB CSS + 首屏就要
+   bg-plate 2.0MB / frost 1.0MB / polish 365KB 三张贴图 + 40 处 backdrop-filter）。
+
+   「移动端不再自己操作嵌入页面、直接收进嵌入框」只换掉了宿主几何那一半成本；载荷这一半
+   一点没动。把这条基准放进同一个夹具、同一档 CPU 限速下跑，才能分清剩下的卡是哪一半的。 */
 const SHELL_VARIANT = (() => {
   const raw = params.get('shell');
-  return raw === 'boot' || raw === 'flow' ? raw : 'inline';
+  return raw === 'boot' || raw === 'flow' || raw === 'reference' ? raw : 'inline';
 })();
 const SHELL_FILES = {
   inline: '/外部部署/V20260826/状态栏.html',
   boot: '/外部部署/V20260826/状态栏-引导壳.html',
   flow: '/外部部署/V20260826/状态栏-测试版-流内嵌入.html',
+  reference: '/参考/底部状态栏.html',
 };
+
+/* ?forceLifted=1 ——— 在手机尺寸上强制走**旧的**抬升架构。
+   壳层自己留了 __linjiangForceDesktopShell 这个逃生口（见 MOBILE_NATIVE_FLOW），但它必须在
+   壳层执行之前落在楼层文档里，所以只能由夹具在组装 srcdoc 时注入。
+   用途只有一个：在同一台机器、同一档限速下拿到「改之前」的对照数字。 */
+const FORCE_LIFTED = params.get('forceLifted') === '1';
 /* ?shellFail=1 ——— 故障注入，只对 boot 有意义：把脚本地址指向一个不存在的文件，
    用来验引导壳「脚本没取到」的兜底提示真的会出现。 */
 const SHELL_FAIL = params.get('shellFail') === '1';
@@ -376,6 +397,11 @@ function loadProductionStatusSource() {
         .replace(/^\uFEFF?```(?:text|html)?\s*\r?\n/i, '')
         .replace(/\r?\n```\s*$/i, ''))
       .then((source) => {
+        if (SHELL_VARIANT === 'reference') {
+          /* 自包含，没有 HUD_URL 可改，也没有壳层逻辑 —— 原样用。 */
+          note('状态栏楼层用的是 参考/底部状态栏.html（性能基准，非本项目产物）');
+          return source;
+        }
         if (SHELL_VARIANT === 'flow') {
           /* 测试版是自包含的，只需要把 HUD_URL 指到夹具本地那份 HUD。 */
           const localHud = params.get('hud') || new URL('/', location.href).href;
@@ -854,11 +880,23 @@ function floorHudState(frame) {
   /* 抬升架构：HUD 不在楼层文档里，楼层只是个锚点。壳层执行过但还没接管时，
      文档里留着那个空的兜底 #hud。 */
   const fallback = doc.getElementById('hud');
+  if (doc.documentElement.dataset.linjiangShell || fallback) {
+    return {
+      stage: doc.documentElement.dataset.linjiangShell ? 'anchor' : 'no-shell',
+      nodes: fallback ? 1 : 0,
+      box: null,
+      kind: 'lifted',
+    };
+  }
+  /* 参考基准（shell=reference）：楼层文档里直接就是那条栏，既没有壳层也没有内层 iframe。
+     这一支让 blackoutSample / floorTakeover 对它同样成立，于是同一套度量能横比。 */
+  const nodes = doc.body ? doc.body.querySelectorAll('*').length : 0;
+  const painted = nodes >= PAINTED_NODE_FLOOR;
   return {
-    stage: doc.documentElement.dataset.linjiangShell ? 'anchor' : 'no-shell',
-    nodes: fallback ? 1 : 0,
-    box: null,
-    kind: 'lifted',
+    stage: painted ? 'painted' : 'mounting',
+    nodes,
+    box: painted && doc.body ? frameBox(doc.body) : null,
+    kind: 'inline',
   };
 }
 
@@ -993,8 +1031,13 @@ function floorTakeover(index) {
   const frame = statusFrames[index];
   if (!frame) return { ready: false, why: 'no-frame' };
   const state = floorHudState(frame);
-  if (state.kind === 'native') {
-    return { ready: state.stage === 'painted', why: state.stage, nodes: state.nodes, architecture: 'native-flow' };
+  if (state.kind === 'native' || state.kind === 'inline') {
+    return {
+      ready: state.stage === 'painted',
+      why: state.stage,
+      nodes: state.nodes,
+      architecture: state.kind === 'native' ? 'native-flow' : 'inline-reference',
+    };
   }
   const manager = window.__linjiangHudManagerV2 || null;
   const owned = !!(manager?.owner && manager.owner.frame === frame);
