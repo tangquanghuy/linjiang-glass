@@ -81,11 +81,37 @@ if (dry) {
 
 run('git', ['remote', 'add', 'origin', PREVIEW_REMOTE], STAGE);
 console.log(run('git', ['push', '-q', '--force', 'origin', 'main'], STAGE) || '已推送');
+
+/* purge jsDelivr。
+   ------------------------------------------------------------------
+   镜像每次都是 force push 一个新提交，而 @main 这种可变引用在 jsDelivr 有 12 小时边缘缓存。
+   不 purge 的话，那几个**直接从 jsDelivr 取**的粘贴文件（引导壳取 status-shell.js、辅助计算
+   脚本取 aux-shell.js）会继续吃旧版 —— 而且毫无迹象：不报错、不提示，只是行为对不上代码。
+   生产的 pages.yml 里有同样一步，理由也写在那儿。
+
+   只 purge 真的被引用的那几个路径，不整目录 purge（jsDelivr 按路径限流）。素材不在列：
+   它们仍然指向 linjiang-glass@main，不受这次推送影响。 */
+const PURGE = [
+  'public/shell/status-shell.js',
+  'public/shell/aux-shell.js',
+];
+for (const path of PURGE) {
+  const url = `https://purge.jsdelivr.net/gh/${PREVIEW_REMOTE.replace(/^.*:/, '').replace(/\.git$/, '')}@main/${path}`;
+  try {
+    const response = await fetch(url);
+    const body = await response.json().catch(() => ({}));
+    console.log(`  purge ${path} → ${body.status || response.status}`);
+  } catch (error) {
+    /* purge 失败不该挡住发布：真正要紧的是内容，而边缘缓存最多 12 小时自己过期。 */
+    console.log(`  purge ${path} → 失败（${error.message}），最多 12 小时后自然过期`);
+  }
+}
+
 console.log('');
 console.log(`镜像仓库已更新。Actions 会自动构建并部署到：\n  ${PREVIEW_PAGES}`);
 console.log('');
 console.log('首次使用需要在镜像仓库做一次设置：');
 console.log('  Settings → Pages → Source 选 “GitHub Actions”');
 console.log('');
-console.log('然后生成指向它的测试壳层：');
-console.log('  node scripts/make-preview-shell.mjs');
+console.log('然后生成整套指向它的外部部署文件：');
+console.log('  node scripts/make-preview-deploy.mjs --verify');
