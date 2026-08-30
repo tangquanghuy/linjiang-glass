@@ -90,6 +90,7 @@
     "reading:room": "node scripts/check-reading-room-send-only.mjs",
     "tavern:mobile-flow": "node scripts/check-mobile-native-flow.mjs",
     "tavern:scroll": "node scripts/check-host-scroll-containment.mjs",
+    "tavern:loading": "node scripts/check-overlay-loading.mjs",
     "shell:local": "node scripts/make-local-hud-shell.mjs",
     "tavern:blackout": "node scripts/check-status-blackout.mjs",
     "tavern:blackout:shots": "node scripts/check-status-blackout.mjs --shots",

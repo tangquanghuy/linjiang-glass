@@ -14,6 +14,7 @@ import { arcadeProfile, applyArcadeProfile, player, onLive } from './data.js';
 import { flushMoney, recordArcadeEvent, setMoney } from './bridge.js';
 import { hudPage } from './asset.js';
 import { mountFrameLoading } from './overlay-loading.js';
+import { mountNativeDiag } from './native-diag.js';
 
 export function arcadeSrc() {
   /* 基准是 HUD 自己的来源，不是 document.baseURI（见 src/asset.js 的 hudBase）。 */
@@ -47,6 +48,9 @@ export function mountArcadeOverlay(host, { onClose } = {}) {
   /* 跟商店同一个失败模式：页面从 Pages 取，国内可能很慢，而覆盖层底色是近黑 —— 用户看到的
      就是"点街机直接黑屏"。理由与真机数据见 src/overlay-loading.js。 */
   const unmountLoading = mountFrameLoading(layer, iframe, { label: '街机', onClose: () => onClose?.() });
+  /* 诊断条之前只挂在商店上，所以"开街机黑屏"那种情况一份数据都没有。补上。
+     它现在挂在酒馆文档里，楼层被导航掉也杀不掉它（见 src/native-diag.js）。 */
+  const unmountDiag = mountNativeDiag(iframe, { onClose: () => onClose?.() });
   let lastPushed = NaN;
   const cash = () => Math.max(0, Math.round(Number(player.money) || 0));
   const push = () => {
@@ -88,6 +92,7 @@ export function mountArcadeOverlay(host, { onClose } = {}) {
   return () => {
     offLive();
     unmountLoading();
+    unmountDiag();
     removeEventListener('message', onFrameMsg);
     flushMoney();
     layer.remove();

@@ -43,9 +43,24 @@ function collect(iframe, loadState) {
     if (fe) {
       const cs = getComputedStyle(fe);
       const r = fe.getBoundingClientRect();
-      add('楼层定位', `${cs.position} z=${cs.zIndex}`);
+      add('楼层定位', `${cs.position} z=${cs.zIndex} vis=${cs.visibility} op=${cs.opacity}`);
       add('楼层框', `${px(r.width)}x${px(r.height)} @${px(r.left)},${px(r.top)}`);
       add('楼层高度样式', fe.style.height || '(无)');
+      add('楼层背景', fe.style.background || cs.backgroundColor || '(无)');
+      /* 区分「状态二」的两个成因，这几行是关键：
+           文档没了（release 导航成 about:blank）→ URL 是 about:blank、根节点数 0
+           文档活着但没被合成                  → URL 正常、根节点数几百 */
+      let docURL = '(读不到)';
+      let rootNodes = -1;
+      try {
+        const d = fe.contentDocument;
+        if (d) {
+          docURL = String(d.URL);
+          rootNodes = d.getElementById('linjiang-mobile-native-root')?.querySelectorAll('*').length ?? -2;
+        }
+      } catch (e) { docURL = `(跨源 ${e.name})`; }
+      add('楼层文档URL', docURL);
+      add('楼层根节点数', `${rootNodes}${rootNodes === 0 ? '  ← 文档是空的（被导航掉了？）' : ''}`);
     } else add('楼层', '(拿不到 frameElement)');
   } catch (e) { add('楼层', `读取失败 ${e.name}`); }
 
@@ -96,8 +111,36 @@ export function mountNativeDiag(iframe, { onClose } = {}) {
   try { native = !!window.__linjiangNativeFlow; } catch (e) { native = false; }
   if (!native) return () => {};
 
-  document.getElementById(ID)?.remove();
-  const box = document.createElement('div');
+  /* 挂到**酒馆文档**上，不是楼层文档。
+     ==================================================================
+     这一条改过一次，原因是用户的一句更正推翻了前一版的前提：黑屏发生时，连诊断条本身都不
+     显示，只有商店加载好之后才看得到日志。
+
+     诊断条是纯 DOM、挂在楼层文档 body 上的。它都不显示，说明**整个楼层文档都没在绘制** ——
+     那就不是"商店 iframe 空白、露出覆盖层近黑底色"这种解释了。也就是说存在两个不同的状态，
+     而前一版仪器只能观测到其中一个：
+
+       状态一  覆盖层在（深蓝底 + 右上角 ×）、诊断条在、只缺商店内容 —— 就是加载慢
+       状态二  整屏纯近黑，× 和诊断条都没有 —— 这才是用户抱怨的黑屏，之前一份数据都没有
+
+     状态二的两个候选成因，都会表现为"全屏纯近黑、什么都没有"：
+       · release() 把楼层导航成 about:blank，而整页模式下楼层 iframe 带着内联
+         background:#05040a —— 文档没了，那块背景还在
+       · 楼层文档活着，但 WebKit 没合成它
+
+     要区分这两者，仪器必须比楼层文档活得久。所以挂到酒馆文档上：楼层被导航掉、或者压根不
+     绘制，都杀不掉它。而 body 的子节点在根层叠上下文里，天然盖得住楼层里的任何东西
+     （楼层在 #chat 里，抬不出去 —— 这正是之前查全屏时得到的结论）。
+
+     拿不到酒馆文档（跨源之类）就退回楼层文档，总比没有好。 */
+  let host = document;
+  try {
+    const tavernDoc = window.parent?.document;
+    if (tavernDoc && tavernDoc.body) host = tavernDoc;
+  } catch (e) { host = document; }
+
+  host.getElementById(ID)?.remove();
+  const box = host.createElement('div');
   box.id = ID;
   /* 内联样式：不依赖任何样式表，样式表本身也可能加载失败。 */
   box.style.cssText = [
@@ -116,12 +159,12 @@ export function mountNativeDiag(iframe, { onClose } = {}) {
     'pointer-events:none',
   ].join(';');
 
-  const head = document.createElement('div');
+  const head = host.createElement('div');
   head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
-  const title = document.createElement('b');
+  const title = host.createElement('b');
   title.textContent = '真机诊断（临时）';
   title.style.cssText = 'flex:1;font-size:12px;color:#8fd0ff';
-  const shut = document.createElement('button');
+  const shut = host.createElement('button');
   shut.type = 'button';
   shut.textContent = '关闭商店';
   shut.style.cssText = 'flex:none;min-height:34px;padding:0 12px;border:1px solid #4ea1ff;'
@@ -134,9 +177,12 @@ export function mountNativeDiag(iframe, { onClose } = {}) {
   });
   head.append(shut, title);
 
-  const body = document.createElement('div');
+  const body = host.createElement('div');
   box.append(head, body);
-  document.body.appendChild(box);
+  host.body.appendChild(box);
+  /* 整页期间 escapeFixedContainingBlock 会把宿主 chrome 藏掉（visibility:hidden），而它是
+     按 id 逐个藏的，不会碰到我们这块 —— 但楼层的 z-index 是 2147483000，所以这里要更高。
+     已经在 cssText 里写了 2147483647，这里只是把这件事记下来。 */
 
   const loadState = { state: '等待中', detail: '' };
   try {
@@ -154,11 +200,33 @@ export function mountNativeDiag(iframe, { onClose } = {}) {
     }
   };
   render();
-  /* 多量几次：几何和加载状态都要等布局与网络安顿。 */
+  /* 多量几次：几何和加载状态都要等布局与网络安顿。之后持续低频刷新 —— 日志是活的，
+     而"楼层被导航掉"这类事件可能在打开之后好几秒才发生。
+
+     注意一个无法绕开的限制：这个 render 闭包属于**楼层文档的 realm**。楼层一旦被导航成
+     about:blank，闭包随之消失，面板会冻结在最后一次渲染的内容上。日志本身是安全的（它在
+     manager 上、属于酒馆窗口），所以正确的读法是：黑屏之后设法回到可用状态，再打开一次
+     商店 —— 新楼层的诊断条会把那 60 条环形日志整段读出来，包含导致黑屏的那几条。 */
   const timers = [200, 700, 1800, 4000].map((ms) => setTimeout(render, ms));
+  const beat = setInterval(render, 1000);
+  timers.push(beat);
+  /* 挂在酒馆文档上的东西必须有自毁时限：楼层被导航掉时卸载函数不会执行，
+     否则一块诊断条会永久留在酒馆界面上。3 分钟足够读完，也不会变成永久污染。 */
+  const view = host.defaultView || window;
+  const autoKill = view.setTimeout(() => {
+    try { host.getElementById(ID)?.remove(); } catch (e) {}
+  }, 180000);
+  timers.push({ __autoKill: autoKill, __view: view });
 
   return () => {
-    timers.forEach(clearTimeout);
-    document.getElementById(ID)?.remove();
+    timers.forEach((t) => {
+      if (t && t.__autoKill != null) { try { t.__view.clearTimeout(t.__autoKill); } catch (e) {} return; }
+      clearTimeout(t);
+      clearInterval(t);
+    });
+    /* 从它实际所在的那个文档里摘掉。挂在酒馆文档上的话，楼层卸载时必须自己清干净 ——
+       否则一块诊断条会永久留在酒馆界面上（比留下一块黑还烦）。 */
+    try { host.getElementById(ID)?.remove(); } catch (e) {}
+    try { document.getElementById(ID)?.remove(); } catch (e) {}
   };
 }

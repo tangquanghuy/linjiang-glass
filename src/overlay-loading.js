@@ -31,20 +31,39 @@ const SLOW_MS = 6000;
 export function mountFrameLoading(layer, iframe, { label = '页面', onClose } = {}) {
   if (!layer || !iframe) return () => {};
 
+  /* 视觉上必须**一眼就不是黑屏**。
+     ==================================================================
+     第一版用的是 #0c1024 底色 + 30px 转圈 + 一行 14px 小字。按像素量下来（
+     scripts/check-overlay-loading.mjs，拦掉页面地址后截图统计），CG 那格非近黑像素只有
+     **0.7%** —— 也就是一个细圆环加一行小字落在一大片深色上。人眼能看见，但在手机上扫一眼，
+     它跟"黑屏"的区别不够大，用户完全有理由还是叫它黑屏（这条正是用户质疑出来的）。
+
+     所以改成：明显更亮的背板 + 一张有边框的卡片 + 更大的字。目的不是好看，是让"它在加载"
+     这件事无法被误读成"它坏了"。 */
   const box = document.createElement('div');
   box.className = 'overlay-loading';
   box.style.cssText = [
     'position:absolute', 'inset:0', 'z-index:5',
     'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
-    'gap:14px', 'padding:24px', 'box-sizing:border-box', 'text-align:center',
-    'background:#0c1024', 'color:#e8ecff',
-    'font:500 14px/1.6 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif',
+    'gap:16px', 'padding:22px', 'box-sizing:border-box', 'text-align:center',
+    /* 比任何一个覆盖层的底色都明显更亮（它们是 #0c1024 / #100d17 / #070a14 / #05040a）。 */
+    'background:#1a2340', 'color:#eef3ff',
+    'font:500 15px/1.65 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif',
+  ].join(';');
+
+  /* 卡片：把文字和按钮收在一块更亮的面上，进一步拉开与"纯深色"的差距。 */
+  const card = document.createElement('div');
+  card.style.cssText = [
+    'display:flex', 'flex-direction:column', 'align-items:center', 'gap:14px',
+    'width:min(21em,100%)', 'padding:22px 20px', 'box-sizing:border-box',
+    'border:1px solid #6f8ec9', 'border-radius:16px', 'background:#26325a',
+    'box-shadow:0 10px 30px rgba(0,0,0,.35)',
   ].join(';');
 
   const spinner = document.createElement('div');
   spinner.style.cssText = [
-    'width:30px', 'height:30px', 'border-radius:50%',
-    'border:3px solid rgba(232,236,255,.22)', 'border-top-color:#8fd0ff',
+    'width:40px', 'height:40px', 'border-radius:50%',
+    'border:4px solid rgba(238,243,255,.34)', 'border-top-color:#b9dcff',
     'animation:overlay-spin 900ms linear infinite',
   ].join(';');
   /* 关键帧注入 head 而不是放进这一层里。
@@ -60,9 +79,10 @@ export function mountFrameLoading(layer, iframe, { label = '页面', onClose } =
 
   const text = document.createElement('div');
   text.textContent = `正在加载${label}…`;
+  text.style.cssText = 'font-size:17px;font-weight:600;color:#eef3ff';
 
   const hint = document.createElement('div');
-  hint.style.cssText = 'max-width:22em;font-size:12.5px;line-height:1.7;color:#9fb0d8;display:none';
+  hint.style.cssText = 'font-size:13px;line-height:1.75;color:#c3d2f0;display:none';
 
   const actions = document.createElement('div');
   actions.style.cssText = 'display:none;gap:10px;flex-wrap:wrap;justify-content:center';
@@ -72,9 +92,9 @@ export function mountFrameLoading(layer, iframe, { label = '页面', onClose } =
     btn.textContent = caption;
     btn.style.cssText = [
       'min-height:40px', 'padding:0 16px', 'border-radius:10px',
-      `border:1px solid ${primary ? '#8fd0ff' : 'rgba(232,236,255,.3)'}`,
-      `background:${primary ? '#17395c' : 'transparent'}`,
-      'color:#e8ecff', 'font:600 13px/1 inherit', 'touch-action:manipulation', 'cursor:pointer',
+      `border:1px solid ${primary ? '#b9dcff' : 'rgba(238,243,255,.45)'}`,
+      `background:${primary ? '#2f5f92' : 'rgba(238,243,255,.08)'}`,
+      'color:#eef3ff', 'font:600 14px/1 inherit', 'touch-action:manipulation', 'cursor:pointer',
     ].join(';');
     return btn;
   };
@@ -82,7 +102,8 @@ export function mountFrameLoading(layer, iframe, { label = '页面', onClose } =
   const quit = mkBtn('关闭', false);
   actions.append(retry, quit);
 
-  box.append(spinner, text, hint, actions);
+  card.append(spinner, text, hint, actions);
+  box.appendChild(card);
   layer.appendChild(box);
 
   let done = false;
