@@ -2,6 +2,7 @@
    only successful product redemption crosses the bridge and writes MVU 背包. */
 import { purchaseShopProduct } from './bridge.js';
 import { hudPage } from './asset.js';
+import { mountNativeDiag } from './native-diag.js';
 
 export function shopSrc() {
   /* 基准必须是 HUD 自己的来源，不能是 document.baseURI —— 原生流下后者是酒馆的地址，
@@ -39,7 +40,12 @@ export function mountShopOverlay(host, { onClose } = {}) {
   };
   addEventListener('message', onMessage);
   iframe.addEventListener('load', () => iframe.contentWindow?.postMessage({ type: 'airp-shop:hello' }, '*'));
+  /* 临时仪器：iOS/TT 上这里会整屏黑，而夹具复现不出来。诊断条是纯 DOM、不加载任何东西，
+     所以它自己不会跟着变黑 —— 黑屏那一刻它就是唯一还能读到的东西。查清后删掉。
+     只在原生流下出现（见 src/native-diag.js）。 */
+  const unmountDiag = mountNativeDiag(iframe, { onClose: close });
   return () => {
+    unmountDiag();
     removeEventListener('message', onMessage);
     layer.remove();
     if (!document.querySelector('.shop-layer')) document.documentElement.classList.remove('has-shop');
