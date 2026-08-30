@@ -1048,6 +1048,11 @@
   const MANAGER_VERSION = 4;
   const INSTANCE_ID = (globalThis.crypto?.randomUUID?.() || `hud-${Date.now()}-${Math.random()}`);
 
+  /* 原生流下最多同时留几份挂好的 HUD。见 manager.noteMounted 上面那段。 */
+  const KEEP_MOUNTED = 3;
+  /* 交接时最多让上一任多显示多久。正常情况下新任挂好就立刻交班，这只是兜底。 */
+  const HANDOVER_HOLD_MS = 15000;
+
   const createManager = (host) => {
     const manager = {
       version: MANAGER_VERSION,
@@ -1066,6 +1071,14 @@
          is still open. Keep the target shared across controller handovers, but do not
          move/reload the HUD iframe until the page reports that it has closed. */
       pendingDockMode: null,
+      /* 交接期间「还没交班的上一任」。原生流下新任要在自己的文档里从头挂一遍 HUD bundle，
+         那段时间里上一任是屏幕上唯一还画着东西的东西 —— 立刻收掉它，用户看到的就是一段纯黑
+         （夹具实测 4G 时延下 6.2 秒）。所以改成"新任画好了再交班"。 */
+      retiring: null,
+      /* 原生流各楼层共用的 bundle 入口解析结果（纯数据，不受 realm 影响）。 */
+      nativeEntry: null,
+      /* 已经挂好 HUD 的楼层，按当选顺序。用来把同时活着的实例数压住。 */
+      mounted: [],
       /* 活着的控制器提供的定时器。见下面 defer 上面那段说明。 */
       timers: new Map(),
       eventHooksBound: false,
@@ -1167,7 +1180,9 @@
           if (!alive) {
             this.candidates.delete(id);
             this.timers.delete(id);
+            this.mounted = this.mounted.filter((entry) => entry !== id);
             if (this.owner?.id === id) this.owner = null;
+            if (this.retiring?.id === id) this.retiring = null;
           } else {
             row.epoch = this.epoch;
           }
@@ -1196,6 +1211,8 @@
         const record = this.candidates.get(id);
         this.candidates.delete(id);
         this.timers.delete(id);
+        this.mounted = this.mounted.filter((row) => row !== id);
+        if (this.retiring?.id === id) this.retiring = null;
         if (this.owner?.id === id) {
           try { record?.deactivate('removed'); } catch (e) {}
           this.owner = null;
@@ -1221,8 +1238,65 @@
       retireLosers(owner) {
         for (const row of this.candidates.values()) {
           if (owner && row.id === owner.id) continue;
+          /* 交接期间故意留着的那一任不能碰 —— 它正是屏幕上唯一还画着东西的。 */
+          if (this.retiring && row.id === this.retiring.id) continue;
           try { row.deactivate('not-elected'); } catch (e) {}
         }
+      },
+      /* 上一任先别交班，等新任画好。只有需要重新挂载的新任（原生流）才用得上。 */
+      holdRetire(previous, next) {
+        if (!previous || previous.id === next?.id) return false;
+        let wants = false;
+        try { wants = !!next?.wantsHandoverHold?.(); } catch (e) {}
+        if (!wants) return false;
+        if (this.retiring && this.retiring.id !== previous.id) {
+          /* 已经留着一任了（第三条消息在第二条还没画好时就到了）。屏幕上画着东西的是老的
+             那个，所以留下画好的、收掉没画好的，而不是无脑覆盖。 */
+          let previousPainted = false;
+          try { previousPainted = !!previous.isPainted?.(); } catch (e) {}
+          if (!previousPainted) {
+            try { previous.deactivate('superseded'); } catch (e) {}
+            return true;
+          }
+          const stale = this.retiring;
+          this.retiring = previous;
+          try { stale.deactivate('superseded'); } catch (e) {}
+          return true;
+        }
+        this.retiring = previous;
+        return true;
+      },
+      commitRetire() {
+        const record = this.retiring;
+        this.retiring = null;
+        if (!record || record.id === this.owner?.id) return;
+        try { record.deactivate('superseded'); } catch (e) {}
+      },
+      /* 原生流下每次交接都会在新楼层的文档里再挂一份 HUD。挂过的那些如果只是被隐藏，实例数
+         就随消息条数线性涨（夹具实测：6 次交接后 10 份还活着、堆 +11.6MB）。手机上这条路的
+         终点是渲染进程被回收 —— 整片黑，而且只有刷新才好。
+
+         所以只保留最近 KEEP_MOUNTED 份，更老的让它自己把文档导航成 about:blank，DOM / JS /
+         module 一次性全放掉（见控制器的 release）。留 3 份而不是 1 份，是为了「删掉末条消息」
+         之后选举还能退回到一个活着的楼层。 */
+      noteMounted(id) {
+        this.mounted = this.mounted.filter((row) => row !== id);
+        this.mounted.push(id);
+        const excess = this.mounted.length - KEEP_MOUNTED;
+        if (excess <= 0) return;
+        const keep = [];
+        let released = 0;
+        for (const row of this.mounted) {
+          const guarded = row === this.owner?.id || row === this.retiring?.id;
+          if (released < excess && !guarded) {
+            released += 1;
+            const record = this.candidates.get(row);
+            try { record?.release?.(); } catch (e) {}
+            continue;
+          }
+          keep.push(row);
+        }
+        this.mounted = keep;
       },
       elect() {
         const rows = [...this.candidates.values()].filter((row) =>
@@ -1246,7 +1320,9 @@
         }
         const previous = this.owner;
         this.owner = next;
-        try { previous?.deactivate('superseded'); } catch (e) {}
+        if (!this.holdRetire(previous, next)) {
+          try { previous?.deactivate('superseded'); } catch (e) {}
+        }
         this.retireLosers(next);
         if (next) {
           this.ensureHudFrame();
@@ -1261,6 +1337,7 @@
         this.chatKey = chatKey == null ? null : String(chatKey);
         const previous = this.owner;
         this.owner = null;
+        this.retiring = null;
         try { previous?.deactivate('chat-switch'); } catch (e) {}
         this.resetHudFrame();
         try { this.contextTimer?.cancel?.(); } catch (e) {}
@@ -2656,7 +2733,7 @@
     const bridge = {
       owner: INSTANCE_ID,
       async request(action, payload) {
-        if (!isOwner()) throw new Error('?????????????');
+        if (!isOwner()) throw new Error('这一楼已不是当前 owner，请求作废');
         /* Docking belongs only to the desktop lifted architecture. */
         if (action === 'collapseHud') return true;
         const result = await handleRequest(action, payload || {});
@@ -2711,20 +2788,70 @@
     document.head.appendChild(style);
   };
 
-  const copyMobileNativeStyles = (parsed, baseUrl) => {
-    parsed.querySelectorAll('link[rel="stylesheet"]').forEach((source) => {
-      const href = source.getAttribute('href');
-      if (!href) return;
-      const absolute = new URL(href, baseUrl).toString();
-      if ([...document.styleSheets].some((sheet) => sheet.href === absolute)) return;
+  /* 各楼层共用 bundle 入口的解析结果。
+     ------------------------------------------------------------------
+     每次 owner 交接都重新取一遍 HUD 首页是纯浪费：那份 HTML 只用来找出 bundle 入口和样式表
+     清单，而这两样在一次会话里不会变。结果放在 manager 上 —— 它挂在酒馆顶层窗口，而且是纯
+     数据（字符串和数组），不受"realm 消失"的影响。于是只有第一层付那次往返。
+
+     顺带去掉 cache:'no-store'：它强制每次都走网络，而这份 HTML 完全可以按 Pages 给的
+     max-age 走缓存。原来「每条消息一次不可缓存的往返 + 整份 bundle」正是交接黑屏的主体。 */
+  const resolveNativeEntry = async () => {
+    if (manager.nativeEntry) return manager.nativeEntry;
+    const response = await fetch(new URL(HUD_URL, location.href).toString());
+    if (!response.ok) throw new Error(`HUD 首页 HTTP ${response.status}`);
+    const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+    const entries = [...parsed.querySelectorAll('script[type="module"][src]')];
+    const entry = entries.find((item) => !String(item.getAttribute('src') || '').includes('/@vite/client'))
+      || entries.at(-1);
+    if (!entry) throw new Error('HUD 首页里找不到 module script');
+    const resolved = {
+      src: new URL(entry.getAttribute('src'), response.url).toString(),
+      css: [...parsed.querySelectorAll('link[rel="stylesheet"]')]
+        .map((link) => ({
+          href: link.getAttribute('href') ? new URL(link.getAttribute('href'), response.url).toString() : '',
+          media: link.media || '',
+          crossOrigin: link.crossOrigin || '',
+        }))
+        .filter((row) => row.href),
+    };
+    manager.nativeEntry = resolved;
+    return resolved;
+  };
+
+  const applyNativeStyles = (rows) => {
+    rows.forEach((row) => {
+      if ([...document.styleSheets].some((sheet) => sheet.href === row.href)) return;
+      if (document.querySelector(`link[rel="stylesheet"][href="${CSS.escape(row.href)}"]`)) return;
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = absolute;
-      if (source.media) link.media = source.media;
-      if (source.crossOrigin) link.crossOrigin = source.crossOrigin;
+      link.href = row.href;
+      if (row.media) link.media = row.media;
+      if (row.crossOrigin) link.crossOrigin = row.crossOrigin;
       document.head.appendChild(link);
     });
   };
+
+  /* 「script 触发了 load」不等于「HUD 起来了」。module 在执行期间抛异常时 script 照样 fire
+     load，而根节点会一直空着 —— 屏幕上就是永久黑，而且没有任何一处会去重试。所以挂载的终点
+     判据是根节点真的长出东西来。 */
+  const nativeHudPainted = () => {
+    try { return (mobileNativeRoot?.querySelectorAll('*').length || 0) > 40; }
+    catch (e) { return false; }
+  };
+
+  const waitForNativePaint = (timeoutMs) => new Promise((resolve, reject) => {
+    const started = Date.now();
+    const tick = () => {
+      if (nativeHudPainted()) { resolve(true); return; }
+      if (Date.now() - started > timeoutMs) { reject(new Error('HUD 脚本加载了但没有画出来')); return; }
+      setTimeout(tick, 80);
+    };
+    tick();
+  });
+
+  let mobileNativeMountAttempt = 0;
+  let mobileNativeRetryTimer = 0;
 
   const mountMobileNativeHud = () => {
     restoreMobileNativeAnchor();
@@ -2743,35 +2870,57 @@
     mobileNativeRoot.hidden = false;
     if (mobileNativeMountPromise) return mobileNativeMountPromise;
 
-    mobileNativeRoot.innerHTML = '<div class="viewport"></div>';
-    showHint('???????????');
+    const attempt = ++mobileNativeMountAttempt;
+    if (!nativeHudPainted()) mobileNativeRoot.innerHTML = '<div class="viewport"></div>';
+    showHint('正在加载 HUD…');
     mobileNativeMountPromise = (async () => {
-      const response = await fetch(new URL(HUD_URL, location.href).toString(), { cache: 'no-store' });
-      if (!response.ok) throw new Error(`HUD ?? HTTP ${response.status}`);
-      const html = await response.text();
-      const parsed = new DOMParser().parseFromString(html, 'text/html');
-      copyMobileNativeStyles(parsed, response.url);
-      const entries = [...parsed.querySelectorAll('script[type="module"][src]')];
-      const entry = entries.find((item) => !String(item.getAttribute('src') || '').includes('/@vite/client'))
-        || entries.at(-1);
-      if (!entry) throw new Error('HUD ???? module script');
-      const src = new URL(entry.getAttribute('src'), response.url).toString();
+      const entry = await resolveNativeEntry();
+      applyNativeStyles(entry.css);
+      /* 重试时给入口加一个查询串。同一个 URL 一旦进了本文档的 module map 就不会再执行，
+         所以"加载成功但没画出来"那种失败必须换 URL 才有第二次机会。 */
+      const src = attempt > 1
+        ? `${entry.src}${entry.src.includes('?') ? '&' : '?'}shellRetry=${attempt}`
+        : entry.src;
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.type = 'module';
         script.src = src;
         script.crossOrigin = 'anonymous';
         script.onload = resolve;
-        script.onerror = () => reject(new Error('??? HUD ??????'));
+        script.onerror = () => reject(new Error('取不到 HUD 的入口脚本'));
         document.head.appendChild(script);
       });
+      await waitForNativePaint(6000);
       showHint('');
       queueMobileNativeHeight();
       pushSnapshot(true);
+      /* 画好了才交班：在此之前上一任一直留在屏幕上。
+         只有 owner 有资格说这句话 —— 开机时几个楼层是连着注册的，一个已经落选的楼层挂载完成
+         时若也去 commitRetire，就会把那个正显示着的上一任收掉，反而空一段。 */
+      if (isOwner()) { try { manager.commitRetire(); } catch (e) {} }
+      try { manager.noteMounted(INSTANCE_ID); } catch (e) {}
       return true;
     })().catch((error) => {
-      console.error('[?????] ??????????', error);
-      showHint('?????????????????');
+      console.error('[临江状态栏] HUD 挂载失败', error);
+      showHint('HUD 加载失败，正在重试…');
+      /* 失败的 promise 绝不能留在缓存里。
+         ------------------------------------------------------------------
+         原来这里只打日志就把 rejected promise 留下了，于是这一楼永久停在纯黑：之后每次重新
+         当选都拿到同一个已 reject 的 promise，一次都不会再试。夹具里这条是「挂载失败一次之后
+         12 秒都不自愈」。
+
+         重试由本文档自己安排 —— 它正在跑，所以不会像 manager 自己 schedule 的那样被丢掉。
+         上一任故意不在这里交班：让它继续显示旧数据，也比一块黑好。 */
+      mobileNativeMountPromise = null;
+      if (mobileNativeMountAttempt <= 6) {
+        const delay = Math.min(8000, 600 * 2 ** (mobileNativeMountAttempt - 1));
+        clearTimeout(mobileNativeRetryTimer);
+        mobileNativeRetryTimer = setTimeout(() => {
+          if (isOwner() && !destroyed) mountMobileNativeHud().catch(() => {});
+        }, delay);
+      } else {
+        showHint('HUD 加载失败，检查网络后重开对话');
+      }
       throw error;
     });
     return mobileNativeMountPromise;
@@ -2779,6 +2928,8 @@
 
   let followTick = 0;
   let inlineResumeTimer = 0;
+  /* 交接兜底：新任挂载卡住时最多让上一任多显示 HANDOVER_HOLD_MS。 */
+  let handoverHoldTimer = 0;
 
   /* TauriTavern mobile parks message runtimes by moving the outer JSR iframe into
      a hidden 0x0 container. The inline HUD hides itself there, but moving it back
@@ -3449,6 +3600,10 @@
       active = false;
       try { clearInterval(pollTimer); } catch (e) {}
       pollTimer = 0;
+      try { clearTimeout(handoverHoldTimer); } catch (e) {}
+      handoverHoldTimer = 0;
+      try { clearTimeout(mobileNativeRetryTimer); } catch (e) {}
+      mobileNativeRetryTimer = 0;
       clearHostListeners();
       removeMobileNativeBridge();
       document.documentElement.dataset.linjiangNativeActive = '0';
@@ -3581,11 +3736,36 @@
       document.documentElement.dataset.linjiangNativeActive = '1';
       bindMobileNativeRuntime();
       restoreMobileNativeAnchor();
-      showHint('???????????');
       pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
-      mountMobileNativeHud().catch(() => {});
+      /* 兜底：挂载一直不成功时也不能让上一任永远占着位置（它已经不应答 RPC，数据只会越来越
+         旧）。这个定时器由本文档发起 —— 它正在跑，所以不会像 manager 自己 schedule 的那样
+         被丢掉。正常路径是 mountMobileNativeHud 画好后立刻 commitRetire，用不到这里。 */
+      clearTimeout(handoverHoldTimer);
+      handoverHoldTimer = setTimeout(() => {
+        if (isOwner()) { try { manager.commitRetire(); } catch (e) {} }
+      }, HANDOVER_HOLD_MS);
+      /* 这一层的 HUD 还在（比如末条消息被删、选举退回到它）：不用重新挂，也就没有黑窗口，
+         立刻交班。挂载 promise 是缓存的，它的 .then 不会再跑一遍，所以这一段不能省。 */
+      if (nativeHudPainted()) {
+        mountMobileNativeHud().catch(() => {});
+        try { manager.commitRetire(); } catch (e) {}
+        try { manager.noteMounted(INSTANCE_ID); } catch (e) {}
+        showHint('');
+        queueMobileNativeHeight();
+        pushSnapshot(true);
+        return;
+      }
+      /* 晚一帧再挂，并且挂之前重新确认自己还是 owner。
+         开机时（以及酒馆助手一次渲染多条消息时）几个状态栏楼层是连着注册的，每一个都会当
+         一瞬间的 owner。同步就挂的话，每个都会在自己的文档里跑一遍完整的 HUD，只为了在几
+         毫秒后落选 —— 白搭几份实例和几份内存。 */
+      requestAnimationFrame(() => {
+        if (active && !destroyed && isOwner()) mountMobileNativeHud().catch(() => {});
+      });
       return;
     }
+    /* 抬升架构不需要留着上一任：共用的 HUD 不重载，接手只是一次重排。 */
+    try { manager.commitRetire(); } catch (e) {}
     /* A message/status re-render elects a new controller without reloading the
        managed HUD iframe. Restore the shared docking state before the first layout,
        otherwise the new owner falls back to the viewport-wide desktop box. If a page
@@ -3610,7 +3790,7 @@
     try { localHudFrame.remove(); } catch (e) {}
     bindActiveRuntime();
     fitParentFrame();
-    showHint('?? HUD / MVU?');
+    showHint('等 HUD / MVU…');
     pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
     postToHud({ channel: CHANNEL, kind: 'event', type: 'context', context });
     pushSnapshot(true);
@@ -3649,8 +3829,8 @@
     pushSnapshot,
     requestFollow,
     destroyed: () => destroyed,
-    /* 这两个是给 manager 用的、必须跑在**本文档 realm** 里的能力。manager 自己的闭包属于
-       最先启动的那个楼层文档，那个文档一被重渲染，它 schedule 出去的回调就永远不会执行
+    /* 下面四个都是给 manager 用的、必须跑在**本文档 realm** 里的能力。manager 自己的闭包
+       属于最先启动的那个楼层文档，那个文档一被重渲染，它 schedule 出去的回调就永远不会执行
        （见 manager.defer 上面那段）。所以凡是需要"以后再做"的事，都由控制器代劳。 */
     alive: () => {
       try { return !destroyed && !!window.frameElement; } catch (e) { return false; }
@@ -3658,6 +3838,26 @@
     defer: (fn, ms) => {
       const id = setTimeout(() => { try { fn(); } catch (e) {} }, ms);
       return { cancel: () => { try { clearTimeout(id); } catch (e) {} } };
+    },
+    /* 接手时要不要先留着上一任：只有需要在自己文档里从头挂 bundle 的原生流才需要。 */
+    wantsHandoverHold: () => MOBILE_NATIVE_FLOW,
+    isPainted: () => (MOBILE_NATIVE_FLOW
+      ? (!!mobileNativeRoot && !mobileNativeRoot.hidden && nativeHudPainted())
+      : !!active),
+    /* 把这一层彻底放掉：文档导航成 about:blank，DOM / JS / module 一次性全交回浏览器。
+       只有原生流用得到，而且只作用在既不是 owner、也不在交接队列里的老楼层上
+       （manager.noteMounted 里挑人）。
+
+       为什么是导航，而不是"删掉根节点了事"：module script 一旦进了本文档的 module map 就
+       不会再执行，所以拆了 DOM 就没法在同一个文档里重新挂 —— 那等于把偶发黑屏做成必然。
+       导航掉之后 pagehide 会把这一层从候选里摘掉，选举自然跳过它；折叠高度是写在 iframe
+       元素的 inline style 上的（!important），跟着元素而不是文档，所以导航后仍然是 0 高。 */
+    release: () => {
+      if (!MOBILE_NATIVE_FLOW || destroyed) return false;
+      if (manager.owner?.id === INSTANCE_ID || manager.retiring?.id === INSTANCE_ID) return false;
+      try { uninstall(); } catch (e) {}
+      try { location.replace('about:blank'); } catch (e) {}
+      return true;
     },
   });
 
