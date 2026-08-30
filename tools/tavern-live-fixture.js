@@ -149,10 +149,28 @@ const { sheldVw } = applyTheme(theme);
 /* ---------------------------------------------------------------- TauriTavern */
 
 const isTauriHost = params.get('host') === 'tauritavern';
+/* 移动端 compat 是**有条件**装的：src/tauri/main/bootstrap.js 第 267 行
+   `const isMobile = isMobileUserAgent(); if (isMobile) installTauriMobileCompat();`。
+   判据（同文件 isMobileUserAgent）只看 UA，不看尺寸。桌面版 TauriTavern 只有 __TAURITAVERN__
+   这层 ABI，没有几何防火墙也没有浮层准入 —— 夹具必须照这个条件来，否则「TT 桌面」那一格
+   测的是一个现实中不存在的组合。
+
+   夹具在 UA 判据之外多认一条「有触摸点」：Playwright 的 isMobile/hasTouch 只改
+   deviceMetrics 和 maxTouchPoints，**不改 UA**，所以照抄 UA-only 会让所有用模拟器跑的
+   手机场景都被判成桌面。多认触摸点只会让判定更偏向"移动"，不会把真桌面误判成移动
+   （桌面没有 maxTouchPoints）。想显式要 TT 桌面，就别开 hasTouch。 */
+const ttMobileUa = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1)
+  || Number(navigator.maxTouchPoints || 0) > 0;
 const ttControllers = [];
 if (isTauriHost) {
   /* 状态栏壳层的 isTauriTavernMobile() 认这个全局。 */
   window.__TAURITAVERN__ = { abiVersion: 1 };
+}
+if (isTauriHost && !ttMobileUa) {
+  note('TauriTavern 桌面：按 bootstrap.js 的 UA 判据不装移动端 compat（只有 __TAURITAVERN__ ABI）');
+}
+if (isTauriHost && ttMobileUa) {
   /* src/tauri/main/api/layout.js 的 ROOT_CONTRACT_VARS。真实值来自原生侧的安全区，
      这里按一台有刘海和手势条的手机手工给定。 */
   const root = document.documentElement;
@@ -216,13 +234,30 @@ window.Mvu = {
   getMvuData() { return { stat_data: structuredClone(fixtureStatData) }; },
   replaceMvuData() { return true; },
 };
-window.eventSource = { on() {}, emit() {} };
+/* eventSource 必须是**真的**会派发的。
+   ------------------------------------------------------------------
+   以前这里是 `{ on(){}, emit(){} }` 空壳，于是壳层挂在 chatLoaded 上的 switchContext 从来
+   没被触发过 —— 而「切换对话」正好是状态栏消失的一条主路径（manager 会把 epoch 加一，然后
+   靠一次延迟收编把仍然连着的候选捞回来）。空壳等于把这条路整个排除在夹具之外。 */
+const fixtureEvents = new Map();
+window.eventSource = {
+  on(type, handler) {
+    if (!fixtureEvents.has(type)) fixtureEvents.set(type, new Set());
+    fixtureEvents.get(type).add(handler);
+  },
+  emit(type, ...args) {
+    for (const handler of fixtureEvents.get(type) || []) {
+      try { handler(...args); } catch (error) { console.warn('[夹具] 事件处理抛错', type, error); }
+    }
+  },
+};
 window.eventOn = () => {};
 window.sendMessageAsUser = async () => true;
 window.sendTextareaMessage = async () => true;
 /* predefine.js 的替身要 merge 它，给个空壳避免抛错。 */
 window.TavernHelper = { _bind: {} };
-window.SillyTavern = { getContext: () => ({ chatId: 'fixture-chat' }) };
+let fixtureChatId = 'fixture-chat';
+window.SillyTavern = { getContext: () => ({ chatId: fixtureChatId }) };
 
 /* ---------------------------------------------------------------- 酒馆助手注入 */
 
@@ -390,6 +425,9 @@ let statusFrame = null;
    statusFrame 指向最新那个（manager 会选它当 owner）。 */
 const statusFrames = [];
 const renderFrames = [];
+/* mesid 是 manager.messageRank 的唯一依据（它读 .mes 上的 mesid 属性来排序候选），所以
+   运行时追加楼层必须接着往上发号，不能从头再来 —— 否则新楼层排在旧楼层前面，选举结果反了。 */
+let nextMesid = 0;
 
 const AVATAR = (label, color) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" rx="40" fill="${color}"/><text x="40" y="49" fill="white" text-anchor="middle" font-size="28" font-family="sans-serif">${label}</text></svg>`)}`;
@@ -548,7 +586,7 @@ async function mountChat() {
 
   const floors = Math.max(0, Number(params.get('floors') ?? 12));
   const rendered = Math.max(0, Number(params.get('rendered') ?? 2));
-  let mesid = 0;
+  nextMesid = 0;
 
   const paragraph = (content) => {
     const p = document.createElement('p');
@@ -559,22 +597,22 @@ async function mountChat() {
   /* 状态栏之前放两条，保证它落在首屏内 —— iframe 是 loading="lazy" 的（照 Iframe.vue），
      一开始就在视口外的话根本不会加载。 */
   chatEl.appendChild(buildMessage({
-    mesid: mesid++, name: '你', user: true,
+    mesid: nextMesid++, name: '你', user: true,
     body: paragraph('先检查状态栏上方的消息。'),
   }));
   chatEl.appendChild(buildMessage({
-    mesid: mesid++, name: '临江',
+    mesid: nextMesid++, name: '临江',
     body: paragraph('真实酒馆里滚动容器是 #chat，而且它自带 backdrop-filter。'),
   }));
 
   const statusSource = await loadProductionStatusSource();
   if (generation !== mountGeneration) return;
-  const statusBlock = buildRenderBlock(`${mesid}--0`, statusSource);
+  const statusBlock = buildRenderBlock(`${nextMesid}--0`, statusSource);
   statusFrame = statusBlock.iframe;
   statusFrames.length = 0;
   statusFrames.push(statusBlock.iframe);
   chatEl.appendChild(buildMessage({
-    mesid: mesid++, name: 'System Update', body: statusBlock.render,
+    mesid: nextMesid++, name: 'System Update', body: statusBlock.render,
   }));
 
   const readingSource = useRealReading && rendered > 0 ? await loadReadingSource() : FILLER_HTML;
@@ -585,7 +623,7 @@ async function mountChat() {
     const user = i % 3 === 0;
     let body;
     if (i < rendered) {
-      const block = buildRenderBlock(`${mesid}--0`, readingSource);
+      const block = buildRenderBlock(`${nextMesid}--0`, readingSource);
       renderFrames.push(block.iframe);
       body = block.render;
     } else {
@@ -594,7 +632,7 @@ async function mountChat() {
         + '真实对话里每一条都比这长得多，而且大多带一个渲染 iframe。',
       );
     }
-    chatEl.appendChild(buildMessage({ mesid: mesid++, name: user ? '你' : '临江', user, body }));
+    chatEl.appendChild(buildMessage({ mesid: nextMesid++, name: user ? '你' : '临江', user, body }));
   }
 
   /* ?statusFloors=<n> ——— 状态栏出现在多少条楼层里。
@@ -608,10 +646,10 @@ async function mountChat() {
      多出来的这几条放在最后，所以最新的那条（mesid 最大）才是 owner。 */
   const statusFloors = Math.max(1, Number(params.get('statusFloors') ?? 1));
   for (let i = 1; i < statusFloors; i += 1) {
-    const block = buildRenderBlock(`${mesid}--0`, statusSource);
+    const block = buildRenderBlock(`${nextMesid}--0`, statusSource);
     statusFrames.push(block.iframe);
     chatEl.appendChild(buildMessage({
-      mesid: mesid++, name: 'System Update', body: block.render,
+      mesid: nextMesid++, name: 'System Update', body: block.render,
     }));
   }
   if (statusFloors > 1) {
@@ -623,6 +661,416 @@ async function mountChat() {
   /* srcdoc 要在节点进 DOM 之后再赋值，否则 loading=lazy 的判定没有布局可依据。 */
   for (const frame of statusFrames) frame.srcdoc = createSrcContent(statusSource);
   for (const frame of renderFrames) frame.srcdoc = createSrcContent(readingSource);
+}
+
+/* ---------------------------------------------------------------- 运行时楼层事件
+
+   上面 mountChat 一次性把楼层铺好，那只覆盖了「打开一个已有对话」。真实使用里状态栏楼层
+   是**陆续出现**的，而且旧楼层还会重新出现：
+
+     appendStatusFloor()    来了一条新 AI 消息。酒馆助手在新楼层里再渲染一份状态栏，于是
+                            manager 要做一次 owner 交接 —— 移动端原生流下这意味着新楼层
+                            要从头挂一遍 HUD bundle。这是黑屏反馈最直接的对应动作。
+     rerenderStatusFloor()  旧楼层的 srcdoc 被重新赋值。真实触发源有三个：用户 swipe 重生成、
+                            酒馆助手重渲染该楼层、以及 WebKit 把滚出视口的 srcdoc 文档丢掉后
+                            回滚重载。共同点是它带着一个**更小的 mesid** 重新注册，所以
+                            manager 不会选它 —— 这条路径在静态夹具里永远走不到。
+     removeStatusFloor()    删楼层 / 楼层被丢弃。
+
+   这三件事都只在运行时发生，是静态夹具的盲区，而黑屏正好全在这个盲区里。 */
+
+function statusFloorCount() { return statusFrames.length; }
+
+/* 真实酒馆收到新消息时会持续把 #chat 钉在底部（消息还在长高，所以不是一次性滚动）。
+   夹具里新楼层的 iframe 是从 0 高开始长的，不钉住的话它长出来的部分全在视口下面，
+   量出来的"可见条面积"就跟真机对不上。 */
+/** 切换对话。
+    ------------------------------------------------------------------
+    真实动作有两件：ST 派发 chatLoaded（壳层据此 switchContext，把 epoch 加一），以及整段
+    聊天被重新渲染 —— 也就是每个状态栏楼层都换成一个全新的 iframe 元素、全新的文档。
+
+    这两件事的**先后没有保证**，壳层里那段注释写的就是这个。所以两种顺序都要能测：
+
+      order='event-first'   先 chatLoaded，再出现新楼层。新楼层注册时 epoch 已经是新的，
+                            走的是最顺的那条路。
+      order='floors-first'  先出现新楼层，再 chatLoaded。新楼层注册时盖的是旧 epoch，
+                            switchContext 随后把 epoch 加一，于是它们全部作废 —— 只能靠
+                            那次延迟收编（或 register 里的兜底）捞回来。这条是「切完对话
+                            状态栏就没了」的现场。 */
+async function switchChat(chatId, { order = 'event-first' } = {}) {
+  const next = String(chatId || `fixture-chat-${Date.now()}`);
+  const rebuild = async () => {
+    for (let index = 0; index < statusFrames.length; index += 1) {
+      await recreateStatusFloor(index);
+    }
+  };
+  /* 「楼层先」必须等到新文档真的**注册过**才算数。只赋 srcdoc 是不够的：文档加载是异步的，
+     壳层要等它执行完才 register，那时候 chatLoaded 早发完了 —— 顺序又倒回去了，而这条用例
+     的全部意义就在于"注册发生在 epoch 加一之前"。 */
+  const waitRegistered = async (timeout = 15000) => {
+    const started = performance.now();
+    while (performance.now() - started < timeout) {
+      const ready = statusFrames.every((frame) => {
+        try { return !!frame.contentDocument?.documentElement?.dataset?.linjiangShell; }
+        catch (e) { return false; }
+      });
+      if (ready) return true;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    }
+    return false;
+  };
+  const fire = () => {
+    fixtureChatId = next;
+    window.eventSource.emit('chatLoaded');
+  };
+  if (order === 'floors-first') {
+    await rebuild();
+    await waitRegistered();
+    fire();
+  } else {
+    fire();
+    await rebuild();
+  }
+  return { chatId: next, order, floors: statusFrames.length };
+}
+
+/** 把某个状态栏楼层滚进视口。像素级复核要先看得见那块区域。 */
+function scrollToFloor(index) {
+  const frame = statusFrames[index];
+  if (!frame) throw new Error(`没有第 ${index} 个状态栏楼层`);
+  const paneTop = chatEl.getBoundingClientRect().top;
+  chatEl.scrollTop += frame.getBoundingClientRect().top - paneTop - 8;
+  return chatEl.scrollTop;
+}
+
+function stickToBottom(ms = 1500) {
+  const until = performance.now() + ms;
+  const tick = () => {
+    chatEl.scrollTop = chatEl.scrollHeight;
+    if (performance.now() < until) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/** 追加一条带状态栏的 AI 楼层，等价于「来了一条新 AI 消息」。 */
+async function appendStatusFloor({ scrollToBottom = true } = {}) {
+  const statusSource = await loadProductionStatusSource();
+  const block = buildRenderBlock(`${nextMesid}--0`, statusSource);
+  const message = buildMessage({ mesid: nextMesid++, name: 'System Update', body: block.render });
+  chatEl.appendChild(message);
+  statusFrames.push(block.iframe);
+  statusFrame = block.iframe;
+  /* 真实酒馆收到新消息会把 #chat 滚到底；而且 iframe 是 loading="lazy" 的（照 Iframe.vue），
+     不先滚过去它根本不会加载。赋 srcdoc 之前滚，顺序不能反。 */
+  if (scrollToBottom) chatEl.scrollTop = chatEl.scrollHeight;
+  block.iframe.srcdoc = createSrcContent(statusSource);
+  return statusFrames.length - 1;
+}
+
+/** 重新渲染第 index 个状态栏楼层（srcdoc 重新赋值 = 文档重建 = 壳层重新执行）。 */
+async function rerenderStatusFloor(index) {
+  const frame = statusFrames[index];
+  if (!frame) throw new Error(`没有第 ${index} 个状态栏楼层`);
+  const statusSource = await loadProductionStatusSource();
+  frame.srcdoc = createSrcContent(statusSource);
+  return index;
+}
+
+/** 给第 index 个状态栏楼层换一个**全新的** iframe 元素，再加载。
+    ------------------------------------------------------------------
+    跟 rerenderStatusFloor 的区别是关键的：那边复用同一个 iframe 元素，所以上一任文档
+    在 pagehide 里 collapseAnchor 写下的那些 !important 还留在元素上；这边元素是新的，
+    什么都没有。真实环境里两种都会发生：
+
+      同一元素重新赋 srcdoc  →  WebKit 丢弃文档后回滚重载
+      全新元素               →  酒馆助手（Iframe.vue）重新渲染这条消息时 Vue 新建 iframe，
+                                以及 loading="lazy" 的楼层第一次滚进视口时才开始加载
+
+    第二种才是"选不上的楼层留下一块黑"能稳定复现的入口 —— 元素是新的，没人替它把高度交出去。 */
+async function recreateStatusFloor(index) {
+  const old = statusFrames[index];
+  if (!old) throw new Error(`没有第 ${index} 个状态栏楼层`);
+  const statusSource = await loadProductionStatusSource();
+  const fresh = document.createElement('iframe');
+  fresh.id = old.id;
+  fresh.name = old.name;
+  fresh.className = old.className;
+  fresh.loading = old.loading;
+  fresh.setAttribute('frameborder', '0');
+  old.replaceWith(fresh);
+  statusFrames[index] = fresh;
+  if (statusFrame === old) statusFrame = fresh;
+  fresh.srcdoc = createSrcContent(statusSource);
+  return index;
+}
+
+/** 删掉第 index 个状态栏楼层所在的整条消息。 */
+function removeStatusFloor(index) {
+  const frame = statusFrames[index];
+  if (!frame) throw new Error(`没有第 ${index} 个状态栏楼层`);
+  frame.closest('.mes')?.remove();
+  statusFrames.splice(index, 1);
+  if (statusFrame === frame) statusFrame = statusFrames[statusFrames.length - 1] || null;
+  return statusFrames.length;
+}
+
+/* ---------------------------------------------------------------- 黑屏度量
+
+   「黑屏」在 DOM 上没有对应概念，所以要先把它翻译成可数的东西。骨架给 html/body 涂的是
+   #05040a，所以任何「楼层占着高度但里面没有画好的 HUD」都会渲染成一块纯深色。于是判据是：
+
+     可见条面积 = Σ（每个状态栏楼层里"已画好且可见"的 HUD 盒子 ∩ #chat 可视区）
+
+   面积为 0 而楼层仍占着高度 —— 那就是用户看到的黑屏。反过来，面积 > 0 就说明屏幕上至少有
+   一条画好的状态栏。用面积而不是布尔值，是为了能分辨"完全没有"和"只露出一条边"。
+
+   "已画好"不能只看根节点在不在：mountMobileNativeHud 会先把根节点建好、写上一个空的
+   .viewport，然后才去网络取 bundle。那个中间态在 DOM 上是"根节点存在"，在屏幕上是纯黑。
+   所以要求节点数超过阈值 —— 空壳是 1 个节点，画好的 HUD 是 300+ 个。 */
+
+const PAINTED_NODE_FLOOR = 60;
+
+function intersectArea(a, b) {
+  if (!a || !b) return 0;
+  const w = Math.min(a.right ?? a.left + a.width, b.right ?? b.left + b.width) - Math.max(a.left, b.left);
+  const h = Math.min(a.bottom ?? a.top + a.height, b.bottom ?? b.top + b.height) - Math.max(a.top, b.top);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/** 某个楼层文档里的 HUD 处于什么状态。 */
+function floorHudState(frame) {
+  const doc = frame?.contentDocument;
+  if (!doc?.documentElement) return { stage: 'no-document', nodes: 0, box: null };
+  const root = doc.getElementById('linjiang-mobile-native-root');
+  if (root) {
+    const nodes = root.querySelectorAll('*').length;
+    const hidden = root.hidden || getComputedStyle(root).display === 'none';
+    const box = hidden ? null : frameBox(root);
+    let stage = 'mounting';
+    if (hidden) stage = 'retired';
+    else if (nodes >= PAINTED_NODE_FLOOR) stage = 'painted';
+    return { stage, nodes, box, kind: 'native' };
+  }
+  /* 抬升架构：HUD 不在楼层文档里，楼层只是个锚点。壳层执行过但还没接管时，
+     文档里留着那个空的兜底 #hud。 */
+  const fallback = doc.getElementById('hud');
+  return {
+    stage: doc.documentElement.dataset.linjiangShell ? 'anchor' : 'no-shell',
+    nodes: fallback ? 1 : 0,
+    box: null,
+    kind: 'lifted',
+  };
+}
+
+/** 抬升架构下那个挂在酒馆文档上的 HUD。 */
+function liftedHudState() {
+  const frame = document.getElementById('linjiang-hud-live');
+  if (!frame) return null;
+  const style = getComputedStyle(frame);
+  const doc = frame.contentDocument?.documentElement ? frame.contentDocument : null;
+  const nodes = doc ? doc.querySelectorAll('*').length : 0;
+  const invisible = style.visibility === 'hidden' || style.display === 'none'
+    || Number(style.opacity) === 0;
+  return {
+    stage: invisible ? 'retired' : (nodes >= PAINTED_NODE_FLOOR ? 'painted' : 'mounting'),
+    nodes,
+    box: invisible ? null : frameBox(frame),
+    kind: 'lifted',
+  };
+}
+
+/** 一帧的黑屏读数。area 为 0 意味着此刻屏幕上没有任何画好的状态栏。 */
+function blackoutSample() {
+  const chatRect = chatEl.getBoundingClientRect();
+  const viewport = { left: 0, top: 0, right: innerWidth, bottom: innerHeight, width: innerWidth, height: innerHeight };
+  const pane = {
+    left: Math.max(chatRect.left, 0), top: Math.max(chatRect.top, 0),
+    right: Math.min(chatRect.right, viewport.right), bottom: Math.min(chatRect.bottom, viewport.bottom),
+  };
+  let area = 0;
+  let occupied = 0;
+  const stages = [];
+  for (const frame of statusFrames) {
+    const state = floorHudState(frame);
+    stages.push(state.stage);
+    if (state.stage === 'painted') area += intersectArea(state.box, pane);
+    /* 楼层自己占着的高度。黑屏的完整判据是"占着高度但没画好"，所以两个都要记。 */
+    occupied += intersectArea(frameBox(frame), pane);
+  }
+  const lifted = liftedHudState();
+  if (lifted) {
+    stages.push(`lifted:${lifted.stage}`);
+    if (lifted.stage === 'painted') area += intersectArea(lifted.box, pane);
+  }
+  return { t: performance.now(), area: Math.round(area), occupied: Math.round(occupied), stages };
+}
+
+let samplerHandle = 0;
+let samples = [];
+
+function startBlackoutSampler() {
+  stopBlackoutSampler();
+  samples = [];
+  const tick = () => {
+    try { samples.push(blackoutSample()); } catch (error) { samples.push({ t: performance.now(), area: -1, error: String(error) }); }
+    samplerHandle = requestAnimationFrame(tick);
+  };
+  samplerHandle = requestAnimationFrame(tick);
+}
+
+function stopBlackoutSampler() {
+  if (samplerHandle) cancelAnimationFrame(samplerHandle);
+  samplerHandle = 0;
+  return samples;
+}
+
+/** 把采样折叠成「最长的一段没有任何画好状态栏的时间」。 */
+function blackoutSummary() {
+  let worstMs = 0;
+  let worstStart = 0;
+  let runStart = null;
+  const gaps = [];
+  for (const sample of samples) {
+    if (sample.area <= 0) {
+      if (runStart == null) runStart = sample.t;
+      continue;
+    }
+    if (runStart != null) {
+      const ms = sample.t - runStart;
+      gaps.push(+ms.toFixed(1));
+      if (ms > worstMs) { worstMs = ms; worstStart = runStart; }
+      runStart = null;
+    }
+  }
+  if (runStart != null) {
+    const ms = samples.length ? samples[samples.length - 1].t - runStart : 0;
+    gaps.push(+ms.toFixed(1));
+    if (ms > worstMs) { worstMs = ms; worstStart = runStart; }
+    /* 采样结束时仍在黑 —— 这跟"黑了一会儿又好了"是两种事，调用方要能分辨。 */
+  }
+  return {
+    frames: samples.length,
+    worstMs: +worstMs.toFixed(1),
+    worstStart: +worstStart.toFixed(1),
+    endedBlack: samples.length > 0 && samples[samples.length - 1].area <= 0,
+    occupiedAtEnd: samples.length ? samples[samples.length - 1].occupied : 0,
+    gaps,
+  };
+}
+
+/** 抬升架构下那个共用 HUD 的可见性细节。排查「栏没了」时第一手要看的就是这几个字段。 */
+function liftedReport() {
+  const frame = document.getElementById('linjiang-hud-live')
+    || [...document.querySelectorAll('iframe[data-linjiang-managed]')][0]
+    || null;
+  if (!frame) return null;
+  const style = getComputedStyle(frame);
+  const box = frameBox(frame);
+  return {
+    id: frame.id,
+    owner: frame.dataset.linjiangOwner || '',
+    align: frame._linjiangAlign || '',
+    inlineVisibility: frame.style.visibility || '',
+    visibility: style.visibility,
+    display: style.display,
+    opacity: Number(style.opacity),
+    pointerEvents: style.pointerEvents,
+    parent: frame.parentNode?.id || frame.parentNode?.nodeName || '',
+    box: box ? { x: Math.round(box.left), y: Math.round(box.top), w: Math.round(box.width), h: Math.round(box.height) } : null,
+    nodes: frame.contentDocument?.documentElement ? frame.contentDocument.querySelectorAll('*').length : 0,
+    src: (frame.getAttribute('src') || '').slice(0, 80),
+  };
+}
+
+/** 「第 index 层接管完成了吗」——两种架构下这件事的含义不同，所以判据必须分开。
+    ------------------------------------------------------------------
+    原生流：HUD 就在那一层的文档里，所以"接管完成"= 那一层自己画好了。
+    抬升架构：HUD 是共用的、挂在酒馆文档上，楼层只是锚点。那一层永远不会"画好"，
+      接管完成的含义是"它成了 owner，而且共用的那个 HUD 是可见且画好的"。
+    交接耗时的门禁必须用这个，不能用"屏幕上还有画好的栏" —— 交接刚开始时旧栏还在，
+    那个条件立刻为真，采样会在交接真正发生之前就结束。 */
+function floorTakeover(index) {
+  const frame = statusFrames[index];
+  if (!frame) return { ready: false, why: 'no-frame' };
+  const state = floorHudState(frame);
+  if (state.kind === 'native') {
+    return { ready: state.stage === 'painted', why: state.stage, nodes: state.nodes, architecture: 'native-flow' };
+  }
+  const manager = window.__linjiangHudManagerV2 || null;
+  const owned = !!(manager?.owner && manager.owner.frame === frame);
+  const lifted = liftedHudState();
+  return {
+    ready: owned && lifted?.stage === 'painted',
+    why: `${owned ? 'owner' : 'not-owner'}/${lifted?.stage || 'no-lifted-hud'}`,
+    nodes: lifted?.nodes || 0,
+    architecture: 'lifted',
+  };
+}
+
+/** manager 的内部状态。夹具就是酒馆顶层窗口，所以这是直接读，不是推断。 */
+function managerReport() {
+  const manager = window.__linjiangHudManagerV2 || null;
+  if (!manager) return null;
+  const rows = [];
+  try {
+    for (const [id, row] of manager.candidates) {
+      rows.push({
+        id,
+        rank: row.rank,
+        epoch: row.epoch,
+        connected: !!row.frame?.isConnected,
+        destroyed: (() => { try { return !!row.destroyed(); } catch { return null; } })(),
+        owner: manager.owner?.id === id,
+      });
+    }
+  } catch { /* Map 形状变了就只报头部信息 */ }
+  return {
+    version: manager.version,
+    epoch: manager.epoch,
+    dockMode: manager.dockMode,
+    ownerId: manager.owner?.id || '',
+    ownerRank: manager.owner?.rank ?? null,
+    candidates: rows,
+  };
+}
+
+/** 每个状态栏楼层的完整体检表。断言和排查都用它。 */
+function floorReport() {
+  const manager = window.__linjiangHudManagerV2 || null;
+  return statusFrames.map((frame, index) => {
+    const doc = frame.contentDocument;
+    const style = getComputedStyle(frame);
+    const state = floorHudState(frame);
+    const box = frameBox(frame);
+    const shellId = (() => {
+      try { return frame.contentWindow?.__linjiangStatusShellLoaded || ''; } catch { return ''; }
+    })();
+    return {
+      index,
+      mesid: Number(frame.closest('.mes')?.getAttribute('mesid')),
+      stage: state.stage,
+      nodes: state.nodes,
+      /* 视口坐标，给截图裁剪用：判据是 DOM 推导的，要能拿同一块区域做像素级复核。 */
+      rect: box ? {
+        x: Math.round(box.left), y: Math.round(box.top),
+        width: Math.round(box.width), height: Math.round(box.height),
+      } : null,
+      /* collapseAnchor 是壳层交出楼层高度的唯一手段：height/opacity 都强制成 0。
+         一个"既不是 owner 又没被折叠"的楼层就是屏幕上那块黑。 */
+      anchorH: Math.round(box?.height || 0),
+      anchorOpacity: Number(style.opacity),
+      collapsed: frame.dataset.linjiangH === '0',
+      shellVersion: doc?.documentElement?.dataset?.linjiangShell || '',
+      shellLoadedGuard: shellId,
+      hint: doc?.getElementById('hint')?.textContent || '',
+      /* 原生流下 bridge 在不在，等价于「这一楼是不是当前 owner」。 */
+      hasBridge: (() => {
+        try { return !!frame.contentWindow?.__linjiangMobileDirectBridge; } catch { return false; }
+      })(),
+      nativeActive: doc?.documentElement?.dataset?.linjiangNativeActive || '',
+      isOwner: !!(manager && shellId && manager.owner && frame === manager.owner.frame),
+    };
+  });
 }
 
 /* Iframe.vue: useEventListener(window, 'resize', ...) 通知每个渲染 iframe 重算视口高度。 */
@@ -782,11 +1230,29 @@ window.__linjiangTavernLive = {
   waitUntilPainted,
   liveHud,
   get statusFrame() { return statusFrame; },
+  get statusFrames() { return [...statusFrames]; },
   get renderFrames() { return [...renderFrames]; },
   reload: mountChat,
   ttControllers,
   presets: REAL_PRESETS,
   presetById: realPresetById,
+  /* 运行时楼层事件 + 黑屏度量。见上面那两段说明。 */
+  statusFloorCount,
+  stickToBottom,
+  scrollToFloor,
+  switchChat,
+  appendStatusFloor,
+  rerenderStatusFloor,
+  recreateStatusFloor,
+  removeStatusFloor,
+  floorTakeover,
+  liftedReport,
+  startBlackoutSampler,
+  stopBlackoutSampler,
+  blackoutSummary,
+  blackoutSample,
+  managerReport,
+  floorReport,
 };
 
 await mountChat();

@@ -80,7 +80,9 @@
     "map": "node scripts/export-ai-map.mjs && node scripts/build-worldbook-map.mjs && node scripts/check-map-loader.mjs && node scripts/check-init-vars.mjs && node scripts/check-opening-nodes.mjs",
     "opening:mobile": "node scripts/check-opening-mobile.mjs",
     "reading:room": "node scripts/check-reading-room-send-only.mjs",
-    "tavern:mobile-flow": "node scripts/check-mobile-native-flow.mjs"
+    "tavern:mobile-flow": "node scripts/check-mobile-native-flow.mjs",
+    "tavern:blackout": "node scripts/check-status-blackout.mjs",
+    "tavern:blackout:shots": "node scripts/check-status-blackout.mjs --shots"
   },
   "devDependencies": {
     "ejs": "3.1.10",

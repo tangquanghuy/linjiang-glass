@@ -3,9 +3,18 @@ import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
 
 const port = 5213;
-const server = await createServer({ server: { port }, logLevel: 'warn' });
+/* optimizeDeps.entries 必须钉死。默认的依赖扫描会去啃项目里所有 HTML，包括
+   scripts/lib/real-tavern-sources.mjs 拷进 artifacts/ 的那份真实 SillyTavern index.html ——
+   它 import 的是 ST 安装目录里的相对路径，这里当然解析不到，于是扫描整段报错、进程带着
+   非零码退出，尽管断言本身全过了。 */
+const server = await createServer({
+  server: { port },
+  logLevel: 'warn',
+  optimizeDeps: { entries: ['index.html'] },
+});
 await server.listen();
-let source = await readFile('\u5916\u90e8\u90e8\u7f72/\u72b6\u6001\u680f.html', 'utf8');
+/* 产物在某次整理里挪进了 V20260826/，这支脚本的路径没跟着改，于是一直 ENOENT。 */
+let source = await readFile('\u5916\u90e8\u90e8\u7f72/V20260826/\u72b6\u6001\u680f.html', 'utf8');
 source = source.replace(/^\uFEFF?```(?:text|html)?\s*\r?\n/i, '').replace(/\r?\n```\s*$/i, '');
 source = source.replace(/const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
   `const HUD_URL='http://127.0.0.1:${port}/';`);
