@@ -81,6 +81,7 @@
     "opening:mobile": "node scripts/check-opening-mobile.mjs",
     "reading:room": "node scripts/check-reading-room-send-only.mjs",
     "tavern:mobile-flow": "node scripts/check-mobile-native-flow.mjs",
+    "shell:local": "node scripts/make-local-hud-shell.mjs",
     "tavern:blackout": "node scripts/check-status-blackout.mjs",
     "tavern:blackout:shots": "node scripts/check-status-blackout.mjs --shots",
     "development:check": "node scripts/check-development-progress.mjs"
