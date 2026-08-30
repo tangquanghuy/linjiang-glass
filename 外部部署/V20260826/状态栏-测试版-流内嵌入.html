@@ -2801,9 +2801,128 @@
     'saveCustomMapNode', 'deleteCustomMapNode',
   ]);
 
-  const restoreMobileNativeAnchor = () => {
+  /* 原生流下的「整页」几何：次级页面、以及铺满视口的覆盖层（商店 / 地图 / 街机 / CG）。
+     ==================================================================
+     为什么原来会坏，两条，都不是「z-index 不够高」：
+
+     一、覆盖层的 position:fixed 锚的不是手机屏。 原生流下 HUD 的 DOM 就长在**楼层 srcdoc
+         文档**里，而那是一个嵌套浏览上下文 —— fixed 天生锚「本文档自己的视口」，也就是楼层
+         iframe 的内容框（宽 = 阅读栏宽，高 = 酒馆助手按 body.scrollHeight 写的那个值）。
+         于是 .shop-layer{position:fixed;inset:0} 铺满的是**那一楼**，不是屏幕。这跟祖先有没有
+         backdrop-filter 无关，因为 #chat 跟覆盖层压根不在同一个文档里。
+
+     二、次级整页会把楼层撑成超高。 整页是流内的高元素，body.scrollHeight 跟着涨，而
+         queueMobileNativeHeight 和酒馆助手的 adjust_iframe_height 都会把这个值写进楼层
+         iframe 的高度。真机上的症状是 #chat 里多出一大片空的深色区域、工具栏被挤得重叠 ——
+         也就是「破坏了酒馆本身的布局」。src/styles/portrait.css 那条
+         `is-page-open{height:100%}` 本来能拦住它，但被 ensureMobileNativeShellStyle 的
+         `height:auto!important` 盖掉了（那条 !important 是为常态的流内高度写的）。
+
+     解法沿用 layoutInlineDockPage 已经验证过的那一套，而不是把覆盖层 DOM 搬去宿主文档：
+     让**楼层 iframe 自己**铺满视口。这样楼层文档的视口就是手机屏，`position:fixed;inset:0`
+     按原样就对了，一行覆盖层 CSS 都不用改；而且楼层出了常规流，再也撑不动 #chat。
+     搬 DOM 那条路要把 HUD 的样式表、message 监听、is-page-open 标记全部跨文档重做一遍，
+     清理契约还得从头写 —— 而这一条的清理契约现成（restoreFixedContainingBlock + 存好的
+     楼层样式），deactivate 里已经有兜底。
+
+     escapeFixedContainingBlock 在这里才真正需要 backdrop-filter 那段知识：楼层一旦自己变
+     fixed，#chat 的 blur 就成了它的包含块，不中和的话楼层会跟着 #chat 滚走、直到完全消失。 */
+  let nativePageOn = false;
+  let nativeSavedFloorStyle = null;
+  let nativeSavedScrolling = null;
+  let nativeSavedChatTop = null;
+
+  const mobileNativePageBox = () => {
+    const tavern = tavernWin();
+    const vv = tavern.visualViewport;
+    return {
+      vw: Math.round((vv && vv.width) || tavern.innerWidth || innerWidth),
+      vh: Math.round((vv && vv.height) || tavern.innerHeight || innerHeight),
+    };
+  };
+
+  /* 视口尺寸取 visualViewport 而不是 100dvh：移动端 vh 不等于可见高度（地址栏、软键盘），
+     TT 的 WebView 更会报出比屏幕还宽的 CSS 视口。跟 layoutInlineDockPage / layoutPortraitPage
+     用的是同一个来源。 */
+  const layoutMobileNativePage = () => {
+    const frame = window.frameElement;
+    if (!frame || !nativePageOn) return;
+    const { vw, vh } = mobileNativePageBox();
+    const floorCss = [
+      'position:fixed', 'left:0', 'top:0',
+      `width:${vw}px`, `height:${vh}px`,
+      'max-width:none', 'max-height:none',
+      'margin:0', 'border:0', 'display:block',
+      'visibility:visible', 'opacity:1', 'pointer-events:auto',
+      'overflow:hidden', 'z-index:2147483000', 'background:#05040a',
+    ].join(';');
+    if (frame.style.cssText !== floorCss) frame.style.cssText = floorCss;
+    /* TT 移动端会把 body 下未标记的 fixed 元素当宿主浮层接管几何，显式退出。 */
+    try { frame.dataset.ttMobileSurface = 'none'; } catch (e) {}
+  };
+
+  const enterMobileNativePage = () => {
     const frame = window.frameElement;
     if (!frame) return;
+    if (!nativePageOn) {
+      nativePageOn = true;
+      nativeSavedFloorStyle = frame.getAttribute('style');
+      nativeSavedScrolling = frame.getAttribute('scrolling');
+      /* 楼层一离开常规流，#chat 的内容就短掉一截、滚动位置会被夹。整页盖着屏幕时看不见，
+         但关掉之后读者会发现自己被挪走了，所以存下来照原样放回去。 */
+      try {
+        const chat = tavernWin().document.getElementById('chat');
+        nativeSavedChatTop = chat ? Number(chat.scrollTop) || 0 : null;
+      } catch (e) { nativeSavedChatTop = null; }
+      /* 必须在下面写 position:fixed 之前做：否则这一帧的 fixed 仍然锚在 #chat 上。
+         它同时会把盖在整页上面、又抬不出去的宿主 chrome（顶栏、输入栏）藏起来。 */
+      escapeFixedContainingBlock(frame);
+      document.documentElement.dataset.linjiangNativePage = '1';
+      frame.setAttribute('scrolling', 'no');
+    }
+    layoutMobileNativePage();
+  };
+
+  const exitMobileNativePage = () => {
+    if (!nativePageOn) return;
+    nativePageOn = false;
+    const frame = window.frameElement;
+    /* 先把祖先的模糊和宿主 chrome 还回去，再还原楼层样式。两件事必须成对 ——
+       漏掉前者的后果是 #chat 永久失去 backdrop-filter、顶栏和输入栏一直隐藏。 */
+    restoreFixedContainingBlock();
+    delete document.documentElement.dataset.linjiangNativePage;
+    if (frame) {
+      if (nativeSavedFloorStyle === null) frame.removeAttribute('style');
+      else frame.setAttribute('style', nativeSavedFloorStyle);
+      if (nativeSavedScrolling === null) frame.removeAttribute('scrolling');
+      else frame.setAttribute('scrolling', nativeSavedScrolling);
+    }
+    nativeSavedFloorStyle = null;
+    nativeSavedScrolling = null;
+    /* 高度重新交回「内容决定」那条路（酒馆助手的 ResizeObserver 也会跟着量一次）。 */
+    queueMobileNativeHeight();
+    const chatTop = nativeSavedChatTop;
+    nativeSavedChatTop = null;
+    if (chatTop == null) return;
+    /* 等楼层重新回到流里、#chat 的 scrollHeight 恢复之后再放回去，否则这一下会被夹掉。 */
+    requestAnimationFrame(() => {
+      try {
+        const chat = tavernWin().document.getElementById('chat');
+        if (chat) chat.scrollTop = chatTop;
+      } catch (e) {}
+    });
+  };
+
+  const onMobileNativeViewport = () => {
+    /* 转屏、地址栏收起、软键盘弹出都会改可见高度。整页期间要跟着重排，否则底部会露出
+       一条 #chat；不在整页时这就是普通的重新量高。 */
+    if (nativePageOn) { layoutMobileNativePage(); return; }
+    queueMobileNativeHeight();
+  };
+
+  const restoreMobileNativeAnchor = () => {
+    const frame = window.frameElement;
+    if (!frame || nativePageOn) return;
     for (const name of ['height', 'min-height', 'opacity', 'pointer-events']) {
       frame.style.removeProperty(name);
     }
@@ -2821,6 +2940,10 @@
       try {
         const frame = window.frameElement;
         if (!frame || !isOwner()) return;
+        /* 整页期间楼层由 layoutMobileNativePage 钉在视口上，高度不再由内容决定。
+           照旧写 scrollHeight 就是和整页几何对着写 —— 那种互抢在真机上表现为疯狂闪烁
+           （同一类事故的记录在 layoutInlineDock 里 handOverHeight 上面那段）。 */
+        if (nativePageOn) return;
         const height = Math.max(1, Math.ceil(document.body?.scrollHeight || 0));
         if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
       } catch (e) {}
@@ -2838,12 +2961,17 @@
         if (MOBILE_WRITE_ACTIONS.has(action)) queueMicrotask(() => pushSnapshot(true));
         return result;
       },
-      event(type) {
-        /* The document is in normal flow. Portrait size/page/overlay reports only
-           need Tavern Helper to remeasure body height; no host geometry is changed. */
-        if (type === 'portraitSize' || type === 'portraitPage' || type === 'overlay') {
-          queueMobileNativeHeight();
+      event(type, payload) {
+        /* 整页 / 覆盖层：楼层要暂时离开常规流去铺满视口，理由写在 nativePageOn 上面那段。
+           竖屏路径（原生流恒为竖屏）对次级页面和覆盖层报的都是 portraitPage；overlay 是横向
+           路径的通报，这里一并接住只是防御，语义相同。 */
+        if (type === 'portraitPage' || type === 'overlay') {
+          if (payload && payload.open) enterMobileNativePage();
+          else exitMobileNativePage();
+          return;
         }
+        /* 常态：文档就在常规流里，自报高度只需要让酒馆助手重新量一次 body。 */
+        if (type === 'portraitSize') queueMobileNativeHeight();
       },
     };
     mobileNativeBridge = bridge;
@@ -2876,6 +3004,25 @@
       }
       #${MOBILE_NATIVE_ROOT_ID} { display:block; width:100%; min-height:1px; }
       #${MOBILE_NATIVE_ROOT_ID}[hidden] { display:none !important; }
+      /* 整页期间楼层文档的视口就是手机屏（见 nativePageOn）。
+         滚动条给根节点而不是给 document：酒馆助手的 adjust_iframe_height 会照着
+         body.scrollHeight 写楼层高度，document 一旦可滚，scrollHeight 就是内容高度，
+         它就会把我们钉好的 vh 覆盖掉 —— 又是一次对着写。让 html/body 严格等于视口、
+         把溢出交给根节点，scrollHeight 就恒等于视口高，两边写的是同一个数。
+         overscroll-behavior 防止滚到尽头后把滚动链传给 #chat。 */
+      html[data-linjiang-native-page="1"],
+      html[data-linjiang-native-page="1"] body {
+        height: 100% !important;
+        min-height: 100% !important;
+        overflow: hidden !important;
+      }
+      html[data-linjiang-native-page="1"] #${MOBILE_NATIVE_ROOT_ID} {
+        height: 100% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
       html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *,
       html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *::before,
       html[data-linjiang-native-active="0"] #${MOBILE_NATIVE_ROOT_ID} *::after {
@@ -3704,6 +3851,11 @@
       mobileNativeRetryTimer = 0;
       clearHostListeners();
       removeMobileNativeBridge();
+      /* 跟抬升那边 leaveInlineDockPage 同一类：对宿主做过的改动，交还控制权时必须撤干净。
+         漏掉它的后果是这一楼被换掉之后 #chat 永久失去 backdrop-filter、顶栏和输入栏一直
+         隐藏 —— 而这一楼的整页 DOM 早就跟着 srcdoc 一起没了，没人再有机会还原。
+         必须在 collapseAnchor 之前：楼层还钉在 fixed 上时给它写占位高度是没有意义的。 */
+      try { exitMobileNativePage(); } catch (e) {}
       document.documentElement.dataset.linjiangNativeActive = '0';
       if (mobileNativeRoot) mobileNativeRoot.hidden = true;
       collapseAnchor();
@@ -3759,7 +3911,19 @@
         listen(tavern, 'message', onCGUnlockRecord);
       }
     } catch (e) {}
-    listen(window, 'resize', queueMobileNativeHeight, { passive: true });
+    listen(window, 'resize', onMobileNativeViewport, { passive: true });
+    /* 整页期间楼层被钉在视口上，本文档的 resize 不再反映屏幕变化 —— 转屏和软键盘要从宿主
+       的 visualViewport 听。常态下这几个也只是多量一次高，没有副作用。 */
+    try {
+      const tavern = tavernWin();
+      if (tavern && tavern !== window) {
+        listen(tavern, 'resize', onMobileNativeViewport, { passive: true });
+        listen(tavern, 'orientationchange', onMobileNativeViewport, { passive: true });
+        if (tavern.visualViewport) {
+          listen(tavern.visualViewport, 'resize', onMobileNativeViewport, { passive: true });
+        }
+      }
+    } catch (e) {}
   };
 
   const bindActiveRuntime = () => {

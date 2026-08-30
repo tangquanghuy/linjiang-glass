@@ -32,8 +32,16 @@ html.is-embedded.portrait-mode body { overflow-y: hidden; }
   min-height: 0;
   overflow: visible;
 }
-/* Detail pages cover the phone (shell expands the iframe to 100dvh).  The
-   sheet may still be taller than the screen; that one scrollbar is the overlay. */
+/* Detail pages cover the phone.  Which iframe the shell pins to the visual viewport
+   depends on the architecture: the lifted one expands the HUD iframe, native flow
+   expands the message floor itself (status-shell.js, nativePageOn).  Either way this
+   document ends up exactly viewport-sized, so the page can fill it.
+   The sheet may still be taller than the screen; that one scrollbar is the overlay.
+
+   Native flow overrides the scroller: it hands overflow to
+   #linjiang-mobile-native-root instead of the document, because Tavern Helper sizes
+   the floor from body.scrollHeight and a scrollable document would report the content
+   height back at it.  The rules there are !important and win over these. */
 html.is-embedded.portrait-mode.is-page-open,
 html.is-embedded.portrait-mode.is-page-open body {
   height: 100%;

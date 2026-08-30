@@ -154,52 +154,131 @@ for (const kase of cases) {
     await hud.locator('.pclose').click();
     await page.waitForTimeout(250);
 
-    await hud.locator('.pdest-btn[data-page="schedule"]').first().click();
-    await page.waitForTimeout(300);
-    const pageState = await page.evaluate(() => {
+    /* 整页 / 覆盖层的契约（这一段整体改过一次，原因值得留着）。
+       ==================================================================
+       原来这里断言的是「次级页面和商店都留在常规流的楼层里、`position:static`、宿主 chrome
+       保持 visible」。那描述的是实现，不是需求，而且恰好把一个真实的 bug 锁在了错的一侧：
+
+         · 覆盖层的 position:fixed 在楼层 srcdoc 文档里锚的是**那一楼**（宽=阅读栏、
+           高=酒馆助手量出来的内容高），不是手机屏。所以商店根本没全屏，甚至在带模糊的主题上
+           整层消失。
+         · 次级整页是流内的高元素，body.scrollHeight 跟着涨、被写进楼层高度，于是 #chat 里
+           多出一大片空区、工具栏被挤到重叠 —— 也就是「破坏了酒馆本身的布局」。
+
+       现在的契约跟抬升架构一致（见 check-tavern-live.mjs 里那条「整页锚在视口原点」）：
+       整页期间楼层自己铺满视口、盖住宿主 chrome；关掉之后一切按原样还回去。所以这里改成
+       断言「进去铺满、出来复原」这一对，而不是断言楼层从不动。 */
+    const viewport = await page.evaluate(() => ({
+      w: Math.round(window.visualViewport?.width || innerWidth),
+      h: Math.round(window.visualViewport?.height || innerHeight),
+    }));
+    const restFloor = await page.evaluate(() => {
+      const chat = document.getElementById('chat');
+      const frame = window.__linjiangTavernLive.statusFrame;
+      return {
+        height: Math.round(frame.getBoundingClientRect().height),
+        chatScroll: Math.round(chat.scrollHeight),
+        /* 中和 fixed 包含块要动 #chat 的 backdrop-filter。它是主题的一部分，漏还原的后果是
+           整个阅读区永久失去模糊 —— 这条断言就是为了让那种泄漏当场变红。 */
+        backdrop: getComputedStyle(chat).backdropFilter,
+      };
+    });
+
+    const readPageState = () => page.evaluate(() => {
       const frame = window.__linjiangTavernLive.statusFrame;
       const doc = frame.contentDocument;
+      const box = frame.getBoundingClientRect();
+      const style = getComputedStyle(frame);
       return {
         open: doc.documentElement.classList.contains('is-page-open'),
-        framePosition: getComputedStyle(frame).position,
+        marker: doc.documentElement.dataset.linjiangNativePage || '',
+        position: style.position,
+        left: Math.round(box.left),
+        top: Math.round(box.top),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+        /* 整页期间滚动条归根节点，document 必须严格等于视口 —— 否则酒馆助手会照着
+           body.scrollHeight 把楼层高度覆盖回内容高度。 */
+        docOverflow: getComputedStyle(doc.documentElement).overflowY,
+        rootOverflow: getComputedStyle(doc.getElementById('linjiang-mobile-native-root')).overflowY,
+        bodyScroll: Math.round(doc.body.scrollHeight),
         topbar: getComputedStyle(document.getElementById('top-bar')).visibility,
         form: getComputedStyle(document.getElementById('form_sheld')).visibility,
       };
     });
-    check(pageState.open && pageState.framePosition === 'static', 'detail page stays inside normal-flow floor', JSON.stringify(pageState));
-    check(pageState.topbar === 'visible' && pageState.form === 'visible', 'detail page does not mutate tavern chrome', JSON.stringify(pageState));
+    const covers = (state) => state.position === 'fixed' && state.left === 0 && state.top === 0
+      && Math.abs(state.width - viewport.w) <= 2 && Math.abs(state.height - viewport.h) <= 2;
+
+    await hud.locator('.pdest-btn[data-page="schedule"]').first().click();
+    await page.waitForTimeout(300);
+    const pageState = await readPageState();
+    check(pageState.open && pageState.marker === '1' && covers(pageState),
+      'detail page pins the floor to the visual viewport', JSON.stringify(pageState));
+    check(pageState.docOverflow === 'hidden' && pageState.rootOverflow === 'auto'
+      && Math.abs(pageState.bodyScroll - viewport.h) <= 2,
+      'detail page keeps body height equal to the viewport (no height tug-of-war)', JSON.stringify(pageState));
+    check(pageState.topbar === 'hidden' && pageState.form === 'hidden',
+      'detail page hides the tavern chrome it cannot out-stack', JSON.stringify(pageState));
     await hud.locator('.pclose').click();
-    await page.waitForTimeout(250);
-    const closed = await page.evaluate(() => {
+    await page.waitForTimeout(300);
+    const closed = await readPageState();
+    check(!closed.open && !closed.marker && closed.position === 'static',
+      'detail page closes back to native flow', JSON.stringify(closed));
+    check(closed.topbar === 'visible' && closed.form === 'visible',
+      'closing restores the tavern chrome', JSON.stringify(closed));
+    const restored = await page.evaluate(() => {
       const frame = window.__linjiangTavernLive.statusFrame;
       return {
-        open: frame.contentDocument.documentElement.classList.contains('is-page-open'),
-        position: getComputedStyle(frame).position,
+        height: Math.round(frame.getBoundingClientRect().height),
+        chatScroll: Math.round(document.getElementById('chat').scrollHeight),
+        backdrop: getComputedStyle(document.getElementById('chat')).backdropFilter,
       };
     });
-    check(!closed.open && closed.position === 'static', 'detail page closes back to native flow', JSON.stringify(closed));
+    check(Math.abs(restored.height - restFloor.height) <= 4
+      && Math.abs(restored.chatScroll - restFloor.chatScroll) <= 8,
+      'closing gives the floor height back without inflating #chat',
+      `${restored.height}/${restFloor.height}px floor, ${restored.chatScroll}/${restFloor.chatScroll}px chat`);
+    check(restored.backdrop === restFloor.backdrop,
+      'closing restores #chat backdrop-filter', `${restored.backdrop} vs ${restFloor.backdrop}`);
 
     await hud.locator('.pdest-btn[data-page="shop"]').first().click();
     await page.waitForTimeout(400);
     const shop = await page.evaluate(() => {
       const frame = window.__linjiangTavernLive.statusFrame;
       const doc = frame.contentDocument;
+      const layer = doc.querySelector('.shop-layer');
+      const box = layer?.getBoundingClientRect();
+      const frameBox = frame.getBoundingClientRect();
+      const style = getComputedStyle(frame);
       return {
-        layer: !!doc.querySelector('.shop-layer'),
+        layer: !!layer,
         innerFrames: doc.querySelectorAll('.shop-layer iframe').length,
-        position: getComputedStyle(frame).position,
+        position: style.position,
+        left: Math.round(frameBox.left),
+        top: Math.round(frameBox.top),
+        width: Math.round(frameBox.width),
+        height: Math.round(frameBox.height),
+        /* 覆盖层自己在楼层文档里的框。楼层现在就是视口，所以 inset:0 应该正好等于视口。 */
+        layerW: Math.round(box?.width || 0),
+        layerH: Math.round(box?.height || 0),
         topbar: getComputedStyle(document.getElementById('top-bar')).visibility,
         form: getComputedStyle(document.getElementById('form_sheld')).visibility,
       };
     });
-    check(shop.layer && shop.innerFrames === 1 && shop.position === 'static',
-      'complex app opens as an inner page without moving the main HUD', JSON.stringify(shop));
-    check(shop.topbar === 'visible' && shop.form === 'visible',
-      'complex app also leaves tavern chrome unchanged', JSON.stringify(shop));
+    check(shop.layer && shop.innerFrames === 1 && covers(shop),
+      'shop overlay pins the floor to the visual viewport', JSON.stringify(shop));
+    check(Math.abs(shop.layerW - viewport.w) <= 2 && Math.abs(shop.layerH - viewport.h) <= 2,
+      'shop overlay actually covers the phone screen', `${shop.layerW}x${shop.layerH} vs ${viewport.w}x${viewport.h}`);
+    check(shop.topbar === 'hidden' && shop.form === 'hidden',
+      'shop overlay hides the tavern chrome it cannot out-stack', JSON.stringify(shop));
     await hud.locator('[data-shop-close]').click();
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
+    const shopClosed = await readPageState();
+    check(!shopClosed.open && !shopClosed.marker && shopClosed.position === 'static'
+      && shopClosed.topbar === 'visible' && shopClosed.form === 'visible',
+      'shop closes back to native flow without remounting the main HUD', JSON.stringify(shopClosed));
     check(await page.evaluate(() => !window.__linjiangTavernLive.statusFrame.contentDocument.querySelector('.shop-layer')),
-      'complex app closes without remounting the main HUD');
+      'shop overlay is torn down on close');
     check(errors.length === 0, 'no script errors', errors.slice(0, 3).join(' | '));
   } catch (error) {
     check(false, `${kase.id} execution`, error.message);
