@@ -3322,18 +3322,55 @@
     return dy - consumed;
   };
 
-  const scrollChain = (start, dy, doc) => {
+  /* 转发滚动的天花板：装着阅读区的那些祖先，一个都不许滚。
+     ==================================================================
+     用户反馈「PC 下往下滚动有时候把酒馆整个输入框滚上去」，就是这里漏出来的。
+
+     壳层转发滚轮时按原生的滚动链语义把余量往父节点喂。问题是在宿主文档里，阅读区
+     （#chat）的父节点是 #sheld，而**#sheld 同时装着 #form_sheld（输入栏）**，
+     并且真实 ST 给它的是 overflow-y:auto。实测（scripts/check-host-scroll-containment.mjs，
+     真实 ST 1.18.0 桌面 1440x900）：
+
+         节点        overflowY   余量   壳层判定可滚
+         div#chat    scroll      1061   会
+         div#sheld   auto           0   不会（默认没余量，所以大多数人碰不到）
+         body        hidden         0   不会
+         html        visible        0   不会
+
+     #sheld 平时余量是 0，所以本地复现不出来。但只要有东西把它撑出余量 —— 比如 Quick Reply
+     工具条多出一排（反馈截图里输入栏上方那排自定义按钮就是）、浏览器缩放、或 #chat 有
+     min-height 让 flex 缩不下去 —— 它就变成可滚的。这时把 #chat 滚到底再继续往下滚，余量
+     就溢出到 #sheld 上：实测 #sheld.scrollTop 0 → 226，输入栏从 y=867 被推到 y=641。
+     而 ST 自己从不滚 #sheld，所以没有任何东西会把它滚回来 —— 输入栏就那么留在上面了。
+
+     所以边界不是「别滚文档根」那么窄（实测 body 是 overflow:hidden，scrollTop 压根写不动，
+     根本不是这条路）。真正的规则是：**转发滚动只作用于阅读区及其内部，凡是「包含阅读区」的
+     祖先都是宿主自己的外壳，不属于我们**。用 contains 表达而不是列一串 id，是因为主题和扩展
+     完全可能在中间插进别的层，列 id 迟早漏。
+
+     嵌套 iframe（正文里那些）不受这条限制：它们是另一个文档，那个文档的根本来就是它自己的
+     滚动器，滚它是正确的 —— 所以 bound 只在宿主文档这一层传。 */
+  const holdsReadingPane = (el, bound) => {
+    if (!bound || !el || el === bound) return false;
+    try { return !!el.contains && el.contains(bound); } catch (e) { return false; }
+  };
+
+  const scrollChain = (start, dy, doc, bound = null) => {
     let remaining = dy;
     let node = start && start.nodeType === 1 ? start : start?.parentElement;
     const seen = new Set();
     while (node && node !== doc && Math.abs(remaining) > 0.01) {
+      if (holdsReadingPane(node, bound)) break;
       if (!seen.has(node)) {
         seen.add(node);
         remaining = applyScroll(node, remaining, doc);
       }
+      if (node === bound) break;
       if (node === doc.documentElement || node === doc.body) break;
       node = node.parentElement;
     }
+    /* 有边界时不再兜底去试文档根：那正是「把宿主外壳滚走」的另一半。 */
+    if (bound) return remaining;
     const root = doc.scrollingElement || doc.documentElement;
     if (root && !seen.has(root) && Math.abs(remaining) > 0.01) {
       remaining = applyScroll(root, remaining, doc);
@@ -3377,13 +3414,18 @@
     return { x: box.left + x, y: box.top + y };
   };
 
-  const nearestWheelScroller = (start, doc) => {
+  const nearestWheelScroller = (start, doc, bound = null) => {
     let node = start && start.nodeType === 1 ? start : start?.parentElement;
     while (node && node !== doc) {
+      /* 跟 scrollChain 同一条边界，理由写在 holdsReadingPane 上面那段。自动滚动比滚轮更
+         需要它：滚轮是一次性的，自动滚动会**持续**滚，把宿主外壳一路推出屏幕。 */
+      if (holdsReadingPane(node, bound)) return null;
       if (isWheelScrollable(node, doc)) return node;
+      if (node === bound) return null;
       if (node === doc.documentElement || node === doc.body) break;
       node = node.parentElement;
     }
+    if (bound) return null;
     const root = doc.scrollingElement || doc.documentElement;
     return isWheelScrollable(root, doc) ? root : null;
   };
@@ -3425,7 +3467,7 @@
           } catch (e) {}
           el = el.parentElement;
         }
-        const target = nearestWheelScroller(el, tavern.document);
+        const target = nearestWheelScroller(el, tavern.document, readingPane());
         if (target) return { el: target, doc: tavern.document, point };
         break;
       }
@@ -3438,10 +3480,11 @@
         visited.add(win);
         try {
           const doc = win.document;
-          const target = nearestWheelScroller(
-            doc.getElementById('chat') || doc.scrollingElement || doc.documentElement,
-            doc,
-          );
+          /* 跟 scrollReading 的兜底同一条理由：只认阅读区，绝不退回文档根。自动滚动一旦
+             latch 在宿主外壳上会持续滚，比滚轮更难收场。 */
+          const chat = doc.getElementById('chat');
+          if (!chat) continue;
+          const target = nearestWheelScroller(chat, doc, chat);
           if (target) return { el: target, doc, point };
         } catch (e) {}
       }
@@ -3679,7 +3722,7 @@
           } catch (e) {}
           el = el.parentElement;
         }
-        remaining = scrollChain(el, remaining, tavern.document);
+        remaining = scrollChain(el, remaining, tavern.document, pane);
         /* elementsFromPoint contains the same ancestor chain repeatedly.  Once
            the hit target has been handled, the chain above already reached the
            document scroller, so continuing would apply the delta twice. */
@@ -3696,8 +3739,12 @@
           if (!win || visited.has(win)) continue;
           visited.add(win);
           const doc = win.document;
+          /* 只认阅读区。原来这里退回 doc.scrollingElement || doc.documentElement，等于
+             「找不到阅读区就去滚整个宿主页面」—— 而宿主页面一被滚走，顶栏和输入栏就跟着
+             消失，且没有任何东西会把它滚回来。找不到就不滚，把余量丢掉才是对的。 */
           const chat = doc.getElementById('chat');
-          remaining = scrollChain(chat || doc.scrollingElement || doc.documentElement, remaining, doc);
+          if (!chat) continue;
+          remaining = scrollChain(chat, remaining, doc, chat);
         } catch (e) {}
       }
     }
