@@ -1110,7 +1110,7 @@
      only register anchors; the manager elects the newest connected anchor and keeps
      the actual HUD iframe in the tavern document so a floor handover does not reload it. */
   const MANAGER_KEY = '__linjiangHudManagerV2';
-  const MANAGER_VERSION = 3;
+  const MANAGER_VERSION = 4;
   const INSTANCE_ID = (globalThis.crypto?.randomUUID?.() || `hud-${Date.now()}-${Math.random()}`);
 
   const createManager = (host) => {
@@ -1131,13 +1131,16 @@
          is still open. Keep the target shared across controller handovers, but do not
          move/reload the HUD iframe until the page reports that it has closed. */
       pendingDockMode: null,
-      electTick: 0,
+      /* 活着的控制器提供的定时器。见下面 defer 上面那段说明。 */
+      timers: new Map(),
       eventHooksBound: false,
-      contextTimer: 0,
+      /* defer 返回的取消器（不再是数字句柄 —— 定时器是别的窗口建的，跨窗口 clearTimeout
+         那个 id 是无效的）。 */
+      contextTimer: null,
       context() { return { chatKey: this.chatKey, epoch: this.epoch }; },
       createHudFrame() {
         const frame = this.host.document.createElement('iframe');
-        frame.title = '?????';
+        frame.title = '玻璃状态栏';
         frame.loading = 'eager';
         frame.referrerPolicy = 'strict-origin-when-cross-origin';
         frame.allow = 'clipboard-read; clipboard-write';
@@ -1173,6 +1176,68 @@
         } catch (e) {}
         return null;
       },
+      /* 延迟调度必须由**活着的** realm 发起。
+         ==================================================================
+         manager 这个对象挂在酒馆顶层窗口上，但它是 createManager 在「最先启动的那个楼层
+         文档」里造出来的，所以它的每个方法都是那个 realm 的函数对象。那个楼层一被重新渲染，
+         realm 就消失了 —— 而 Chrome 不会执行一个 realm 已经消失的回调，**即使 rAF /
+         setTimeout 是挂在活着的酒馆顶层窗口上的**。直接调用不受影响（所以 elect 被 register
+         同步调进来时一切正常），被丢掉的只有交给浏览器排期的那些。
+
+         实测：重建任意一个状态栏楼层之后，host.requestAnimationFrame 照样返回句柄，回调却
+         永远不来。旧代码把句柄记在共享的 electTick 上，于是 `if (this.electTick) return`
+         从此永久命中 —— 延迟选举整条通路死掉。两个可见后果：
+           · 删除 / 重生成末条消息之后不再重新选举，抬升的 HUD 停在 visibility:hidden，
+             状态栏整块消失，要等下一条新消息（register 会同步 elect）才回来；
+           · 切换对话时 switchContext 把 epoch 加一，那个 120ms 定时器本该把仍然连着的候选
+             重新盖章；定时器被丢掉之后候选全停在旧 epoch，选举一个都选不出来，连裁剪台都不建。
+
+         对策两条：
+           一、选举本身改成同步。它很便宜（一次过滤 + 一次排序）而且幂等 —— 赢家没变就直接
+               返回。原来那次 rAF 只为合并 DOM 突发，不值得拿一个单点故障去换。
+           二、真需要延迟的地方改由注册进来的控制器代劳：控制器的文档正在跑，realm 一定活着。
+               一个可用的都没有时就立刻执行，而不是把事情推给一个不会到来的将来。 */
+      defer(fn, ms) {
+        /* 在**多个**活着的控制器上各排一次期，谁先到谁做 —— 交给 defer 的活儿都是幂等的
+           （adoptSurvivors + elect）。只押一个的话，那个楼层刚好在这 120ms 里被重新渲染，
+           这次延迟就又丢了，而这正是原来那个单点故障的形状。 */
+        const cancels = [];
+        for (const [id, timer] of [...this.timers]) {
+          try {
+            if (!timer.alive()) continue;
+            const handle = timer.defer(fn, ms);
+            if (handle) cancels.push(handle);
+            if (cancels.length >= 3) break;
+          } catch (e) {
+            this.timers.delete(id);
+          }
+        }
+        if (!cancels.length) {
+          /* 一个活着的控制器都没有 —— 那也没什么可选的了，立刻跑，别把事情推给不会到来的将来。 */
+          try { fn(); } catch (e) {}
+          return null;
+        }
+        return {
+          cancel: () => cancels.forEach((row) => { try { row.cancel?.(); } catch (e) {} }),
+        };
+      },
+      /* 把仍然连着的候选收进当前 epoch，顺手清掉已断开 / 已销毁的。
+         switchContext 的延迟收编走这里，register 也走这里 —— 后者是关键：新楼层注册这件事
+         本身就发生在 DOM 突发之后，所以就算那个延迟被丢掉，选举也不会因为候选全停在旧 epoch
+         而选不出人。 */
+      adoptSurvivors() {
+        for (const [id, row] of this.candidates) {
+          let alive = false;
+          try { alive = !!row.frame?.isConnected && !row.destroyed(); } catch (e) {}
+          if (!alive) {
+            this.candidates.delete(id);
+            this.timers.delete(id);
+            if (this.owner?.id === id) this.owner = null;
+          } else {
+            row.epoch = this.epoch;
+          }
+        }
+      },
       register(controller) {
         const record = {
           ...controller,
@@ -1180,7 +1245,11 @@
           epoch: this.epoch,
           rank: this.messageRank(controller.frame),
         };
+        if (controller.defer && controller.alive) {
+          this.timers.set(controller.id, { defer: controller.defer, alive: controller.alive });
+        }
         this.candidates.set(record.id, record);
+        this.adoptSurvivors();
         if (this.owner && !this.owner.frame?.isConnected) {
           try { this.owner.deactivate('disconnected'); } catch (e) {}
           this.owner = null;
@@ -1190,24 +1259,35 @@
       },
       unregister(id) {
         const record = this.candidates.get(id);
-        if (!record) {
-          if (this.owner?.id === id) this.owner = null;
-          this.scheduleElect();
-          return;
-        }
         this.candidates.delete(id);
+        this.timers.delete(id);
         if (this.owner?.id === id) {
-          try { record.deactivate('removed'); } catch (e) {}
+          try { record?.deactivate('removed'); } catch (e) {}
           this.owner = null;
         }
         this.scheduleElect();
       },
       scheduleElect() {
-        if (this.electTick) return;
-        this.electTick = this.host.requestAnimationFrame(() => {
-          this.electTick = 0;
-          this.elect();
-        });
+        /* 同步选。理由见 defer 上面那段。 */
+        this.elect();
+      },
+      /* 落选者必须交出楼层高度。
+         ------------------------------------------------------------------
+         骨架给 html/body 涂的是 #05040a，所以一个「既不是 owner、又没折叠」的楼层在屏幕上
+         就是一块纯黑（夹具里量到 150px 高、深色像素占比 1.0）。
+
+         旧代码只在 owner 换人时收拾上一任，于是漏掉了最常见的那种落选：**带着更小 mesid
+         重新注册的楼层**。下面 `if (next?.id === this.owner?.id) return` 在赢家没变时直接
+         返回，那个新注册的旧楼层既没 activate 也没 deactivate。它的 iframe 元素往往是全新的
+         （酒馆助手重渲染这条消息时 Vue 新建 iframe；loading="lazy" 的楼层第一次滚进视口也是
+         新建），身上没有上一任留下的折叠 —— 没人替它把高度交出去。
+
+         往历史里翻的时候，每条 AI 消息都会这样留下一块黑。 */
+      retireLosers(owner) {
+        for (const row of this.candidates.values()) {
+          if (owner && row.id === owner.id) continue;
+          try { row.deactivate('not-elected'); } catch (e) {}
+        }
       },
       elect() {
         const rows = [...this.candidates.values()].filter((row) =>
@@ -1224,13 +1304,18 @@
           return a.sequence - b.sequence;
         });
         const next = rows.at(-1) || null;
-        if (next?.id === this.owner?.id) return;
+        if (next?.id === this.owner?.id) {
+          /* 赢家没变，但落选者仍然要交出高度。 */
+          this.retireLosers(next);
+          return;
+        }
         const previous = this.owner;
         this.owner = next;
         try { previous?.deactivate('superseded'); } catch (e) {}
+        this.retireLosers(next);
         if (next) {
           this.ensureHudFrame();
-          try { next.activate(this.context()); } catch (e) { console.warn('[?????] ????', e); }
+          try { next.activate(this.context()); } catch (e) { console.warn('[临江状态栏] 接管失败', e); }
         } else if (this.hudFrame) {
           this.hudFrame.style.visibility = 'hidden';
           this.hudFrame.style.pointerEvents = 'none';
@@ -1243,16 +1328,15 @@
         this.owner = null;
         try { previous?.deactivate('chat-switch'); } catch (e) {}
         this.resetHudFrame();
-        clearTimeout(this.contextTimer);
+        try { this.contextTimer?.cancel?.(); } catch (e) {}
         /* chatLoaded and the replacement status iframe are not ordered consistently.
            Adopt whichever registered anchors are still connected after the DOM burst;
-           disconnected old-chat anchors are pruned by the same pass. */
-        this.contextTimer = this.host.setTimeout(() => {
-          for (const [id, row] of this.candidates) {
-            if (!row.frame?.isConnected || row.destroyed()) this.candidates.delete(id);
-            else row.epoch = this.epoch;
-          }
-          this.scheduleElect();
+           disconnected old-chat anchors are pruned by the same pass.
+           延迟走 defer（活着的控制器代劳），而且 register 里也会 adoptSurvivors 兜一次 ——
+           这一步以前是整个「切对话之后状态栏不见了」的单点。 */
+        this.contextTimer = this.defer(() => {
+          this.adoptSurvivors();
+          this.elect();
         }, 120);
       },
       bindEventHooks(core) {
@@ -3423,6 +3507,8 @@
   };
 
   const deactivate = () => {
+    /* 从来没被激活过的控制器也要走这里：它唯一要做的事就是把楼层高度交出去。
+       落选的楼层不折叠 = 屏幕上一块纯黑，详见 manager.retireLosers 上面那段。 */
     if (!active) { collapseAnchor(); return; }
     if (MOBILE_NATIVE_FLOW) {
       active = false;
@@ -3462,7 +3548,11 @@
     }
     clearHostListeners();
     removeOwnedChrome();
-    if (hudFrame) {
+    /* 共用的那个 HUD 只有在「现在没人接手」时才由我来藏。
+       别人已经接手的时候藏它，就是把新任刚摆好的东西按下去 —— 而 deactivate 完全可能来得晚
+       （楼层被删时 pagehide 可能在新任 activate 之后才到），那一下就是状态栏整块消失。
+       真正"没有候选了"的情况由 manager.elect 自己收尾。 */
+    if (hudFrame && (!manager.owner || manager.owner.id === INSTANCE_ID)) {
       hudFrame.style.visibility = 'hidden';
       hudFrame.style.pointerEvents = 'none';
     }
@@ -3624,6 +3714,16 @@
     pushSnapshot,
     requestFollow,
     destroyed: () => destroyed,
+    /* 这两个是给 manager 用的、必须跑在**本文档 realm** 里的能力。manager 自己的闭包属于
+       最先启动的那个楼层文档，那个文档一被重渲染，它 schedule 出去的回调就永远不会执行
+       （见 manager.defer 上面那段）。所以凡是需要"以后再做"的事，都由控制器代劳。 */
+    alive: () => {
+      try { return !destroyed && !!window.frameElement; } catch (e) { return false; }
+    },
+    defer: (fn, ms) => {
+      const id = setTimeout(() => { try { fn(); } catch (e) {} }, ms);
+      return { cancel: () => { try { clearTimeout(id); } catch (e) {} } };
+    },
   });
 
 })();
