@@ -420,7 +420,14 @@ function loadProductionStatusSource() {
 
              ?shellFail=1 时改成一个不存在的地址，用来验引导壳的兜底提示真的会出现。这是引导壳
              唯一的新增用户可见行为，不注入一次故障就没有任何证据说明它有效。 */
-          const target = SHELL_FAIL ? '/shell/deliberately-missing.js' : '/shell/status-shell.js';
+          /* ?hud= 要一路带到服务端：引导壳的脚本由 localShellPlugin 改写 HUD_URL，
+             而"酒馆和 HUD 分处两个源"是生产的真实形态，不带过去这条路就永远是同源，
+             一整类地址解析 bug 在这里看不见。 */
+          const hudParam = params.get('hud');
+          const suffix = hudParam ? `?hud=${encodeURIComponent(hudParam)}` : '';
+          const target = SHELL_FAIL
+            ? '/shell/deliberately-missing.js'
+            : `/shell/status-shell.js${suffix}`;
           const replaced = source.replace(
             /(<script\s+src=")https?:\/\/[^"]*\/shell\/status-shell\.js(")/,
             `$1${target}$2`,

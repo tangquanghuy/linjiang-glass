@@ -15,6 +15,7 @@
 
 import { CITY_BUILD_COST, characterDetails, customMapNodes, girls, onLive, player, world } from './data.js';
 import { deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
+import { hudPage } from './asset.js';
 
 const MAP_REV = '20260823-custom-nodes-v1';
 
@@ -36,7 +37,8 @@ const DISTRICT_KEY = {
 const PHASE_ALIAS = { 昼: '朝' };
 
 export function mapSrc() {
-  return new URL(`${import.meta.env.BASE_URL}city/plate_map.html?v=${MAP_REV}`, document.baseURI).href;
+  /* 基准是 HUD 自己的来源，不是 document.baseURI（见 src/asset.js 的 hudBase）。 */
+  return hudPage(`city/plate_map.html?v=${MAP_REV}`);
 }
 
 export function isMapOpen() {

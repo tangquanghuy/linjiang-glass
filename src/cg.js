@@ -11,11 +11,13 @@
    形状保持小手机的 羁绊列表 原样，页面那边不用改。 */
 
 import { characterDetails, onLive } from './data.js';
+import { hudPage } from './asset.js';
 
 const CHANNEL = 'linjiang-cg';
 
 export function cgSrc() {
-  return new URL(`${import.meta.env.BASE_URL}cg/index.html`, document.baseURI).href;
+  /* 基准是 HUD 自己的来源，不是 document.baseURI（见 src/asset.js 的 hudBase）。 */
+  return hudPage('cg/index.html');
 }
 
 export function isCgOpen() {

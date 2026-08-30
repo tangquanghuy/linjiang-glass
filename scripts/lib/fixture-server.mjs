@@ -120,7 +120,14 @@ function localShellPlugin() {
         res.setHeader('Cache-Control', 'no-store');
         let body = readFileSync(target, 'utf8');
         if (target.endsWith('status-shell.js')) {
-          const local = `http://127.0.0.1:${server.config.server.port}/`;
+          /* 默认把 HUD 指到本服务器。但允许用 ?hud=<地址> 覆盖 —— 生产环境里酒馆和 HUD 是
+             **两个源**（酒馆是 TT 应用，HUD 在 Pages），而夹具默认把两者放在同一个源上，
+             于是「相对地址解析到了错误的源」这一类 bug 天生隐形（实测代价：原生流下商店/CG
+             的 iframe 被解析到酒馆域，真机整屏黑，而夹具一路全绿）。
+             自包含版能在 HTML 文本里改 HUD_URL，引导壳的脚本是浏览器自己去取的，只能在这里改，
+             所以这个覆盖入口必须在服务端也有一份。 */
+          const override = new URLSearchParams((req.url || '').split('?')[1] || '').get('hud');
+          const local = override || `http://127.0.0.1:${server.config.server.port}/`;
           const patched = body.replace(
             /const\s+HUD_URL\s*=\s*(['"])[\s\S]*?\1\s*;/,
             `const HUD_URL = ${JSON.stringify(local)};`,

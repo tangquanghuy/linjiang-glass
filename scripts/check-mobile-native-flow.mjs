@@ -8,7 +8,20 @@ import { stageRealSources } from './lib/real-tavern-sources.mjs';
 import { stubExternalRequests } from './lib/stub-external.mjs';
 
 const meta = stageRealSources();
+/* 酒馆和 HUD 必须分处两个源。
+   ==================================================================
+   生产环境就是这样：酒馆是 TauriTavern 的应用源，HUD 在 GitHub Pages。夹具原来把两者放在
+   同一个源上，于是一整类「相对地址解析到了错误的源」的 bug 天生隐形 —— 那个错误地址在同源
+   夹具里恰好也能命中文件。
+
+   实测代价：原生流下 HUD 的 DOM 长在楼层 srcdoc 里，srcdoc 的 baseURI 继承酒馆地址，于是
+   商店 / CG / 地图 / 街机 的 iframe 全被解析到 `<酒馆域>/shop/index.html` 这种不存在的路径
+   → 空白 iframe → 真机整屏黑。而夹具一路全绿，因为 5225 上那个文件是存在的。
+
+   所以第二个服务器不是"额外的严格"，它是**让夹具具备发现这类 bug 的能力**。 */
 const server = await startFixtureServer({ port: 5225 });
+const hudServer = await startFixtureServer({ port: 5226 });
+const HUD_ORIGIN = 'http://127.0.0.1:5226/';
 const browser = await chromium.launch();
 const failures = [];
 const check = (ok, label, detail = '') => {
@@ -42,6 +55,8 @@ for (const kase of cases) {
     const query = new URLSearchParams({
       chrome: '0', preset: kase.preset, theme: 'Dark V 1.0', floors: '20', rendered: '0',
       statusFloors: '3', shell: kase.shell,
+      /* HUD 换到第二个源，理由见文件顶部那段。 */
+      hud: HUD_ORIGIN,
     });
     await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });
@@ -265,6 +280,38 @@ for (const kase of cases) {
         form: getComputedStyle(document.getElementById('form_sheld')).visibility,
       };
     });
+    /* 内嵌页面的地址必须解析到 **HUD 的源**，不是酒馆的源。
+       ==================================================================
+       真机黑屏的根因就在这里。原生流下 HUD 的 DOM 长在楼层 srcdoc 文档里，而 srcdoc 的
+       baseURI 继承父文档 —— 也就是酒馆的地址。原来 shopSrc() 用 document.baseURI 解析
+       `${BASE_URL}shop/index.html`，于是指向 `<酒馆域>/shop/index.html`：生产环境 TT 的应用
+       源下没有这个文件 → 404 → 空白 iframe → 叠上覆盖层近黑底色和被藏起来的宿主 chrome
+       = 整屏黑。次级页面（日程）是纯 DOM、不解析地址，所以一直正常 —— 正是用户观察到的分野。
+
+       现在基准由壳层给（window.__linjiangHudBase，见 src/asset.js 的 hudBase）。
+       三条一起断言：基准本身对、楼层 baseURI 确实是酒馆地址（前提）、且基准真的落到了 iframe 上。 */
+    const originCheck = await page.evaluate((hudOrigin) => {
+      const frame = window.__linjiangTavernLive.statusFrame;
+      const doc = frame.contentDocument;
+      const iframe = doc.querySelector('.shop-layer iframe');
+      return {
+        hudBase: frame.contentWindow.__linjiangHudBase || '',
+        floorBaseURI: doc.baseURI,
+        tavernOrigin: location.origin,
+        shopResolved: iframe ? iframe.src : '',
+        onHudOrigin: !!iframe && iframe.src.startsWith(hudOrigin),
+        onTavernOrigin: !!iframe && iframe.src.startsWith(`${location.origin}/`),
+      };
+    }, HUD_ORIGIN);
+    check(originCheck.hudBase.startsWith(HUD_ORIGIN),
+      '壳层把 HUD 自己的来源交给了 HUD（__linjiangHudBase）', originCheck.hudBase || '(空)');
+    check(originCheck.floorBaseURI.startsWith(originCheck.tavernOrigin),
+      '前提：楼层 srcdoc 的 baseURI 确实是酒馆地址（所以不能拿它当基准）',
+      originCheck.floorBaseURI.slice(0, 60));
+    check(originCheck.onHudOrigin && !originCheck.onTavernOrigin,
+      '商店 iframe 解析到 HUD 的源，而不是酒馆的源（真机黑屏的根因）',
+      originCheck.shopResolved);
+
     check(shop.layer && shop.innerFrames === 1 && covers(shop),
       'shop overlay pins the floor to the visual viewport', JSON.stringify(shop));
     check(Math.abs(shop.layerW - viewport.w) <= 2 && Math.abs(shop.layerH - viewport.h) <= 2,
@@ -369,6 +416,7 @@ for (const kase of cases) {
 
 await browser.close();
 await server.close();
+await hudServer.close();
 console.log(`\nReal sources: ST ${meta.versions.sillytavern} / Tavern Helper ${meta.versions.tavernHelper}`);
 if (failures.length) {
   console.log('\nNative mobile-flow regression failed:');

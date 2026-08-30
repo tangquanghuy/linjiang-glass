@@ -3047,6 +3047,13 @@
       || entries.at(-1);
     if (!entry) throw new Error('HUD 首页里找不到 module script');
     const resolved = {
+      /* HUD 自己的目录。原生流下 HUD 的 DOM 长在楼层 srcdoc 文档里，而 srcdoc 的 baseURI
+         继承的是**酒馆的地址** —— HUD 里那些 `${BASE_URL}shop/index.html` 之类的相对地址
+         如果按 baseURI 解析，就会指到酒馆域下一个不存在的路径，iframe 空白、屏幕整片黑。
+         真机上正是这样炸的（商店 / CG 打不开），而夹具因为酒馆和 HUD 同源一直看不出来。
+         所以由壳层把真实来源交给 HUD（见 src/asset.js 的 hudBase）。
+         用 response.url 而不是 HUD_URL：它是跟过重定向之后的最终地址。 */
+      base: new URL('.', response.url).toString(),
       src: new URL(entry.getAttribute('src'), response.url).toString(),
       css: [...parsed.querySelectorAll('link[rel="stylesheet"]')]
         .map((link) => ({
@@ -3116,6 +3123,8 @@
     showHint('正在加载 HUD…');
     mobileNativeMountPromise = (async () => {
       const entry = await resolveNativeEntry();
+      /* 必须在注入 bundle **之前**写：HUD 一跑起来就可能去解析内嵌页面的地址。 */
+      if (entry.base) window.__linjiangHudBase = entry.base;
       applyNativeStyles(entry.css);
       /* 重试时给入口加一个查询串。同一个 URL 一旦进了本文档的 module map 就不会再执行，
          所以"加载成功但没画出来"那种失败必须换 URL 才有第二次机会。 */

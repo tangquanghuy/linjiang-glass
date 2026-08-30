@@ -1,9 +1,12 @@
 ﻿/* Token shop overlay. Browser token balance stays in shop/index.html localStorage;
    only successful product redemption crosses the bridge and writes MVU 背包. */
 import { purchaseShopProduct } from './bridge.js';
+import { hudPage } from './asset.js';
 
 export function shopSrc() {
-  return new URL(`${import.meta.env.BASE_URL}shop/index.html`, document.baseURI).href;
+  /* 基准必须是 HUD 自己的来源，不能是 document.baseURI —— 原生流下后者是酒馆的地址，
+     会把这个 iframe 指到一个不存在的路径上，屏幕整片黑。理由详见 src/asset.js 的 hudBase。 */
+  return hudPage('shop/index.html');
 }
 export function isShopOpen() { return !!document.querySelector('.shop-layer'); }
 export function shopOverlay() {

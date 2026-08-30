@@ -12,9 +12,11 @@
 
 import { arcadeProfile, applyArcadeProfile, player, onLive } from './data.js';
 import { flushMoney, recordArcadeEvent, setMoney } from './bridge.js';
+import { hudPage } from './asset.js';
 
 export function arcadeSrc() {
-  return new URL(`${import.meta.env.BASE_URL}arcade/index.html`, document.baseURI).href;
+  /* 基准是 HUD 自己的来源，不是 document.baseURI（见 src/asset.js 的 hudBase）。 */
+  return hudPage('arcade/index.html');
 }
 
 export function isArcadeOpen() {
