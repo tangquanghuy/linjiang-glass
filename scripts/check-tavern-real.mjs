@@ -45,6 +45,15 @@ async function openPreset(preset, extra = {}) {
   if (extra.tauriMobile) {
     await page.addInitScript(() => { window.__TAURITAVERN__ = { abiVersion: 1 }; });
   }
+  /* 这支脚本量的是**抬升**架构的契约（HUD 被抬到酒馆文档、TT 浮层准入的退出、栏位对齐）。
+     TT 手机端并入原生流之后，那套契约在手机上已经没有作用对象了 —— 但代码路径仍在（桌面
+     选「收进嵌入框」以外的所有桌面场景都走抬升），所以这里显式要一份抬升架构继续把它钉住。
+     壳层自己留的逃生口，必须在壳层执行之前落到楼层文档里，所以走 addInitScript（Playwright
+     会对每个 frame 都注入，包括 srcdoc 的）。
+     真正该做的后续是给这支脚本补一份原生流版本的契约，而不是永远靠这个开关。 */
+  if (extra.forceLifted) {
+    await page.addInitScript(() => { window.__linjiangForceDesktopShell = true; });
+  }
   await page.route('https://fonts.googleapis.com/**', (route) => route.fulfill({
     status: 200,
     contentType: 'text/css',
@@ -153,7 +162,7 @@ console.log(`  ${'-'.repeat(112)}`);
 {
   const base = REAL_PRESETS.find((item) => item.id === 'tablet-portrait');
   const preset = { ...base, vw: 1001, vh: 1400, mobile: true, touch: true };
-  const page = await openPreset(preset, { tauriMobile: true });
+  const page = await openPreset(preset, { tauriMobile: true, forceLifted: true });
   const initial = await page.evaluate(() => {
     const hud = document.getElementById('linjiang-hud-live');
     const sheld = document.getElementById('sheld').getBoundingClientRect();

@@ -1,9 +1,21 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import {
   ASSETS_ROOT, CDN_HOST, buildRewriteContexts, cdnEnabled, listRewritable, rewriteStaticRefs,
 } from './scripts/asset-cdn.mjs';
+
+/* 构建标记。git 短 sha 优先，取不到就退回日期 —— 这个值只用来在设置页显示"我跑的是哪一版
+   HUD"，所以宁可粗糙也不能没有。 */
+const HUD_BUILD = (() => {
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim()
+      || new Date().toISOString().slice(0, 10);
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+})();
 
 function copyCityMap(destRoot) {
   if (!existsSync('city')) return;
@@ -76,7 +88,13 @@ export default defineConfig({
   server: { port: 5173, host: '127.0.0.1' },
   build: { target: 'chrome110', assetsInlineLimit: 0 },
   /* null 表示走本地 ${BASE_URL}assets/。src/asset.js 和 src/data.js 都读这个。 */
-  define: { __ASSETS_ROOT__: JSON.stringify(USE_ASSET_CDN ? ASSETS_ROOT : null) },
+  define: {
+    __ASSETS_ROOT__: JSON.stringify(USE_ASSET_CDN ? ASSETS_ROOT : null),
+    /* HUD 构建标记，显示在全局设置页脚注里。
+       为什么要注入而不是手写一个常量：手写的必然漂 —— 忘了改的那次正是最需要它的那次。
+       取 git 短 sha，拿不到（浅克隆 / 非 git 目录）就退回构建日期，永远有值可显示。 */
+    __HUD_BUILD__: JSON.stringify(HUD_BUILD),
+  },
   plugins: [{
     name: 'copy-static-pages',
     closeBundle() {

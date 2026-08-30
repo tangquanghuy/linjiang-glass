@@ -162,7 +162,12 @@ for (const kase of CASES) {
   if (only && !kase.id.includes(only) && !String(kase.w).includes(only)) continue;
   /* 基线模式只能跑 inline —— 理由在上面 shellOverride 那段。 */
   const shell = baselineShell ? 'inline' : (shellOverride || kase.shell);
-  const nativeMobileFlow = !baselineShell && !kase.host && kase.w < 880;
+  /* 手机尺寸一律跳过：那些格子现在都走原生流，没有被抬起的 iframe 可量。
+     以前这里还带一条 `!kase.host`，把 TT 手机端排除在"原生流"之外 —— 那是在描述 TT 还没
+     迁移这个事实。TT 手机端并入原生流之后，两个宿主的手机格都该跳过，滚动成本由
+     check-mobile-native-flow.mjs 的光栅预算和 probe-mobile-embed-cost.mjs 接管。
+     于是这支脚本实际只剩桌面那一格 —— 而抬升架构现在也确实只剩桌面会用到。 */
+  const nativeMobileFlow = !baselineShell && kase.w < 880;
   if (nativeMobileFlow) {
     console.log(`
 --- skip ${kase.id}: native mobile flow has no lifted iframe; covered by check-mobile-native-flow.mjs ---`);

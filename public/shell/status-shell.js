@@ -47,6 +47,11 @@
   try {
     document.documentElement.dataset.linjiangShell = SHELL_VERSION;
   } catch (e) {}
+  /* 原生流下 HUD bundle 就在本文档里跑，所以直接给它留个全局；抬升架构走握手回包
+     （见 handleRequest 的 handshake）。两条路都通，HUD 侧就不用关心自己在哪种架构里。 */
+  try {
+    window.__linjiangShellVersion = SHELL_VERSION;
+  } catch (e) {}
 
   /* 以下两道守卫是「脚本改成异步加载」之后才需要的，内联时代不可能触发。
      ------------------------------------------------------------------
@@ -101,14 +106,37 @@
     try {
       if (window.__linjiangForceDesktopShell) return false;
       const host = window.top || window.parent || window;
-      /* This branch targets native Chrome/Safari SillyTavern. TauriTavern keeps its
-         existing compatibility path until it is migrated and tested separately. */
-      if (host.__TAURITAVERN__) return false;
       const nav = host.navigator || navigator;
-      const uaMobile = /android|iphone|ipad|ipod|mobile/i.test(String(nav.userAgent || ''));
+      const ua = String(nav.userAgent || '');
+      const uaMobile = /android|iphone|ipad|ipod|mobile/i.test(ua);
       const coarse = !!host.matchMedia?.('(pointer: coarse)')?.matches
         || Number(nav.maxTouchPoints || 0) > 0;
-      return (uaMobile || coarse) && Number(host.innerWidth || innerWidth) <= 879;
+      if (!uaMobile && !coarse) return false;
+      const width = Number(host.innerWidth || innerWidth) || 0;
+      const height = Number(host.innerHeight || innerHeight) || 0;
+      /* TauriTavern 的移动端也走这条路。
+         ==================================================================
+         这里原来有一条 `if (host.__TAURITAVERN__) return false;`，理由是"TT 保留原有兼容
+         路径，等单独迁移和测试"。结果是：**唯一为了救移动端性能而做的那条路，恰好把
+         TT 用户排除在外**，而 TT 正是移动端的主要宿主。TT 用户拿到的仍是抬升架构，而且在
+         「收进嵌入框」下每来一条 AI 消息都要把 HUD iframe 跨文档挪一次 —— iframe 换父节点
+         必重载，也就是每条消息重新下载执行一整个 HUD。1 核机上这是灾难级的。
+
+         原生流在 TT 上其实比抬升更安全，不是更危险：它根本不建 position:fixed 的浮层，
+         于是 TT 那套浮层准入（mobile-overlay-compat-controller）和几何防火墙
+         （mobile-geometry-firewall 会改写 edge-window 的 top）都没有可作用的对象 ——
+         我们不再需要靠 data-tt-mobile-surface="none" 去申请豁免，因为压根没有面要豁免。
+         同理，TT 把楼层运行时挪进 0×0 停车场那套麻烦（isSafeOuterFrame / recoverInlineDock /
+         startInlineResumeWatch 全是为它写的）在原生流下也不存在：HUD 就在楼层文档里，
+         楼层去哪它去哪。
+
+         宽度判据对 TT 要放宽。 Tauri 的 WebView 会报出比屏幕像素更宽的 CSS 视口（这一点
+         isIosTauriTavernMobile 上面那段注释已经踩过），所以对 TT 移动运行时改用「竖屏即
+         移动」——跟 portraitHud() 一直信的是同一条规则。否则去掉排除也白搭：TT 会因为
+         innerWidth > 879 而继续掉回抬升架构。 */
+      const ttMobile = !!host.__TAURITAVERN__ && (uaMobile || coarse);
+      if (ttMobile && width > 0 && height > 0 && width < height) return true;
+      return width <= 879;
     } catch (e) {
       return false;
     }
@@ -920,6 +948,11 @@
           label: '临江玻璃状态栏',
           hasMvu: !!(mvuState.ready || mvuState.check()),
           context: manager.context(),
+          /* 壳层是粘贴部署的，所以「用户手上到底是哪一版壳层」只有壳层自己知道 —— 而这
+             恰恰是排查时最需要确认的（HUD 跟着 Pages 自动更新，壳层冻结在粘贴那一天）。
+             顺手带在握手里，HUD 就能把它显示在设置页底部。 */
+          shellVersion: SHELL_VERSION,
+          nativeFlow: MOBILE_NATIVE_FLOW,
         };
       case 'getSnapshot':
         return hudSnapshot(fetchLatestMvuData());

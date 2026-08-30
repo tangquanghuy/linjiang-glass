@@ -35,7 +35,7 @@ import { renderContent } from './content.js';
 import { createPortraitStage } from './portrait/stage.js';
 import { mountPortraitContent } from './portrait/content.js';
 import { startBridge } from './bridge.js';
-import { onPref, pref } from './prefs.js';
+import { onPref, pref, prefStored } from './prefs.js';
 
 /* Two layouts, not one layout with breakpoints.
    ------------------------------------------------------------------
@@ -179,9 +179,25 @@ const iosTouchHost = hostNeedsFlatGlass && (() => {
   return navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
 })();
 if (iosTouchHost) document.documentElement.dataset.hudIosScroll = '1';
+/* 原生流下平面玻璃是**默认**，不是强制。
+   ------------------------------------------------------------------
+   hostNeedsFlatGlass 只认 `?host=tauritavern-mobile` 这个查询串，而那是抬升架构给 HUD
+   iframe 拼 URL 时加上的。原生流下 HUD 是当 module 直接在楼层文档里执行的，没有查询串 ——
+   于是「专门为救移动端性能而做的那条路」反倒是唯一还在付全套 backdrop-filter 的移动端
+   路径，而 TauriTavern 的抬升路径反而拿到了平面玻璃。这是个纯粹的逻辑漏洞。
+
+   补法上跟 TT 那条不同：TT 是硬来（拿不到完整效果），原生流只改默认值。理由是原生流覆盖
+   的机型跨度很大，高端手机跑满玻璃完全没问题，不该替他们决定；而 prefStored 能分清
+   「默认恰好是 auto」和「用户明确选了完整效果」，所以给得起这个选择。 */
+const nativeFlowHost = (() => {
+  try { return !!window.__linjiangNativeFlow; } catch (e) { return false; }
+})();
 const applyPerformanceMode = () => {
-  document.documentElement.dataset.hudPerformance = hostNeedsFlatGlass
-    || pref('performanceMode') === 'low' ? 'low' : 'auto';
+  const choice = pref('performanceMode');
+  const low = choice === 'low'
+    || hostNeedsFlatGlass
+    || (nativeFlowHost && !prefStored('performanceMode'));
+  document.documentElement.dataset.hudPerformance = low ? 'low' : 'auto';
 };
 applyPerformanceMode();
 

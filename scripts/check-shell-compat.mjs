@@ -179,7 +179,12 @@ for (const spec of SHELLS) {
       const m = await page.evaluate(() => window.__linjiangTavernLive.measure());
 
       /* ---- 兼容地板：六个版本都必须过 ---- */
-      const expectsNativeFlow = !spec.rev && target.host !== 'tauritavern';
+      /* 当前工作区的壳层在**两个宿主**上都走原生流：TT 手机端已经并入（见壳层的
+         MOBILE_NATIVE_FLOW）。以前这里给 TT 开了个 `&& target.host !== 'tauritavern'` 的
+         例外，那是在描述"TT 还没迁移"这个事实，不是在描述应有的行为。
+         旧版本壳层（spec.rev）当然仍旧抬升，那一支保持原样 —— 这支脚本的全部意义就是
+         「旧粘贴壳层配新 HUD 还得能用」。 */
+      const expectsNativeFlow = !spec.rev;
       check(expectsNativeFlow ? (m.nativeFlow && !m.lifted) : m.lifted,
         expectsNativeFlow ? 'workspace browser shell uses native srcdoc HUD' : 'shell lifts HUD as #linjiang-hud-live',
         `native=${m.nativeFlow} lifted=${m.lifted}`);
@@ -191,7 +196,10 @@ for (const spec of SHELLS) {
       check(errors.length === 0, '无脚本错误', errors.slice(0, 2).join(' | '));
 
       /* ---- 按能力放行的部分 ---- */
-      if (target.host === 'tauritavern') {
+      /* 浮层准入只对**抬升**架构有意义：那套契约管的是挂在酒馆 body 上的 fixed iframe。
+         原生流根本不建那样的面，所以没有 data-tt-mobile-surface 可查，也没有豁免要申请
+         —— 这正是原生流在 TT 上比抬升更省心的地方。 */
+      if (target.host === 'tauritavern' && m.lifted) {
         if (caps.hasTtSurface) {
           check(m.ttSurface === 'none' && m.ttAdmitted === false && m.ttOriginalTop === '',
             'TT 浮层准入退出契约仍成立',

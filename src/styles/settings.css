@@ -128,3 +128,23 @@
   line-height: 1.6;
   text-align: left;
 }
+
+/* 版本脚注。排查信息，不是给人天天看的 —— 所以刻意做到最小、最淡、不可点，
+   但两个构图都必须有（settingsBody 是共享的，见 src/settings.js）。 */
+.set-version {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 18px;
+  padding: 0 4px;
+  color: color-mix(in srgb, var(--ink) 42%, transparent);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: .04em;
+  user-select: text;
+}
+.psettings-page .set-version {
+  margin-top: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}

@@ -40,6 +40,10 @@ const CASES = [
   { id: 'boot-portrait', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: '', theme: 'Dark V 1.0', shell: 'boot' },
   { id: 'boot-tauri', preset: 'phone-iphone', w: 390, h: 844, dsf: 3, host: 'tauritavern', theme: 'Dark V 1.0', shell: 'boot' },
   { id: 'boot-desktop', preset: 'desktop-work', w: 1440, h: 900, dsf: 1, host: '', theme: 'Dark V 1.0', shell: 'boot' },
+  /* TT 的 WebView 会报出比屏幕像素更宽的 CSS 视口，所以一台手机上 innerWidth 完全可能是
+     1001。这一格钉住「TT 竖屏即移动端」：宽度越过 879 也必须走原生流，否则 TT 用户会因为
+     视口读数而悄悄掉回抬升架构 —— 而那正是他们卡的原因。 */
+  { id: 'tauri-wide-portrait', preset: 'tablet-portrait', w: 1001, h: 1400, dsf: 2, host: 'tauritavern', theme: 'Dark V 1.0', shell: 'flow' },
 ];
 
 for (const kase of CASES) {
@@ -106,7 +110,15 @@ for (const kase of CASES) {
       m.shellVersion || '(空 —— boot 路径下即「脚本没取到」)');
     check(!m.shellHint.includes('没取到'), '引导壳没有报「脚本没取到」', m.shellHint || '(无提示)');
 
-    const expectNativeFlow = !kase.host && kase.w < 880;
+    /* 原生流现在不分宿主：TT 手机端也走这条（见壳层的 MOBILE_NATIVE_FLOW）。
+       以前这里写的是 `!kase.host && ...`，那条 `!kase.host` 在描述"TT 还没迁移"这个事实，
+       不是在描述应有的行为 —— 而 TT 恰好是移动端的主要宿主。
+
+       第二项是 TT 专属的放宽：Tauri 的 WebView 会报出比屏幕像素更宽的 CSS 视口，所以对
+       TT 移动运行时「竖屏即移动」，不再只看 879 这条宽度线。tauri-wide-portrait 那个
+       用例（1001×1400）就是钉这一条的 —— 它以前会因为宽度而掉回抬升架构。 */
+    const expectNativeFlow = kase.w < 880
+      || (kase.host === 'tauritavern' && kase.w < kase.h);
     check(m.nativeFlow === expectNativeFlow,
       `架构选择（期望 ${expectNativeFlow ? '移动端原生流内' : '桌面抬升'}）`,
       `native=${m.nativeFlow} lifted=${m.lifted}`);
@@ -117,21 +129,34 @@ for (const kase of CASES) {
     check(m.liveHudCount === 1, 'HUD 只有一份', String(m.liveHudCount));
     check(m.hudNodes > 150, 'HUD 构图已建完', `${m.hudNodes} 节点`);
 
-    const expectPortrait = kase.w < kase.h && kase.w < 880;
+    /* 竖屏构图的判据跟壳层的 portraitHud() 一致：`w < h && (w < 880 || TT 移动端)`。
+       TT 那一项不能省 —— 它的 CSS 视口读数不可信，所以对 TT 移动运行时以朝向为准。 */
+    const expectPortrait = kase.w < kase.h && (kase.w < 880 || kase.host === 'tauritavern');
     check(m.portraitDom === expectPortrait, `构图选择（期望 ${expectPortrait ? '竖屏' : '横屏'}）`,
       m.portraitDom ? '竖屏' : '横屏');
 
     if (kase.host === 'tauritavern') {
       check(m.ttFirewallInstalled, '真实 TT geometry firewall 已安装');
-      check(m.hudPerformanceMode === 'low', 'TT 移动端被识别（HUD 进低配模式）', m.hudPerformanceMode);
+    }
+    /* 浮层准入那三条只对**抬升**架构有意义：契约管的是挂在酒馆 body 上的 fixed iframe。
+       原生流压根不建那样的面，所以既没有 data-tt-mobile-surface 可查，也没有豁免要申请 ——
+       这正是原生流在 TT 上比抬升更省心的地方，不是漏测。 */
+    if (kase.host === 'tauritavern' && m.lifted) {
       /* 这三条是一个整体：状态栏靠"预先声明 none 且未被接管"从 TT 的浮层准入里退出。
          任何一条破了，TT 就会用 !important 改写 HUD 的 top。 */
       check(m.ttSurface === 'none', 'TT 准入退出：surface 仍为 none', String(m.ttSurface));
       check(m.ttAdmitted === false, 'TT 准入退出：未被标记 admitted', String(m.ttAdmitted));
       check(m.ttOriginalTop === '', 'TT 准入退出：没有 --tt-original-top', m.ttOriginalTop || '(空)');
-    } else {
-      check(m.hudPerformanceMode === 'auto', '原生浏览器不进低配模式', m.hudPerformanceMode);
     }
+    /* 低配玻璃的策略：手机（原生流）默认平面玻璃，桌面保持完整效果。
+       ------------------------------------------------------------------
+       以前这条是按宿主分的（只有 TT 进低配），而那恰好把唯一为移动端性能做的那条路排除在
+       外：原生流下 HUD 是当 module 直接在楼层文档里跑的，没有 `?host=tauritavern-mobile`
+       查询串，于是它是唯一还在付全套 backdrop-filter 的移动端路径。现在按**架构**分。
+       注意这只是默认值，用户在设置页选「完整效果」仍然生效（见 prefs.js 的 prefStored）。 */
+    check(m.hudPerformanceMode === (expectNativeFlow ? 'low' : 'auto'),
+      expectNativeFlow ? '手机原生流默认平面玻璃' : '桌面保持完整效果',
+      m.hudPerformanceMode);
 
     check(errors.length === 0, '无脚本错误', errors.slice(0, 2).join(' | '));
   } catch (error) {
@@ -203,7 +228,17 @@ console.log('\n=== boot-offline  390x844  引导壳取不到脚本（故障注�
 
    还要断言**退出后精确还原** —— 漏掉的话 #chat 会永久失去 backdrop-filter，那是个
    不报错的画面退化，最难发现。 */
-console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 次级页面 ===');
+/* 谁还会走到这条路（迁移之后）
+   ------------------------------------------------------------------
+   「收回嵌入框 + 次级页面」这一支属于 INLINE_DOCK 的**抬升**架构：它把共用的 HUD iframe
+   挪进楼层文档，再为整页去动宿主的 chrome。TT 手机端并入原生流之后，手机上两个宿主都不再
+   走这条路了 —— 它现在只剩桌面用户选「收进嵌入框」时会碰到。
+
+   但上面那两个坑（fixed 逃不出带模糊的 #chat、抬不出去的 #top-bar/#form_sheld）跟视口宽度
+   无关，而在手机尺寸上最尖锐（整页几乎铺满、chrome 占比最大）。所以这个用例保持在 390×844，
+   用夹具的 forceLifted 显式要一份抬升架构来跑 —— 测的是仍然存在的代码路径，只是换了触发它
+   的人。真要重指到桌面尺寸得重写里面那一堆写死的坐标，留给后面做。 */
+console.log('\n=== flow-lifted-page  390x844  流内嵌入 · 强制抬升 · 收回嵌入框 · 次级页面 ===');
 {
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
@@ -214,7 +249,7 @@ console.log('\n=== flow-tauri-page  390x844  流内嵌入 · 收回嵌入框 · 
   try {
     const query = new URLSearchParams({
       chrome: '0', preset: 'phone-iphone', theme: 'Dark V 1.0', floors: '12', rendered: '2',
-      shell: 'flow', host: 'tauritavern',
+      shell: 'flow', host: 'tauritavern', forceLifted: '1',
     });
     await page.goto(`${server.url}/tools/tavern-live-fixture.html?${query}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__linjiangTavernLive, { timeout: 45000 });

@@ -83,9 +83,12 @@ const TARGETS = [
     architecture: 'lifted',
   },
   {
+    /* TT 手机端已经并入原生流（见壳层 MOBILE_NATIVE_FLOW 上面那段）。这一格的期望值从
+       lifted 改成 native-flow 是这次迁移的核心断言：TT 是移动端的主要宿主，而它以前被那条
+       `if (host.__TAURITAVERN__) return false` 挡在唯一为移动端性能做的那条路之外。 */
     id: 'tt-phone', label: 'TauriTavern · 手机 390×844',
     preset: 'phone-iphone', w: 390, h: 844, dsf: 3, touch: true, host: 'tauritavern', ua: UA.iosTt,
-    architecture: 'lifted',
+    architecture: 'native-flow',
   },
 ];
 

@@ -8,6 +8,13 @@ let seq = 0;
 let started = false;
 let autoscrollActive = false;
 let bridgeContext = { chatKey: null, epoch: 0 };
+/* 壳层版本。原生流下壳层与 HUD 同文档，直接读全局；抬升架构下它随握手回包到达。
+   两条路都要有：壳层是粘贴部署的，「用户手上到底是哪一版」只有它自己知道，而 HUD 是跟着
+   Pages 自动更新的 —— 排查时要确认的几乎总是前者。 */
+let shellVersion = (() => {
+  try { return String(window.__linjiangShellVersion || ''); } catch { return ''; }
+})();
+export function getShellVersion() { return shellVersion; }
 let pendingSnapshot = null;
 let snapshotRaf = 0;
 
@@ -401,6 +408,7 @@ export function startBridge() {
   const finishStartup = () => {
     rpc('handshake').then((hello) => {
       if (hello?.context) resetContext(hello.context);
+      if (hello?.shellVersion) shellVersion = String(hello.shellVersion);
       /* Native-flow has no docking geometry to configure. Keeping the preference in
          storage is harmless, but sending it would wake the desktop layout state machine. */
       if (!directBridge()) reportDockDefault(pref('dockDefault'));

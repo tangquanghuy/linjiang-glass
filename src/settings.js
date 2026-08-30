@@ -10,7 +10,7 @@
    以及"改完之后除了写 store 还要做什么"。 */
 
 import { PREF_CHOICES, onPref, pref, setPref } from './prefs.js';
-import { reportDockDefault } from './bridge.js';
+import { getShellVersion, reportDockDefault } from './bridge.js';
 
 /* 面向用户只说明选项带来的直接差别。开发约束留在实现注释中，不放进设置卡片。 */
 export const SETTINGS_ROWS = [
@@ -64,7 +64,28 @@ export function settingsBody() {
           ${row.hint ? `<em class="set-hint">${row.hint}</em>` : ''}
         </div>
       </div>`;
-  }).join('');
+  }).join('') + versionFooter();
+}
+
+/* 版本脚注。
+   ------------------------------------------------------------------
+   为什么要显示两个版本而不是一个：这套东西是两半各自独立部署的。HUD 跟着 GitHub Pages
+   自动更新，壳层是粘贴进角色卡、冻结在粘贴那一天的。所以"我改的东西到底生效了没"这个
+   问题，答案几乎总在壳层那一半 —— 而在此之前它在界面上完全不可见，只能靠远程调试去读
+   <html> 上的 data-linjiang-shell。真机上没有控制台的时候，那等于没有。
+
+   顺带显示架构（原生流 / 抬升），因为移动端两种架构的性能表现差别很大，而光看画面分不出来。
+   放在设置页底部而不是状态栏上：它是排查信息，不是给人天天看的。 */
+function versionFooter() {
+  const shell = getShellVersion();
+  const hud = typeof __HUD_BUILD__ === 'string' ? __HUD_BUILD__ : 'dev';
+  const flow = window.__linjiangNativeFlow ? '原生流' : '抬升';
+  return `
+      <div class="set-version">
+        <span>HUD ${hud}</span>
+        <span>壳层 ${shell || '(未握手)'}</span>
+        <span>${flow}</span>
+      </div>`;
 }
 
 /* 点一下只改一个值，所以不重建整页：把 is-on 和 aria-checked 挪到被点的那颗上就够了。

@@ -59,13 +59,30 @@ try {
   }
 } catch { /* a corrupt store is not worth failing boot over */ }
 
+/* 哪些键是**用户真的存过**的。
+   ------------------------------------------------------------------
+   有些默认值该跟着宿主走（比如手机上默认低负载），但一旦用户自己在设置页里选过，就必须
+   听用户的。`pref()` 分不出"默认恰好等于 auto"和"用户明确选了 auto"，所以需要这一份。
+   只在启动时按实际读到的键填一次，setPref 时补登记。 */
+const storedKeys = new Set(Object.keys((() => {
+  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+})()).filter((name) => name in DEFAULTS));
+export function prefStored(name) { return storedKeys.has(name); }
+
 const listeners = new Set();
 
 export function pref(name) { return state[name]; }
 
 export function setPref(name, value) {
-  if (!(name in DEFAULTS) || state[name] === value) return;
+  if (!(name in DEFAULTS)) return;
+  const changed = state[name] !== value;
+  /* 第一次明确选择也要通知一遍，哪怕值跟默认值相同。
+     否则会出现这种情况：手机上默认低负载（因为没存过），用户点「完整效果」——而它的值恰好
+     就是默认的 'auto'，于是旧写法在这里直接 return，界面上按钮亮了、玻璃却没变回来。 */
+  const firstTime = !storedKeys.has(name);
+  if (!changed && !firstTime) return;
   state[name] = value;
+  storedKeys.add(name);
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode */ }
   listeners.forEach((fn) => fn(name, value));
 }
