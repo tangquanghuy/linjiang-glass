@@ -37,7 +37,11 @@ const dry = args.includes('--dry');
 
 export const PREVIEW_REMOTE = 'git@github.com:tangquanghuy/linjiang-dev.git';
 export const PREVIEW_PAGES = 'https://tangquanghuy.github.io/linjiang-dev/';
-const STAGE = join(PROJECT_ROOT, '..', '_linjiang-dev');
+/* 每次用临时目录里的唯一路径，跑完就删。
+   原来固定用仓库旁边的 ../_linjiang-dev，结果第二次发布就撞上 EPERM —— 只要有个终端的 cwd
+   还在里面、或者编辑器打开过里面的文件，rmSync 就删不掉，而这个脚本的第一步正是"清空重建"。
+   换成唯一临时目录之后这一整类问题都不存在了，也不会在仓库旁边留下一个看起来像源码的目录。 */
+const STAGE = join(tmpdir(), `linjiang-preview-${process.pid}-${Date.now()}`);
 
 const run = (cmd, argv, cwd = PROJECT_ROOT) =>
   execFileSync(cmd, argv, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -46,7 +50,6 @@ const sha = run('git', ['rev-parse', '--short', ref]);
 console.log(`快照来源：${ref} @ ${sha}`);
 
 /* 每次重建：镜像是产物，不该积累状态。 */
-rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
 const tar = join(tmpdir(), `linjiang-${sha}.tar`);
 run('git', ['archive', ref, '--format=tar', '-o', tar]);
@@ -75,7 +78,7 @@ run('git', [
 ], STAGE);
 
 if (dry) {
-  console.log(`已准备本地快照：${STAGE}（--dry，未推送）`);
+  console.log(`已准备本地快照：${STAGE}（--dry，未推送，用完请自行删除）`);
   process.exit(0);
 }
 
@@ -106,6 +109,9 @@ for (const path of PURGE) {
     console.log(`  purge ${path} → 失败（${error.message}），最多 12 小时后自然过期`);
   }
 }
+
+/* 收尾删掉临时快照。删不掉也不算失败：推送已经成功了，留一个临时目录不影响任何事。 */
+try { rmSync(STAGE, { recursive: true, force: true }); } catch (e) { /* 下次开机 temp 会清 */ }
 
 console.log('');
 console.log(`镜像仓库已更新。Actions 会自动构建并部署到：\n  ${PREVIEW_PAGES}`);
