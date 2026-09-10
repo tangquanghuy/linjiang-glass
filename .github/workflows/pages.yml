@@ -2,7 +2,7 @@ name: Deploy Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, workshop-preview]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -35,6 +35,7 @@ jobs:
       - run: npm run build
         env:
           ASSET_CDN: '1'
+          ASSET_CDN_REF: gh/tangquanghuy/linjiang-glass@${{ github.ref_name }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -58,6 +59,7 @@ jobs:
   # 独立于 deploy 作业：purge 的是 jsDelivr 的缓存，跟 Pages 部署成不成功无关，所以只依赖
   # build（确认这次提交是能构建的），不依赖 deploy。
   purge-cdn:
+    if: github.ref_name == 'main'
     needs: build
     runs-on: ubuntu-latest
     steps:

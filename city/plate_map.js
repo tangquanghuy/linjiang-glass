@@ -2150,30 +2150,53 @@
   let pressT = 0, pressAt = null;
   const cancelPress = () => { if (pressT) { clearTimeout(pressT); pressT = 0; } };
 
-  platesHost.addEventListener('pointerdown', e => {
+  const PAN_BLOCKED = '#spot, #trip, #ctl, #phase, #dev, #custom-modebar, #custom-editor';
+  let suppressedNodeClick = null;
+
+  /* Listen on the whole map stage, not only the low #plates layer. Nodes and their
+     labels live in the higher #nodes sibling; a gesture starting there previously
+     never reached the pan controller and often ended as an accidental node click. */
+  stage.addEventListener('pointerdown', e => {
+    /* Any new contact is a new intent. A compatibility click from the previous
+       release is dispatched before another pointerdown, so clearing here lets a
+       quick real tap immediately after a drag through instead of swallowing it. */
+    suppressedNodeClick = null;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest(PAN_BLOCKED)) return;
+    if (e.target.closest('button, input, select, textarea, summary, a') && !e.target.closest('.np')) return;
+    anim = null; // a manual gesture always wins over glide/focus animation
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (customMode && e.button === 0) placementGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
-    platesHost.setPointerCapture(e.pointerId);
+    const node = e.target.closest('.np');
+    if (customMode && e.button === 0 && !node) {
+      placementGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    }
     platesHost.classList.add('grabbing');
     if (pointers.size >= 2) {
+      for (const id of pointers.keys()) { try { stage.setPointerCapture(id); } catch (error) {} }
       const pts = [...pointers.values()];
       pinch = { dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1, z: view.z };
       drag = null;
-      anim = null;
       cancelPress();
       return;
     }
-    drag = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
-    // 长按标点。触屏上没有右键，这是唯一的入口
+    drag = {
+      x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy,
+      axis: null, moved: false, node: !!node, pointerType: e.pointerType,
+    };
+    /* Long-press marking remains a background gesture. Holding a location card
+       should not drop a new marker underneath that card. */
     pressAt = { x: e.clientX, y: e.clientY };
     cancelPress();
-    if (!customMode) pressT = setTimeout(() => { pressT = 0; markAt(pressAt.x, pressAt.y); }, 520);
+    if (!customMode && !node) pressT = setTimeout(() => { pressT = 0; markAt(pressAt.x, pressAt.y); }, 520);
   });
-  platesHost.addEventListener('pointermove', e => {
+  stage.addEventListener('pointermove', e => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pressT && pressAt && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 8) cancelPress();
-    if (placementGesture && placementGesture.id === e.pointerId && Math.hypot(e.clientX - placementGesture.x, e.clientY - placementGesture.y) > 8) placementGesture.moved = true;
+    if (placementGesture && placementGesture.id === e.pointerId
+        && Math.hypot(e.clientX - placementGesture.x, e.clientY - placementGesture.y) > 8) {
+      placementGesture.moved = true;
+    }
     if (pinch && pointers.size >= 2) {
       const pts = [...pointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
@@ -2183,31 +2206,69 @@
       const inward = next > view.z;
       view.z = next;
       zoomToAnchor(before, midX, midY, inward);
+      e.preventDefault();
       return;
     }
     if (!drag) return;
-    const s = S();
-    view.cx = drag.cx - (e.clientX - drag.x) / s;
-    view.cy = drag.cy - (e.clientY - drag.y) / (s * R);
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.axis) {
+      if (Math.hypot(dx, dy) < 6) return;
+      /* A finger never travels perfectly straight. At portrait z=1 vertical range
+         is clamped, so free 2-D tracking displayed only the tiny horizontal wobble.
+         Lock clearly directional touch gestures; genuinely diagonal gestures stay free. */
+      if (drag.pointerType === 'touch' || drag.pointerType === 'pen') {
+        if (Math.abs(dy) > Math.abs(dx) * 1.2) drag.axis = 'y';
+        else if (Math.abs(dx) > Math.abs(dy) * 1.2) drag.axis = 'x';
+        else drag.axis = 'free';
+      } else drag.axis = 'free';
+      drag.moved = true;
+      cancelPress();
+      try { stage.setPointerCapture(e.pointerId); } catch (error) {}
+    }
+    const moveX = drag.axis === 'y' ? 0 : dx;
+    const moveY = drag.axis === 'x' ? 0 : dy;
+    const scale = S();
+    view.cx = drag.cx - moveX / scale;
+    view.cy = drag.cy - moveY / (scale * R);
     clampView();
+    e.preventDefault();
   });
   const endPointer = e => {
     cancelPress();
+    const moved = !!drag?.moved;
+    const draggedNode = moved && !!drag?.node;
     const place = customMode && placementGesture && placementGesture.id === e.pointerId && !placementGesture.moved;
     placementGesture = null;
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (pointers.size === 1) {
       const p = [...pointers.values()][0];
-      drag = { x: p.x, y: p.y, cx: view.cx, cy: view.cy };
+      drag = { x: p.x, y: p.y, cx: view.cx, cy: view.cy, axis: null, moved: true, node: false, pointerType: 'touch' };
       return;
+    }
+    if (draggedNode) {
+      suppressedNodeClick = { pointerId: e.pointerId, until: performance.now() + 500 };
     }
     drag = null;
     platesHost.classList.remove('grabbing');
     if (place) openCustomEditorAt(e.clientX, e.clientY);
   };
-  platesHost.addEventListener('pointerup', endPointer);
-  platesHost.addEventListener('pointercancel', endPointer);
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+  /* Capture before the node's direct onclick. A completed drag is navigation, not
+     selection, even when it began and ended over the same card. */
+  stage.addEventListener('click', e => {
+    const blocked = suppressedNodeClick;
+    if (!blocked || performance.now() >= blocked.until || !e.target.closest('.np')) return;
+    /* Chromium exposes the originating pointerId on the synthesized click. Older
+       engines may expose only MouseEvent; for those, the first immediate node click
+       after the dragged release is still the compatibility click. */
+    if (Number.isFinite(e.pointerId) && e.pointerId !== blocked.pointerId) return;
+    suppressedNodeClick = null;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
   stage.addEventListener('touchmove', e => {
     if (e.target.closest('#spot, #trip')) return;
     e.preventDefault();
@@ -2860,6 +2921,72 @@
     })
   };
   window.PLATE_MAP = API;
+
+  /* Native-flow mounts the HUD code inside Tavern's srcdoc but keeps this iframe on
+     the HUD/Pages origin. The two documents are therefore cross-origin: runtime MVU
+     state and travel/custom-node callbacks must cross via postMessage instead of the
+     parent reading PLATE_MAP directly. Same-origin desktop still supports the direct
+     API; this bridge is deliberately additive. */
+  if (!OPENING_MODE && window.parent !== window) {
+    const MAP_CHANNEL = 'linjiang-map';
+    const bridgeToken = new URLSearchParams(location.search).get('bridge') || '';
+    const pendingHostRequests = new Map();
+    let hostRequestSerial = 0;
+
+    const postHost = (type, payload = null, requestId = '') => {
+      try { window.parent.postMessage({ channel: MAP_CHANNEL, token: bridgeToken, type, payload, requestId }, '*'); }
+      catch (_) {}
+    };
+    const requestHost = (type, payload) => new Promise((resolve, reject) => {
+      const requestId = `map-${Date.now()}-${++hostRequestSerial}`;
+      const timer = setTimeout(() => {
+        pendingHostRequests.delete(requestId);
+        reject(new Error('map host request timed out'));
+      }, 15000);
+      pendingHostRequests.set(requestId, {
+        resolve(value) { clearTimeout(timer); resolve(value); },
+        reject(error) { clearTimeout(timer); reject(error); },
+      });
+      postHost(type, payload, requestId);
+    });
+
+    addEventListener('message', event => {
+      const data = event.data || {};
+      if (data.channel !== MAP_CHANNEL || data.token !== bridgeToken) return;
+      if (data.type === 'response') {
+        const wait = pendingHostRequests.get(data.requestId);
+        if (!wait) return;
+        pendingHostRequests.delete(data.requestId);
+        if (data.payload?.ok) wait.resolve(data.payload.payload);
+        else wait.reject(new Error(data.payload?.error || 'map host request failed'));
+        return;
+      }
+      if (data.type !== 'snapshot') return;
+      const snapshot = data.payload || {};
+      if (typeof API.setCustomNodes === 'function') API.setCustomNodes(snapshot.customNodes || []);
+      if (snapshot.phase) API.setPhase(snapshot.phase);
+      API.setState(snapshot.state || { district: '', player: { at: '' }, actors: [], events: [], route: [] });
+      if (snapshot.resetView) API.fitAll(0);
+      if (typeof API.setBuildBudget === 'function') API.setBuildBudget(snapshot.budget || {});
+      if (snapshot.createMode && !customMode && typeof API.enterCustomMode === 'function') {
+        API.enterCustomMode(snapshot.createMode);
+      }
+    });
+
+    API.onTravel(travel => postHost('travel', travel));
+    API.onCustomCreate(draft => requestHost('custom-create', draft));
+    API.onCustomDelete(node => requestHost('custom-delete', node));
+    setTimeout(() => postHost('hello', {
+      revision: MAP_REV,
+      nodes: D.nodes.map(node => ({
+        id: node.id,
+        name: node.name,
+        fullName: node.fullName,
+        district: node.district,
+        aliases: Array.isArray(node.aliases) ? node.aliases : [],
+      })),
+    }), 0);
+  }
 
   /* 独立开局页通过网络 iframe 引用地图，跨域时用 postMessage 回传选点。
      普通地图模式仍沿用 PLATE_MAP.onPick，不受这一层影响。 */

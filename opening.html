@@ -17,7 +17,7 @@
     document.head.appendChild(link);
   };
 </script>
-<link rel="stylesheet" href="./opening.css?v=20260826-opening-tablet-ime-v20">
+<link rel="stylesheet" href="./opening.css?v=workshop-preview-20260910">
 </head>
 <body>
 <div class="app"><div class="shell">
@@ -77,7 +77,7 @@
           <span>PREVIOUS</span><b id="opening-prev-title">自定义开局</b><small id="opening-prev-summary">由玩家直接输入开局内容</small>
         </button>
         <div class="opening-slide" id="opening-slide">
-          <div class="opening-number"><b id="opening-index">01</b><span>/ <i id="opening-total">05</i></span></div>
+          <div class="opening-number"><b id="opening-index">01</b><span>/ <i id="opening-total">06</i></span></div>
           <div class="opening-slide-copy"><em>SELECTED OPENING</em><b id="opening-title">回家看直播</b><p id="opening-summary">玩家结束一天的工作，回家进入关注主播的直播间。</p></div>
           <div class="opening-dots" id="opening-dots" aria-hidden="true"></div>
         </div>
@@ -97,7 +97,7 @@
 <section class="panel" data-panel="4">
   <div class="section-head">
     <div><div class="eyebrow">04 / Streamer</div><h2>追加自定义主播</h2></div>
-    <button class="primary compact-action" id="new-custom" type="button">＋ 新增主播</button>
+    <div class="section-head-actions"><button class="secondary compact-action" id="workshop-select" type="button">从创意工坊选择</button><button class="primary compact-action" id="new-custom" type="button">＋ 新增主播</button></div>
   </div>
   <div class="card custom-manager">
     <div class="custom-manager-head"><div><b>本次追加</b><span><strong id="custom-count">0</strong> 位</span></div><button class="secondary compact-action" id="archive-toggle" type="button">主播存档 <i id="archive-count">0</i></button></div>
@@ -107,6 +107,7 @@
   <div class="stream-layout" id="stream-layout">
     <div class="card art-card"><div class="art-preview" id="art-preview"><div class="art-monogram" id="art-monogram">S</div><img id="art-img" alt=""><div class="art-caption"><b id="art-name">新主播</b><span id="art-handle">STREAMER</span></div></div><div class="art-tools">
       <input class="control" id="art-url" placeholder="网络立绘链接 https://..."><div class="file-row"><button class="secondary" id="apply-art-url" type="button">引用链接</button><label class="file-pick">上传本地立绘<input type="file" id="art-file" accept="image/*"></label></div><small>&#x652F;&#x6301;&#x7F51;&#x7EDC;&#x56FE;&#x7247;&#x6216;&#x672C;&#x5730;&#x4E0A;&#x4F20;&#x3002;</small>
+       <div class="part-art-fields"><b>部位开发图 URL（选填）</b><label>口腔<input class="control" id="part-art-oral" placeholder="https://..."></label><label>胸部<input class="control" id="part-art-chest" placeholder="https://..."></label><label>小穴<input class="control" id="part-art-vagina" placeholder="https://..."></label><label>肛门<input class="control" id="part-art-anus" placeholder="https://..."></label></div>
     </div></div>
     <div class="card stream-form"><div class="fields">
       <div class="field"><label>姓名</label><input class="control" id="streamer-name" placeholder="例如：沈遥"></div><div class="field"><label>主播网名</label><input class="control" id="streamer-handle" placeholder="例如：遥夜"></div>
@@ -149,5 +150,5 @@
 </div></div>
 <div class="map-modal" id="map-modal"><div class="map-dialog"><div class="map-head"><div><h3 id="map-title">选择住所</h3><p>在地图中点击地点；标准住所也可从下方快速选择。</p></div><button class="icon-btn" id="map-close" type="button">×</button></div><div class="map-frame"><iframe id="map-iframe" title="临江市地图" loading="eager"></iframe></div><div class="map-foot" id="quick-homes"></div></div></div>
 <div class="toast" id="toast"></div>
-<script src="./opening.js?v=20260826-opening-tablet-ime-v20"></script>
+<script src="./opening.js?v=workshop-preview-20260910"></script>
 </body></html>
