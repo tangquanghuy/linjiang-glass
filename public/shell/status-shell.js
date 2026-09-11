@@ -1,4 +1,4 @@
-/* 状态栏壳层的全部逻辑。
+﻿/* 状态栏壳层的全部逻辑。
    ==================================================================
    这份文件是**源**，两份 HTML 包装都由 scripts/build-status-shell.mjs 从它生成：
 
@@ -788,7 +788,7 @@
     const bookName = await customMapBookName(helper);
     if (!bookName) return { synced: false, uid: null };
     const rows = await readCustomMapEntries(helper, bookName);
-    const existing = rows.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '') === node.id);
+    const existing = rows.find(entry => String(entry?.name || '').trim() === `???? - ${node.name}`);
     const payload = customMapWorldbookPayload(node);
     if (existing && typeof helper.updateWorldbookWith === 'function') {
       await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
@@ -812,68 +812,71 @@
   const cleanCustomMapWorldbook = async () => {
     if (!mvuState.ready && !mvuState.check()) return { ok: false, removed: 0, added: 0, reason: 'mvu-not-ready' };
     const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
-    const nodes = mvuData?.stat_data?.['\u7cfb\u7edf\u914d\u7f6e']?.['\u5730\u56fe']?.['\u81ea\u5efa\u8282\u70b9'];
-    const currentIds = new Set(nodes && typeof nodes === 'object' ? Object.keys(nodes) : []);
+    const nodes = mvuData?.stat_data?.['????']?.['??']?.['????'];
+    const currentNames = new Set(Object.values(nodes || {}).map(row => String(row?.['??'] || '').trim()).filter(Boolean));
     const helper = customMapHelper();
-    if (!helper) return { ok: false, removed: 0, added: 0, reason: 'helper-not-found' };
+    if (!helper) throw new Error('??? TavernHelper ?????');
     const bookName = await customMapBookName(helper);
-    if (!bookName) return { ok: false, removed: 0, added: 0, reason: 'worldbook-not-found' };
-    const rows = await readCustomMapEntries(helper, bookName);
-    const stale = rows.filter((entry) => {
-      const id = String(entry?.extra?.linjiangCustomMapNode?.id || '').trim();
-      return id && !currentIds.has(id);
-    });
-    if (stale.length) {
-      if (typeof helper.updateWorldbookWith === 'function') {
-        await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
-          .filter(entry => !stale.some(row => row?.uid === entry?.uid)));
-      } else if (typeof helper.setLorebookEntries === 'function') {
-        await helper.setLorebookEntries(bookName, stale.map(entry => ({
-          ...entry, enabled: false, keys: [], key: [], content: '',
-        })));
-      } else {
-        return { ok: false, removed: 0, added: 0, reason: 'write-api-not-found' };
-      }
+    if (!bookName) throw new Error('??????????');
+    if (typeof helper.updateWorldbookWith !== 'function') {
+      throw new Error('?? TavernHelper ?? updateWorldbookWith???????????');
     }
-    /* Rebuild the current chat's entries after pruning. This matters when the selected
-       worldbook is shared: switching chats must not leave the new chat without its own
-       entries after the old chat's stale rows are removed. */
+    const rows = await readCustomMapEntries(helper, bookName);
+    const seenCurrent = new Set();
+    const keep = [];
+    let removed = 0;
+    for (const entry of rows) {
+      const name = String(entry?.name || '').trim();
+      if (!name.startsWith('???? - ')) {
+        keep.push(entry);
+        continue;
+      }
+      const nodeName = name.slice('???? - '.length).trim();
+      if (!currentNames.has(nodeName) || seenCurrent.has(nodeName)) {
+        removed += 1;
+        continue;
+      }
+      seenCurrent.add(nodeName);
+      keep.push(entry);
+    }
+    if (removed) {
+      await helper.updateWorldbookWith(bookName, () => keep);
+    }
     let added = 0;
     for (const [id, row] of Object.entries(nodes || {})) {
       const node = {
-        id, name: String(row?.['\u540d\u79f0'] || '').trim(), aliases: Array.isArray(row?.['\u522b\u540d']) ? row['\u522b\u540d'] : [],
-        district: String(row?.['\u533a\u57df'] || '').trim(), archetype: String(row?.['\u7c7b\u578b'] || 'living').trim() || 'living', privacy: Number(row?.['\u79c1\u5bc6\u5ea6'] || 0),
-        openHours: Array.isArray(row?.['\u5f00\u653e\u65f6\u6bb5']) ? row['\u5f00\u653e\u65f6\u6bb5'] : [], intro: String(row?.['\u7b80\u4ecb'] || ''), draw: String(row?.['\u770b\u70b9'] || ''), special: Array.isArray(row?.['\u7279\u6b8a']) ? row['\u7279\u6b8a'] : [],
-        features: { canDate: !!row?.['\u529f\u80fd']?.['\u53ef\u7ea6\u4f1a'], canGather: !!row?.['\u529f\u80fd']?.['\u53ef\u91c7\u96c6'], canWork: !!row?.['\u529f\u80fd']?.['\u53ef\u5de5\u4f5c'], hasShop: !!row?.['\u529f\u80fd']?.['\u6709\u5546\u5e97'] },
-        anchorName: String(row?.['\u9529\u70b9\u540d\u79f0'] || row?.['\u9529\u70b9'] || '').trim(), accessKm: Number(row?.['\u63a5\u9a73\u8ddd\u79bb'] || 0),
+        id, name: String(row?.['??'] || '').trim(), aliases: Array.isArray(row?.['??']) ? row['??'] : [],
+        district: String(row?.['??'] || '').trim(), archetype: String(row?.['??'] || 'living').trim() || 'living', privacy: Number(row?.['???'] || 0),
+        openHours: Array.isArray(row?.['????']) ? row['????'] : [], intro: String(row?.['??'] || ''), draw: String(row?.['??'] || ''), special: Array.isArray(row?.['??']) ? row['??'] : [],
+        features: { canDate: !!row?.['??']?.['???'], canGather: !!row?.['??']?.['???'], canWork: !!row?.['??']?.['???'], hasShop: !!row?.['??']?.['???'] },
+        anchorName: String(row?.['????'] || row?.['??'] || '').trim(), accessKm: Number(row?.['????'] || 0),
       };
       if (!node.name) continue;
       await syncCustomMapWorldbook(node);
       added += 1;
     }
-    return { ok: true, removed: stale.length, added };
+    return { ok: true, removed, added };
   };
 
   const removeCustomMapWorldbook = async (id) => {
     const helper = customMapHelper();
-    if (!helper) return false;
+    if (!helper) throw new Error('??? TavernHelper ?????');
     const bookName = await customMapBookName(helper);
-    if (!bookName) return false;
+    if (!bookName) throw new Error('??????????');
+    if (typeof helper.updateWorldbookWith !== 'function') {
+      throw new Error('?? TavernHelper ?? updateWorldbookWith??????');
+    }
     const rows = await readCustomMapEntries(helper, bookName);
-    const existing = rows.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '') === id);
-    if (!existing) return true;
-    if (typeof helper.updateWorldbookWith === 'function') {
-      await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
-        .filter(entry => entry?.uid !== existing.uid));
-      return true;
-    }
-    if (typeof helper.setLorebookEntries === 'function') {
-      await helper.setLorebookEntries(bookName, [{
-        ...existing, uid: existing.uid, enabled: false, keys: [], key: [], content: '',
-      }]);
-      return true;
-    }
-    return false;
+    const targetId = String(id || '').trim();
+    const targetName = rows.find(entry => String(entry?.extra?.linjiangCustomMapNode?.id || '').trim() === targetId)?.name;
+    let removed = 0;
+    await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : []).filter(entry => {
+      const hit = String(entry?.extra?.linjiangCustomMapNode?.id || '').trim() === targetId
+        || (targetName && String(entry?.name || '').trim() === String(targetName).trim());
+      if (hit) removed += 1;
+      return !hit;
+    }));
+    return removed > 0;
   };
 
   const saveCustomMapNode = async (draft) => {
