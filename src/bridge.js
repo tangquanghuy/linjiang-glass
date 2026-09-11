@@ -140,14 +140,21 @@ function rpc(action, payload = {}, timeoutMs = 8000) {
   });
 }
 
+export function getCGUnlockSnapshot() {
+  try {
+    const unlocked = JSON.parse(localStorage.getItem('unlocked_cg') || '{}');
+    return unlocked && typeof unlocked === 'object' ? unlocked : {};
+  } catch {
+    return {};
+  }
+}
+
 function applyCGUnlock(payload) {
   const character = String(payload?.character || '').trim();
   const scene = String(payload?.scene || '').trim();
   const count = Math.max(1, Math.floor(Number(payload?.count) || 1));
   if (!character || !scene) return false;
-  let unlocked = {};
-  try { unlocked = JSON.parse(localStorage.getItem('unlocked_cg') || '{}') || {}; }
-  catch { unlocked = {}; }
+  const unlocked = getCGUnlockSnapshot();
   if (!unlocked[character] || typeof unlocked[character] !== 'object') unlocked[character] = {};
   const previous = Number(unlocked[character][scene]) || 0;
   if (previous < count) {
@@ -270,6 +277,11 @@ export async function saveCustomMapNode(node) {
   return rpc('saveCustomMapNode', { node }, 30000);
 }
 
+export async function cleanCustomMapWorldbook() {
+  if (!isEmbedded()) return { ok: false, removed: 0, reason: 'standalone' };
+  return rpc('cleanCustomMapWorldbook', {}, 30000);
+}
+
 export async function deleteCustomMapNode(id) {
   const nodeId = String(id || '').trim();
   if (!nodeId) return false;
@@ -358,20 +370,18 @@ export function reportPortraitSize(height) {
   postEvent('portraitSize', { height: h });
 }
 
-/* geometry 说的是「壳层该为这一页做多少事」。
+/* geometry says how the shell should treat the message floor.
    ==================================================================
-   'page'  楼层 iframe 变成 position:fixed 铺满视口，并中和祖先的 backdrop-filter、
-           藏掉宿主 chrome。这是真全屏，但它**改动酒馆文档**。
-   'flow'  只把楼层高度撑到一个屏幕高，其余一概不动。不是真全屏，但对宿主零改动。
+   'page'    Pure-DOM detail pages: pin the floor to the visual viewport and hide
+             host chrome. This is full-screen but temporarily edits Tavern geometry.
+   'portal'  Iframe overlays in mobile native-flow: the overlay is mounted separately
+             under Tavern document.body, so the message floor stays untouched.
+   'flow'    Fallback for hosts without the same-origin native portal: only grow the
+             floor to the reading pane and leave Tavern chrome alone.
 
-   为什么要有这个区分：iOS + TauriTavern 上，带 iframe 的覆盖层（商店/CG/街机）走 'page'
-   会在打开后约 0.2 秒整屏全黑 —— 连挂在**酒馆文档**里的诊断条都一起消失，也就是整个 WebView
-   停止了绘制。而纯 DOM 的次级页面（日程、档案）走同一条 'page' 一直正常。
-   两者的差别是里面有没有一个跨源 iframe。
-
-   所以带 iframe 的那几个先退到 'flow'：把手从酒馆文档上拿开，代价是它们不再是真全屏。
-   真全屏的正确做法是把覆盖层挂到酒馆 body 下当子节点（那才是根层叠上下文，能盖住顶栏而
-   不需要藏任何东西，而且嵌套层数从 3 降到 2）—— 那条路还没建好。 */
+   The portal split matters on iOS/TauriTavern: combining a fixed message floor with
+   a nested cross-origin iframe intermittently stopped the WebView from painting. A
+   body-level portal keeps true viewport coverage without that geometry combination. */
 export function reportPortraitPage(open, { geometry = 'page', page = null, arg = null } = {}) {
   if (!isEmbedded()) return;
   if (!open) lastPortraitH = 0;
@@ -448,10 +458,96 @@ export function startBridge() {
     });
   };
 
-  /* In native-flow the HUD DOM is already part of the Tavern Helper document. Let
-     Chrome perform ordinary scroll chaining; installing touch/wheel forwarding here
-     would recreate the exact cross-frame feedback loop this mode is meant to remove. */
+  /* Chrome device emulation is often a mobile viewport driven by a *mouse*, not
+     a touch screen. Native-flow correctly relies on native touch scroll chaining on
+     phones, but a browser never scrolls when a mouse is held and dragged. Install a
+     mouse-only adapter before returning from directBridge; touch and pen are ignored,
+     so the real mobile path remains entirely native. */
+  const installDirectMouseDrag = () => {
+    const state = { id: null, target: null, startX: 0, startY: 0, lastY: 0, axis: null, moved: false, suppressClick: false };
+    const hostChat = () => {
+      try { return window.top?.document?.getElementById('chat') || null; }
+      catch { return null; }
+    };
+    const verticalScroller = (event, deltaY) => {
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+      for (const candidate of path) {
+        if (!(candidate instanceof Element)) continue;
+        const style = getComputedStyle(candidate);
+        if (!['auto', 'scroll', 'overlay'].includes(style.overflowY)) continue;
+        if (candidate.scrollHeight <= candidate.clientHeight + 1) continue;
+        const atStart = candidate.scrollTop <= 0 && deltaY < 0;
+        const atEnd = candidate.scrollTop + candidate.clientHeight >= candidate.scrollHeight - 1 && deltaY > 0;
+        if (!atStart && !atEnd) return candidate;
+      }
+      const root = document.getElementById('linjiang-mobile-native-root');
+      if (root && root.scrollHeight > root.clientHeight + 1) return root;
+      return null;
+    };
+    const reset = () => { state.id = null; state.target = null; state.axis = null; state.moved = false; };
+    addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0 || event.sourceCapabilities?.firesTouchEvents) return;
+      state.id = event.pointerId;
+      state.target = event.target instanceof Element ? event.target : null;
+      state.startX = event.clientX;
+      state.startY = state.lastY = event.clientY;
+      state.axis = null;
+      state.moved = false;
+      try { state.target?.setPointerCapture?.(event.pointerId); } catch (e) {}
+    }, { capture: true, passive: true });
+    addEventListener('pointermove', (event) => {
+      if (event.pointerId !== state.id || !(event.buttons & 1)) return;
+      const totalX = event.clientX - state.startX;
+      const totalY = event.clientY - state.startY;
+      if (!state.axis) {
+        if (Math.max(Math.abs(totalX), Math.abs(totalY)) < 6) return;
+        state.axis = Math.abs(totalY) >= Math.abs(totalX) ? 'y' : 'x';
+      }
+      if (state.axis !== 'y') return;
+      const deltaY = state.lastY - event.clientY;
+      state.lastY = event.clientY;
+      if (!deltaY) return;
+      const internal = verticalScroller(event, deltaY);
+      if (internal) internal.scrollTop += deltaY;
+      else if (!document.documentElement.classList.contains('is-page-open')) {
+        const chat = hostChat();
+        if (chat) chat.scrollTop += deltaY;
+      } else return;
+      state.moved = true;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true, passive: false });
+    const finish = (event) => {
+      if (event.pointerId !== state.id) return;
+      if (state.moved) state.suppressClick = true;
+      try { state.target?.releasePointerCapture?.(event.pointerId); } catch (e) {}
+      reset();
+    };
+    addEventListener('pointerup', finish, { capture: true, passive: true });
+    addEventListener('pointercancel', finish, { capture: true, passive: true });
+    addEventListener('click', (event) => {
+      if (!state.suppressClick) return;
+      state.suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true, passive: false });
+    addEventListener('wheel', (event) => {
+      if (event.ctrlKey || event.metaKey || event.defaultPrevented || !event.deltaY) return;
+      const internal = verticalScroller(event, event.deltaY);
+      if (internal) return;
+      if (document.documentElement.classList.contains('is-page-open')) return;
+      const chat = hostChat();
+      if (!chat) return;
+      chat.scrollTop += event.deltaY;
+      event.preventDefault();
+    }, { passive: false });
+  };
+
+  /* In native-flow the HUD DOM is already part of the Tavern Helper document. Real
+     touch keeps ordinary browser scroll chaining; only mouse-driven emulation needs
+     the adapter above. */
   if (directBridge()) {
+    installDirectMouseDrag();
     finishStartup();
     return;
   }

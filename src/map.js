@@ -1,4 +1,4 @@
-/* City map overlay.
+﻿/* City map overlay.
    ------------------------------------------------------------------
    plate_map.html is a self-contained page (its own #stage, pan/zoom, plates).
    It cannot be inlined into the HUD: the landscape canvas already owns #stage,
@@ -14,11 +14,23 @@
    and characterDetails[name].location by applyStatData. */
 
 import { CITY_BUILD_COST, characterDetails, customMapNodes, girls, onLive, player, world } from './data.js';
-import { deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
+import { cleanCustomMapWorldbook, deleteCustomMapNode, saveCustomMapNode } from './bridge.js';
 import { hudPage } from './asset.js';
 import { mountFrameLoading } from './overlay-loading.js';
+import { acquireOverlayHost } from './overlay-host.js';
 
-const MAP_REV = '20260823-custom-nodes-v1';
+const MAP_REV = '20260831-runtime-bridge-v1';
+const MAP_CHANNEL = 'linjiang-map';
+
+/* V3 renamed a handful of persisted locations while old saves and older prompts can
+   still emit the former area names. These pairs are coordinate-identical nodes, not
+   guessed nearby substitutes. */
+const LEGACY_LOCATION_ID = {
+  '\u9f13\u5cad\u533a\u4e91\u5ead\u516c\u5bd3': 'gl_yunting',
+  '\u9f13\u5cad\u533a\u68a7\u6850\u91cc': 'gl_wutong',
+  '\u897f\u6d32\u533a\u6781\u5149\u58f0\u5b66\u68da': 'xz_sound_studio',
+  '\u897f\u6d32\u533a\u661f\u8292\u7535\u7ade\u8231': 'xz_esports',
+};
 
 const DISTRICT_KEY = {
   乌溪区: 'wuxi',
@@ -42,8 +54,9 @@ export function mapSrc() {
   return hudPage(`city/plate_map.html?v=${MAP_REV}`);
 }
 
+let activeMapLayer = null;
 export function isMapOpen() {
-  return !!document.querySelector('.map-layer');
+  return !!activeMapLayer?.isConnected || !!document.querySelector('.map-layer');
 }
 
 function districtKey(area = '') {
@@ -64,9 +77,14 @@ function sameDistrict(nodeDistrict, areaDistrict) {
   return nodeDistrict.includes(areaDistrict) || areaDistrict.includes(nodeDistrict.replace('风景区', ''));
 }
 
+function normalizeLocation(value = '') {
+  return String(value).normalize('NFKC').replace(/[\s\u00b7\u30fb\u2022\u2014\u2013_()\uff08\uff09-]/g, '').toLowerCase();
+}
+
 function scoreNode(node, locality, place) {
   const name = node.name || '';
   const full = node.fullName || '';
+  const aliases = Array.isArray(node.aliases) ? node.aliases : [];
   let score = 0;
   if (locality) {
     if (name === locality) score = Math.max(score, 100);
@@ -77,6 +95,14 @@ function scoreNode(node, locality, place) {
   if (place && place.length >= 2) {
     if (name === place) score = Math.max(score, 90);
     else if (name.includes(place)) score = Math.max(score, 50);
+  }
+  const normalizedCandidates = [locality, place].map(normalizeLocation).filter((value) => value.length >= 2);
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeLocation(alias);
+    if (normalizedCandidates.some((candidate) => normalizedAlias === candidate)) score = Math.max(score, 95);
+    else if (normalizedCandidates.some((candidate) => normalizedAlias.includes(candidate) || candidate.includes(normalizedAlias))) {
+      score = Math.max(score, 65);
+    }
   }
   if (node.parentId) score -= 8;
   return score;
@@ -90,6 +116,8 @@ export function resolveMapLocation(area, place, nodes = []) {
   const locality = localityOf(area);
   const areaDistrict = Object.keys(DISTRICT_KEY).sort((a, b) => b.length - a.length)
     .find((name) => String(area).includes(name)) || '';
+  const legacyId = LEGACY_LOCATION_ID[normalizeLocation(area)];
+  if (legacyId && nodes.some((node) => node?.id === legacyId)) return { district, at: legacyId };
   let at = '';
   let best = 0;
   nodes.forEach((node) => {
@@ -124,79 +152,161 @@ export function mapRuntime(nodes = []) {
   };
 }
 
-function applyToFrame(iframe, { resetView, onTravel, onCustomCreate, onCustomDelete, createMode } = {}) {
+function mapSnapshot(nodes = [], { resetView = false, createMode = null } = {}) {
+  return {
+    phase: PHASE_ALIAS[world.time.period] || world.time.period,
+    state: mapRuntime(nodes.concat(customMapNodes)),
+    customNodes: customMapNodes,
+    budget: { cost: CITY_BUILD_COST, funds: player.money },
+    resetView: !!resetView,
+    createMode: createMode ? { ...createMode, cost: CITY_BUILD_COST, funds: player.money } : null,
+  };
+}
+
+function applyToFrame(iframe, {
+  resetView, onTravel, onCustomCreate, onCustomDelete, createMode, nodes: suppliedNodes,
+} = {}) {
   let api;
-  try { api = iframe.contentWindow?.PLATE_MAP; } catch { return false; }
+  let frameNodes = suppliedNodes;
+  try {
+    api = iframe.contentWindow?.PLATE_MAP;
+    if (!frameNodes?.length) frameNodes = iframe.contentWindow?.CITY_MAP_DATA?.nodes || [];
+  } catch { return false; }
   if (!api) return false;
   if (typeof onTravel === 'function' && typeof api.onTravel === 'function') api.onTravel(onTravel);
   if (typeof onCustomCreate === 'function' && typeof api.onCustomCreate === 'function') api.onCustomCreate(onCustomCreate);
   if (typeof onCustomDelete === 'function' && typeof api.onCustomDelete === 'function') api.onCustomDelete(onCustomDelete);
-  if (typeof api.setCustomNodes === 'function') api.setCustomNodes(customMapNodes);
-  const nodes = iframe.contentWindow.CITY_MAP_DATA?.nodes || [];
-  const period = world.time.period;
-  api.setPhase(PHASE_ALIAS[period] || period);
-  api.setState(mapRuntime(nodes.concat(customMapNodes)));
-  if (resetView) api.fitAll(0);
-  /* 建设费和当前金钱每次刷新都推一遍，不只是进入标记模式那一下：
-     applyToFrame 跟着 onLive 跑，钱在别处变了（打工、街机、送礼）费用行要跟着变，
-     否则玩家会对着一个过时的「持有」数字做决定。 */
-  if (typeof api.setBuildBudget === 'function') {
-    api.setBuildBudget({ cost: CITY_BUILD_COST, funds: player.money });
-  }
-  if (createMode && !iframe.dataset.customCreateStarted && typeof api.enterCustomMode === 'function') {
+  const snapshot = mapSnapshot(frameNodes || [], { resetView, createMode });
+  if (typeof api.setCustomNodes === 'function') api.setCustomNodes(snapshot.customNodes);
+  api.setPhase(snapshot.phase);
+  api.setState(snapshot.state);
+  if (snapshot.resetView) api.fitAll(0);
+  if (typeof api.setBuildBudget === 'function') api.setBuildBudget(snapshot.budget);
+  if (snapshot.createMode && !iframe.dataset.customCreateStarted && typeof api.enterCustomMode === 'function') {
     iframe.dataset.customCreateStarted = '1';
-    api.enterCustomMode({ ...createMode, cost: CITY_BUILD_COST, funds: player.money });
+    api.enterCustomMode(snapshot.createMode);
   }
   return true;
 }
 
 function bindFrame(iframe, options = {}) {
-  if (!iframe) return;
-  let tries = 0;
-  const apply = (resetView) => {
-    if (applyToFrame(iframe, { ...options, resetView })) return;
-    if (tries++ < 40) setTimeout(() => apply(resetView), 50);
+  if (!iframe) return { push() {}, dispose() {} };
+  const eventTarget = iframe.ownerDocument?.defaultView || window;
+  let bridgeNodes = [];
+  let mappedSnapshotSent = false;
+  let disposed = false;
+
+  const post = (type, payload = null, requestId = '') => {
+    try {
+      iframe.contentWindow?.postMessage({
+        channel: MAP_CHANNEL, token: options.bridgeToken || '', type, payload, requestId,
+      }, '*');
+      return true;
+    } catch { return false; }
   };
-  iframe.addEventListener('load', () => apply(true));
+
+  const push = (resetView = false) => {
+    if (disposed) return false;
+    const direct = applyToFrame(iframe, { ...options, resetView, nodes: bridgeNodes });
+    /* Native-flow runs the HUD bundle in Tavern's srcdoc origin while the map iframe
+       stays on the HUD/Pages origin. Direct contentWindow access is then blocked, so
+       the same snapshot crosses by postMessage. Same-origin desktop keeps the direct
+       path and receives this message only after the child has announced its node list. */
+    if (bridgeNodes.length || !direct) {
+      post('snapshot', mapSnapshot(bridgeNodes, { resetView, createMode: options.createMode }));
+    }
+    return direct || bridgeNodes.length > 0;
+  };
+
+  const reply = (requestId, ok, payload, error = '') => post('response', { ok, payload, error }, requestId);
+  const onMessage = (event) => {
+    if (event.source !== iframe.contentWindow) return;
+    const data = event.data || {};
+    if (data.channel !== MAP_CHANNEL || data.token !== (options.bridgeToken || '')) return;
+    if (data.type === 'hello') {
+      bridgeNodes = Array.isArray(data.payload?.nodes) ? data.payload.nodes : [];
+      const reset = !mappedSnapshotSent;
+      mappedSnapshotSent = true;
+      push(reset);
+      return;
+    }
+    if (data.type === 'travel') {
+      options.onTravel?.(data.payload || {});
+      return;
+    }
+    if (data.type !== 'custom-create' && data.type !== 'custom-delete') return;
+    const handler = data.type === 'custom-create' ? options.onCustomCreate : options.onCustomDelete;
+    if (typeof handler !== 'function') {
+      reply(data.requestId, false, null, 'map host has no write handler');
+      return;
+    }
+    Promise.resolve(handler(data.payload)).then((result) => {
+      reply(data.requestId, true, result);
+    }).catch((error) => {
+      reply(data.requestId, false, null, error?.message || String(error));
+    });
+  };
+
+  eventTarget.addEventListener('message', onMessage);
+  iframe.addEventListener('load', () => push(!mappedSnapshotSent));
   try {
-    if (iframe.contentDocument?.readyState === 'complete') apply(true);
-  } catch { /* iframe not ready */ }
+    if (iframe.contentDocument?.readyState === 'complete') push(true);
+  } catch { /* cross-origin iframe: child hello drives the first mapped snapshot */ }
+
+  return {
+    push,
+    dispose() {
+      disposed = true;
+      eventTarget.removeEventListener('message', onMessage);
+    },
+  };
 }
 
 export const bindMapFrame = bindFrame;
 
-export function mapOverlay() {
+export function mapOverlay(bridgeToken = '') {
+  const bridge = bridgeToken ? `&bridge=${encodeURIComponent(bridgeToken)}` : '';
   return `
-<div class="map-layer" role="dialog" aria-modal="true" aria-label="临江市地图">
-  <iframe class="map-frame" src="${mapSrc()}" title="临江市地图" data-map-frame></iframe>
+<div class="map-layer" role="dialog" aria-modal="true" aria-label="\u4e34\u6c5f\u5e02\u5730\u56fe">
+  <iframe class="map-frame" src="${mapSrc()}${bridge}" title="\u4e34\u6c5f\u5e02\u5730\u56fe" data-map-frame></iframe>
   <div class="map-chrome">
-    <button class="map-close" type="button" data-map-close aria-label="关闭地图">×</button>
+    <button class="map-close" type="button" data-map-close aria-label="\u5173\u95ed\u5730\u56fe">\u00d7</button>
   </div>
 </div>`;
 }
 
 export function mountMapOverlay(host, { onClose, onTravel, createMode = null } = {}) {
-  const root = host || document.body;
-  document.querySelectorAll('.map-layer').forEach((el) => el.remove());
-  root.insertAdjacentHTML('beforeend', mapOverlay());
-  const layer = root.querySelector(':scope > .map-layer') || document.querySelector('.map-layer');
+  const mount = acquireOverlayHost(host || document.body);
+  /* ??????????????????? MVU ????????????????????? */
+  cleanCustomMapWorldbook().catch((error) => console.warn('[map] clean custom worldbook', error));
+  const root = mount.root;
+  root.querySelectorAll('.map-layer').forEach((el) => el.remove());
+  const bridgeToken = globalThis.crypto?.randomUUID?.() || `map-${Date.now()}-${Math.random()}`;
+  root.insertAdjacentHTML('beforeend', mapOverlay(bridgeToken));
+  const layer = root.querySelector(':scope > .map-layer');
+  activeMapLayer = layer;
   const iframe = layer.querySelector('[data-map-frame]');
   const handleCreate = async (draft) => {
     const result = await saveCustomMapNode(draft);
     return result?.node || result || draft;
   };
   const handleDelete = async (node) => deleteCustomMapNode(node?.id || node);
-  bindFrame(iframe, { onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete });
+  const frameBridge = bindFrame(iframe, {
+    onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete, bridgeToken,
+  });
   layer.querySelector('[data-map-close]').addEventListener('click', () => onClose?.());
-  document.documentElement.classList.add('has-map');
+  if (!mount.portal) document.documentElement.classList.add('has-map');
   /* 同商店/街机/CG：页面从 Pages 取，慢的时候覆盖层就是一片近黑。见 src/overlay-loading.js。
      地图这条尤其值得有 —— 它带的资源最重（city/ 有 32MB）。 */
   const unmountLoading = mountFrameLoading(layer, iframe, { label: '地图', onClose: () => onClose?.() });
-  const offLive = onLive(() => applyToFrame(iframe, { resetView: false, onTravel, createMode, onCustomCreate: handleCreate, onCustomDelete: handleDelete }));
+  const offLive = onLive(() => frameBridge.push(false));
   return () => {
     offLive();
     unmountLoading();
+    frameBridge.dispose();
     layer.remove();
-    if (!document.querySelector('.map-layer')) document.documentElement.classList.remove('has-map');
+    mount.release();
+    if (activeMapLayer === layer) activeMapLayer = null;
+    if (!mount.portal && !document.querySelector('.map-layer')) document.documentElement.classList.remove('has-map');
   };
 }

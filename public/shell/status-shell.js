@@ -39,7 +39,7 @@
 (function () {
   /* This srcdoc is same-origin with the tavern. Desktop/Tauri keep the cross-origin
      HUD iframe transport; native mobile browsers mount the HUD bundle in this document. */
-  const SHELL_VERSION = '2026-08-30-9ad45c7f';
+  const SHELL_VERSION = 'shell-a8a850d3';
 
   /* 记号要在两道守卫**之前**就落下。引导壳靠它判断「脚本到底有没有到」，语义必须是
      「本文件执行过了」而不是「装载成功了」—— 否则下面任何一条提前 return 都会让引导壳
@@ -89,11 +89,10 @@
      它是给 外部部署/V20260826/状态栏-测试版-流内嵌入.html 用的（由 scripts/build-status-shell.mjs 生成，
      那份产物会在加载本脚本之前把这个全局设成 true）。生产的两份包装都不设它，所以走的还是老路。
 
-     开着它必然要付的代价，也正是要观察的东西：
-       · owner 交接（每来一条 AI 消息）要把 HUD 挪进新楼层的文档，而 iframe 换父节点必重载
-         —— 已实测：同文档换父 1→2 次加载、跨文档挪 2→3、挪回来 3→4；只改 CSS 不重载。
-       · 在收回↔展开之间切换同样是跨文档挪动，同样重载。 */
-  const INLINE_DOCK = (() => {
+     这个开关现在只作用于桌面/强制抬升路径。手机原生流本来就直接渲染在楼层文档里，
+     因此会明确忽略它；普通版和“流内嵌入版”在 TT 手机上走同一条立即挂载路径。桌面上
+     打开它仍会付出 iframe 跨文档移动导致重载的代价。 */
+  const INLINE_DOCK_REQUESTED = (() => {
     try { return !!window.__linjiangInlineDock; } catch (e) { return false; }
   })();
 
@@ -141,6 +140,11 @@
       return false;
     }
   })();
+
+  /* 手机原生流本身已经是“楼层内直接渲染”，不再叠加旧实验开关。这样普通版与
+     流内嵌入版在 TT 手机上走完全相同的启动/恢复路径，包装里遗留的开关不会再把
+     楼层带进旧的跨文档停靠逻辑。 */
+  const INLINE_DOCK = INLINE_DOCK_REQUESTED && !MOBILE_NATIVE_FLOW;
 
   const localHudFrame = document.getElementById('hud');
   let hudFrame = localHudFrame;
@@ -805,6 +809,34 @@
     return { synced: false, uid: null };
   };
 
+  const cleanCustomMapWorldbook = async () => {
+    if (!mvuState.ready && !mvuState.check()) return { ok: false, removed: 0, reason: 'mvu-not-ready' };
+    const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
+    const nodes = mvuData?.stat_data?.['\u7cfb\u7edf\u914d\u7f6e']?.['\u5730\u56fe']?.['\u81ea\u5efa\u8282\u70b9'];
+    const currentIds = new Set(nodes && typeof nodes === 'object' ? Object.keys(nodes) : []);
+    const helper = customMapHelper();
+    if (!helper) return { ok: false, removed: 0, reason: 'helper-not-found' };
+    const bookName = await customMapBookName(helper);
+    if (!bookName) return { ok: false, removed: 0, reason: 'worldbook-not-found' };
+    const rows = await readCustomMapEntries(helper, bookName);
+    const stale = rows.filter((entry) => {
+      const id = String(entry?.extra?.linjiangCustomMapNode?.id || '').trim();
+      return id && !currentIds.has(id);
+    });
+    if (!stale.length) return { ok: true, removed: 0 };
+    if (typeof helper.updateWorldbookWith === 'function') {
+      await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
+        .filter(entry => !stale.some(row => row?.uid === entry?.uid)));
+    } else if (typeof helper.setLorebookEntries === 'function') {
+      await helper.setLorebookEntries(bookName, stale.map(entry => ({
+        ...entry, enabled: false, keys: [], key: [], content: '',
+      })));
+    } else {
+      return { ok: false, removed: 0, reason: 'write-api-not-found' };
+    }
+    return { ok: true, removed: stale.length };
+  };
+
   const removeCustomMapWorldbook = async (id) => {
     const helper = customMapHelper();
     if (!helper) return false;
@@ -969,6 +1001,8 @@
         return saveCustomMapNode(payload?.node || {});
       case 'deleteCustomMapNode':
         return deleteCustomMapNode(payload?.id);
+      case 'cleanCustomMapWorldbook':
+        return cleanCustomMapWorldbook();
       case 'sendMessage':
         return sendMessage(payload?.text);
       case 'collapseHud':
@@ -1064,7 +1098,10 @@
   let active = false;
   let destroyed = false;
   let controllerRecord = null;
-  const isOwner = () => active && !destroyed && manager.owner?.id === INSTANCE_ID;
+  /* 移动端原生流不再参加跨楼层 owner 选举：每个楼层自己的壳一执行就立即挂 HUD。
+     桌面/抬升路径仍沿用共享 owner，避免改变现有桌面行为。 */
+  const isOwner = () => active && !destroyed
+    && (MOBILE_NATIVE_FLOW || manager.owner?.id === INSTANCE_ID);
 
   const tavernWin = () => {
     try { if (window.top && window.top !== window) return window.top; } catch (e) {}
@@ -1083,8 +1120,9 @@
 
   /* 原生流下最多同时留几份挂好的 HUD。见 manager.noteMounted 上面那段。 */
   const KEEP_MOUNTED = 3;
-  /* 交接时最多让上一任多显示多久。正常情况下新任挂好就立刻交班，这只是兜底。 */
-  const HANDOVER_HOLD_MS = 15000;
+  /* Audit a handover that is taking unusually long. This is not a visibility
+     deadline: a painted previous floor stays on screen until its replacement paints. */
+  const HANDOVER_AUDIT_MS = 15000;
 
   const createManager = (host) => {
     const manager = {
@@ -1432,16 +1470,63 @@
   };
 
   const managerHost = tavernWin();
-  let manager = managerHost[MANAGER_KEY];
-  if (!manager || manager.version !== MANAGER_VERSION) {
-    try { manager?.resetHudFrame?.(); } catch (e) {}
+  let manager;
+  if (MOBILE_NATIVE_FLOW) {
+    /* 移动端每楼独立后，manager 也必须跟着楼层文档一起死，不能再挂到 Tavern 顶层。
+       ------------------------------------------------------------------
+       把由楼层 realm 创建的函数对象存进 top window，会反向把整个旧 realm 留住：即使楼层
+       iframe 已删除，manager 的方法和 eventSource 回调仍能让旧 DOM / module / 闭包不能回收。
+       这里使用仅属于当前楼层的 manager，并且不绑定共享事件钩子、不写 MANAGER_KEY。
+
+       次级页面恢复状态只放在该消息楼层元素的 dataset 里：复用/重建 srcdoc 时仍能恢复；消息
+       楼层被删除时，状态会跟着元素一起销毁，不在 top window 留实例表或强引用。 */
+    const stale = managerHost[MANAGER_KEY];
+    if (stale) {
+      /* 从旧版热切到本版时，先让旧共享 owner/候选释放各自监听器和定时器。旧版匿名事件钩子
+         本轮页面里没有 off 句柄，但把 manager 置空后它们只会命中空操作；下次 App 启动不再创建。 */
+      try {
+        const records = new Set([stale.owner, stale.retiring, ...[...(stale.candidates?.values?.() || [])]]);
+        records.forEach((record) => { try { record?.deactivate?.('mobile-independent-upgrade'); } catch (e) {} });
+        stale.owner = null;
+        stale.retiring = null;
+        stale.candidates?.clear?.();
+        stale.timers?.clear?.();
+        stale.switchContext = () => {};
+      } catch (e) {}
+      try { stale.resetHudFrame?.(); } catch (e) {}
+      try { delete managerHost[MANAGER_KEY]; } catch (e) { managerHost[MANAGER_KEY] = null; }
+    }
     manager = createManager(managerHost);
-    managerHost[MANAGER_KEY] = manager;
-  }
-  /* Managers created by split-v1 can still be alive when a newly rendered message
-     loads split-v2. Add the field in place instead of resetting the managed HUD. */
-  if (!Object.prototype.hasOwnProperty.call(manager, 'pendingDockMode')) {
-    manager.pendingDockMode = null;
+    const frame = window.frameElement;
+    const stateNode = frame?.closest?.('.mes') || frame;
+    Object.defineProperty(manager, 'uiPage', {
+      configurable: true,
+      get() {
+        try {
+          const raw = stateNode?.dataset?.linjiangUiPage || '';
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+      },
+      set(value) {
+        try {
+          if (!stateNode?.dataset) return;
+          if (value && value.page) stateNode.dataset.linjiangUiPage = JSON.stringify(value);
+          else delete stateNode.dataset.linjiangUiPage;
+        } catch (e) {}
+      },
+    });
+  } else {
+    manager = managerHost[MANAGER_KEY];
+    if (!manager || manager.version !== MANAGER_VERSION) {
+      try { manager?.resetHudFrame?.(); } catch (e) {}
+      manager = createManager(managerHost);
+      managerHost[MANAGER_KEY] = manager;
+    }
+    /* Managers created by split-v1 can still be alive when a newly rendered message
+       loads split-v2. Add the field in place instead of resetting the managed HUD. */
+    if (!Object.prototype.hasOwnProperty.call(manager, 'pendingDockMode')) {
+      manager.pendingDockMode = null;
+    }
   }
 
   const tavernSize = () => {
@@ -2216,7 +2301,7 @@
   };
 
   const followHud = () => {
-    if (expanded || portraitPageOpen) return;
+    if (expanded || portraitPageOpen || overlayOpen) return;
     const frame = window.frameElement;
     if (isTauriTavernMobile() && !anchorInReadingPane(frame)) {
       hudFrame.style.visibility = 'hidden';
@@ -2768,7 +2853,7 @@
          也刻意放在下面那道 TT 停车守卫之前：守卫会 return，锚点离开阅读区时同样得先拆，
          否则会留下一个盖住整个视口的楼层。 */
       const wantInlinePage = INLINE_DOCK && compacted && !!anchor
-        && (expanded || portraitPageOpen);
+        && (expanded || portraitPageOpen || overlayOpen);
       if (!wantInlinePage && anchor) leaveInlineDockPage(anchor);
 
       if (isTauriTavernMobile() && portraitHud() && !anchorInReadingPane(anchor)) {
@@ -2782,7 +2867,14 @@
          整页也必须由它接住：走生产的 layoutPortraitPage 会 mountHud 把 HUD 挪回酒馆文档，
          而挪动必重载，重载会丢掉 HUD 刚打开的那一页 —— 症状是「点日程/档案变成整个面板全屏」。
          详见 layoutInlineDockPage 上面那段。 */
-      if (INLINE_DOCK && compacted && window.frameElement) {
+      if (overlayOpen && isDesktop()) {
+        /* Desktop iframe overlays are application surfaces, not HUD cards. Keep
+           mobile native-flow on its body portal, but restore the original PC
+           contract: map/shop/CG/arcade fill the viewport below browser chrome. */
+        if (INLINE_DOCK && compacted && window.frameElement) layoutInlineDockPage();
+        else layoutExpanded();
+      }
+      else if (INLINE_DOCK && compacted && window.frameElement) {
         if (expanded || portraitPageOpen) layoutInlineDockPage();
         else layoutInlineDock();
       }
@@ -2812,7 +2904,7 @@
   const MOBILE_NATIVE_ROOT_ID = 'linjiang-mobile-native-root';
   const MOBILE_WRITE_ACTIONS = new Set([
     'patch', 'clockIn', 'arcadeEvent', 'purchaseShopProduct',
-    'saveCustomMapNode', 'deleteCustomMapNode',
+    'saveCustomMapNode', 'deleteCustomMapNode', 'cleanCustomMapWorldbook',
   ]);
 
   /* 原生流下的「整页」几何：次级页面、以及铺满视口的覆盖层（商店 / 地图 / 街机 / CG）。
@@ -3142,8 +3234,18 @@
           if (payload && payload.open) {
             /* geometry='flow'：只撑高楼层，绝不碰酒馆文档。带 iframe 的覆盖层走这条 ——
                理由（真机全黑）写在 enterMobileNativeTallFloor 上面那段。 */
-            if (payload.geometry === 'flow') { exitMobileNativePage(); enterMobileNativeTallFloor(); }
-            else { exitMobileNativeTallFloor(); enterMobileNativePage(); }
+            if (payload.geometry === 'portal') {
+              /* The overlay already lives in a fixed portal under Tavern document.body.
+                 Keep the message floor in normal flow; the portal out-stacks host chrome. */
+              exitMobileNativePage();
+              exitMobileNativeTallFloor();
+            } else if (payload.geometry === 'flow') {
+              exitMobileNativePage();
+              enterMobileNativeTallFloor();
+            } else {
+              exitMobileNativeTallFloor();
+              enterMobileNativePage();
+            }
           } else {
             exitMobileNativePage();
             exitMobileNativeTallFloor();
@@ -3337,11 +3439,6 @@
       showHint('');
       queueMobileNativeHeight();
       pushSnapshot(true);
-      /* 画好了才交班：在此之前上一任一直留在屏幕上。
-         只有 owner 有资格说这句话 —— 开机时几个楼层是连着注册的，一个已经落选的楼层挂载完成
-         时若也去 commitRetire，就会把那个正显示着的上一任收掉，反而空一段。 */
-      if (isOwner()) { try { manager.commitRetire(); } catch (e) {} }
-      try { manager.noteMounted(INSTANCE_ID); } catch (e) {}
       return true;
     })().catch((error) => {
       console.error('[临江状态栏] HUD 挂载失败', error);
@@ -3359,7 +3456,7 @@
         const delay = Math.min(8000, 600 * 2 ** (mobileNativeMountAttempt - 1));
         clearTimeout(mobileNativeRetryTimer);
         mobileNativeRetryTimer = setTimeout(() => {
-          if (isOwner() && !destroyed) mountMobileNativeHud().catch(() => {});
+          if (active && !destroyed) mountMobileNativeHud().catch(() => {});
         }, delay);
       } else {
         showHint('HUD 加载失败，检查网络后重开对话');
@@ -3371,8 +3468,6 @@
 
   let followTick = 0;
   let inlineResumeTimer = 0;
-  /* 交接兜底：新任挂载卡住时最多让上一任多显示 HANDOVER_HOLD_MS。 */
-  let handoverHoldTimer = 0;
 
   /* TauriTavern mobile parks message runtimes by moving the outer JSR iframe into
      a hidden 0x0 container. The inline HUD hides itself there, but moving it back
@@ -3987,8 +4082,14 @@
       /* A secondary page is an application page, not a shell overlay. Keep the
          desktop chrome visible and only use the signal for mobile promotion. */
       if (page) return;
-      /* 开的时候只需要收钮，不用重排（覆盖层是 HUD 内部的事）；关的时候按当前布局
-         把钮放回去 —— 走 placeFsButton 而不是 fitParentFrame，省掉一次无谓的重排。 */
+      /* Desktop iframe overlays used to be promoted to the full viewport.
+         Re-run layout on both edges: opening selects layoutExpanded/
+         layoutInlineDockPage, closing restores the normal HUD geometry. */
+      if (isDesktop()) {
+        try { fitParentFrame(); } catch (e) {}
+        if (overlayOpen) { try { hideChromeButtons(); } catch (e) {} }
+        return;
+      }
       if (overlayOpen) { try { hideChromeButtons(); } catch (e) {} }
       else if (!portraitPageOpen && hudFrame._linjiangAlign !== 'slot'
                && hudFrame.style.visibility !== 'hidden') {
@@ -4091,8 +4192,6 @@
       active = false;
       try { clearInterval(pollTimer); } catch (e) {}
       pollTimer = 0;
-      try { clearTimeout(handoverHoldTimer); } catch (e) {}
-      handoverHoldTimer = 0;
       try { clearTimeout(mobileNativeRetryTimer); } catch (e) {}
       mobileNativeRetryTimer = 0;
       clearHostListeners();
@@ -4236,8 +4335,8 @@
     active = true;
     uninstalled = false;
     if (MOBILE_NATIVE_FLOW) {
-      /* A native-flow owner owns its own document; never create or move the shared
-         desktop HUD iframe. New-message handover simply mounts in the new floor. */
+      /* 原生流每个楼层都拥有自己的文档和 HUD。这里刻意绕开跨楼层 owner / 交接 /
+         实例回收：壳层一执行就开始解析入口和挂载，不再等选举或下一帧。 */
       try { manager.resetHudFrame?.(); } catch (e) {}
       /* 先收拾上一任留下的残局，再做任何自己的排版。
          这一楼可能就是「刚被 TT 停进停车场、被 WebKit 重载」的那一楼：DOM 上还挂着整页
@@ -4250,39 +4349,20 @@
       bindMobileNativeRuntime();
       restoreMobileNativeAnchor();
       pollTimer = setInterval(() => pushSnapshot(false), POLL_MS);
-      /* 兜底：挂载一直不成功时也不能让上一任永远占着位置（它已经不应答 RPC，数据只会越来越
-         旧）。这个定时器由本文档发起 —— 它正在跑，所以不会像 manager 自己 schedule 的那样
-         被丢掉。正常路径是 mountMobileNativeHud 画好后立刻 commitRetire，用不到这里。 */
-      clearTimeout(handoverHoldTimer);
-      handoverHoldTimer = setTimeout(() => {
-        if (isOwner()) { try { manager.commitRetire(); } catch (e) {} }
-      }, HANDOVER_HOLD_MS);
-      /* 这一层的 HUD 还在（比如末条消息被删、选举退回到它）：不用重新挂，也就没有黑窗口，
-         立刻交班。挂载 promise 是缓存的，它的 .then 不会再跑一遍，所以这一段不能省。 */
+      /* 已经画过的楼层只刷新高度和数据；新楼层则在当前调用栈里立即发起入口加载。
+         不排 requestAnimationFrame，也不等待别的楼层交班。 */
       if (nativeHudPainted()) {
-        mountMobileNativeHud().catch(() => {});
-        try { manager.commitRetire(); } catch (e) {}
-        try { manager.noteMounted(INSTANCE_ID); } catch (e) {}
         showHint('');
         queueMobileNativeHeight();
         pushSnapshot(true);
-        return;
       }
-      /* 晚一帧再挂，并且挂之前重新确认自己还是 owner。
-         开机时（以及酒馆助手一次渲染多条消息时）几个状态栏楼层是连着注册的，每一个都会当
-         一瞬间的 owner。同步就挂的话，每个都会在自己的文档里跑一遍完整的 HUD，只为了在几
-         毫秒后落选 —— 白搭几份实例和几份内存。 */
-      requestAnimationFrame(() => {
-        if (active && !destroyed && isOwner()) mountMobileNativeHud().catch(() => {});
-      });
+      mountMobileNativeHud().catch(() => {});
       return;
     }
     /* 同原生流：先收拾上一任在宿主上留下的整页残局。抬升这边 deactivate 里有
        leaveInlineDockPage 兜底，但那同样要求上一个文档还活着 —— 被 TT 停车后重载的那一楼
        不会执行任何清理，顶栏和输入栏就那么一直隐藏着。 */
     try { reclaimHostLeftovers(); } catch (e) {}
-    /* 抬升架构不需要留着上一任：共用的 HUD 不重载，接手只是一次重排。 */
-    try { manager.commitRetire(); } catch (e) {}
     /* A message/status re-render elects a new controller without reloading the
        managed HUD iframe. Restore the shared docking state before the first layout,
        otherwise the new owner falls back to the viewport-wide desktop box. If a page
@@ -4315,13 +4395,26 @@
 
   const uninstall = () => {
     if (destroyed) return;
+    let disposalFrame = null;
+    try { disposalFrame = window.frameElement; } catch (e) {}
     destroyed = true;
     uninstalled = true;
     try { manager.note(`uninstall ${INSTANCE_ID.slice(0, 4)}`); } catch (e) {}
     deactivate('removed');
     try { frameObserver?.disconnect(); } catch (e) {}
     frameObserver = null;
-    manager.unregister(INSTANCE_ID);
+    if (!MOBILE_NATIVE_FLOW) manager.unregister(INSTANCE_ID);
+    /* 只写在已经脱离 DOM 的旧 iframe 上，供回归夹具确认主动清理完整执行；真实页面没有残留。
+       这几项都为 0/false 才表示轮询、重试、宿主监听和直接 bridge 已释放。 */
+    try {
+      if (disposalFrame) {
+        disposalFrame.dataset.linjiangDisposed = '1';
+        disposalFrame.dataset.linjiangDisposedListeners = String(hostListens.length);
+        disposalFrame.dataset.linjiangDisposedPoll = String(pollTimer || 0);
+        disposalFrame.dataset.linjiangDisposedRetry = String(mobileNativeRetryTimer || 0);
+        disposalFrame.dataset.linjiangDisposedBridge = String(!!window.__linjiangMobileDirectBridge);
+      }
+    } catch (e) {}
   };
 
   addEventListener('pagehide', uninstall);
@@ -4337,15 +4430,17 @@
           uninstall();
           return;
         }
-        if (isOwner()) fitParentFrame();
+        if (!MOBILE_NATIVE_FLOW && isOwner()) fitParentFrame();
       });
       frameObserver.observe(fe.parentNode, { childList: true });
     }
   } catch (e) {}
 
   localHudFrame.style.display = 'none';
-  manager.bindEventHooks(getCoreWindow());
-  controllerRecord = manager.register({
+  /* 共享事件钩子只属于桌面 manager。移动端每楼的轮询和直接 bridge 已覆盖数据更新，
+     把匿名回调挂到 Tavern eventSource 反而会在楼层删除后保活旧 realm。 */
+  if (!MOBILE_NATIVE_FLOW) manager.bindEventHooks(getCoreWindow());
+  const controller = {
     id: INSTANCE_ID,
     frame: window.frameElement,
     activate,
@@ -4353,9 +4448,7 @@
     pushSnapshot,
     requestFollow,
     destroyed: () => destroyed,
-    /* 下面四个都是给 manager 用的、必须跑在**本文档 realm** 里的能力。manager 自己的闭包
-       属于最先启动的那个楼层文档，那个文档一被重渲染，它 schedule 出去的回调就永远不会执行
-       （见 manager.defer 上面那段）。所以凡是需要"以后再做"的事，都由控制器代劳。 */
+    /* 下面两个能力给桌面共享 manager 调度使用；移动端原生流不注册候选。 */
     alive: () => {
       try { return !destroyed && !!window.frameElement; } catch (e) { return false; }
     },
@@ -4363,26 +4456,17 @@
       const id = setTimeout(() => { try { fn(); } catch (e) {} }, ms);
       return { cancel: () => { try { clearTimeout(id); } catch (e) {} } };
     },
-    /* 接手时要不要先留着上一任：只有需要在自己文档里从头挂 bundle 的原生流才需要。 */
-    wantsHandoverHold: () => MOBILE_NATIVE_FLOW,
-    isPainted: () => (MOBILE_NATIVE_FLOW
-      ? (!!mobileNativeRoot && !mobileNativeRoot.hidden && nativeHudPainted())
-      : !!active),
-    /* 把这一层彻底放掉：文档导航成 about:blank，DOM / JS / module 一次性全交回浏览器。
-       只有原生流用得到，而且只作用在既不是 owner、也不在交接队列里的老楼层上
-       （manager.noteMounted 里挑人）。
+    wantsHandoverHold: () => false,
+    isPainted: () => !!active,
+  };
 
-       为什么是导航，而不是"删掉根节点了事"：module script 一旦进了本文档的 module map 就
-       不会再执行，所以拆了 DOM 就没法在同一个文档里重新挂 —— 那等于把偶发黑屏做成必然。
-       导航掉之后 pagehide 会把这一层从候选里摘掉，选举自然跳过它；折叠高度是写在 iframe
-       元素的 inline style 上的（!important），跟着元素而不是文档，所以导航后仍然是 0 高。 */
-    release: () => {
-      if (!MOBILE_NATIVE_FLOW || destroyed) return false;
-      if (manager.owner?.id === INSTANCE_ID || manager.retiring?.id === INSTANCE_ID) return false;
-      try { uninstall(); } catch (e) {}
-      try { location.replace('about:blank'); } catch (e) {}
-      return true;
-    },
-  });
+  if (MOBILE_NATIVE_FLOW) {
+    /* 关键路径：每个 TT 移动端楼层独立、同步激活。没有 register/elect、没有上一任交接、
+       没有 KEEP_MOUNTED/about:blank 回收；网络请求从本次壳层执行的当前调用栈立即开始。 */
+    controllerRecord = controller;
+    activate(manager.context());
+  } else {
+    controllerRecord = manager.register(controller);
+  }
 
 })();
