@@ -788,7 +788,7 @@
     const bookName = await customMapBookName(helper);
     if (!bookName) return { synced: false, uid: null };
     const rows = await readCustomMapEntries(helper, bookName);
-    const existing = rows.find(entry => String(entry?.name || '').trim() === `\u73a9\u5bb6\u5730\u70b9 - ${node.name}`);
+    const existing = rows.find(entry => String(entry?.name ?? entry?.comment ?? entry?.title ?? '').trim() === `\u73a9\u5bb6\u5730\u70b9 - ${node.name}`);
     const payload = customMapWorldbookPayload(node);
     if (existing && typeof helper.updateWorldbookWith === 'function') {
       await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
@@ -814,6 +814,7 @@
     const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
     const nodes = mvuData?.stat_data?.['\u7cfb\u7edf\u914d\u7f6e']?.['\u5730\u56fe']?.['\u81ea\u5efa\u8282\u70b9'];
     const prefix = '\u73a9\u5bb6\u5730\u70b9 - ';
+    const entryTitle = entry => String(entry?.name ?? entry?.comment ?? entry?.title ?? '').trim();
     const currentNames = new Set(Object.values(nodes || {}).map(row => String(row?.['\u540d\u79f0'] || '').trim()).filter(Boolean));
     const helper = customMapHelper();
     if (!helper) throw new Error('TavernHelper worldbook API not found');
@@ -827,7 +828,7 @@
     const keep = [];
     let removed = 0;
     for (const entry of rows) {
-      const name = String(entry?.name || '').trim();
+      const name = entryTitle(entry);
       if (!name.startsWith(prefix)) {
         keep.push(entry);
         continue;
