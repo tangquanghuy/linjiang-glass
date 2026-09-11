@@ -268,7 +268,7 @@ const OPENINGS=[
    璃亚梦 同格式，生成和写入照 参考/底部状态栏.html 的 人物详情生成 那一套。 */
 const ARCHIVE_KEY='linjiang-opening-streamer-archives-v1';
 const ARCHIVE_ART_MAX=1536*1024;
-const WORKSHOP_URL=(new URLSearchParams(location.search).get('workshop')||'https://linjiang-workshop.example.workers.dev/?embed=1').replace(/\/$/,'');
+const WORKSHOP_URL=(new URLSearchParams(location.search).get('workshop')||'https://workshop.rown.dpdns.org/?embed=1').replace(/\/$/,'');
 const WORKSHOP_SELECT_ORIGIN=(()=>{try{return new URL(WORKSHOP_URL).origin}catch(_){return''}})();
 const state={step:1,gender:'男性',home:null,job:JOBS[0],mapTarget:'player',oshi:[],openingId:'opening-1',customOpeningText:'',openingTargetSignature:'',openingTarget:null,customs:[],activeCustomId:null,archives:[],archiveOpen:false,categories:new Set(['杂谈']),yaml:'',art:{type:'',src:''},streamerHome:null,streamerTheme:'',partArt:{oral:'',chest:'',vagina:'',anus:''},workshopAuthor:'',workshopItemId:''};
 const $=s=>document.querySelector(s);
