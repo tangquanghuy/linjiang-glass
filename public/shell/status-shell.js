@@ -817,13 +817,16 @@
     const entryTitle = entry => String(entry?.name ?? entry?.comment ?? entry?.title ?? '').trim();
     const currentNames = new Set(Object.values(nodes || {}).map(row => String(row?.['\u540d\u79f0'] || '').trim()).filter(Boolean));
     const helper = customMapHelper();
+    console.info('[linjiang-map-worldbook] clean:start', { currentNames: [...currentNames], mvuReady: !!mvuState.ready, helperMethods: helper ? Object.keys(helper).filter(key => /Worldbook|Lorebook|getChar|getOrCreate/i.test(key)) : [] });
     if (!helper) throw new Error('TavernHelper worldbook API not found');
     const bookName = await customMapBookName(helper);
     if (!bookName) throw new Error('current worldbook not found');
+    console.info('[linjiang-map-worldbook] clean:book', { bookName, hasUpdateWorldbookWith: typeof helper.updateWorldbookWith === 'function', hasGetWorldbook: typeof helper.getWorldbook === 'function', hasGetLorebookEntries: typeof helper.getLorebookEntries === 'function' });
     if (typeof helper.updateWorldbookWith !== 'function') {
       throw new Error('TavernHelper.updateWorldbookWith is required for deletion');
     }
     const rows = await readCustomMapEntries(helper, bookName);
+    console.info('[linjiang-map-worldbook] clean:entries', { count: rows.length, titles: rows.map(entry => ({ name: entry?.name, comment: entry?.comment, title: entry?.title, uid: entry?.uid })) });
     const seenCurrent = new Set();
     const keep = [];
     let removed = 0;
@@ -841,7 +844,12 @@
       seenCurrent.add(nodeName);
       keep.push(entry);
     }
-    if (removed) await helper.updateWorldbookWith(bookName, () => keep);
+    console.info('[linjiang-map-worldbook] clean:plan', { removed, removeTitles: rows.filter(entry => !keep.includes(entry)).map(entry => ({ name: entry?.name, comment: entry?.comment, title: entry?.title, uid: entry?.uid })), keepCount: keep.length });
+    if (removed) {
+      await helper.updateWorldbookWith(bookName, () => keep);
+      const afterRows = await readCustomMapEntries(helper, bookName);
+      console.info('[linjiang-map-worldbook] clean:after-delete', { count: afterRows.length, titles: afterRows.map(entry => ({ name: entry?.name, comment: entry?.comment, title: entry?.title, uid: entry?.uid })) });
+    }
     let added = 0;
     for (const [id, row] of Object.entries(nodes || {})) {
       const node = {
@@ -855,6 +863,7 @@
       await syncCustomMapWorldbook(node);
       added += 1;
     }
+    console.info('[linjiang-map-worldbook] clean:done', { removed, added });
     return { ok: true, removed, added };
   };
   const removeCustomMapWorldbook = async (id) => {
