@@ -376,7 +376,29 @@ function workshopPackageFromCustom(raw){var d=normalizeCustom(raw),cover=/^https
 function exportWorkshopPackage(raw){var pkg=workshopPackageFromCustom(raw),blob=new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(pkg.title||'streamer')+'-streamer.json';a.click();setTimeout(function(){URL.revokeObjectURL(url)},1000)}
 function closeWorkshopPicker(){var box=$('#workshop-picker');if(box)box.remove()}
 function importWorkshopPackage(pkg){if(!pkg||pkg.itemType!=='streamer'||!pkg.data)throw new Error('\u4e0d\u662f\u6709\u6548\u7684\u4e3b\u64ad\u4f5c\u54c1\u5305');var d=pkg.data,c=normalizeCustom({id:customId(),name:d.name||pkg.title,handle:d.handle,age:d.age,home:d.home,homeData:d.homeData,categories:d.categories||pkg.tags,tier:d.tier,hoursStart:d.hoursStart,hoursEnd:d.hoursEnd,hours:d.hours,tone:d.tone,seed:d.seed,medal:d.medal,theme:d.theme,yaml:d.profileYaml||d.yaml,assets:d.assets,authorName:pkg.authorName,workshopAuthor:pkg.authorName,workshopItemId:pkg.workshop?.itemId});if(!c.name||!c.handle||!c.yaml)throw new Error('\u4e3b\u64ad\u4f5c\u54c1\u5305\u8d44\u6599\u4e0d\u5b8c\u6574');var existing=state.customs.find(function(x){return x.name===c.name});if(existing)c.id=existing.id;var index=state.customs.findIndex(function(x){return x.id===c.id});if(index>=0)state.customs[index]=c;else state.customs.push(c);var archiveIndex=state.archives.findIndex(function(x){return x.name===c.name});if(archiveIndex>=0){c.id=state.archives[archiveIndex].id;state.archives[archiveIndex]=c}else state.archives.push(c);persistArchives();loadCustomEditor(c);closeWorkshopPicker();toast('\u5df2\u4ece\u521b\u610f\u5de5\u574a\u5bfc\u5165\uff1a'+c.name)}
-function openWorkshopPicker(){if($('#workshop-picker'))return;var box=document.createElement('div');box.id='workshop-picker';box.style.cssText='position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:22px;background:rgba(5,7,18,.78);backdrop-filter:blur(12px)';box.innerHTML='<div style="position:relative;width:min(1380px,100%);height:min(860px,calc(100vh - 44px));overflow:hidden;border:1px solid rgba(239,242,255,.38);border-radius:26px;background:#0d122a;box-shadow:0 35px 110px rgba(0,0,0,.56)"><button type="button" id="workshop-picker-close" style="position:absolute;right:12px;top:12px;z-index:2;width:38px;height:38px;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:rgba(7,11,29,.82);color:#fff;font-size:22px;cursor:pointer">?</button><iframe title="\u4e34\u6c5f\u521b\u610f\u5de5\u574a" style="width:100%;height:100%;border:0" allow="clipboard-read; clipboard-write"></iframe></div>';document.body.appendChild(box);var frame=box.querySelector('iframe'),url=WORKSHOP_URL+(WORKSHOP_URL.includes('?')?'&':'?')+'mode=select-streamer';frame.src=url;box.querySelector('#workshop-picker-close').onclick=closeWorkshopPicker;box.addEventListener('click',function(e){if(e.target===box)closeWorkshopPicker()});function onMessage(e){var d=e.data;if(!frame||e.source!==frame.contentWindow||!d||d.channel!=='linjiang-workshop:select'||d.kind!=='event'||d.type!=='package')return;if(WORKSHOP_SELECT_ORIGIN&&e.origin!==WORKSHOP_SELECT_ORIGIN)return;try{importWorkshopPackage(d.package)}catch(error){toast(error?.message||String(error))}}addEventListener('message',onMessage);box._cleanup=function(){removeEventListener('message',onMessage)};var oldRemove=box.remove.bind(box);box.remove=function(){box._cleanup?.();oldRemove()}}
+function openWorkshopPicker(){
+  if($('#workshop-picker'))return;
+  var box=document.createElement('div');
+  box.id='workshop-picker';
+  box.style.cssText='position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:22px;background:rgba(5,7,18,.78);backdrop-filter:blur(12px)';
+  box.innerHTML='<div style="position:relative;width:min(1380px,100%);height:min(860px,calc(100vh - 44px));overflow:hidden;border:1px solid rgba(239,242,255,.38);border-radius:26px;background:#0d122a;box-shadow:0 35px 110px rgba(0,0,0,.56)"><button type="button" id="workshop-picker-close" aria-label="\u5173\u95ed\u521b\u610f\u5de5\u574a" title="\u5173\u95ed" style="position:absolute;right:14px;top:14px;z-index:4;width:42px;height:42px;border:1px solid rgba(255,255,255,.42);border-radius:50%;background:rgba(7,11,29,.9);color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35)">\u00d7</button><iframe title="\u4e34\u6c5f\u521b\u610f\u5de5\u574a" style="position:relative;z-index:1;width:100%;height:100%;border:0;background:#0d122a" allow="clipboard-read; clipboard-write"></iframe></div>';
+  document.body.appendChild(box);
+  var frame=box.querySelector('iframe'),url=WORKSHOP_URL+(WORKSHOP_URL.includes('?')?'&':'?')+'mode=select-streamer';
+  frame.src=url;
+  box.querySelector('#workshop-picker-close').onclick=closeWorkshopPicker;
+  box.addEventListener('click',function(e){if(e.target===box)closeWorkshopPicker()});
+  function onMessage(e){
+    var d=e.data;
+    if(!frame||e.source!==frame.contentWindow||!d||d.channel!=='linjiang-workshop:select'||d.kind!=='event'||d.type!=='package')return;
+    if(WORKSHOP_SELECT_ORIGIN&&e.origin!==WORKSHOP_SELECT_ORIGIN)return;
+    try{importWorkshopPackage(d.package)}catch(error){toast(error?.message||String(error))}
+  }
+  addEventListener('message',onMessage);
+  box._cleanup=function(){removeEventListener('message',onMessage)};
+  var oldRemove=box.remove.bind(box);
+  box.remove=function(){box._cleanup?.();oldRemove()}
+}
+
 function guardText(s){var extra=[];if(s.admirals)extra.push('提督 '+s.admirals);if(s.governors)extra.push('总督 '+s.governors);
   return s.guards.toLocaleString('en-US')+(extra.length?'（+'+extra.join(' / ')+'）':'')}
 function renderScale(){var s=streamScale($('#streamer-tier').value);
