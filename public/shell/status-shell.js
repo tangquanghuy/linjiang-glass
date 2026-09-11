@@ -810,31 +810,48 @@
   };
 
   const cleanCustomMapWorldbook = async () => {
-    if (!mvuState.ready && !mvuState.check()) return { ok: false, removed: 0, reason: 'mvu-not-ready' };
+    if (!mvuState.ready && !mvuState.check()) return { ok: false, removed: 0, added: 0, reason: 'mvu-not-ready' };
     const mvuData = mvuState.mvu.getMvuData({ type: 'message', message_id: 'latest' });
     const nodes = mvuData?.stat_data?.['\u7cfb\u7edf\u914d\u7f6e']?.['\u5730\u56fe']?.['\u81ea\u5efa\u8282\u70b9'];
     const currentIds = new Set(nodes && typeof nodes === 'object' ? Object.keys(nodes) : []);
     const helper = customMapHelper();
-    if (!helper) return { ok: false, removed: 0, reason: 'helper-not-found' };
+    if (!helper) return { ok: false, removed: 0, added: 0, reason: 'helper-not-found' };
     const bookName = await customMapBookName(helper);
-    if (!bookName) return { ok: false, removed: 0, reason: 'worldbook-not-found' };
+    if (!bookName) return { ok: false, removed: 0, added: 0, reason: 'worldbook-not-found' };
     const rows = await readCustomMapEntries(helper, bookName);
     const stale = rows.filter((entry) => {
       const id = String(entry?.extra?.linjiangCustomMapNode?.id || '').trim();
       return id && !currentIds.has(id);
     });
-    if (!stale.length) return { ok: true, removed: 0 };
-    if (typeof helper.updateWorldbookWith === 'function') {
-      await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
-        .filter(entry => !stale.some(row => row?.uid === entry?.uid)));
-    } else if (typeof helper.setLorebookEntries === 'function') {
-      await helper.setLorebookEntries(bookName, stale.map(entry => ({
-        ...entry, enabled: false, keys: [], key: [], content: '',
-      })));
-    } else {
-      return { ok: false, removed: 0, reason: 'write-api-not-found' };
+    if (stale.length) {
+      if (typeof helper.updateWorldbookWith === 'function') {
+        await helper.updateWorldbookWith(bookName, list => (Array.isArray(list) ? list : [])
+          .filter(entry => !stale.some(row => row?.uid === entry?.uid)));
+      } else if (typeof helper.setLorebookEntries === 'function') {
+        await helper.setLorebookEntries(bookName, stale.map(entry => ({
+          ...entry, enabled: false, keys: [], key: [], content: '',
+        })));
+      } else {
+        return { ok: false, removed: 0, added: 0, reason: 'write-api-not-found' };
+      }
     }
-    return { ok: true, removed: stale.length };
+    /* Rebuild the current chat's entries after pruning. This matters when the selected
+       worldbook is shared: switching chats must not leave the new chat without its own
+       entries after the old chat's stale rows are removed. */
+    let added = 0;
+    for (const [id, row] of Object.entries(nodes || {})) {
+      const node = {
+        id, name: String(row?.['\u540d\u79f0'] || '').trim(), aliases: Array.isArray(row?.['\u522b\u540d']) ? row['\u522b\u540d'] : [],
+        district: String(row?.['\u533a\u57df'] || '').trim(), archetype: String(row?.['\u7c7b\u578b'] || 'living').trim() || 'living', privacy: Number(row?.['\u79c1\u5bc6\u5ea6'] || 0),
+        openHours: Array.isArray(row?.['\u5f00\u653e\u65f6\u6bb5']) ? row['\u5f00\u653e\u65f6\u6bb5'] : [], intro: String(row?.['\u7b80\u4ecb'] || ''), draw: String(row?.['\u770b\u70b9'] || ''), special: Array.isArray(row?.['\u7279\u6b8a']) ? row['\u7279\u6b8a'] : [],
+        features: { canDate: !!row?.['\u529f\u80fd']?.['\u53ef\u7ea6\u4f1a'], canGather: !!row?.['\u529f\u80fd']?.['\u53ef\u91c7\u96c6'], canWork: !!row?.['\u529f\u80fd']?.['\u53ef\u5de5\u4f5c'], hasShop: !!row?.['\u529f\u80fd']?.['\u6709\u5546\u5e97'] },
+        anchorName: String(row?.['\u9529\u70b9\u540d\u79f0'] || row?.['\u9529\u70b9'] || '').trim(), accessKm: Number(row?.['\u63a5\u9a73\u8ddd\u79bb'] || 0),
+      };
+      if (!node.name) continue;
+      await syncCustomMapWorldbook(node);
+      added += 1;
+    }
+    return { ok: true, removed: stale.length, added };
   };
 
   const removeCustomMapWorldbook = async (id) => {
