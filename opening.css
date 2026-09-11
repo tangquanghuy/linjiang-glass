@@ -986,6 +986,8 @@ body.confirm-step .book-entry pre{flex:1 1 auto;min-height:0;max-height:none}
 .archive-item>button:first-child{flex:1 1 auto;min-width:0}
 .archive-item>button:last-child{flex:0 0 auto;padding:0 10px;border:0;border-left:1px solid rgba(235,239,255,.09);background:transparent;color:rgba(238,235,249,.42);font-size:9px;cursor:pointer}
 .archive-item>button:last-child:hover{color:#ffc5d8;background:rgba(255,112,153,.09)}
+.custom-export,.archive-export{flex:0 0 auto;padding:0 9px;border:0;border-left:1px solid rgba(235,239,255,.09);background:transparent;color:rgba(184,222,255,.62);font-size:9px;cursor:pointer}
+.custom-export:hover,.archive-export:hover{color:#fff;background:rgba(131,201,255,.12)}
 .generate-row{flex-wrap:wrap}
 .generate-row #save-custom:disabled{opacity:.45;cursor:default}
 .confirm-grid.confirm-only{grid-template-columns:1fr;max-width:1080px;margin:0 auto}
